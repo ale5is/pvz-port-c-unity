@@ -1,24 +1,11 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 
 /// <summary>
 /// Renderiza una pieza individual de una REANIM.
-/// 
-/// Esta clase recibe un PvZReanimTrack desde PvZReanimRenderer
-/// y se encarga de:
-/// 
-/// - Buscar el frame correspondiente.
-/// - Cargar el sprite desde el PAK.
-/// - Aplicar posición.
-/// - Aplicar escala.
-/// - Aplicar rotación.
-/// - Activar/desactivar el SpriteRenderer.
-/// 
-/// Se utiliza reflexión para tolerar pequeñas diferencias entre
-/// las estructuras de los frames del parser.
+///
+/// Utiliza directamente PvZReanimFrame generado por
+/// PvZReanimParser. No utiliza reflexión.
 /// </summary>
 public class PvZReanimTrackRenderer : MonoBehaviour
 {
@@ -60,6 +47,8 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         if (this.spriteRenderer != null)
         {
             this.spriteRenderer.enabled = false;
+
+            // Los tracks posteriores se dibujan encima.
             this.spriteRenderer.sortingOrder = indiceTrack;
         }
     }
@@ -90,13 +79,16 @@ public class PvZReanimTrackRenderer : MonoBehaviour
             return;
         }
 
-        indiceFrame =
-            Mathf.Clamp(
-                indiceFrame,
-                0,
-                track.frames.Count - 1);
+        // --------------------------------------------------------
+        // CLAMP
+        // --------------------------------------------------------
 
-        object frame =
+        indiceFrame = Mathf.Clamp(
+            indiceFrame,
+            0,
+            track.frames.Count - 1);
+
+        PvZReanimFrame frame =
             track.frames[indiceFrame];
 
         if (frame == null)
@@ -112,10 +104,13 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         // ========================================================
 
         string nombreImagen =
-            ObtenerNombreImagen(frame);
+            frame.image;
 
         if (!string.IsNullOrWhiteSpace(nombreImagen))
         {
+            nombreImagen =
+                nombreImagen.Trim();
+
             if (!string.Equals(
                 ultimaImagen,
                 nombreImagen,
@@ -125,11 +120,9 @@ public class PvZReanimTrackRenderer : MonoBehaviour
                     propietario.ObtenerSprite(
                         nombreImagen);
 
-                spriteRenderer.sprite =
-                    sprite;
+                spriteRenderer.sprite = sprite;
 
-                ultimaImagen =
-                    nombreImagen;
+                ultimaImagen = nombreImagen;
             }
             else if (spriteRenderer.sprite == null)
             {
@@ -141,26 +134,14 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         else
         {
             spriteRenderer.sprite = null;
+            ultimaImagen = null;
         }
 
         // ========================================================
         // VISIBILIDAD
         // ========================================================
 
-        bool visible =
-            ObtenerBool(
-                frame,
-                true,
-                "visible",
-                "Visible",
-                "mVisible",
-                "activo",
-                "Activo",
-                "enabled",
-                "Enabled");
-
         spriteRenderer.enabled =
-            visible &&
             spriteRenderer.sprite != null;
 
         // ========================================================
@@ -168,76 +149,10 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         // ========================================================
 
         float x =
-            ObtenerFloat(
-                frame,
-                0f,
-                "x",
-                "X",
-                "posX",
-                "PosX",
-                "positionX",
-                "PositionX",
-                "mX");
+            frame.x;
 
         float y =
-            ObtenerFloat(
-                frame,
-                0f,
-                "y",
-                "Y",
-                "posY",
-                "PosY",
-                "positionY",
-                "PositionY",
-                "mY");
-
-        // ========================================================
-        // ESCALA
-        // ========================================================
-
-        float escalaX =
-            ObtenerFloat(
-                frame,
-                1f,
-                "scaleX",
-                "ScaleX",
-                "escalaX",
-                "EscalaX",
-                "sx",
-                "SX",
-                "mScaleX");
-
-        float escalaY =
-            ObtenerFloat(
-                frame,
-                1f,
-                "scaleY",
-                "ScaleY",
-                "escalaY",
-                "EscalaY",
-                "sy",
-                "SY",
-                "mScaleY");
-
-        // ========================================================
-        // ROTACIÓN
-        // ========================================================
-
-        float rotacion =
-            ObtenerFloat(
-                frame,
-                0f,
-                "rotation",
-                "Rotation",
-                "rotacion",
-                "Rotacion",
-                "angle",
-                "Angle",
-                "mRotation");
-
-        // ========================================================
-        // APLICAR TRANSFORMACIÓN
-        // ========================================================
+            frame.y;
 
         transform.localPosition =
             new Vector3(
@@ -245,319 +160,43 @@ public class PvZReanimTrackRenderer : MonoBehaviour
                 -y * escala,
                 0f);
 
-        transform.localRotation =
-            Quaternion.Euler(
-                0f,
-                0f,
-                -rotacion);
+        // ========================================================
+        // ESCALA
+        // ========================================================
+
+        float escalaX =
+            frame.sx;
+
+        float escalaY =
+            frame.sy;
+
+        // Algunos REANIM pueden dejar los valores en cero
+        // cuando no existe una transformación explícita.
+        if (escalaX == 0f)
+        {
+            escalaX = 1f;
+        }
+
+        if (escalaY == 0f)
+        {
+            escalaY = 1f;
+        }
 
         transform.localScale =
             new Vector3(
                 escalaX,
                 escalaY,
                 1f);
-    }
 
-    // ============================================================
-    // OBTENER NOMBRE DE IMAGEN
-    // ============================================================
+        // ========================================================
+        // ROTACIÓN
+        // ========================================================
 
-    private string ObtenerNombreImagen(
-        object frame)
-    {
-        if (frame == null)
-        {
-            return null;
-        }
-
-        // --------------------------------------------------------
-        // Strings directos
-        // --------------------------------------------------------
-
-        string[] nombres =
-        {
-            "image",
-            "Image",
-            "imagen",
-            "Imagen",
-            "imageName",
-            "ImageName",
-            "nombreImagen",
-            "NombreImagen",
-            "sprite",
-            "Sprite",
-            "spriteName",
-            "SpriteName",
-            "resource",
-            "Resource",
-            "resourceName",
-            "ResourceName",
-            "mImage",
-            "mImageName"
-        };
-
-        foreach (string nombre in nombres)
-        {
-            object valor =
-                ObtenerValor(
-                    frame,
-                    nombre);
-
-            if (valor == null)
-            {
-                continue;
-            }
-
-            if (valor is string texto)
-            {
-                if (!string.IsNullOrWhiteSpace(texto))
-                {
-                    return texto.Trim();
-                }
-            }
-        }
-
-        // --------------------------------------------------------
-        // Si el frame contiene un objeto de imagen
-        // --------------------------------------------------------
-
-        string[] objetos =
-        {
-            "image",
-            "Image",
-            "imagen",
-            "Imagen",
-            "sprite",
-            "Sprite"
-        };
-
-        foreach (string nombre in objetos)
-        {
-            object objeto =
-                ObtenerValor(
-                    frame,
-                    nombre);
-
-            if (objeto == null ||
-                objeto is string)
-            {
-                continue;
-            }
-
-            string resultado =
-                BuscarNombreEnObjeto(
-                    objeto);
-
-            if (!string.IsNullOrWhiteSpace(
-                resultado))
-            {
-                return resultado;
-            }
-        }
-
-        return null;
-    }
-
-    // ============================================================
-    // BUSCAR NOMBRE DENTRO DE OBJETO
-    // ============================================================
-
-    private string BuscarNombreEnObjeto(
-        object objeto)
-    {
-        string[] nombres =
-        {
-            "name",
-            "Name",
-            "nombre",
-            "Nombre",
-            "imageName",
-            "ImageName",
-            "nombreImagen",
-            "NombreImagen",
-            "resourceName",
-            "ResourceName",
-            "mName",
-            "mImageName"
-        };
-
-        foreach (string nombre in nombres)
-        {
-            object valor =
-                ObtenerValor(
-                    objeto,
-                    nombre);
-
-            if (valor is string texto &&
-                !string.IsNullOrWhiteSpace(texto))
-            {
-                return texto.Trim();
-            }
-        }
-
-        return null;
-    }
-
-    // ============================================================
-    // OBTENER VALOR
-    // ============================================================
-
-    private object ObtenerValor(
-        object objeto,
-        string nombre)
-    {
-        if (objeto == null)
-        {
-            return null;
-        }
-
-        Type tipo =
-            objeto.GetType();
-
-        BindingFlags flags =
-            BindingFlags.Instance |
-            BindingFlags.Public |
-            BindingFlags.NonPublic |
-            BindingFlags.IgnoreCase;
-
-        FieldInfo campo =
-            tipo.GetField(
-                nombre,
-                flags);
-
-        if (campo != null)
-        {
-            try
-            {
-                return campo.GetValue(
-                    objeto);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        PropertyInfo propiedad =
-            tipo.GetProperty(
-                nombre,
-                flags);
-
-        if (propiedad != null &&
-            propiedad.CanRead)
-        {
-            try
-            {
-                return propiedad.GetValue(
-                    objeto);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        return null;
-    }
-
-    // ============================================================
-    // FLOAT
-    // ============================================================
-
-    private float ObtenerFloat(
-        object objeto,
-        float valorPorDefecto,
-        params string[] nombres)
-    {
-        foreach (string nombre in nombres)
-        {
-            object valor =
-                ObtenerValor(
-                    objeto,
-                    nombre);
-
-            if (valor == null)
-            {
-                continue;
-            }
-
-            try
-            {
-                if (valor is float f)
-                {
-                    return f;
-                }
-
-                if (valor is double d)
-                {
-                    return (float)d;
-                }
-
-                if (valor is int i)
-                {
-                    return i;
-                }
-
-                if (valor is long l)
-                {
-                    return l;
-                }
-
-                if (valor is decimal dec)
-                {
-                    return (float)dec;
-                }
-
-                return Convert.ToSingle(
-                    valor);
-            }
-            catch
-            {
-                // Continuar buscando otro nombre.
-            }
-        }
-
-        return valorPorDefecto;
-    }
-
-    // ============================================================
-    // BOOL
-    // ============================================================
-
-    private bool ObtenerBool(
-        object objeto,
-        bool valorPorDefecto,
-        params string[] nombres)
-    {
-        foreach (string nombre in nombres)
-        {
-            object valor =
-                ObtenerValor(
-                    objeto,
-                    nombre);
-
-            if (valor == null)
-            {
-                continue;
-            }
-
-            try
-            {
-                if (valor is bool b)
-                {
-                    return b;
-                }
-
-                return Convert.ToBoolean(
-                    valor);
-            }
-            catch
-            {
-                // Continuar buscando.
-            }
-        }
-
-        return valorPorDefecto;
+        transform.localRotation =
+            Quaternion.Euler(
+                0f,
+                0f,
+                -frame.f);
     }
 
     // ============================================================
@@ -589,6 +228,7 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         ultimaImagen = null;
 
         inicializado = false;
+
         ultimoFrame = -1;
     }
 }
