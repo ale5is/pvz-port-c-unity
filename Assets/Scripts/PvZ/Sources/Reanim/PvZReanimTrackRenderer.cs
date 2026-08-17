@@ -6,6 +6,9 @@ using UnityEngine;
 ///
 /// Utiliza directamente PvZReanimFrame generado por
 /// PvZReanimParser. No utiliza reflexión.
+///
+/// Incluye DEBUG temporal para analizar los primeros
+/// frames del REANIM.
 /// </summary>
 public class PvZReanimTrackRenderer : MonoBehaviour
 {
@@ -120,9 +123,11 @@ public class PvZReanimTrackRenderer : MonoBehaviour
                     propietario.ObtenerSprite(
                         nombreImagen);
 
-                spriteRenderer.sprite = sprite;
+                spriteRenderer.sprite =
+                    sprite;
 
-                ultimaImagen = nombreImagen;
+                ultimaImagen =
+                    nombreImagen;
             }
             else if (spriteRenderer.sprite == null)
             {
@@ -161,6 +166,42 @@ public class PvZReanimTrackRenderer : MonoBehaviour
                 0f);
 
         // ========================================================
+        // DEBUG TEMPORAL
+        // ========================================================
+        //
+        // Solamente mostramos los primeros 6 frames
+        // del Track 0.
+        //
+        // Esto permite comprobar qué está leyendo
+        // realmente el parser.
+        //
+
+        if (indiceTrack == 0 &&
+            indiceFrame <= 5)
+        {
+            Debug.Log(
+                "[PvZ DEBUG FRAME] " +
+                "Track=" +
+                indiceTrack +
+                " | " +
+                track.name +
+                " | Frame=" +
+                indiceFrame +
+                " | X=" +
+                frame.x +
+                " Y=" +
+                frame.y +
+                " SX=" +
+                frame.sx +
+                " SY=" +
+                frame.sy +
+                " F=" +
+                frame.f +
+                " | IMG=" +
+                frame.image);
+        }
+
+        // ========================================================
         // ESCALA
         // ========================================================
 
@@ -170,8 +211,10 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         float escalaY =
             frame.sy;
 
-        // Algunos REANIM pueden dejar los valores en cero
-        // cuando no existe una transformación explícita.
+        // Algunos REANIM pueden dejar los valores
+        // en cero cuando no existe una transformación
+        // explícita.
+
         if (escalaX == 0f)
         {
             escalaX = 1f;
@@ -222,7 +265,9 @@ public class PvZReanimTrackRenderer : MonoBehaviour
     private void OnDestroy()
     {
         propietario = null;
+
         track = null;
+
         spriteRenderer = null;
 
         ultimaImagen = null;

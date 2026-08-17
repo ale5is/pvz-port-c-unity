@@ -14,7 +14,7 @@ public class PvZReanimData
 }
 
 /// <summary>
-/// Una pieza del REANIM.
+/// Una pieza individual del REANIM.
 /// </summary>
 [Serializable]
 public class PvZReanimTrack
@@ -31,16 +31,23 @@ public class PvZReanimTrack
 [Serializable]
 public class PvZReanimFrame
 {
+    // Posición REANIM.
     public float x;
     public float y;
 
+    // Escala REANIM.
     public float sx = 1f;
     public float sy = 1f;
 
-    public int f = -1;
+    // Rotación REANIM.
+    // Se conserva como float para no perder precisión.
+    public float f;
 
+    // Imagen utilizada por este frame.
     public string image;
 
+    // Indica si el frame contenía alguna
+    // transformación explícita.
     public bool tieneTransformacion;
 
     public bool TieneImagen

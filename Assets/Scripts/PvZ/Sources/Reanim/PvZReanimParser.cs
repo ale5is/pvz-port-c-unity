@@ -41,7 +41,6 @@ public static class PvZReanimParser
             new XmlDocument();
 
         documento.PreserveWhitespace = true;
-
         documento.LoadXml(xml);
 
         XmlElement raiz =
@@ -115,14 +114,16 @@ public static class PvZReanimParser
                 trackNode.SelectNodes("t");
 
             PvZReanimFrame estadoAnterior =
-                new PvZReanimFrame();
-
-            estadoAnterior.x = 0f;
-            estadoAnterior.y = 0f;
-            estadoAnterior.sx = 1f;
-            estadoAnterior.sy = 1f;
-            estadoAnterior.f = -1;
-            estadoAnterior.image = null;
+                new PvZReanimFrame
+                {
+                    x = 0f,
+                    y = 0f,
+                    sx = 1f,
+                    sy = 1f,
+                    f = 0f,
+                    image = null,
+                    tieneTransformacion = false
+                };
 
             if (frameNodes != null)
             {
@@ -163,7 +164,11 @@ public static class PvZReanimParser
         PvZReanimFrame frame =
             anterior != null
                 ? anterior.Copiar()
-                : new PvZReanimFrame();
+                : new PvZReanimFrame
+                {
+                    sx = 1f,
+                    sy = 1f
+                };
 
         if (frame.sx == 0f)
         {
@@ -269,13 +274,10 @@ public static class PvZReanimParser
 
         if (nodo != null)
         {
-            float valor =
+            frame.f =
                 LeerFloat(
                     nodo.InnerText,
                     frame.f);
-
-            frame.f =
-                MathfRoundToInt(valor);
 
             frame.tieneTransformacion = true;
         }
@@ -330,29 +332,13 @@ public static class PvZReanimParser
     }
 
     // ============================================================
-    // INT
-    // ============================================================
-
-    private static int MathfRoundToInt(float valor)
-    {
-        return (int)Math.Round(
-            valor,
-            MidpointRounding.AwayFromZero);
-    }
-
-    // ============================================================
     // PREPARAR XML
     // ============================================================
 
     private static string PrepararXml(
         string xml)
     {
-        xml =
-            xml.Trim();
-
-        // --------------------------------------------------------
-        // Declaración XML
-        // --------------------------------------------------------
+        xml = xml.Trim();
 
         if (xml.StartsWith(
             "<?xml",
@@ -366,17 +352,11 @@ public static class PvZReanimParser
             if (fin >= 0)
             {
                 xml =
-                    xml.Substring(
-                        fin + 2);
+                    xml.Substring(fin + 2);
             }
         }
 
-        xml =
-            xml.Trim();
-
-        // --------------------------------------------------------
-        // Ya tiene raíz
-        // --------------------------------------------------------
+        xml = xml.Trim();
 
         if (xml.StartsWith(
             "<reanim",
@@ -384,10 +364,6 @@ public static class PvZReanimParser
         {
             return xml;
         }
-
-        // --------------------------------------------------------
-        // Crear raíz artificial
-        // --------------------------------------------------------
 
         return
             "<reanim>\n" +
