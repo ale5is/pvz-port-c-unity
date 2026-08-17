@@ -4,19 +4,13 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Renderer genérico para animaciones REANIM de Plants vs. Zombies.
-///
-/// Lee un PvZReanimData y crea un GameObject por cada track.
-/// Cada track utiliza un SpriteRenderer.
-///
-/// Los REANIM y las imágenes se leen directamente
-/// desde el PAK mediante PvZResourceManager.
+/// Renderer principal de REANIM.
 /// </summary>
 public class PvZReanimRenderer : MonoBehaviour
 {
-    // =============================================================
+    // ============================================================
     // CONFIGURACIÓN
-    // =============================================================
+    // ============================================================
 
     [Header("REANIM")]
     [SerializeField]
@@ -25,27 +19,32 @@ public class PvZReanimRenderer : MonoBehaviour
 
     [Header("Escala")]
     [SerializeField]
-    private float escala = 0.01f;
+    private float escala =
+        0.01f;
 
     [Header("Velocidad")]
     [SerializeField]
-    private float multiplicadorVelocidad = 1f;
+    private float multiplicadorVelocidad =
+        1f;
 
     [Header("Animación")]
     [SerializeField]
-    private bool reproducirAutomaticamente = true;
+    private bool reproducirAutomaticamente =
+        true;
 
     [Header("Debug")]
     [SerializeField]
-    private bool mostrarDebug = true;
+    private bool mostrarDebug =
+        true;
 
-
-    // =============================================================
+    // ============================================================
     // DATOS
-    // =============================================================
+    // ============================================================
 
     private PvZReanimData reanim;
 
+    // IMPORTANTE:
+    // Siempre UnityEngine.GameObject.
     private UnityEngine.GameObject raiz;
 
     private readonly Dictionary<string, Sprite> sprites =
@@ -63,17 +62,12 @@ public class PvZReanimRenderer : MonoBehaviour
 
     private bool listo;
 
-
-    // =============================================================
+    // ============================================================
     // START
-    // =============================================================
+    // ============================================================
 
     private IEnumerator Start()
     {
-        // ---------------------------------------------------------
-        // Esperar a que el ResourceManager esté listo
-        // ---------------------------------------------------------
-
         while (
             PvZResourceManager.Instancia == null ||
             !PvZResourceManager.Instancia.EstaListo)
@@ -84,21 +78,13 @@ public class PvZReanimRenderer : MonoBehaviour
         if (mostrarDebug)
         {
             Debug.Log(
-                "[PvZ ReanimRenderer] ResourceManager listo.");
+                "[PvZ Reanim] ResourceManager listo.");
         }
-
-        // ---------------------------------------------------------
-        // Cargar REANIM
-        // ---------------------------------------------------------
 
         if (!CargarReanim())
         {
             yield break;
         }
-
-        // ---------------------------------------------------------
-        // Crear estructura visual
-        // ---------------------------------------------------------
 
         CrearRenderer();
 
@@ -107,23 +93,22 @@ public class PvZReanimRenderer : MonoBehaviour
         if (mostrarDebug)
         {
             Debug.Log(
-                "[PvZ ReanimRenderer] " +
-                "Renderer creado correctamente.");
+                "[PvZ Reanim] Renderer listo: " +
+                rutaReanim);
         }
     }
 
-
-    // =============================================================
+    // ============================================================
     // CARGAR REANIM
-    // =============================================================
+    // ============================================================
 
     private bool CargarReanim()
     {
-        if (string.IsNullOrWhiteSpace(rutaReanim))
+        if (string.IsNullOrWhiteSpace(
+            rutaReanim))
         {
             Debug.LogError(
-                "[PvZ ReanimRenderer] " +
-                "La ruta REANIM está vacía.");
+                "[PvZ Reanim] Ruta vacía.");
 
             return false;
         }
@@ -131,48 +116,35 @@ public class PvZReanimRenderer : MonoBehaviour
         if (PvZResourceManager.Instancia == null)
         {
             Debug.LogError(
-                "[PvZ ReanimRenderer] " +
-                "PvZResourceManager no existe.");
+                "[PvZ Reanim] ResourceManager no existe.");
 
             return false;
-        }
-
-        if (mostrarDebug)
-        {
-            Debug.Log(
-                "[PvZ ReanimRenderer] " +
-                "Cargando REANIM: " +
-                rutaReanim);
         }
 
         byte[] datos =
             PvZResourceManager.Instancia.Leer(
                 rutaReanim);
 
-        if (datos == null || datos.Length == 0)
+        if (datos == null ||
+            datos.Length == 0)
         {
             Debug.LogError(
-                "[PvZ ReanimRenderer] " +
-                "No se pudo leer: " +
+                "[PvZ Reanim] No se encontró: " +
                 rutaReanim);
 
             return false;
         }
 
-        // ---------------------------------------------------------
-        // Parsear REANIM
-        // ---------------------------------------------------------
-
         try
         {
             reanim =
-                PvZReanimParser.Parse(datos);
+                PvZReanimParser.Parse(
+                    datos);
         }
         catch (Exception e)
         {
             Debug.LogError(
-                "[PvZ ReanimRenderer] " +
-                "Error parseando REANIM:\n" +
+                "[PvZ Reanim] Error parser:\n" +
                 e);
 
             return false;
@@ -181,15 +153,10 @@ public class PvZReanimRenderer : MonoBehaviour
         if (reanim == null)
         {
             Debug.LogError(
-                "[PvZ ReanimRenderer] " +
-                "El parser devolvió null.");
+                "[PvZ Reanim] Parser devolvió null.");
 
             return false;
         }
-
-        // ---------------------------------------------------------
-        // Cantidad de frames
-        // ---------------------------------------------------------
 
         cantidadFrames =
             ObtenerCantidadFrames();
@@ -197,8 +164,7 @@ public class PvZReanimRenderer : MonoBehaviour
         if (mostrarDebug)
         {
             Debug.Log(
-                "[PvZ ReanimRenderer] " +
-                "REANIM cargado. " +
+                "[PvZ Reanim] " +
                 "FPS=" +
                 reanim.fps +
                 " Tracks=" +
@@ -210,14 +176,14 @@ public class PvZReanimRenderer : MonoBehaviour
         return true;
     }
 
-
-    // =============================================================
-    // OBTENER CANTIDAD DE FRAMES
-    // =============================================================
+    // ============================================================
+    // FRAMES
+    // ============================================================
 
     private int ObtenerCantidadFrames()
     {
-        int maximo = 0;
+        int max =
+            0;
 
         if (reanim == null ||
             reanim.tracks == null)
@@ -225,7 +191,9 @@ public class PvZReanimRenderer : MonoBehaviour
             return 0;
         }
 
-        foreach (PvZReanimTrack track in reanim.tracks)
+        foreach (
+            PvZReanimTrack track
+            in reanim.tracks)
         {
             if (track == null ||
                 track.frames == null)
@@ -233,39 +201,33 @@ public class PvZReanimRenderer : MonoBehaviour
                 continue;
             }
 
-            if (track.frames.Count > maximo)
+            if (track.frames.Count > max)
             {
-                maximo =
+                max =
                     track.frames.Count;
             }
         }
 
-        return maximo;
+        return max;
     }
 
-
-    // =============================================================
+    // ============================================================
     // CREAR RENDERER
-    // =============================================================
+    // ============================================================
 
     private void CrearRenderer()
     {
-        // ---------------------------------------------------------
-        // Eliminar renderer anterior
-        // ---------------------------------------------------------
-
         if (raiz != null)
         {
             Destroy(raiz);
+
             raiz = null;
         }
 
         renderTracks.Clear();
 
-        // ---------------------------------------------------------
-        // Crear raíz
-        // ---------------------------------------------------------
-
+        // IMPORTANTE:
+        // UnityEngine.GameObject explícito.
         raiz =
             new UnityEngine.GameObject(
                 "REANIM_" +
@@ -284,63 +246,54 @@ public class PvZReanimRenderer : MonoBehaviour
         raiz.transform.localScale =
             Vector3.one;
 
-        // ---------------------------------------------------------
-        // Comprobar tracks
-        // ---------------------------------------------------------
-
         if (reanim == null ||
             reanim.tracks == null)
         {
             Debug.LogError(
-                "[PvZ ReanimRenderer] " +
-                "No existen tracks.");
+                "[PvZ Reanim] No existen tracks.");
 
             return;
         }
 
-        // ---------------------------------------------------------
-        // Crear cada track
-        // ---------------------------------------------------------
-
-        foreach (PvZReanimTrack track in reanim.tracks)
+        for (
+            int i = 0;
+            i < reanim.tracks.Count;
+            i++)
         {
+            PvZReanimTrack track =
+                reanim.tracks[i];
+
             if (track == null)
             {
                 continue;
             }
 
-            CrearTrack(track);
+            CrearTrack(
+                track,
+                i);
         }
-
-        // ---------------------------------------------------------
-        // Aplicar primer frame
-        // ---------------------------------------------------------
 
         AplicarFrame(0);
     }
 
-
-    // =============================================================
+    // ============================================================
     // CREAR TRACK
-    // =============================================================
+    // ============================================================
 
     private void CrearTrack(
-        PvZReanimTrack track)
+        PvZReanimTrack track,
+        int indice)
     {
         string nombre =
-            string.IsNullOrWhiteSpace(track.name)
-                ? "Track"
+            string.IsNullOrWhiteSpace(
+                track.name)
+                ? "Track_" + indice
                 : track.name;
 
         // IMPORTANTE:
-        // UnityEngine.GameObject explícitamente.
-        //
-        // No usamos Unity.VisualScripting.GameObject.
-        // ---------------------------------------------------------
-
+        // UnityEngine.GameObject explícito.
         UnityEngine.GameObject objeto =
             new UnityEngine.GameObject(
-                "Track_" +
                 nombre);
 
         objeto.transform.SetParent(
@@ -356,24 +309,18 @@ public class PvZReanimRenderer : MonoBehaviour
         objeto.transform.localScale =
             Vector3.one;
 
-        // ---------------------------------------------------------
-        // SpriteRenderer de Unity
-        // ---------------------------------------------------------
-
         SpriteRenderer spriteRenderer =
             objeto.AddComponent<SpriteRenderer>();
 
-        // ---------------------------------------------------------
-        // Renderer del track
-        // ---------------------------------------------------------
-
         PvZReanimTrackRenderer rendererTrack =
-            objeto.AddComponent<PvZReanimTrackRenderer>();
+            objeto.AddComponent<
+                PvZReanimTrackRenderer>();
 
         rendererTrack.Inicializar(
             this,
             track,
-            spriteRenderer);
+            spriteRenderer,
+            indice);
 
         renderTracks.Add(
             rendererTrack);
@@ -381,31 +328,27 @@ public class PvZReanimRenderer : MonoBehaviour
         if (mostrarDebug)
         {
             Debug.Log(
-                "[PvZ ReanimRenderer] " +
-                "Track creado: " +
+                "[PvZ Reanim] Track " +
+                indice +
+                ": " +
                 nombre +
-                " Frames=" +
+                " (" +
                 (
                     track.frames != null
                         ? track.frames.Count
                         : 0
-                ));
+                ) +
+                " frames)");
         }
     }
 
-
-    // =============================================================
+    // ============================================================
     // APLICAR FRAME
-    // =============================================================
+    // ============================================================
 
     private void AplicarFrame(
         int indiceFrame)
     {
-        if (reanim == null)
-        {
-            return;
-        }
-
         if (cantidadFrames <= 0)
         {
             return;
@@ -421,24 +364,25 @@ public class PvZReanimRenderer : MonoBehaviour
             indiceFrame;
 
         foreach (
-            PvZReanimTrackRenderer trackRenderer
+            PvZReanimTrackRenderer track
             in renderTracks)
         {
-            if (trackRenderer == null)
+            if (track == null)
             {
                 continue;
             }
 
-            trackRenderer.AplicarFrame(
+            // IMPORTANTE:
+            // Esta versión utiliza DOS argumentos.
+            track.AplicarFrame(
                 indiceFrame,
                 escala);
         }
     }
 
-
-    // =============================================================
+    // ============================================================
     // UPDATE
-    // =============================================================
+    // ============================================================
 
     private void Update()
     {
@@ -484,25 +428,21 @@ public class PvZReanimRenderer : MonoBehaviour
         }
     }
 
-
-    // =============================================================
-    // OBTENER SPRITE
-    // =============================================================
+    // ============================================================
+    // SPRITE
+    // ============================================================
 
     public Sprite ObtenerSprite(
         string nombreImagen)
     {
-        if (string.IsNullOrWhiteSpace(nombreImagen))
+        if (string.IsNullOrWhiteSpace(
+            nombreImagen))
         {
             return null;
         }
 
         nombreImagen =
             nombreImagen.Trim();
-
-        // ---------------------------------------------------------
-        // CACHE
-        // ---------------------------------------------------------
 
         Sprite sprite;
 
@@ -513,22 +453,13 @@ public class PvZReanimRenderer : MonoBehaviour
             return sprite;
         }
 
-        // ---------------------------------------------------------
-        // ResourceManager
-        // ---------------------------------------------------------
-
         if (PvZResourceManager.Instancia == null)
         {
             Debug.LogError(
-                "[PvZ ReanimRenderer] " +
-                "PvZResourceManager no está disponible.");
+                "[PvZ Reanim] ResourceManager no disponible.");
 
             return null;
         }
-
-        // ---------------------------------------------------------
-        // Convertir nombre REANIM -> ruta PAK
-        // ---------------------------------------------------------
 
         string ruta =
             ConvertirImagenARuta(
@@ -537,16 +468,11 @@ public class PvZReanimRenderer : MonoBehaviour
         if (mostrarDebug)
         {
             Debug.Log(
-                "[PvZ ReanimRenderer] " +
-                "Imagen: " +
+                "[PvZ Reanim] Imagen: " +
                 nombreImagen +
                 " -> " +
                 ruta);
         }
-
-        // ---------------------------------------------------------
-        // Leer imagen desde PAK
-        // ---------------------------------------------------------
 
         byte[] datos =
             PvZResourceManager.Instancia.Leer(
@@ -556,18 +482,11 @@ public class PvZReanimRenderer : MonoBehaviour
             datos.Length == 0)
         {
             Debug.LogWarning(
-                "[PvZ ReanimRenderer] " +
-                "No se encontró imagen: " +
-                nombreImagen +
-                " -> " +
+                "[PvZ Reanim] Imagen no encontrada: " +
                 ruta);
 
             return null;
         }
-
-        // ---------------------------------------------------------
-        // Crear textura
-        // ---------------------------------------------------------
 
         Texture2D textura =
             new Texture2D(
@@ -587,8 +506,7 @@ public class PvZReanimRenderer : MonoBehaviour
         if (!cargada)
         {
             Debug.LogError(
-                "[PvZ ReanimRenderer] " +
-                "No se pudo convertir PNG: " +
+                "[PvZ Reanim] No se pudo cargar: " +
                 nombreImagen);
 
             Destroy(textura);
@@ -596,19 +514,11 @@ public class PvZReanimRenderer : MonoBehaviour
             return null;
         }
 
-        // ---------------------------------------------------------
-        // Configuración de textura
-        // ---------------------------------------------------------
-
         textura.filterMode =
             FilterMode.Point;
 
         textura.wrapMode =
             TextureWrapMode.Clamp;
-
-        // ---------------------------------------------------------
-        // Crear Sprite
-        // ---------------------------------------------------------
 
         sprite =
             Sprite.Create(
@@ -626,10 +536,6 @@ public class PvZReanimRenderer : MonoBehaviour
         sprite.name =
             nombreImagen;
 
-        // ---------------------------------------------------------
-        // Guardar en cache
-        // ---------------------------------------------------------
-
         sprites[
             nombreImagen] =
             sprite;
@@ -637,26 +543,15 @@ public class PvZReanimRenderer : MonoBehaviour
         return sprite;
     }
 
-
-    // =============================================================
-    // CONVERTIR NOMBRE REANIM -> RUTA PAK
-    // =============================================================
+    // ============================================================
+    // CONVERTIR IMAGEN -> RUTA PAK
+    // ============================================================
 
     private string ConvertirImagenARuta(
         string nombre)
     {
         string limpio =
             nombre.Trim();
-
-        // ---------------------------------------------------------
-        // Quitar prefijo IMAGE_REANIM_
-        //
-        // IMAGE_REANIM_PEASHOOTER_HEAD
-        //
-        // ->
-        //
-        // PEASHOOTER_HEAD
-        // ---------------------------------------------------------
 
         const string prefijo =
             "IMAGE_REANIM_";
@@ -670,18 +565,10 @@ public class PvZReanimRenderer : MonoBehaviour
                     prefijo.Length);
         }
 
-        // ---------------------------------------------------------
-        // Normalizar separadores
-        // ---------------------------------------------------------
-
         limpio =
             limpio.Replace(
                 "\\",
                 "/");
-
-        // ---------------------------------------------------------
-        // Si ya contiene REANIM/
-        // ---------------------------------------------------------
 
         if (limpio.StartsWith(
             "REANIM/",
@@ -697,10 +584,6 @@ public class PvZReanimRenderer : MonoBehaviour
             return limpio;
         }
 
-        // ---------------------------------------------------------
-        // Si ya termina en PNG
-        // ---------------------------------------------------------
-
         if (limpio.EndsWith(
             ".PNG",
             StringComparison.OrdinalIgnoreCase))
@@ -710,20 +593,15 @@ public class PvZReanimRenderer : MonoBehaviour
                 limpio;
         }
 
-        // ---------------------------------------------------------
-        // Ruta normal
-        // ---------------------------------------------------------
-
         return
             "REANIM/" +
             limpio +
             ".PNG";
     }
 
-
-    // =============================================================
-    // OBTENER NOMBRE DEL REANIM
-    // =============================================================
+    // ============================================================
+    // NOMBRE REANIM
+    // ============================================================
 
     private string ObtenerNombreReanim()
     {
@@ -754,10 +632,41 @@ public class PvZReanimRenderer : MonoBehaviour
         return nombre;
     }
 
+    // ============================================================
+    // CONTROL
+    // ============================================================
 
-    // =============================================================
+    public void Reproducir()
+    {
+        reproducirAutomaticamente =
+            true;
+    }
+
+    public void Pausar()
+    {
+        reproducirAutomaticamente =
+            false;
+    }
+
+    public void Reiniciar()
+    {
+        tiempo = 0f;
+
+        AplicarFrame(0);
+    }
+
+    public void IrAFrame(
+        int frame)
+    {
+        tiempo = 0f;
+
+        AplicarFrame(
+            frame);
+    }
+
+    // ============================================================
     // PROPIEDADES
-    // =============================================================
+    // ============================================================
 
     public int FrameActual
     {
@@ -793,49 +702,12 @@ public class PvZReanimRenderer : MonoBehaviour
         }
     }
 
-
-    // =============================================================
-    // CONTROL MANUAL
-    // =============================================================
-
-    public void Reproducir()
-    {
-        reproducirAutomaticamente =
-            true;
-    }
-
-    public void Pausar()
-    {
-        reproducirAutomaticamente =
-            false;
-    }
-
-    public void Reiniciar()
-    {
-        tiempo = 0f;
-
-        AplicarFrame(0);
-    }
-
-    public void IrAFrame(
-        int frame)
-    {
-        tiempo = 0f;
-
-        AplicarFrame(frame);
-    }
-
-
-    // =============================================================
-    // LIMPIEZA
-    // =============================================================
+    // ============================================================
+    // CLEANUP
+    // ============================================================
 
     private void OnDestroy()
     {
-        // ---------------------------------------------------------
-        // Destruir sprites y texturas creadas en runtime
-        // ---------------------------------------------------------
-
         foreach (
             KeyValuePair<string, Sprite> entrada
             in sprites)
@@ -862,5 +734,12 @@ public class PvZReanimRenderer : MonoBehaviour
         sprites.Clear();
 
         renderTracks.Clear();
+
+        if (raiz != null)
+        {
+            Destroy(raiz);
+
+            raiz = null;
+        }
     }
 }

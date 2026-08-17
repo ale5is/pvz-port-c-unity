@@ -3,17 +3,12 @@ using System.Globalization;
 using System.Text;
 using System.Xml;
 
-/// <summary>
-/// Parser de archivos REANIM de Plants vs. Zombies.
-/// Utiliza las clases PvZReanimData,
-/// PvZReanimTrack y PvZReanimFrame
-/// definidas en su propio archivo.
-/// </summary>
 public static class PvZReanimParser
 {
-    /// <summary>
-    /// Analiza un REANIM directamente desde sus bytes.
-    /// </summary>
+    // ============================================================
+    // BYTE[]
+    // ============================================================
+
     public static PvZReanimData Parse(byte[] datos)
     {
         if (datos == null || datos.Length == 0)
@@ -22,14 +17,16 @@ public static class PvZReanimParser
                 "Los datos REANIM están vacíos.");
         }
 
-        string xml = Encoding.UTF8.GetString(datos);
+        string xml =
+            Encoding.UTF8.GetString(datos);
 
         return Parse(xml);
     }
 
-    /// <summary>
-    /// Analiza un REANIM desde texto XML.
-    /// </summary>
+    // ============================================================
+    // STRING
+    // ============================================================
+
     public static PvZReanimData Parse(string xml)
     {
         if (string.IsNullOrWhiteSpace(xml))
@@ -40,55 +37,48 @@ public static class PvZReanimParser
 
         xml = PrepararXml(xml);
 
-        XmlDocument documento = new XmlDocument();
+        XmlDocument documento =
+            new XmlDocument();
 
         documento.PreserveWhitespace = true;
 
         documento.LoadXml(xml);
 
-        XmlElement raiz = documento.DocumentElement;
+        XmlElement raiz =
+            documento.DocumentElement;
 
         if (raiz == null)
         {
             throw new XmlException(
-                "No se encontró la raíz del REANIM.");
+                "No existe raíz REANIM.");
         }
 
         PvZReanimData resultado =
             new PvZReanimData();
 
-        // =========================================================
+        // ========================================================
         // FPS
-        // =========================================================
+        // ========================================================
 
         XmlNode fpsNode =
             raiz.SelectSingleNode("fps");
 
         if (fpsNode != null)
         {
-            float fps;
-
-            if (float.TryParse(
-                fpsNode.InnerText.Trim(),
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out fps))
-            {
-                if (fps > 0)
-                {
-                    resultado.fps = fps;
-                }
-            }
+            resultado.fps =
+                LeerFloat(
+                    fpsNode.InnerText,
+                    12f);
         }
 
-        if (resultado.fps <= 0)
+        if (resultado.fps <= 0f)
         {
             resultado.fps = 12f;
         }
 
-        // =========================================================
+        // ========================================================
         // TRACKS
-        // =========================================================
+        // ========================================================
 
         XmlNodeList tracks =
             raiz.SelectNodes("track");
@@ -108,10 +98,6 @@ public static class PvZReanimParser
             PvZReanimTrack track =
                 new PvZReanimTrack();
 
-            // -----------------------------------------------------
-            // Nombre
-            // -----------------------------------------------------
-
             XmlNode nameNode =
                 trackNode.SelectSingleNode("name");
 
@@ -120,17 +106,23 @@ public static class PvZReanimParser
                 track.name =
                     nameNode.InnerText.Trim();
             }
-            else
-            {
-                track.name = string.Empty;
-            }
 
-            // -----------------------------------------------------
-            // Frames
-            // -----------------------------------------------------
+            // ====================================================
+            // FRAMES
+            // ====================================================
 
             XmlNodeList frameNodes =
                 trackNode.SelectNodes("t");
+
+            PvZReanimFrame estadoAnterior =
+                new PvZReanimFrame();
+
+            estadoAnterior.x = 0f;
+            estadoAnterior.y = 0f;
+            estadoAnterior.sx = 1f;
+            estadoAnterior.sy = 1f;
+            estadoAnterior.f = -1;
+            estadoAnterior.image = null;
 
             if (frameNodes != null)
             {
@@ -141,9 +133,13 @@ public static class PvZReanimParser
                     PvZReanimFrame frame =
                         ParseFrame(
                             frameNode,
-                            indice);
+                            indice,
+                            estadoAnterior);
 
                     track.frames.Add(frame);
+
+                    estadoAnterior =
+                        frame.Copiar();
 
                     indice++;
                 }
@@ -155,22 +151,30 @@ public static class PvZReanimParser
         return resultado;
     }
 
-    /// <summary>
-    /// Analiza un frame individual.
-    /// </summary>
+    // ============================================================
+    // FRAME
+    // ============================================================
+
     private static PvZReanimFrame ParseFrame(
         XmlNode node,
-        int indice)
+        int indice,
+        PvZReanimFrame anterior)
     {
         PvZReanimFrame frame =
-            new PvZReanimFrame();
+            anterior != null
+                ? anterior.Copiar()
+                : new PvZReanimFrame();
 
-        frame.x = 0f;
-        frame.y = 0f;
-        frame.sx = 1f;
-        frame.sy = 1f;
-        frame.f = -1;
-        frame.image = null;
+        if (frame.sx == 0f)
+        {
+            frame.sx = 1f;
+        }
+
+        if (frame.sy == 0f)
+        {
+            frame.sy = 1f;
+        }
+
         frame.tieneTransformacion = false;
 
         if (node == null)
@@ -178,204 +182,212 @@ public static class PvZReanimParser
             return frame;
         }
 
-        bool tieneDatos = false;
-
-        // =========================================================
+        // ========================================================
         // X
-        // =========================================================
+        // ========================================================
 
-        XmlNode xNode =
+        XmlNode nodo =
             node.SelectSingleNode("x");
 
-        if (xNode != null)
+        if (nodo != null)
         {
-            float valor;
+            frame.x =
+                LeerFloat(
+                    nodo.InnerText,
+                    frame.x);
 
-            if (float.TryParse(
-                xNode.InnerText.Trim(),
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out valor))
-            {
-                frame.x = valor;
-                tieneDatos = true;
-            }
+            frame.tieneTransformacion = true;
         }
 
-        // =========================================================
+        // ========================================================
         // Y
-        // =========================================================
+        // ========================================================
 
-        XmlNode yNode =
+        nodo =
             node.SelectSingleNode("y");
 
-        if (yNode != null)
+        if (nodo != null)
         {
-            float valor;
+            frame.y =
+                LeerFloat(
+                    nodo.InnerText,
+                    frame.y);
 
-            if (float.TryParse(
-                yNode.InnerText.Trim(),
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out valor))
-            {
-                frame.y = valor;
-                tieneDatos = true;
-            }
+            frame.tieneTransformacion = true;
         }
 
-        // =========================================================
+        // ========================================================
         // SX
-        // =========================================================
+        // ========================================================
 
-        XmlNode sxNode =
+        nodo =
             node.SelectSingleNode("sx");
 
-        if (sxNode != null)
+        if (nodo != null)
         {
-            float valor;
+            frame.sx =
+                LeerFloat(
+                    nodo.InnerText,
+                    frame.sx);
 
-            if (float.TryParse(
-                sxNode.InnerText.Trim(),
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out valor))
+            if (Math.Abs(frame.sx) < 0.00001f)
             {
-                frame.sx = valor;
-                tieneDatos = true;
+                frame.sx = 1f;
             }
+
+            frame.tieneTransformacion = true;
         }
 
-        // =========================================================
+        // ========================================================
         // SY
-        // =========================================================
+        // ========================================================
 
-        XmlNode syNode =
+        nodo =
             node.SelectSingleNode("sy");
 
-        if (syNode != null)
+        if (nodo != null)
         {
-            float valor;
+            frame.sy =
+                LeerFloat(
+                    nodo.InnerText,
+                    frame.sy);
 
-            if (float.TryParse(
-                syNode.InnerText.Trim(),
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out valor))
+            if (Math.Abs(frame.sy) < 0.00001f)
             {
-                frame.sy = valor;
-                tieneDatos = true;
+                frame.sy = 1f;
             }
+
+            frame.tieneTransformacion = true;
         }
 
-        // =========================================================
+        // ========================================================
         // F
-        // =========================================================
+        // ========================================================
 
-        XmlNode fNode =
+        nodo =
             node.SelectSingleNode("f");
 
-        if (fNode != null)
+        if (nodo != null)
         {
-            float valor;
+            float valor =
+                LeerFloat(
+                    nodo.InnerText,
+                    frame.f);
 
-            if (float.TryParse(
-                fNode.InnerText.Trim(),
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out valor))
-            {
-                frame.f = (int)valor;
-                tieneDatos = true;
-            }
+            frame.f =
+                MathfRoundToInt(valor);
+
+            frame.tieneTransformacion = true;
         }
 
-        // =========================================================
+        // ========================================================
         // IMAGE
-        // =========================================================
+        // ========================================================
 
-        XmlNode imageNode =
+        nodo =
             node.SelectSingleNode("i");
 
-        if (imageNode != null)
+        if (nodo != null)
         {
-            string nombre =
-                imageNode.InnerText.Trim();
+            string imagen =
+                nodo.InnerText.Trim();
 
-            if (!string.IsNullOrEmpty(nombre))
+            if (!string.IsNullOrWhiteSpace(imagen))
             {
-                frame.image = nombre;
-                tieneDatos = true;
+                frame.image =
+                    imagen;
             }
         }
-
-        // =========================================================
-        // ESTADO
-        // =========================================================
-
-        frame.tieneTransformacion = tieneDatos;
 
         return frame;
     }
 
-    /// <summary>
-    /// Prepara el XML de PvZ para XmlDocument.
-    ///
-    /// Los REANIM de PvZ utilizan varios elementos
-    /// al mismo nivel:
-    ///
-    /// <fps>12</fps>
-    /// <track>...</track>
-    /// <track>...</track>
-    ///
-    /// XmlDocument necesita una única raíz.
-    /// Por eso agregamos una raíz artificial:
-    ///
-    /// <reanim>
-    ///     ...
-    /// </reanim>
-    /// </summary>
-    private static string PrepararXml(string xml)
-    {
-        xml = xml.Trim();
+    // ============================================================
+    // FLOAT
+    // ============================================================
 
-        // =========================================================
-        // Eliminar declaración XML
-        // =========================================================
+    private static float LeerFloat(
+        string texto,
+        float valorPorDefecto)
+    {
+        if (string.IsNullOrWhiteSpace(texto))
+        {
+            return valorPorDefecto;
+        }
+
+        float valor;
+
+        if (float.TryParse(
+            texto.Trim(),
+            NumberStyles.Float,
+            CultureInfo.InvariantCulture,
+            out valor))
+        {
+            return valor;
+        }
+
+        return valorPorDefecto;
+    }
+
+    // ============================================================
+    // INT
+    // ============================================================
+
+    private static int MathfRoundToInt(float valor)
+    {
+        return (int)Math.Round(
+            valor,
+            MidpointRounding.AwayFromZero);
+    }
+
+    // ============================================================
+    // PREPARAR XML
+    // ============================================================
+
+    private static string PrepararXml(
+        string xml)
+    {
+        xml =
+            xml.Trim();
+
+        // --------------------------------------------------------
+        // Declaración XML
+        // --------------------------------------------------------
 
         if (xml.StartsWith(
             "<?xml",
             StringComparison.OrdinalIgnoreCase))
         {
-            int finDeclaracion =
+            int fin =
                 xml.IndexOf(
                     "?>",
                     StringComparison.Ordinal);
 
-            if (finDeclaracion >= 0)
+            if (fin >= 0)
             {
                 xml =
                     xml.Substring(
-                        finDeclaracion + 2);
+                        fin + 2);
             }
         }
 
-        xml = xml.Trim();
+        xml =
+            xml.Trim();
 
-        // =========================================================
-        // Si ya tiene raíz <reanim>, no envolver otra vez.
-        // =========================================================
+        // --------------------------------------------------------
+        // Ya tiene raíz
+        // --------------------------------------------------------
 
         if (xml.StartsWith(
-            "<reanim>",
+            "<reanim",
             StringComparison.OrdinalIgnoreCase))
         {
             return xml;
         }
 
-        // =========================================================
-        // Agregar raíz artificial.
-        // =========================================================
+        // --------------------------------------------------------
+        // Crear raíz artificial
+        // --------------------------------------------------------
 
         return
             "<reanim>\n" +
