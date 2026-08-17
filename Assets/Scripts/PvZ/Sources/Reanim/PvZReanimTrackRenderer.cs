@@ -6,13 +6,10 @@ using UnityEngine;
 public class PvZReanimTrackRenderer : MonoBehaviour
 {
     private PvZReanimRenderer propietario;
-
     private PvZReanimTrack track;
-
     private SpriteRenderer spriteRenderer;
 
     private string ultimaImagen;
-
     private int indiceTrack;
 
     // ============================================================
@@ -25,17 +22,10 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         SpriteRenderer spriteRenderer,
         int indice)
     {
-        this.propietario =
-            propietario;
-
-        this.track =
-            track;
-
-        this.spriteRenderer =
-            spriteRenderer;
-
-        this.indiceTrack =
-            indice;
+        this.propietario = propietario;
+        this.track = track;
+        this.spriteRenderer = spriteRenderer;
+        this.indiceTrack = indice;
 
         if (this.spriteRenderer != null)
         {
@@ -53,7 +43,7 @@ public class PvZReanimTrackRenderer : MonoBehaviour
     }
 
     // ============================================================
-    // FRAME
+    // APLICAR FRAME
     // ============================================================
 
     public void AplicarFrame(
@@ -65,7 +55,6 @@ public class PvZReanimTrackRenderer : MonoBehaviour
             track.frames.Count == 0)
         {
             Desactivar();
-
             return;
         }
 
@@ -75,7 +64,6 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         if (frame == null)
         {
             Desactivar();
-
             return;
         }
 
@@ -86,8 +74,7 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         string nombreImagen =
             frame.image;
 
-        if (!string.IsNullOrWhiteSpace(
-            nombreImagen))
+        if (!string.IsNullOrWhiteSpace(nombreImagen))
         {
             ultimaImagen =
                 nombreImagen.Trim();
@@ -98,8 +85,7 @@ public class PvZReanimTrackRenderer : MonoBehaviour
                 ultimaImagen;
         }
 
-        if (!string.IsNullOrWhiteSpace(
-            nombreImagen))
+        if (!string.IsNullOrWhiteSpace(nombreImagen))
         {
             Sprite sprite =
                 propietario.ObtenerSprite(
@@ -149,16 +135,12 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         float sy =
             frame.sy;
 
-        if (Mathf.Approximately(
-            sx,
-            0f))
+        if (Mathf.Approximately(sx, 0f))
         {
             sx = 1f;
         }
 
-        if (Mathf.Approximately(
-            sy,
-            0f))
+        if (Mathf.Approximately(sy, 0f))
         {
             sy = 1f;
         }
@@ -181,7 +163,7 @@ public class PvZReanimTrackRenderer : MonoBehaviour
     }
 
     // ============================================================
-    // FRAME
+    // OBTENER FRAME
     // ============================================================
 
     private PvZReanimFrame ObtenerFrame(
@@ -219,11 +201,8 @@ public class PvZReanimTrackRenderer : MonoBehaviour
             return;
         }
 
-        spriteRenderer.sprite =
-            null;
-
-        spriteRenderer.enabled =
-            false;
+        spriteRenderer.sprite = null;
+        spriteRenderer.enabled = false;
     }
 
     // ============================================================
@@ -233,7 +212,6 @@ public class PvZReanimTrackRenderer : MonoBehaviour
     public void ReiniciarImagen()
     {
         ultimaImagen = null;
-
         Desactivar();
     }
 
