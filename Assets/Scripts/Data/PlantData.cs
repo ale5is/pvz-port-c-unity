@@ -27,6 +27,10 @@ public class PlantData : ScriptableObject
     public float intervaloAtaque = 1.5f;
     public float rangoAtaque = 10f;
 
+    [Header("Proyectil")]
+    public Projectiles prefabProyectil;
+    public float velocidadProyectil = 8f;
+
     [Header("Producción")]
     public int produccionSol = 25;
     public float intervaloProduccion = 24f;

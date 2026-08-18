@@ -5,8 +5,7 @@ public class ZombieManager : MonoBehaviour
 {
     public static ZombieManager Instancia { get; private set; }
 
-    private readonly List<Zombie> zombies =
-        new List<Zombie>();
+    private readonly List<Zombie> zombies = new();
 
     public IReadOnlyList<Zombie> ZombiesActivos =>
         zombies;
@@ -39,7 +38,20 @@ public class ZombieManager : MonoBehaviour
         if (datos.prefab == null)
         {
             Debug.LogError(
-                "[PvZ] ZombieData no tiene prefab."
+                "[PvZ] ZombieData '" +
+                datos.nombre +
+                "' no tiene prefab."
+            );
+
+            return null;
+        }
+
+        if (fila < 0 ||
+            fila >= Board.FILAS)
+        {
+            Debug.LogError(
+                "[PvZ] Fila de zombie inválida: " +
+                fila
             );
 
             return null;
@@ -53,15 +65,81 @@ public class ZombieManager : MonoBehaviour
             datos
         );
 
-        zombies.Add(zombie);
+        RegistrarZombie(zombie);
 
         return zombie;
+    }
+
+    public void RegistrarZombie(Zombie zombie)
+    {
+        if (zombie == null)
+            return;
+
+        if (!zombies.Contains(zombie))
+            zombies.Add(zombie);
     }
 
     public void NotificarMuerte(
         Zombie zombie)
     {
+        if (zombie == null)
+            return;
+
         zombies.Remove(zombie);
+    }
+
+    public List<Zombie> ObtenerZombiesEnFila(
+        int fila)
+    {
+        List<Zombie> resultado = new();
+
+        for (int i = zombies.Count - 1;
+             i >= 0;
+             i--)
+        {
+            Zombie zombie = zombies[i];
+
+            if (zombie == null)
+            {
+                zombies.RemoveAt(i);
+                continue;
+            }
+
+            if (zombie.Muerto)
+                continue;
+
+            if (zombie.fila == fila)
+                resultado.Add(zombie);
+        }
+
+        resultado.Sort(
+            (a, b) =>
+                a.transform.position.x.CompareTo(
+                    b.transform.position.x
+                )
+        );
+
+        return resultado;
+    }
+
+    public Zombie ObtenerPrimerZombieEnFila(
+        int fila)
+    {
+        Zombie objetivo = null;
+
+        foreach (
+            Zombie zombie
+            in ObtenerZombiesEnFila(fila))
+        {
+            if (objetivo == null ||
+                zombie.transform.position.x <
+                objetivo.transform.position.x)
+            {
+                objetivo = zombie;
+            }
+        }
+
+        return objetivo;
     }
 
     public int CantidadVivos()
@@ -78,6 +156,21 @@ public class ZombieManager : MonoBehaviour
         }
 
         return zombies.Count;
+    }
+
+    public void LimpiarZombies()
+    {
+        for (int i = zombies.Count - 1;
+             i >= 0;
+             i--)
+        {
+            if (zombies[i] != null)
+                Destroy(
+                    zombies[i].gameObject
+                );
+        }
+
+        zombies.Clear();
     }
 
     private void OnDestroy()

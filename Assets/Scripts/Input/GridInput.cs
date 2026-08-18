@@ -37,7 +37,9 @@ public class GridInput : MonoBehaviour
         if (!plano.Raycast(
                 ray,
                 out float distancia))
+        {
             return;
+        }
 
         Vector3 punto =
             ray.GetPoint(distancia);
@@ -47,8 +49,11 @@ public class GridInput : MonoBehaviour
                 punto
             );
 
-        if (celda == null || celda.Ocupada)
+        if (celda == null ||
+            celda.Ocupada)
+        {
             return;
+        }
 
         PlantData datos =
             ObtenerDatos(
@@ -58,6 +63,12 @@ public class GridInput : MonoBehaviour
         if (datos == null)
             return;
 
+        if (SeedBank.Instancia != null &&
+            !SeedBank.Instancia.PuedeComprar(datos))
+        {
+            return;
+        }
+
         Plant planta =
             PlantFactory.Instancia.CrearPlanta(
                 datos,
@@ -65,8 +76,13 @@ public class GridInput : MonoBehaviour
                 celda.columna
             );
 
-        if (planta != null)
-            CursorManager.Instancia.Cancelar();
+        if (planta == null)
+            return;
+
+        if (SeedBank.Instancia != null)
+            SeedBank.Instancia.Comprar(datos);
+
+        CursorManager.Instancia.Cancelar();
     }
 
     private PlantData ObtenerDatos(PlantType tipo)
@@ -84,7 +100,8 @@ public class GridInput : MonoBehaviour
         }
 
         Debug.LogWarning(
-            "[PvZ] No existe PlantData para: " + tipo
+            "[PvZ] No existe PlantData para: " +
+            tipo
         );
 
         return null;

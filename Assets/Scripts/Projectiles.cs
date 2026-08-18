@@ -8,18 +8,8 @@ public class Projectiles : MonoBehaviour
     [Header("Daño")]
     public int daño = 20;
 
-    [Header("Objetivo")]
+    [Header("Fila")]
     public int fila;
-
-    private void Update()
-    {
-        transform.position +=
-            Vector3.right *
-            velocidad *
-            Time.deltaTime;
-
-        ComprobarZombie();
-    }
 
     public void Inicializar(
         int row,
@@ -31,38 +21,69 @@ public class Projectiles : MonoBehaviour
         velocidad = speed;
     }
 
-    private void ComprobarZombie()
+    private void Update()
+    {
+        transform.position +=
+            Vector3.right *
+            velocidad *
+            Time.deltaTime;
+
+        BuscarImpacto();
+
+        ComprobarLimite();
+    }
+
+    private void BuscarImpacto()
     {
         if (ZombieManager.Instancia == null)
             return;
 
-        foreach (Zombie zombie in ZombieManager.Instancia.ZombiesActivos)
+        foreach (
+            Zombie zombie
+            in ZombieManager.Instancia.ZombiesActivos)
         {
             if (zombie == null ||
                 zombie.Muerto ||
                 zombie.fila != fila)
+            {
                 continue;
+            }
 
-            if (Mathf.Abs(
+            if (zombie.transform.position.x <
+                transform.position.x)
+            {
+                continue;
+            }
+
+            float distancia =
+                Mathf.Abs(
                     transform.position.x -
-                    zombie.transform.position.x) <= 0.3f)
+                    zombie.transform.position.x
+                );
+
+            if (distancia <= 0.3f)
             {
                 zombie.RecibirDaño(daño);
+
                 Destroy(gameObject);
+
                 return;
             }
         }
+    }
 
-        if (Board.Instancia != null)
-        {
-            float limite =
-                Board.Instancia.origen.x +
-                Board.Instancia.anchoCelda *
-                Board.COLUMNAS +
-                2f;
+    private void ComprobarLimite()
+    {
+        if (Board.Instancia == null)
+            return;
 
-            if (transform.position.x > limite)
-                Destroy(gameObject);
-        }
+        float limite =
+            Board.Instancia.origen.x +
+            Board.Instancia.anchoCelda *
+            Board.COLUMNAS +
+            2f;
+
+        if (transform.position.x > limite)
+            Destroy(gameObject);
     }
 }

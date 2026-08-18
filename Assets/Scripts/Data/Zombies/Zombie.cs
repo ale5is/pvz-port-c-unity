@@ -2,14 +2,18 @@ using UnityEngine;
 
 public class Zombie : GameObject
 {
+    [Header("Datos")]
     public ZombieData datos;
 
+    [Header("Vida")]
     protected int vida;
     protected int vidaArmadura;
 
+    [Header("Ataque")]
     protected float temporizadorAtaque;
 
-    public bool Muerto => !activo || vida <= 0;
+    public bool Muerto =>
+        !activo || vida <= 0;
 
     protected override void Start()
     {
@@ -18,11 +22,14 @@ public class Zombie : GameObject
         if (datos != null)
         {
             vida = datos.vida;
-            vidaArmadura = datos.vidaArmadura;
+            vidaArmadura =
+                datos.vidaArmadura;
         }
     }
 
-    public virtual void Inicializar(int row, ZombieData zombieData)
+    public virtual void Inicializar(
+        int row,
+        ZombieData zombieData)
     {
         datos = zombieData;
 
@@ -32,13 +39,16 @@ public class Zombie : GameObject
         if (datos != null)
         {
             vida = datos.vida;
-            vidaArmadura = datos.vidaArmadura;
+            vidaArmadura =
+                datos.vidaArmadura;
         }
+
+        temporizadorAtaque = 0f;
 
         if (Board.Instancia != null)
         {
             transform.position =
-                Board.Instancia.ObtenerPosicionZombie(row);
+                ObtenerPosicionInicial(row);
         }
     }
 
@@ -46,8 +56,11 @@ public class Zombie : GameObject
     {
         base.Update();
 
-        if (!activo || datos == null)
+        if (!activo ||
+            datos == null)
+        {
             return;
+        }
 
         ActualizarCombate();
 
@@ -56,6 +69,25 @@ public class Zombie : GameObject
 
         if (!EstaAtacando())
             Avanzar();
+
+        ComprobarLimite();
+    }
+
+    protected virtual Vector3 ObtenerPosicionInicial(
+        int row)
+    {
+        Cell ultimaCelda =
+            Board.Instancia.ObtenerCelda(
+                row,
+                Board.COLUMNAS - 1
+            );
+
+        if (ultimaCelda == null)
+            return Board.Instancia.origen;
+
+        return ultimaCelda.posicion +
+            Vector3.right *
+            Board.Instancia.anchoCelda;
     }
 
     protected virtual void Avanzar()
@@ -68,9 +100,11 @@ public class Zombie : GameObject
 
     protected virtual void ActualizarCombate()
     {
-        temporizadorAtaque -= Time.deltaTime;
+        temporizadorAtaque -=
+            Time.deltaTime;
 
-        Plant objetivo = BuscarPlanta();
+        Plant objetivo =
+            BuscarPlanta();
 
         if (objetivo == null)
             return;
@@ -81,10 +115,13 @@ public class Zombie : GameObject
                 objetivo.transform.position.x
             );
 
-        if (distancia <= datos.rangoAtaque &&
+        if (distancia <=
+                datos.rangoAtaque &&
             temporizadorAtaque <= 0f)
         {
-            objetivo.RecibirDaño(datos.daño);
+            objetivo.RecibirDaño(
+                datos.daño
+            );
 
             temporizadorAtaque =
                 datos.intervaloAtaque;
@@ -93,7 +130,8 @@ public class Zombie : GameObject
 
     protected virtual bool EstaAtacando()
     {
-        Plant planta = BuscarPlanta();
+        Plant planta =
+            BuscarPlanta();
 
         if (planta == null)
             return false;
@@ -109,35 +147,25 @@ public class Zombie : GameObject
         if (Board.Instancia == null)
             return null;
 
-        int columna = Mathf.RoundToInt(
-            (transform.position.x -
-             Board.Instancia.origen.x)
-            /
-            Board.Instancia.anchoCelda
-        );
+        PlantManager manager =
+            PlantManager.Instancia;
 
-        columna = Mathf.Clamp(
-            columna,
-            0,
-            Board.COLUMNAS - 1
-        );
-
-        Cell cell =
-            Board.Instancia.ObtenerCelda(
-                fila,
-                columna
-            );
-
-        if (cell == null)
+        if (manager == null)
             return null;
 
-        return cell.planta;
+        return manager.ObtenerPrimeraPlantaEnFila(
+            fila
+        );
     }
 
-    public virtual void RecibirDaño(int daño)
+    public virtual void RecibirDaño(
+        int daño)
     {
-        if (daño <= 0 || Muerto)
+        if (daño <= 0 ||
+            Muerto)
+        {
             return;
+        }
 
         if (vidaArmadura > 0)
         {
@@ -147,11 +175,15 @@ public class Zombie : GameObject
                     daño
                 );
 
-            vidaArmadura -= dañoArmadura;
-            daño -= dañoArmadura;
+            vidaArmadura -=
+                dañoArmadura;
+
+            daño -=
+                dañoArmadura;
         }
 
-        vida -= daño;
+        if (daño > 0)
+            vida -= daño;
 
         if (vida <= 0)
             Morir();
@@ -159,11 +191,40 @@ public class Zombie : GameObject
 
     protected virtual void Morir()
     {
+        if (!activo)
+            return;
+
         activo = false;
 
         if (ZombieManager.Instancia != null)
-            ZombieManager.Instancia.NotificarMuerte(this);
+        {
+            ZombieManager.Instancia
+                .NotificarMuerte(this);
+        }
 
         Destroy(gameObject);
+    }
+
+    protected virtual void ComprobarLimite()
+    {
+        if (Board.Instancia == null)
+            return;
+
+        float limite =
+            Board.Instancia.origen.x -
+            Board.Instancia.anchoCelda;
+
+        if (transform.position.x < limite)
+        {
+            activo = false;
+
+            if (ZombieManager.Instancia != null)
+            {
+                ZombieManager.Instancia
+                    .NotificarMuerte(this);
+            }
+
+            Destroy(gameObject);
+        }
     }
 }
