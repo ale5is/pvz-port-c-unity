@@ -8,29 +8,88 @@ namespace PvZReanim
 {
     public static class PvZReanimCompiledLoader
     {
-        private const uint COMPILED_DEFINITION_MAGIC = 0x43444631;
-
         // =========================================================
-        // HEADER
+        // FORMATO ORIGINAL DE PVZ / RESODDED
         // =========================================================
 
-        private struct CompiledDefinitionHeader
-        {
-            public uint cookie;
-            public uint uncompressedSize;
-            public uint dataOffset;
-        }
+        private const uint COMPILED_LEGACY_DEFINITION_MAGIC =
+            0xDEADFED4;
+
+        /*
+         * En Resodded:
+         *
+         * struct CompressedDefinitionHeader
+         * {
+         *     unsigned int  mCookie;
+         *     unsigned long mUncompressedSize;
+         * };
+         *
+         * En el build x86 original son 8 bytes.
+         */
+
+        private const int HEADER_SIZE = 8;
+
+        /*
+         * Tamaños de las estructuras nativas x86
+         * usadas por ReanimatorDefinition.
+         *
+         * ReanimatorDefinition:
+         *
+         * ReanimatorTrack* mTracks;      4
+         * int              mTrackCount;  4
+         * float            mFPS;         4
+         * ReanimAtlas*     mReanimAtlas; 4
+         *
+         * TOTAL = 16 bytes
+         */
+
+        private const int NATIVE_DEFINITION_SIZE = 16;
+
+        /*
+         * ReanimatorTrack:
+         *
+         * const char*          mName;            4
+         * ReanimatorTransform* mTransforms;      4
+         * int                  mTransformCount;  4
+         *
+         * TOTAL = 12 bytes
+         */
+
+        private const int NATIVE_TRACK_SIZE = 12;
+
+        /*
+         * ReanimatorTransform:
+         *
+         * float x       4
+         * float y       4
+         * float kx      4
+         * float ky      4
+         * float sx      4
+         * float sy      4
+         * float f       4
+         * float a       4
+         * Image*        4
+         * Font*         4
+         * const char*   4
+         *
+         * TOTAL = 44 bytes
+         */
+
+        private const int NATIVE_TRANSFORM_SIZE = 44;
 
         // =========================================================
         // PUBLIC
         // =========================================================
 
-        public static PvZReanimDefinition LoadBytes(byte[] data)
+        public static PvZReanimDefinition LoadBytes(
+            byte[] data)
         {
-            if (data == null || data.Length == 0)
+            if (data == null ||
+                data.Length == 0)
             {
                 Debug.LogError(
-                    "[PvZReanimCompiledLoader] Datos vacíos."
+                    "[PvZReanimCompiledLoader] " +
+                    "Datos vacíos."
                 );
 
                 return null;
@@ -38,38 +97,15 @@ namespace PvZReanim
 
             try
             {
-                CompiledDefinitionHeader header;
-
-                if (!ReadHeader(
-                        data,
-                        out header))
-                {
-                    return null;
-                }
-
                 Debug.Log(
-                    "[PvZReanimCompiledLoader] Header OK | " +
-                    "Uncompressed: " +
-                    header.uncompressedSize +
-                    " | Offset: " +
-                    header.dataOffset
+                    "[PvZReanimCompiledLoader] " +
+                    "Analizando compiled | Bytes: " +
+                    data.Length
                 );
 
-                byte[] compressed =
-                    ExtractCompressedData(
-                        data,
-                        header
-                    );
-
-                if (compressed == null)
-                {
-                    return null;
-                }
-
                 byte[] uncompressed =
-                    DecompressZlib(
-                        compressed,
-                        (int)header.uncompressedSize
+                    DecompressCompiled(
+                        data
                     );
 
                 if (uncompressed == null)
@@ -84,7 +120,7 @@ namespace PvZReanim
                 );
 
                 PvZReanimDefinition definition =
-                    ParseDefinition(
+                    ParseOriginalCache(
                         uncompressed
                     );
 
@@ -97,6 +133,17 @@ namespace PvZReanim
 
                     return null;
                 }
+
+                Debug.Log(
+                    "[PvZReanimCompiledLoader] " +
+                    "Definición reconstruida | " +
+                    "Tracks: " +
+                    definition.TrackCount +
+                    " | Frames: " +
+                    definition.GetMaxFrameCount() +
+                    " | FPS: " +
+                    definition.fps
+                );
 
                 return definition;
             }
@@ -113,159 +160,138 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // HEADER
+        // DESCOMPRESIÓN DEL COMPILED ORIGINAL
         // =========================================================
 
-        private static bool ReadHeader(
-            byte[] data,
-            out CompiledDefinitionHeader header)
+        private static byte[] DecompressCompiled(
+            byte[] data)
         {
-            header =
-                new CompiledDefinitionHeader();
-
-            if (data.Length < 12)
+            if (data.Length < HEADER_SIZE)
             {
                 Debug.LogError(
                     "[PvZReanimCompiledLoader] " +
-                    "Archivo demasiado pequeño."
+                    "Compiled demasiado pequeño."
                 );
 
-                return false;
+                return null;
             }
 
-            header.cookie =
+            uint cookie =
                 BitConverter.ToUInt32(
                     data,
                     0
                 );
 
-            header.uncompressedSize =
+            uint uncompressedSize =
                 BitConverter.ToUInt32(
                     data,
                     4
                 );
 
-            header.dataOffset =
-                BitConverter.ToUInt32(
-                    data,
-                    8
-                );
+            Debug.Log(
+                "[PvZReanimCompiledLoader] " +
+                "Cookie: 0x" +
+                cookie.ToString("X8") +
+                " | UncompressedSize: " +
+                uncompressedSize
+            );
 
-            if (header.cookie !=
-                COMPILED_DEFINITION_MAGIC)
+            if (cookie !=
+                COMPILED_LEGACY_DEFINITION_MAGIC)
             {
                 Debug.LogError(
                     "[PvZReanimCompiledLoader] " +
                     "Magic inválido: 0x" +
-                    header.cookie.ToString("X8")
-                );
-
-                return false;
-            }
-
-            if (header.dataOffset >= data.Length)
-            {
-                Debug.LogError(
-                    "[PvZReanimCompiledLoader] " +
-                    "DataOffset inválido: " +
-                    header.dataOffset +
-                    " / " +
-                    data.Length
-                );
-
-                return false;
-            }
-
-            return true;
-        }
-
-        // =========================================================
-        // COMPRESSED DATA
-        // =========================================================
-
-        private static byte[] ExtractCompressedData(
-            byte[] data,
-            CompiledDefinitionHeader header)
-        {
-            int offset =
-                (int)header.dataOffset;
-
-            int size =
-                data.Length - offset;
-
-            if (size <= 0)
-            {
-                Debug.LogError(
-                    "[PvZReanimCompiledLoader] " +
-                    "No hay datos comprimidos."
+                    cookie.ToString("X8") +
+                    " | Esperado: 0x" +
+                    COMPILED_LEGACY_DEFINITION_MAGIC.ToString("X8")
                 );
 
                 return null;
             }
 
-            byte[] result =
-                new byte[size];
+            if (uncompressedSize == 0)
+            {
+                Debug.LogError(
+                    "[PvZReanimCompiledLoader] " +
+                    "Tamaño descomprimido inválido."
+                );
+
+                return null;
+            }
+
+            int compressedOffset =
+                HEADER_SIZE;
+
+            int compressedSize =
+                data.Length -
+                compressedOffset;
+
+            if (compressedSize <= 0)
+            {
+                Debug.LogError(
+                    "[PvZReanimCompiledLoader] " +
+                    "No existe bloque comprimido."
+                );
+
+                return null;
+            }
+
+            byte[] compressed =
+                new byte[
+                    compressedSize
+                ];
 
             Buffer.BlockCopy(
                 data,
-                offset,
-                result,
+                compressedOffset,
+                compressed,
                 0,
-                size
+                compressedSize
             );
 
-            return result;
-        }
+            /*
+             * Resodded utiliza:
+             *
+             * zlib::uncompress()
+             *
+             * Por lo tanto el bloque contiene
+             * zlib completo.
+             *
+             * .NET DeflateStream necesita solamente
+             * el stream DEFLATE.
+             */
 
-        // =========================================================
-        // ZLIB
-        // =========================================================
-
-        private static byte[] DecompressZlib(
-            byte[] compressed,
-            int expectedSize)
-        {
-            if (compressed == null ||
-                compressed.Length < 6)
+            if (compressed.Length < 6)
             {
                 Debug.LogError(
                     "[PvZReanimCompiledLoader] " +
-                    "Datos comprimidos inválidos."
+                    "Bloque zlib demasiado pequeño."
                 );
 
                 return null;
             }
-
-            /*
-             * ResoddedFramework usa zlib::uncompress().
-             *
-             * El formato zlib contiene:
-             *
-             * 2 bytes  -> header zlib
-             * N bytes  -> DEFLATE
-             * 4 bytes  -> Adler32
-             *
-             * DeflateStream trabaja con el bloque
-             * DEFLATE, por lo que quitamos header y trailer.
-             */
 
             int deflateOffset = 2;
 
             int deflateSize =
-                compressed.Length - 6;
+                compressed.Length -
+                6;
 
             if (deflateSize <= 0)
             {
                 Debug.LogError(
                     "[PvZReanimCompiledLoader] " +
-                    "Bloque DEFLATE vacío."
+                    "DEFLATE vacío."
                 );
 
                 return null;
             }
 
             byte[] deflateData =
-                new byte[deflateSize];
+                new byte[
+                    deflateSize
+                ];
 
             Buffer.BlockCopy(
                 compressed,
@@ -275,99 +301,141 @@ namespace PvZReanim
                 deflateSize
             );
 
-            try
-            {
-                using (MemoryStream input =
-                    new MemoryStream(deflateData))
-                using (DeflateStream deflate =
+            using (
+                MemoryStream input =
+                    new MemoryStream(
+                        deflateData
+                    ))
+            using (
+                DeflateStream deflate =
                     new DeflateStream(
                         input,
                         CompressionMode.Decompress
                     ))
-                using (MemoryStream output =
+            using (
+                MemoryStream output =
                     new MemoryStream(
-                        expectedSize > 0
-                            ? expectedSize
-                            : 4096
-                    ))
-                {
-                    deflate.CopyTo(output);
-
-                    byte[] result =
-                        output.ToArray();
-
-                    if (expectedSize > 0 &&
-                        result.Length != expectedSize)
-                    {
-                        Debug.LogWarning(
-                            "[PvZReanimCompiledLoader] " +
-                            "Tamaño descomprimido diferente. " +
-                            "Esperado: " +
-                            expectedSize +
-                            " | Real: " +
-                            result.Length
-                        );
-                    }
-
-                    return result;
-                }
-            }
-            catch (Exception exception)
+                        checked(
+                            (int)uncompressedSize
+                        )
+                    )
+            )
             {
-                Debug.LogError(
-                    "[PvZReanimCompiledLoader] " +
-                    "Error descomprimiendo ZLIB:\n" +
-                    exception
+                deflate.CopyTo(
+                    output
                 );
 
-                return null;
+                byte[] result =
+                    output.ToArray();
+
+                if (result.Length !=
+                    uncompressedSize)
+                {
+                    Debug.LogWarning(
+                        "[PvZReanimCompiledLoader] " +
+                        "Tamaño descomprimido diferente | " +
+                        "Esperado: " +
+                        uncompressedSize +
+                        " | Real: " +
+                        result.Length
+                    );
+                }
+
+                return result;
             }
         }
 
         // =========================================================
-        // DEFINITION
+        // CACHE ORIGINAL
         // =========================================================
 
-        private static PvZReanimDefinition ParseDefinition(
+        private static PvZReanimDefinition ParseOriginalCache(
             byte[] data)
         {
             if (data == null ||
-                data.Length == 0)
+                data.Length < 4)
             {
                 return null;
             }
 
-            using (MemoryStream stream =
-                new MemoryStream(data))
-            using (BinaryReader reader =
-                new BinaryReader(
-                    stream,
-                    Encoding.UTF8,
-                    true
-                ))
+            using (
+                MemoryStream stream =
+                    new MemoryStream(data))
+            using (
+                BinaryReader reader =
+                    new BinaryReader(
+                        stream,
+                        Encoding.UTF8,
+                        true
+                    )
+            )
             {
-                PvZReanimDefinition definition =
-                    ScriptableObject.CreateInstance<
-                        PvZReanimDefinition
-                    >();
-
                 /*
-                 * ReanimatorDefinition:
+                 * Resodded:
                  *
-                 * track -> ARRAY
-                 * fps   -> FLOAT
+                 * Primero:
+                 *
+                 * uint32 schemaHash
+                 *
+                 * Después:
+                 *
+                 * ReanimatorDefinition
                  */
 
-                uint trackCount =
+                uint schemaHash =
                     reader.ReadUInt32();
 
                 Debug.Log(
                     "[PvZReanimCompiledLoader] " +
-                    "Tracks: " +
-                    trackCount
+                    "SchemaHash: 0x" +
+                    schemaHash.ToString("X8")
                 );
 
-                if (trackCount > 10000)
+                if (reader.BaseStream.Length -
+                    reader.BaseStream.Position <
+                    NATIVE_DEFINITION_SIZE)
+                {
+                    Debug.LogError(
+                        "[PvZReanimCompiledLoader] " +
+                        "No hay suficientes bytes para " +
+                        "ReanimatorDefinition."
+                    );
+
+                    return null;
+                }
+
+                /*
+                 * Leemos la estructura nativa.
+                 *
+                 * x86:
+                 *
+                 * offset 0 = mTracks
+                 * offset 4 = mTrackCount
+                 * offset 8 = mFPS
+                 * offset 12 = mReanimAtlas
+                 */
+
+                reader.ReadUInt32();
+
+                int trackCount =
+                    reader.ReadInt32();
+
+                float fps =
+                    reader.ReadSingle();
+
+                reader.ReadUInt32();
+
+                Debug.Log(
+                    "[PvZReanimCompiledLoader] " +
+                    "Native Definition | " +
+                    "Tracks: " +
+                    trackCount +
+                    " | FPS: " +
+                    fps
+                );
+
+                if (trackCount < 0 ||
+                    trackCount > 10000)
                 {
                     Debug.LogError(
                         "[PvZReanimCompiledLoader] " +
@@ -378,39 +446,294 @@ namespace PvZReanim
                     return null;
                 }
 
+                PvZReanimDefinition definition =
+                    ScriptableObject.CreateInstance<
+                        PvZReanimDefinition
+                    >();
+
+                definition.fps =
+                    fps > 0f
+                        ? fps
+                        : PvZReanimConstants.DefaultFPS;
+
                 definition.tracks.Clear();
 
-                for (uint i = 0;
+                /*
+                 * -------------------------------------------------
+                 * DefReadFromCacheArray
+                 * -------------------------------------------------
+                 *
+                 * Después de la estructura viene:
+                 *
+                 * int aDefSize
+                 *
+                 * Debe ser sizeof(ReanimatorTrack)
+                 * = 12 en x86.
+                 */
+
+                int trackDefinitionSize =
+                    reader.ReadInt32();
+
+                Debug.Log(
+                    "[PvZReanimCompiledLoader] " +
+                    "TrackDefSize: " +
+                    trackDefinitionSize
+                );
+
+                if (trackDefinitionSize !=
+                    NATIVE_TRACK_SIZE)
+                {
+                    Debug.LogError(
+                        "[PvZReanimCompiledLoader] " +
+                        "Tamaño de ReanimatorTrack " +
+                        "inesperado: " +
+                        trackDefinitionSize +
+                        " | Esperado: " +
+                        NATIVE_TRACK_SIZE
+                    );
+
+                    return null;
+                }
+
+                /*
+                 * -------------------------------------------------
+                 * RAW TRACK ARRAY
+                 * -------------------------------------------------
+                 *
+                 * Primero vienen todos los structs.
+                 *
+                 * Después se reparan sus punteros leyendo
+                 * los campos definidos por DefMap.
+                 */
+
+                NativeTrack[] nativeTracks =
+                    new NativeTrack[
+                        trackCount
+                    ];
+
+                for (int i = 0;
+                     i < trackCount;
+                     i++)
+                {
+                    nativeTracks[i] =
+                        ReadNativeTrack(
+                            reader
+                        );
+                }
+
+                /*
+                 * -------------------------------------------------
+                 * RECONSTRUIR TRACKS
+                 * -------------------------------------------------
+                 */
+
+                for (int i = 0;
                      i < trackCount;
                      i++)
                 {
                     PvZReanimTrack track =
-                        ReadTrack(
+                        new PvZReanimTrack(
+                            string.Empty
+                        );
+
+                    /*
+                     * DefMap:
+                     *
+                     * name -> DT_STRING
+                     * t    -> DT_ARRAY
+                     */
+
+                    track.name =
+                        ReadString(
                             reader
                         );
 
-                    if (track == null)
+                    if (string.IsNullOrEmpty(
+                            track.name))
+                    {
+                        track.name =
+                            "track_" + i;
+                    }
+
+                    int transformCount =
+                        nativeTracks[i]
+                            .transformCount;
+
+                    /*
+                     * DefReadFromCacheArray:
+                     *
+                     * int aDefSize
+                     */
+
+                    int transformDefinitionSize =
+                        reader.ReadInt32();
+
+                    Debug.Log(
+                        "[PvZReanimCompiledLoader] " +
+                        "Track [" +
+                        i +
+                        "] " +
+                        track.name +
+                        " | TransformCount: " +
+                        transformCount +
+                        " | TransformDefSize: " +
+                        transformDefinitionSize
+                    );
+
+                    if (transformDefinitionSize !=
+                        NATIVE_TRANSFORM_SIZE)
                     {
                         Debug.LogError(
                             "[PvZReanimCompiledLoader] " +
-                            "No se pudo leer track " +
-                            i
+                            "Tamaño de ReanimatorTransform " +
+                            "inesperado: " +
+                            transformDefinitionSize +
+                            " | Esperado: " +
+                            NATIVE_TRANSFORM_SIZE
                         );
 
                         return null;
                     }
 
+                    /*
+                     * RAW TRANSFORMS
+                     */
+
+                    NativeTransform[] nativeTransforms =
+                        new NativeTransform[
+                            transformCount
+                        ];
+
+                    for (int frame = 0;
+                         frame < transformCount;
+                         frame++)
+                    {
+                        nativeTransforms[frame] =
+                            ReadNativeTransform(
+                                reader
+                            );
+                    }
+
+                    /*
+                     * Campos reparados del transform.
+                     *
+                     * DefMap:
+                     *
+                     * x
+                     * y
+                     * kx
+                     * ky
+                     * sx
+                     * sy
+                     * f
+                     * a
+                     * i
+                     * font
+                     * text
+                     */
+
+                    for (int frame = 0;
+                         frame < transformCount;
+                         frame++)
+                    {
+                        PvZReanimTransform transform =
+                            new PvZReanimTransform();
+
+                        transform.x =
+                            nativeTransforms[frame].x;
+
+                        transform.y =
+                            nativeTransforms[frame].y;
+
+                        transform.skewX =
+                            nativeTransforms[frame].kx;
+
+                        transform.skewY =
+                            nativeTransforms[frame].ky;
+
+                        transform.scaleX =
+                            nativeTransforms[frame].sx;
+
+                        transform.scaleY =
+                            nativeTransforms[frame].sy;
+
+                        transform.frame =
+                            nativeTransforms[frame].f;
+
+                        transform.alpha =
+                            nativeTransforms[frame].a;
+
+                        /*
+                         * DT_IMAGE
+                         */
+
+                        string imageName =
+                            ReadImageString(
+                                reader
+                            );
+
+                        if (!string.IsNullOrEmpty(
+                                imageName))
+                        {
+                            transform.imageName =
+                                NormalizeImageName(
+                                    imageName
+                                );
+                        }
+
+                        /*
+                         * DT_FONT
+                         *
+                         * No necesitamos cargar fonts todavía,
+                         * pero debemos consumirlos del stream.
+                         */
+
+                        ReadImageString(
+                            reader
+                        );
+
+                        /*
+                         * DT_STRING
+                         */
+
+                        string text =
+                            ReadString(
+                                reader
+                            );
+
+                        if (!string.IsNullOrEmpty(
+                                text))
+                        {
+                            transform.text =
+                                text;
+                        }
+
+                        track.transforms.Add(
+                            transform
+                        );
+                    }
+
                     definition.tracks.Add(
                         track
                     );
-                }
 
-                definition.fps =
-                    reader.ReadSingle();
+                    Debug.Log(
+                        "[PvZReanimCompiledLoader] " +
+                        "Track reconstruido: " +
+                        track.name +
+                        " | Frames: " +
+                        track.TransformCount
+                    );
+                }
 
                 Debug.Log(
                     "[PvZReanimCompiledLoader] " +
-                    "FPS: " +
+                    "CACHE COMPLETO | " +
+                    "Tracks: " +
+                    definition.TrackCount +
+                    " | Frames: " +
+                    definition.GetMaxFrameCount() +
+                    " | FPS: " +
                     definition.fps
                 );
 
@@ -419,67 +742,37 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // TRACK
+        // NATIVE TRACK
         // =========================================================
 
-        private static PvZReanimTrack ReadTrack(
+        private struct NativeTrack
+        {
+            public uint namePointer;
+            public uint transformsPointer;
+            public int transformCount;
+        }
+
+        private static NativeTrack ReadNativeTrack(
             BinaryReader reader)
         {
-            string name =
-                ReadString(
-                    reader
-                );
+            NativeTrack track =
+                new NativeTrack();
 
-            if (name == null)
-            {
-                return null;
-            }
-
-            PvZReanimTrack track =
-                new PvZReanimTrack(
-                    name
-                );
-
-            uint transformCount =
+            track.namePointer =
                 reader.ReadUInt32();
 
-            Debug.Log(
-                "[PvZReanimCompiledLoader] " +
-                "Track: " +
-                name +
-                " | Transforms: " +
-                transformCount
-            );
+            track.transformsPointer =
+                reader.ReadUInt32();
 
-            if (transformCount > 100000)
+            track.transformCount =
+                reader.ReadInt32();
+
+            if (track.transformCount < 0 ||
+                track.transformCount > 100000)
             {
-                Debug.LogError(
-                    "[PvZReanimCompiledLoader] " +
+                throw new InvalidDataException(
                     "TransformCount inválido: " +
-                    transformCount
-                );
-
-                return null;
-            }
-
-            track.transforms.Clear();
-
-            for (uint i = 0;
-                 i < transformCount;
-                 i++)
-            {
-                PvZReanimTransform transform =
-                    ReadTransform(
-                        reader
-                    );
-
-                if (transform == null)
-                {
-                    return null;
-                }
-
-                track.transforms.Add(
-                    transform
+                    track.transformCount
                 );
             }
 
@@ -487,30 +780,30 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // TRANSFORM
+        // NATIVE TRANSFORM
         // =========================================================
 
-        private static PvZReanimTransform ReadTransform(
+        private struct NativeTransform
+        {
+            public float x;
+            public float y;
+            public float kx;
+            public float ky;
+            public float sx;
+            public float sy;
+            public float f;
+            public float a;
+
+            public uint imagePointer;
+            public uint fontPointer;
+            public uint textPointer;
+        }
+
+        private static NativeTransform ReadNativeTransform(
             BinaryReader reader)
         {
-            PvZReanimTransform transform =
-                new PvZReanimTransform();
-
-            /*
-             * ResoddedFramework:
-             *
-             * x
-             * y
-             * kx
-             * ky
-             * sx
-             * sy
-             * f
-             * a
-             * i
-             * font
-             * text
-             */
+            NativeTransform transform =
+                new NativeTransform();
 
             transform.x =
                 reader.ReadSingle();
@@ -518,99 +811,63 @@ namespace PvZReanim
             transform.y =
                 reader.ReadSingle();
 
-            transform.skewX =
+            transform.kx =
                 reader.ReadSingle();
 
-            transform.skewY =
+            transform.ky =
                 reader.ReadSingle();
 
-            transform.scaleX =
+            transform.sx =
                 reader.ReadSingle();
 
-            transform.scaleY =
+            transform.sy =
                 reader.ReadSingle();
 
-            transform.frame =
+            transform.f =
                 reader.ReadSingle();
 
-            transform.alpha =
+            transform.a =
                 reader.ReadSingle();
 
-            /*
-             * DT_IMAGE usa:
-             *
-             * int length
-             * bytes
-             */
+            transform.imagePointer =
+                reader.ReadUInt32();
 
-            string image =
-                ReadImageString(
-                    reader
-                );
+            transform.fontPointer =
+                reader.ReadUInt32();
 
-            if (!string.IsNullOrEmpty(image))
-            {
-                transform.imageName =
-                    image;
-            }
-
-            /*
-             * DT_FONT
-             *
-             * El loader actual de Unity no necesita
-             * el font para las plantas, pero debemos
-             * consumirlo del stream.
-             */
-
-            string font =
-                ReadImageString(
-                    reader
-                );
-
-            /*
-             * DT_STRING
-             */
-
-            string text =
-                ReadString(
-                    reader
-                );
-
-            if (!string.IsNullOrEmpty(text))
-            {
-                transform.text =
-                    text;
-            }
+            transform.textPointer =
+                reader.ReadUInt32();
 
             return transform;
         }
 
         // =========================================================
-        // STRING
+        // STRING ORIGINAL
         // =========================================================
 
         private static string ReadString(
             BinaryReader reader)
         {
-            uint length =
-                reader.ReadUInt32();
+            int length =
+                reader.ReadInt32();
+
+            if (length < 0 ||
+                length > 100000)
+            {
+                throw new InvalidDataException(
+                    "Longitud de string inválida: " +
+                    length
+                );
+            }
 
             if (length == 0)
             {
                 return string.Empty;
             }
 
-            if (length > 1000000)
-            {
-                throw new InvalidDataException(
-                    "String demasiado grande: " +
-                    length
-                );
-            }
-
             byte[] bytes =
                 reader.ReadBytes(
-                    checked((int)length)
+                    length
                 );
 
             if (bytes.Length != length)
@@ -627,7 +884,7 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // IMAGE / FONT
+        // IMAGE / FONT ORIGINAL
         // =========================================================
 
         private static string ReadImageString(
@@ -637,10 +894,10 @@ namespace PvZReanim
                 reader.ReadInt32();
 
             if (length < 0 ||
-                length > 1000000)
+                length > 100000)
             {
                 throw new InvalidDataException(
-                    "Longitud de imagen inválida: " +
+                    "Longitud de imagen/font inválida: " +
                     length
                 );
             }
@@ -659,13 +916,68 @@ namespace PvZReanim
             {
                 throw new EndOfStreamException(
                     "No se pudieron leer todos " +
-                    "los bytes de imagen."
+                    "los bytes de imagen/font."
                 );
             }
 
             return Encoding.UTF8.GetString(
                 bytes
             );
+        }
+
+        // =========================================================
+        // NORMALIZAR IMAGEN
+        // =========================================================
+
+        private static string NormalizeImageName(
+            string imageName)
+        {
+            if (string.IsNullOrWhiteSpace(
+                    imageName))
+            {
+                return null;
+            }
+
+            imageName =
+                imageName.Trim();
+
+            imageName =
+                imageName.Replace(
+                    '\\',
+                    '/'
+                );
+
+            /*
+             * Resodded resuelve imágenes usando:
+             *
+             * IMAGE_REANIM_
+             * +
+             * reanim/
+             *
+             * por eso dejamos el nombre limpio.
+             */
+
+            if (imageName.StartsWith(
+                    "IMAGE_REANIM_",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                imageName =
+                    imageName.Substring(
+                        "IMAGE_REANIM_".Length
+                    );
+            }
+
+            if (imageName.StartsWith(
+                    "reanim/",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                imageName =
+                    imageName.Substring(
+                        "reanim/".Length
+                    );
+            }
+
+            return imageName;
         }
     }
 }
