@@ -8,6 +8,7 @@ public class PlantData : ScriptableObject
 {
     [Header("Identificación")]
     public string nombre = "Planta";
+    public PlantType tipo = PlantType.None;
 
     [Header("Prefab")]
     public Plant prefab;
