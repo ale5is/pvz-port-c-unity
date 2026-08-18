@@ -2,29 +2,28 @@ using UnityEngine;
 
 public class Board : MonoBehaviour
 {
-    public static Board Instancia;
+    public static Board Instancia { get; private set; }
 
     public const int FILAS = 5;
     public const int COLUMNAS = 9;
 
+    [Header("Tamaño de las celdas")]
     public float anchoCelda = 1.6f;
     public float altoCelda = 1.8f;
 
+    [Header("Origen del tablero")]
     public Vector3 origen = Vector3.zero;
 
-    public Cell[,] celdas;
+    public Cell[,] celdas { get; private set; }
 
     private void Awake()
     {
         Instancia = this;
-    }
 
-    private void Start()
-    {
         CrearTablero();
     }
 
-    void CrearTablero()
+    private void CrearTablero()
     {
         celdas = new Cell[FILAS, COLUMNAS];
 
@@ -35,15 +34,24 @@ public class Board : MonoBehaviour
                 Vector3 posicion = origen + new Vector3(
                     columna * anchoCelda,
                     -fila * altoCelda,
-                    0);
+                    0f
+                );
 
-                celdas[fila, columna] = new Cell(fila, columna, posicion);
+                celdas[fila, columna] =
+                    new Cell(
+                        fila,
+                        columna,
+                        posicion
+                    );
             }
         }
     }
 
     public Cell ObtenerCelda(int fila, int columna)
     {
+        if (celdas == null)
+            return null;
+
         if (fila < 0 || fila >= FILAS)
             return null;
 
@@ -51,6 +59,37 @@ public class Board : MonoBehaviour
             return null;
 
         return celdas[fila, columna];
+    }
+
+    public Cell ObtenerCeldaDesdeMundo(
+        Vector3 posicionMundo)
+    {
+        int columna = Mathf.RoundToInt(
+            (posicionMundo.x - origen.x) /
+            anchoCelda
+        );
+
+        int fila = Mathf.RoundToInt(
+            (origen.y - posicionMundo.y) /
+            altoCelda
+        );
+
+        return ObtenerCelda(fila, columna);
+    }
+
+    public Vector3 ObtenerPosicionZombie(int fila)
+    {
+        Cell ultimaCelda =
+            ObtenerCelda(
+                fila,
+                COLUMNAS - 1
+            );
+
+        if (ultimaCelda == null)
+            return origen;
+
+        return ultimaCelda.posicion +
+               Vector3.right * anchoCelda;
     }
 
     private void OnDrawGizmos()
@@ -61,21 +100,23 @@ public class Board : MonoBehaviour
         {
             for (int columna = 0; columna < COLUMNAS; columna++)
             {
-                Vector3 posicion = origen + new Vector3(
-                    columna * anchoCelda,
-                    -fila * altoCelda,
-                    0);
+                Vector3 posicion =
+                    origen +
+                    new Vector3(
+                        columna * anchoCelda,
+                        -fila * altoCelda,
+                        0f
+                    );
 
-                Gizmos.DrawWireCube(posicion, new Vector3(anchoCelda, altoCelda, 0));
+                Gizmos.DrawWireCube(
+                    posicion,
+                    new Vector3(
+                        anchoCelda,
+                        altoCelda,
+                        0.05f
+                    )
+                );
             }
         }
-    }
-
-    public Cell ObtenerCeldaDesdeMundo(Vector3 posicionMundo)
-    {
-        int columna = Mathf.RoundToInt((posicionMundo.x - origen.x) / anchoCelda);
-        int fila = Mathf.RoundToInt((origen.y - posicionMundo.y) / altoCelda);
-
-        return ObtenerCelda(fila, columna);
     }
 }
