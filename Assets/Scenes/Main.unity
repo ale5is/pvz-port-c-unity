@@ -402,7 +402,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &868310011
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -551,7 +551,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1036647278
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -565,7 +565,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   relativePath: Reanim/test.reanim
-  imageProvider: {fileID: 0}
+  imageProvider: {fileID: 1036647281}
   imageResolver: {fileID: 0}
   spriteLoader: {fileID: 0}
   loopType: 1
@@ -617,7 +617,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   atlas: {fileID: 0}
-  searchResources: 1
+  searchResources: 0
+  searchPak: 1
+  pakProvider: {fileID: 1172118326}
 --- !u!114 &1036647282
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -630,9 +632,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 697a6336a182c0c47be7542ac6a5e99b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  provider: {fileID: 0}
+  provider: {fileID: 1036647281}
   spriteLoader: {fileID: 0}
-  searchResourcesIfMissing: 1
+  searchResourcesIfMissing: 0
   logMissingImages: 1
 --- !u!212 &1036647283
 SpriteRenderer:
