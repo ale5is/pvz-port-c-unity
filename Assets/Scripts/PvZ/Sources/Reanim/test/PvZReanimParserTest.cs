@@ -293,7 +293,7 @@ public class PvZReanimParserTest : MonoBehaviour
                     " | SY=" +
                     frame.sy +
                     " | Rot=" +
-                    //frame.f +
+                    frame.alpha +
                     " | Image=" +
                     frame.image +
                     " | Transform=" +
