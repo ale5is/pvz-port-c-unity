@@ -20,6 +20,9 @@ namespace PvZReanim
         [SerializeField]
         private bool logSearches = true;
 
+        [SerializeField]
+        private bool debugPeashooterFiles = true;
+
         private PvZPakReader pakReader;
 
         private readonly Dictionary<string, Sprite> spriteCache =
@@ -89,6 +92,54 @@ namespace PvZReanim
                 pakReader.FileCount,
                 this
             );
+
+            // -----------------------------------------------------
+            // DEBUG: MOSTRAR ARCHIVOS DEL PEASHOOTER
+            // -----------------------------------------------------
+
+            if (debugPeashooterFiles)
+            {
+                Debug.Log(
+                    "[PvZPakImageProvider] " +
+                    "Buscando archivos PEASHOOTER dentro del PAK...",
+                    this
+                );
+
+                List<string> peashooterFiles =
+                    pakReader.Find("PEASHOOTER");
+
+                if (peashooterFiles == null ||
+                    peashooterFiles.Count == 0)
+                {
+                    Debug.LogWarning(
+                        "[PvZPakImageProvider] " +
+                        "NO se encontraron archivos que contengan " +
+                        "'PEASHOOTER' dentro del PAK.",
+                        this
+                    );
+                }
+                else
+                {
+                    Debug.Log(
+                        "[PvZPakImageProvider] " +
+                        "Archivos PEASHOOTER encontrados: " +
+                        peashooterFiles.Count,
+                        this
+                    );
+
+                    for (int i = 0;
+                         i < peashooterFiles.Count;
+                         i++)
+                    {
+                        Debug.Log(
+                            "[PvZPakImageProvider] " +
+                            "PEASHOOTER PAK: " +
+                            peashooterFiles[i],
+                            this
+                        );
+                    }
+                }
+            }
         }
 
         // =========================================================
@@ -116,8 +167,7 @@ namespace PvZReanim
         // LOAD TEXTURE
         // =========================================================
 
-        public Texture2D LoadTexture(
-            string imageName)
+        public Texture2D LoadTexture(string imageName)
         {
             if (!IsReady)
             {
@@ -137,7 +187,7 @@ namespace PvZReanim
                 return null;
 
             // -----------------------------------------------------
-            // CACHE TEXTURE
+            // CACHE
             // -----------------------------------------------------
 
             Texture2D cachedTexture;
@@ -162,9 +212,7 @@ namespace PvZReanim
                     normalizedName,
                     out path))
             {
-                path = ResolveImagePath(
-                    imageName
-                );
+                path = ResolveImagePath(imageName);
 
                 if (!string.IsNullOrEmpty(path))
                 {
@@ -223,16 +271,26 @@ namespace PvZReanim
             }
 
             // -----------------------------------------------------
-            // DECODE
+            // DECODIFICAR
             // -----------------------------------------------------
 
             Texture2D texture =
-                new Texture2D(
-                    2,
-                    2,
-                    TextureFormat.RGBA32,
-                    false
+                DecodeImage(
+                    path,
+                    data
                 );
+
+            if (texture == null)
+            {
+                Debug.LogWarning(
+                    "[PvZPakImageProvider] " +
+                    "No se pudo decodificar la imagen:\n" +
+                    path,
+                    this
+                );
+
+                return null;
+            }
 
             texture.name =
                 Path.GetFileNameWithoutExtension(
@@ -244,27 +302,6 @@ namespace PvZReanim
 
             texture.wrapMode =
                 TextureWrapMode.Clamp;
-
-            bool decoded =
-                ImageConversion.LoadImage(
-                    texture,
-                    data,
-                    false
-                );
-
-            if (!decoded)
-            {
-                Destroy(texture);
-
-                Debug.LogWarning(
-                    "[PvZPakImageProvider] " +
-                    "El recurso no es una imagen válida:\n" +
-                    path,
-                    this
-                );
-
-                return null;
-            }
 
             textureCache[
                 normalizedName
@@ -291,8 +328,7 @@ namespace PvZReanim
         // LOAD SPRITE
         // =========================================================
 
-        public Sprite LoadSprite(
-            string imageName)
+        public Sprite LoadSprite(string imageName)
         {
             if (!IsReady)
                 return null;
@@ -368,11 +404,8 @@ namespace PvZReanim
         private string ResolveImagePath(
             string imageName)
         {
-            if (string.IsNullOrWhiteSpace(
-                    imageName))
-            {
+            if (string.IsNullOrWhiteSpace(imageName))
                 return null;
-            }
 
             string normalized =
                 NormalizeImageName(
@@ -383,7 +416,7 @@ namespace PvZReanim
                 return null;
 
             // -----------------------------------------------------
-            // SI YA TENEMOS UNA RUTA DEL PAK
+            // RUTA DIRECTA
             // -----------------------------------------------------
 
             string directPath =
@@ -391,72 +424,71 @@ namespace PvZReanim
                     imageName
                 );
 
-            if (!string.IsNullOrEmpty(
-                    directPath))
+            if (!string.IsNullOrEmpty(directPath))
             {
                 if (pakReader.Contains(
                         directPath))
                 {
                     return directPath;
                 }
-
-                if (Path.HasExtension(
-                        directPath))
-                {
-                    string withoutExtension =
-                        RemoveImageExtension(
-                            directPath
-                        );
-
-                    if (pakReader.Contains(
-                            withoutExtension + ".png"))
-                    {
-                        return withoutExtension +
-                               ".png";
-                    }
-                }
             }
 
             // -----------------------------------------------------
-            // CANDIDATOS DIRECTOS
+            // CANDIDATOS
+            //
+            // IMPORTANTE:
+            // PvZ original puede utilizar TGA.
             // -----------------------------------------------------
 
-            string[] candidates =
+            string[] extensions =
             {
-                "reanim/" + normalized + ".png",
-                "reanim/" + normalized + ".jpg",
-                "reanim/" + normalized + ".jpeg",
-
-                "images/" + normalized + ".png",
-                "images/" + normalized + ".jpg",
-                "images/" + normalized + ".jpeg",
-
-                normalized + ".png",
-                normalized + ".jpg",
-                normalized + ".jpeg"
+                ".tga",
+                ".png",
+                ".jpg",
+                ".jpeg",
+                ".gif",
+                ".webp"
             };
 
-            for (int i = 0;
-                 i < candidates.Length;
-                 i++)
+            string[] folders =
             {
-                string candidate =
-                    candidates[i];
+                "reanim/",
+                "images/",
+                ""
+            };
 
-                if (pakReader.Contains(
-                        candidate))
+            // -----------------------------------------------------
+            // BUSQUEDA DIRECTA
+            // -----------------------------------------------------
+
+            for (int f = 0;
+                 f < folders.Length;
+                 f++)
+            {
+                for (int e = 0;
+                     e < extensions.Length;
+                     e++)
                 {
-                    if (logSearches)
-                    {
-                        Debug.Log(
-                            "[PvZPakImageProvider] " +
-                            "Imagen encontrada directamente: " +
-                            candidate,
-                            this
-                        );
-                    }
+                    string candidate =
+                        folders[f] +
+                        normalized +
+                        extensions[e];
 
-                    return candidate;
+                    if (pakReader.Contains(
+                            candidate))
+                    {
+                        if (logSearches)
+                        {
+                            Debug.Log(
+                                "[PvZPakImageProvider] " +
+                                "Imagen encontrada directamente: " +
+                                candidate,
+                                this
+                            );
+                        }
+
+                        return candidate;
+                    }
                 }
             }
 
@@ -476,7 +508,7 @@ namespace PvZReanim
             }
 
             // -----------------------------------------------------
-            // 1. BUSCAR MISMO NOMBRE + PNG
+            // 1. MISMO NOMBRE EXACTO
             // -----------------------------------------------------
 
             for (int i = 0;
@@ -505,7 +537,7 @@ namespace PvZReanim
                     {
                         Debug.Log(
                             "[PvZPakImageProvider] " +
-                            "Imagen encontrada por búsqueda: " +
+                            "Imagen encontrada por nombre exacto: " +
                             match,
                             this
                         );
@@ -516,7 +548,43 @@ namespace PvZReanim
             }
 
             // -----------------------------------------------------
-            // 2. PRIORIDAD REANIM
+            // 2. PRIORIDAD TGA
+            // -----------------------------------------------------
+
+            for (int i = 0;
+                 i < matches.Count;
+                 i++)
+            {
+                string match =
+                    NormalizePakPath(
+                        matches[i]
+                    );
+
+                if (!IsImageFile(match))
+                    continue;
+
+                if (!match.EndsWith(
+                        ".tga",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (logSearches)
+                {
+                    Debug.Log(
+                        "[PvZPakImageProvider] " +
+                        "Imagen TGA encontrada: " +
+                        match,
+                        this
+                    );
+                }
+
+                return match;
+            }
+
+            // -----------------------------------------------------
+            // 3. PRIORIDAD REANIM
             // -----------------------------------------------------
 
             for (int i = 0;
@@ -550,7 +618,7 @@ namespace PvZReanim
             }
 
             // -----------------------------------------------------
-            // 3. CUALQUIER IMAGEN COINCIDENTE
+            // 4. CUALQUIER IMAGEN COINCIDENTE
             // -----------------------------------------------------
 
             for (int i = 0;
@@ -582,17 +650,408 @@ namespace PvZReanim
         }
 
         // =========================================================
+        // DECODE IMAGE
+        // =========================================================
+
+        private Texture2D DecodeImage(
+            string path,
+            byte[] data)
+        {
+            string extension =
+                Path.GetExtension(
+                    path
+                ).ToLowerInvariant();
+
+            // -----------------------------------------------------
+            // TGA
+            // -----------------------------------------------------
+
+            if (extension == ".tga")
+            {
+                return DecodeTGA(data);
+            }
+
+            // -----------------------------------------------------
+            // UNITY: PNG / JPG
+            // -----------------------------------------------------
+
+            Texture2D texture =
+                new Texture2D(
+                    2,
+                    2,
+                    TextureFormat.RGBA32,
+                    false
+                );
+
+            bool decoded =
+                ImageConversion.LoadImage(
+                    texture,
+                    data,
+                    false
+                );
+
+            if (!decoded)
+            {
+                Destroy(texture);
+                return null;
+            }
+
+            return texture;
+        }
+
+        // =========================================================
+        // TGA DECODER
+        //
+        // Soporta:
+        // - TGA sin compresión
+        // - TGA RLE
+        // - 24 bits
+        // - 32 bits
+        // =========================================================
+
+        private Texture2D DecodeTGA(
+            byte[] data)
+        {
+            if (data == null ||
+                data.Length < 18)
+            {
+                return null;
+            }
+
+            int idLength =
+                data[0];
+
+            int colorMapType =
+                data[1];
+
+            int imageType =
+                data[2];
+
+            int width =
+                data[12] |
+                (data[13] << 8);
+
+            int height =
+                data[14] |
+                (data[15] << 8);
+
+            int bitsPerPixel =
+                data[16];
+
+            byte descriptor =
+                data[17];
+
+            // -----------------------------------------------------
+            // SOLO SOPORTAMOS IMÁGENES SIN COLOR MAP
+            // -----------------------------------------------------
+
+            if (colorMapType != 0)
+            {
+                Debug.LogWarning(
+                    "[PvZPakImageProvider] " +
+                    "TGA con color map no soportado."
+                );
+
+                return null;
+            }
+
+            // -----------------------------------------------------
+            // TIPOS SOPORTADOS
+            //
+            // 2  = RGB sin compresión
+            // 10 = RGB RLE
+            // -----------------------------------------------------
+
+            if (imageType != 2 &&
+                imageType != 10)
+            {
+                Debug.LogWarning(
+                    "[PvZPakImageProvider] " +
+                    "Tipo TGA no soportado: " +
+                    imageType
+                );
+
+                return null;
+            }
+
+            if (bitsPerPixel != 24 &&
+                bitsPerPixel != 32)
+            {
+                Debug.LogWarning(
+                    "[PvZPakImageProvider] " +
+                    "Profundidad TGA no soportada: " +
+                    bitsPerPixel
+                );
+
+                return null;
+            }
+
+            if (width <= 0 ||
+                height <= 0)
+            {
+                return null;
+            }
+
+            int bytesPerPixel =
+                bitsPerPixel / 8;
+
+            int pixelCount =
+                width * height;
+
+            Color32[] pixels =
+                new Color32[pixelCount];
+
+            int offset =
+                18 + idLength;
+
+            if (offset > data.Length)
+                return null;
+
+            // -----------------------------------------------------
+            // ORIENTACIÓN
+            //
+            // TGA:
+            // bit 5 = vertical
+            // bit 4 = horizontal
+            // -----------------------------------------------------
+
+            bool topOrigin =
+                (descriptor & 0x20) != 0;
+
+            bool rightOrigin =
+                (descriptor & 0x10) != 0;
+
+            int currentPixel =
+                0;
+
+            // -----------------------------------------------------
+            // FUNCIÓN LOCAL PARA LEER UN PIXEL
+            // -----------------------------------------------------
+
+            Func<Color32> ReadPixel =
+                delegate
+                {
+                    if (offset + bytesPerPixel >
+                        data.Length)
+                    {
+                        return new Color32(
+                            255,
+                            0,
+                            255,
+                            255
+                        );
+                    }
+
+                    byte b =
+                        data[offset++];
+
+                    byte g =
+                        data[offset++];
+
+                    byte r =
+                        data[offset++];
+
+                    byte a = 255;
+
+                    if (bytesPerPixel == 4)
+                    {
+                        a =
+                            data[offset++];
+                    }
+
+                    return new Color32(
+                        r,
+                        g,
+                        b,
+                        a
+                    );
+                };
+
+            // -----------------------------------------------------
+            // SIN COMPRESIÓN
+            // -----------------------------------------------------
+
+            if (imageType == 2)
+            {
+                for (int sourceIndex = 0;
+                     sourceIndex < pixelCount;
+                     sourceIndex++)
+                {
+                    Color32 color =
+                        ReadPixel();
+
+                    int sourceX =
+                        sourceIndex % width;
+
+                    int sourceY =
+                        sourceIndex / width;
+
+                    int x =
+                        rightOrigin
+                            ? width - 1 - sourceX
+                            : sourceX;
+
+                    int y =
+                        topOrigin
+                            ? height - 1 - sourceY
+                            : sourceY;
+
+                    int destinationIndex =
+                        y * width + x;
+
+                    if (destinationIndex >= 0 &&
+                        destinationIndex < pixels.Length)
+                    {
+                        pixels[
+                            destinationIndex
+                        ] = color;
+                    }
+                }
+            }
+
+            // -----------------------------------------------------
+            // RLE
+            // -----------------------------------------------------
+
+            else
+            {
+                while (currentPixel < pixelCount &&
+                       offset < data.Length)
+                {
+                    byte packet =
+                        data[offset++];
+
+                    bool runLength =
+                        (packet & 0x80) != 0;
+
+                    int count =
+                        (packet & 0x7F) + 1;
+
+                    if (runLength)
+                    {
+                        Color32 color =
+                            ReadPixel();
+
+                        for (int i = 0;
+                             i < count &&
+                             currentPixel < pixelCount;
+                             i++)
+                        {
+                            WriteTGAPixel(
+                                pixels,
+                                currentPixel,
+                                width,
+                                height,
+                                color,
+                                topOrigin,
+                                rightOrigin
+                            );
+
+                            currentPixel++;
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0;
+                             i < count &&
+                             currentPixel < pixelCount;
+                             i++)
+                        {
+                            Color32 color =
+                                ReadPixel();
+
+                            WriteTGAPixel(
+                                pixels,
+                                currentPixel,
+                                width,
+                                height,
+                                color,
+                                topOrigin,
+                                rightOrigin
+                            );
+
+                            currentPixel++;
+                        }
+                    }
+                }
+            }
+
+            Texture2D texture =
+                new Texture2D(
+                    width,
+                    height,
+                    TextureFormat.RGBA32,
+                    false
+                );
+
+            texture.SetPixels32(
+                pixels
+            );
+
+            texture.Apply(
+                false,
+                false
+            );
+
+            texture.filterMode =
+                FilterMode.Point;
+
+            texture.wrapMode =
+                TextureWrapMode.Clamp;
+
+            return texture;
+        }
+
+        // =========================================================
+        // WRITE TGA PIXEL
+        // =========================================================
+
+        private static void WriteTGAPixel(
+            Color32[] pixels,
+            int sourceIndex,
+            int width,
+            int height,
+            Color32 color,
+            bool topOrigin,
+            bool rightOrigin)
+        {
+            int sourceX =
+                sourceIndex % width;
+
+            int sourceY =
+                sourceIndex / width;
+
+            int x =
+                rightOrigin
+                    ? width - 1 - sourceX
+                    : sourceX;
+
+            int y =
+                topOrigin
+                    ? height - 1 - sourceY
+                    : sourceY;
+
+            int destinationIndex =
+                y * width + x;
+
+            if (destinationIndex >= 0 &&
+                destinationIndex < pixels.Length)
+            {
+                pixels[
+                    destinationIndex
+                ] = color;
+            }
+        }
+
+        // =========================================================
         // NORMALIZE IMAGE NAME
         // =========================================================
 
         private static string NormalizeImageName(
             string value)
         {
-            if (string.IsNullOrWhiteSpace(
-                    value))
-            {
+            if (string.IsNullOrWhiteSpace(value))
                 return string.Empty;
-            }
 
             string result =
                 value.Trim();
@@ -623,12 +1082,10 @@ namespace PvZReanim
             }
 
             result =
-                result.TrimStart(
-                    '/'
-                );
+                result.TrimStart('/');
 
             // -----------------------------------------------------
-            // SI ES UNA RUTA, USAMOS EL NOMBRE DEL ARCHIVO
+            // SI ES UNA RUTA, QUEDARSE CON EL NOMBRE
             // -----------------------------------------------------
 
             int slash =
@@ -658,11 +1115,8 @@ namespace PvZReanim
         private static string NormalizePakPath(
             string value)
         {
-            if (string.IsNullOrWhiteSpace(
-                    value))
-            {
+            if (string.IsNullOrWhiteSpace(value))
                 return string.Empty;
-            }
 
             string result =
                 value.Trim();
@@ -681,9 +1135,7 @@ namespace PvZReanim
                     result.Substring(2);
             }
 
-            return result.TrimStart(
-                '/'
-            );
+            return result.TrimStart('/');
         }
 
         // =========================================================
@@ -693,17 +1145,16 @@ namespace PvZReanim
         private static string RemoveImageExtension(
             string value)
         {
-            if (string.IsNullOrEmpty(
-                    value))
-            {
+            if (string.IsNullOrEmpty(value))
                 return value;
-            }
 
             string[] extensions =
             {
                 ".png",
                 ".jpg",
                 ".jpeg",
+                ".tga",
+                ".gif",
                 ".webp"
             };
 
@@ -753,6 +1204,14 @@ namespace PvZReanim
                     StringComparison.OrdinalIgnoreCase
                 ) ||
                 path.EndsWith(
+                    ".tga",
+                    StringComparison.OrdinalIgnoreCase
+                ) ||
+                path.EndsWith(
+                    ".gif",
+                    StringComparison.OrdinalIgnoreCase
+                ) ||
+                path.EndsWith(
                     ".webp",
                     StringComparison.OrdinalIgnoreCase
                 );
@@ -765,6 +1224,7 @@ namespace PvZReanim
         public void ClearCache()
         {
             spriteCache.Clear();
+
             resolvedPaths.Clear();
 
             foreach (
