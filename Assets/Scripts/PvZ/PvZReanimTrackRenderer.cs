@@ -8,6 +8,10 @@ namespace PvZReanim
         [SerializeField]
         private bool useMeshRenderer = true;
 
+        [Header("Debug")]
+        [SerializeField]
+        private bool logMissingSprites = true;
+
         private SpriteRenderer spriteRenderer;
 
         private PvZReanimMeshRenderer meshRenderer;
@@ -18,17 +22,29 @@ namespace PvZReanim
 
         private int sortingOrder;
 
+        private string lastMissingImage;
+
+        // =========================================================
+        // UNITY
+        // =========================================================
+
         private void Awake()
         {
             InitializeRenderer();
         }
+
+        // =========================================================
+        // INITIALIZE
+        // =========================================================
 
         private void InitializeRenderer()
         {
             if (useMeshRenderer)
             {
                 meshRenderer =
-                    GetComponent<PvZReanimMeshRenderer>();
+                    GetComponent<
+                        PvZReanimMeshRenderer
+                    >();
 
                 if (meshRenderer == null)
                 {
@@ -37,19 +53,19 @@ namespace PvZReanim
                             PvZReanimMeshRenderer
                         >();
                 }
+
+                return;
             }
-            else
+
+            spriteRenderer =
+                GetComponent<SpriteRenderer>();
+
+            if (spriteRenderer == null)
             {
                 spriteRenderer =
-                    GetComponent<SpriteRenderer>();
-
-                if (spriteRenderer == null)
-                {
-                    spriteRenderer =
-                        gameObject.AddComponent<
-                            SpriteRenderer
-                        >();
-                }
+                    gameObject.AddComponent<
+                        SpriteRenderer
+                    >();
             }
         }
 
@@ -134,15 +150,60 @@ namespace PvZReanim
             PvZReanimTrackInstance instance)
         {
             if (reanimTransform == null)
+            {
+                Hide();
                 return;
+            }
 
             InitializeRenderer();
+
+            // -----------------------------------------------------
+            // FRAME VISIBILITY
+            // -----------------------------------------------------
+
+            if (!IsFrameVisible(
+                    reanimTransform))
+            {
+                Hide();
+                return;
+            }
+
+            // -----------------------------------------------------
+            // RENDER GROUP
+            // -----------------------------------------------------
+
+            if (instance != null &&
+                instance.renderGroup ==
+                PvZReanimRenderGroup.Hidden)
+            {
+                Hide();
+                return;
+            }
+
+            // -----------------------------------------------------
+            // RESOLVE SPRITE
+            // -----------------------------------------------------
 
             Sprite sprite =
                 ResolveSprite(
                     reanimTransform,
                     instance
                 );
+
+            if (sprite == null)
+            {
+                Hide();
+
+                LogMissingSprite(
+                    reanimTransform
+                );
+
+                return;
+            }
+
+            // -----------------------------------------------------
+            // APPLY
+            // -----------------------------------------------------
 
             if (useMeshRenderer)
             {
@@ -163,6 +224,31 @@ namespace PvZReanim
         }
 
         // =========================================================
+        // FRAME VISIBILITY
+        // =========================================================
+
+        private bool IsFrameVisible(
+            PvZReanimTransform reanimTransform)
+        {
+            if (reanimTransform == null)
+                return false;
+
+            if (!reanimTransform.HasFrame)
+                return true;
+
+            float frame =
+                reanimTransform.GetFrame();
+
+            // En Reanim, un frame negativo
+            // representa un elemento que no debe
+            // renderizarse en ese momento.
+            if (frame < 0f)
+                return false;
+
+            return true;
+        }
+
+        // =========================================================
         // MESH
         // =========================================================
 
@@ -174,8 +260,13 @@ namespace PvZReanim
             if (meshRenderer == null)
                 return;
 
-            if (sprite == null ||
-                instance == null)
+            if (sprite == null)
+            {
+                meshRenderer.Hide();
+                return;
+            }
+
+            if (instance == null)
             {
                 meshRenderer.Hide();
                 return;
@@ -191,7 +282,7 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // SPRITE
+        // SPRITE RENDERER
         // =========================================================
 
         private void ApplySprite(
@@ -216,6 +307,10 @@ namespace PvZReanim
             spriteRenderer.sprite =
                 sprite;
 
+            // -----------------------------------------------------
+            // POSITION
+            // -----------------------------------------------------
+
             float x =
                 reanimTransform.GetX();
 
@@ -228,6 +323,10 @@ namespace PvZReanim
                     y,
                     0f
                 );
+
+            // -----------------------------------------------------
+            // SCALE
+            // -----------------------------------------------------
 
             float scaleX =
                 reanimTransform.GetScaleX();
@@ -242,9 +341,17 @@ namespace PvZReanim
                     1f
                 );
 
+            // -----------------------------------------------------
+            // ROTATION
+            // -----------------------------------------------------
+
             ApplyRotation(
                 reanimTransform
             );
+
+            // -----------------------------------------------------
+            // COLOR
+            // -----------------------------------------------------
 
             Color color =
                 instance != null
@@ -261,6 +368,10 @@ namespace PvZReanim
 
             spriteRenderer.color =
                 color;
+
+            // -----------------------------------------------------
+            // VISIBILITY
+            // -----------------------------------------------------
 
             bool visible =
                 sprite != null;
@@ -286,22 +397,58 @@ namespace PvZReanim
             PvZReanimTransform reanimTransform,
             PvZReanimTrackInstance instance)
         {
+            // -----------------------------------------------------
+            // 1. OVERRIDE
+            // -----------------------------------------------------
+
             if (instance != null &&
                 instance.imageOverride != null)
             {
                 return instance.imageOverride;
             }
 
+            // -----------------------------------------------------
+            // 2. IMAGE DIRECTA
+            // -----------------------------------------------------
+
             if (reanimTransform.image != null)
             {
                 return reanimTransform.image;
+            }
+
+            // -----------------------------------------------------
+            // 3. RESOLVER
+            // -----------------------------------------------------
+
+            if (imageResolver == null)
+            {
+                imageResolver =
+                    GetComponent<
+                        PvZReanimImageResolver
+                    >();
+
+                if (imageResolver == null)
+                {
+                    imageResolver =
+                        GetComponentInParent<
+                            PvZReanimImageResolver
+                        >();
+                }
+
+                if (imageResolver == null)
+                {
+                    imageResolver =
+                        FindFirstObjectByType<
+                            PvZReanimImageResolver
+                        >();
+                }
             }
 
             if (imageResolver == null)
                 return null;
 
             if (string.IsNullOrEmpty(
-                reanimTransform.imageName))
+                    reanimTransform.imageName))
             {
                 return null;
             }
@@ -312,12 +459,15 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // ROTATION FALLBACK
+        // ROTATION
         // =========================================================
 
         private void ApplyRotation(
             PvZReanimTransform reanimTransform)
         {
+            if (reanimTransform == null)
+                return;
+
             float skewX =
                 reanimTransform.GetSkewX();
 
@@ -325,7 +475,8 @@ namespace PvZReanim
                 reanimTransform.GetSkewY();
 
             float rotation =
-                skewY - skewX;
+                skewY -
+                skewX;
 
             transform.localRotation =
                 Quaternion.Euler(
@@ -333,6 +484,67 @@ namespace PvZReanim
                     0f,
                     rotation
                 );
+        }
+
+        // =========================================================
+        // HIDE
+        // =========================================================
+
+        private void Hide()
+        {
+            InitializeRenderer();
+
+            if (meshRenderer != null)
+            {
+                meshRenderer.Hide();
+            }
+
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.enabled =
+                    false;
+            }
+        }
+
+        // =========================================================
+        // MISSING DEBUG
+        // =========================================================
+
+        private void LogMissingSprite(
+            PvZReanimTransform reanimTransform)
+        {
+            if (!logMissingSprites)
+                return;
+
+            if (reanimTransform == null)
+                return;
+
+            string imageName =
+                reanimTransform.imageName;
+
+            if (string.IsNullOrEmpty(
+                    imageName))
+            {
+                return;
+            }
+
+            if (string.Equals(
+                    lastMissingImage,
+                    imageName,
+                    System.StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            lastMissingImage =
+                imageName;
+
+            Debug.LogWarning(
+                "[PvZReanimTrackRenderer] " +
+                "No se pudo resolver la imagen: " +
+                imageName,
+                this
+            );
         }
 
         // =========================================================
@@ -368,6 +580,9 @@ namespace PvZReanim
 
             transform.localScale =
                 Vector3.one;
+
+            lastMissingImage =
+                null;
         }
     }
 }

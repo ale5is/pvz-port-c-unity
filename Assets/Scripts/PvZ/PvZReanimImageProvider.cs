@@ -5,13 +5,13 @@ using UnityEngine;
 namespace PvZReanim
 {
     /// <summary>
-    /// Proveedor de imágenes utilizado por el sistema Reanim.
+    /// Proveedor central de imágenes para Reanim.
     ///
-    /// Orden:
-    /// 1. Sprites registrados en runtime.
-    /// 2. main.pak.
-    /// 3. PvZReanimAtlas.
-    /// 4. Resources.
+    /// Prioridad:
+    /// 1. main.pak
+    /// 2. Sprites registrados en runtime
+    /// 3. PvZReanimAtlas
+    /// 4. Resources
     /// </summary>
     public class PvZReanimImageProvider : MonoBehaviour
     {
@@ -43,7 +43,7 @@ namespace PvZReanim
         private PvZPakImageProvider pakProvider;
 
         // =========================================================
-        // RUNTIME SPRITES
+        // RUNTIME
         // =========================================================
 
         private readonly Dictionary<string, Sprite> runtimeSprites =
@@ -57,30 +57,63 @@ namespace PvZReanim
 
         public PvZReanimAtlas Atlas
         {
-            get => atlas;
-            set => atlas = value;
+            get
+            {
+                return atlas;
+            }
+
+            set
+            {
+                atlas = value;
+            }
         }
 
         public bool SearchResources
         {
-            get => searchResources;
-            set => searchResources = value;
+            get
+            {
+                return searchResources;
+            }
+
+            set
+            {
+                searchResources = value;
+            }
         }
 
         public bool SearchPak
         {
-            get => searchPak;
-            set => searchPak = value;
+            get
+            {
+                return searchPak;
+            }
+
+            set
+            {
+                searchPak = value;
+            }
         }
 
         public PvZPakImageProvider PakProvider
         {
-            get => pakProvider;
-            set => pakProvider = value;
+            get
+            {
+                return pakProvider;
+            }
+
+            set
+            {
+                pakProvider = value;
+            }
         }
 
-        public int RegisteredSpriteCount =>
-            runtimeSprites.Count;
+        public int RegisteredSpriteCount
+        {
+            get
+            {
+                return runtimeSprites.Count;
+            }
+        }
 
         // =========================================================
         // UNITY
@@ -88,11 +121,28 @@ namespace PvZReanim
 
         private void Awake()
         {
-            if (pakProvider == null)
-            {
-                pakProvider =
-                    PvZPakImageProvider.Instance;
-            }
+            FindPakProvider();
+        }
+
+        // =========================================================
+        // FIND PAK PROVIDER
+        // =========================================================
+
+        private void FindPakProvider()
+        {
+            if (pakProvider != null)
+                return;
+
+            pakProvider =
+                PvZPakImageProvider.Instance;
+
+            if (pakProvider != null)
+                return;
+
+            pakProvider =
+                FindFirstObjectByType<
+                    PvZPakImageProvider
+                >();
         }
 
         // =========================================================
@@ -102,100 +152,74 @@ namespace PvZReanim
         public virtual Sprite Resolve(
             string imageName)
         {
+            if (string.IsNullOrWhiteSpace(
+                    imageName))
+            {
+                return null;
+            }
+
             string normalized =
                 PvZReanimImageResolver.NormalizeName(
                     imageName
                 );
 
-            if (string.IsNullOrEmpty(normalized))
+            if (string.IsNullOrEmpty(
+                    normalized))
+            {
                 return null;
+            }
 
             Sprite sprite;
 
-            // -----------------------------------------------------
-            // 1. RUNTIME
-            // -----------------------------------------------------
-
-            if (runtimeSprites.TryGetValue(
-                    normalized,
-                    out sprite))
-            {
-                return sprite;
-            }
-
-            // -----------------------------------------------------
-            // 2. PAK
-            // -----------------------------------------------------
+            // =====================================================
+            // 1. PAK
+            // =====================================================
 
             if (searchPak)
             {
-                if (pakProvider == null)
-                {
-                    pakProvider =
-                        PvZPakImageProvider.Instance;
-                }
+                FindPakProvider();
 
                 if (pakProvider != null &&
                     pakProvider.IsReady)
                 {
                     sprite =
                         pakProvider.LoadSprite(
-                            normalized
+                            imageName
                         );
 
                     if (sprite != null)
                     {
-                        RegisterSprite(
-                            normalized,
-                            sprite
-                        );
-
                         Debug.Log(
                             "[PvZReanimImageProvider] " +
                             "Sprite resuelto desde PAK: " +
-                            normalized,
+                            imageName,
                             this
                         );
 
                         return sprite;
                     }
-
-                    // Intentar también con el nombre
-                    // original por si conserva
-                    // mayúsculas o ruta.
-                    if (!string.Equals(
-                            imageName,
-                            normalized,
-                            StringComparison.OrdinalIgnoreCase))
-                    {
-                        sprite =
-                            pakProvider.LoadSprite(
-                                imageName
-                            );
-
-                        if (sprite != null)
-                        {
-                            RegisterSprite(
-                                normalized,
-                                sprite
-                            );
-
-                            Debug.Log(
-                                "[PvZReanimImageProvider] " +
-                                "Sprite resuelto desde PAK: " +
-                                imageName,
-                                this
-                            );
-
-                            return sprite;
-                        }
-                    }
                 }
             }
 
-            // -----------------------------------------------------
+            // =====================================================
+            // 2. RUNTIME
+            // =====================================================
+
+            if (runtimeSprites.TryGetValue(
+                    normalized,
+                    out sprite))
+            {
+                if (sprite != null)
+                    return sprite;
+
+                runtimeSprites.Remove(
+                    normalized
+                );
+            }
+
+            // =====================================================
             // 3. ATLAS
-            // -----------------------------------------------------
+            // =====================================================
 
             if (atlas != null)
             {
@@ -222,9 +246,9 @@ namespace PvZReanim
                 }
             }
 
-            // -----------------------------------------------------
-            // 4. UNITY RESOURCES
-            // -----------------------------------------------------
+            // =====================================================
+            // 4. RESOURCES
+            // =====================================================
 
             if (searchResources)
             {
@@ -284,16 +308,25 @@ namespace PvZReanim
             string imageName,
             Sprite sprite)
         {
+            if (string.IsNullOrWhiteSpace(
+                    imageName))
+            {
+                return;
+            }
+
+            if (sprite == null)
+                return;
+
             string normalized =
                 PvZReanimImageResolver.NormalizeName(
                     imageName
                 );
 
-            if (string.IsNullOrEmpty(normalized))
+            if (string.IsNullOrEmpty(
+                    normalized))
+            {
                 return;
-
-            if (sprite == null)
-                return;
+            }
 
             runtimeSprites[
                 normalized
@@ -307,13 +340,22 @@ namespace PvZReanim
         public bool UnregisterSprite(
             string imageName)
         {
+            if (string.IsNullOrWhiteSpace(
+                    imageName))
+            {
+                return false;
+            }
+
             string normalized =
                 PvZReanimImageResolver.NormalizeName(
                     imageName
                 );
 
-            if (string.IsNullOrEmpty(normalized))
+            if (string.IsNullOrEmpty(
+                    normalized))
+            {
                 return false;
+            }
 
             return runtimeSprites.Remove(
                 normalized
@@ -321,23 +363,39 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // CHECK
+        // CHECK REGISTERED
         // =========================================================
 
         public bool HasRegisteredSprite(
             string imageName)
         {
+            if (string.IsNullOrWhiteSpace(
+                    imageName))
+            {
+                return false;
+            }
+
             string normalized =
                 PvZReanimImageResolver.NormalizeName(
                     imageName
                 );
 
-            if (string.IsNullOrEmpty(normalized))
+            if (string.IsNullOrEmpty(
+                    normalized))
+            {
                 return false;
+            }
 
-            return runtimeSprites.ContainsKey(
-                normalized
-            );
+            Sprite sprite;
+
+            if (runtimeSprites.TryGetValue(
+                    normalized,
+                    out sprite))
+            {
+                return sprite != null;
+            }
+
+            return false;
         }
 
         // =========================================================
@@ -366,7 +424,25 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // CLEANUP
+        // PAK
+        // =========================================================
+
+        public void SetPakProvider(
+            PvZPakImageProvider newProvider)
+        {
+            pakProvider =
+                newProvider;
+        }
+
+        public PvZPakImageProvider GetPakProvider()
+        {
+            FindPakProvider();
+
+            return pakProvider;
+        }
+
+        // =========================================================
+        // CLEAR
         // =========================================================
 
         public virtual void Clear()
