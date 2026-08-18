@@ -1,8 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Xml;
 using UnityEngine;
 
 namespace PvZReanim
@@ -31,7 +32,9 @@ namespace PvZReanim
                 );
             }
 
-            return LoadBytes(File.ReadAllBytes(path));
+            return LoadBytes(
+                File.ReadAllBytes(path)
+            );
         }
 
         // =========================================================
@@ -48,7 +51,8 @@ namespace PvZReanim
                 );
             }
 
-            string text = DecodeText(data);
+            string text =
+                DecodeText(data);
 
             return Parse(text);
         }
@@ -118,14 +122,16 @@ namespace PvZReanim
 
             if (definition != null)
             {
-                int frameCount =
-                    definition.GetMaxFrameCount();
-
                 Debug.Log(
                     "[PvZReanimParser] Reanim parseado correctamente | " +
                     "FPS: " + definition.fps +
                     " | Tracks: " + definition.TrackCount +
-                    " | Frames: " + frameCount
+                    " | Frames: " +
+                    definition.GetMaxFrameCount()
+                );
+
+                ValidateTrackFrameCounts(
+                    definition
                 );
             }
 
@@ -145,125 +151,134 @@ namespace PvZReanim
             definition.fps =
                 PvZReanimConstants.DefaultFPS;
 
-            // Normalizar saltos
-            text = text.Replace("\r\n", "\n");
-            text = text.Replace('\r', '\n');
+            text =
+                NormalizeText(text);
+
+            /*
+             * Los .reanim originales de PvZ pueden venir:
+             *
+             * <track>...</track>
+             * <track>...</track>
+             *
+             * o dentro de un elemento raíz.
+             *
+             * Envolvemos todo en un <root> artificial para
+             * permitir múltiples elementos raíz.
+             */
+
+            text =
+                RemoveXmlDeclaration(text);
+
+            text =
+                RemoveDoctype(text);
+
+            XmlDocument document =
+                new XmlDocument();
+
+            try
+            {
+                document.LoadXml(
+                    "<root>" +
+                    text +
+                    "</root>"
+                );
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError(
+                    "[PvZReanimParser] Error parseando XML: " +
+                    exception.Message
+                );
+
+                return definition;
+            }
 
             // =====================================================
             // FPS
             // =====================================================
 
-            float fps =
-                FindFirstFloat(
-                    text,
-                    "<fps>",
-                    "</fps>"
+            XmlNode fpsNode =
+                document.SelectSingleNode(
+                    "//fps"
                 );
 
-            if (!IsMissingValue(fps) &&
-                fps > 0f)
+            if (fpsNode != null)
             {
-                definition.fps = fps;
+                float fps;
+
+                if (TryParseFloat(
+                        fpsNode.InnerText,
+                        out fps
+                    ) &&
+                    fps > 0f)
+                {
+                    definition.fps =
+                        fps;
+                }
             }
 
             // =====================================================
             // TRACKS
             // =====================================================
 
-            int searchPosition = 0;
+            XmlNodeList trackNodes =
+                document.SelectNodes(
+                    "//track"
+                );
 
-            while (true)
+            if (trackNodes == null)
             {
-                int trackStart =
-                    FindOpeningTag(
-                        text,
-                        "track",
-                        searchPosition
-                    );
+                return definition;
+            }
 
-                if (trackStart < 0)
-                    break;
-
-                int trackEnd =
-                    FindClosingTag(
-                        text,
-                        "track",
-                        trackStart
-                    );
-
-                if (trackEnd < 0)
-                {
-                    Debug.LogWarning(
-                        "[PvZReanimParser] Track sin cierre."
-                    );
-
-                    break;
-                }
-
-                string trackText =
-                    text.Substring(
-                        trackStart,
-                        trackEnd - trackStart
-                    );
+            for (int i = 0;
+                 i < trackNodes.Count;
+                 i++)
+            {
+                XmlNode trackNode =
+                    trackNodes[i];
 
                 PvZReanimTrack track =
-                    ParseTrackText(
-                        trackText,
+                    ParseTrackNode(
+                        trackNode,
                         definition.TrackCount
                     );
 
                 if (track != null)
                 {
-                    definition.tracks.Add(track);
+                    definition.tracks.Add(
+                        track
+                    );
                 }
-
-                searchPosition =
-                    trackEnd +
-                    "</track>".Length;
-            }
-
-            // =====================================================
-            // FALLBACK
-            // =====================================================
-
-            if (definition.TrackCount == 0)
-            {
-                ParseIndependentXmlBlocks(
-                    text,
-                    definition
-                );
             }
 
             return definition;
         }
 
         // =========================================================
-        // PARSE TRACK
+        // TRACK
         // =========================================================
 
-        private static PvZReanimTrack ParseTrackText(
-            string text,
+        private static PvZReanimTrack ParseTrackNode(
+            XmlNode trackNode,
             int index)
         {
-            if (string.IsNullOrWhiteSpace(text))
+            if (trackNode == null)
+            {
                 return null;
-
-            // =====================================================
-            // NOMBRE
-            // =====================================================
+            }
 
             string trackName =
-                FindFirstString(
-                    text,
-                    "<name>",
-                    "</name>"
+                GetChildText(
+                    trackNode,
+                    "name"
                 );
 
             if (string.IsNullOrWhiteSpace(trackName))
             {
                 trackName =
-                    FindAttribute(
-                        text,
+                    GetAttribute(
+                        trackNode,
                         "name"
                     );
             }
@@ -275,131 +290,104 @@ namespace PvZReanim
             }
 
             trackName =
-                CleanValue(trackName);
+                CleanValue(
+                    trackName
+                );
 
             PvZReanimTrack track =
-                new PvZReanimTrack(trackName);
+                new PvZReanimTrack(
+                    trackName
+                );
 
             // =====================================================
-            // TRANSFORMS
-            //
-            // IMPORTANTE:
-            //
-            // Resodded define:
-            //
-            // track -> t[]
-            //
-            // Cada <t> es un elemento COMPLETO.
-            //
+            // TRANSFORMS OFICIALES
             // =====================================================
 
-            int position = 0;
+            XmlNodeList transformNodes =
+                trackNode.SelectNodes(
+                    "./t"
+                );
 
-            while (true)
+            if (transformNodes != null)
             {
-                int start =
-                    FindOpeningTag(
-                        text,
-                        "t",
-                        position
-                    );
-
-                if (start < 0)
-                    break;
-
-                int end =
-                    FindClosingTag(
-                        text,
-                        "t",
-                        start
-                    );
-
-                if (end < 0)
+                for (int i = 0;
+                     i < transformNodes.Count;
+                     i++)
                 {
-                    Debug.LogWarning(
-                        "[PvZReanimParser] Transform <t> sin cierre " +
-                        "en track: " + track.name
-                    );
+                    /*
+                     * IMPORTANTE:
+                     *
+                     * NUNCA descartamos un <t>.
+                     *
+                     * Un <t> vacío es válido en PvZ.
+                     *
+                     * Resodded conserva ese frame y después
+                     * rellena sus valores con los del frame
+                     * anterior.
+                     */
 
-                    break;
+                    PvZReanimTransform transform =
+                        ParseTransformNode(
+                            transformNodes[i]
+                        );
+
+                    if (transform == null)
+                    {
+                        transform =
+                            new PvZReanimTransform();
+                    }
+
+                    track.transforms.Add(
+                        transform
+                    );
                 }
-
-                string element =
-                    text.Substring(
-                        start,
-                        end - start +
-                        "</t>".Length
-                    );
-
-                PvZReanimTransform transform =
-                    ParseTransformElement(
-                        element
-                    );
-
-                if (transform != null)
-                {
-                    track.transforms.Add(transform);
-                }
-
-                position =
-                    end +
-                    "</t>".Length;
             }
 
             // =====================================================
-            // COMPATIBILIDAD CON <transform>
+            // COMPATIBILIDAD <transform>
             // =====================================================
 
             if (track.TransformCount == 0)
             {
-                position = 0;
+                XmlNodeList compatibilityNodes =
+                    trackNode.SelectNodes(
+                        "./transform"
+                    );
 
-                while (true)
+                if (compatibilityNodes != null)
                 {
-                    int start =
-                        FindOpeningTag(
-                            text,
-                            "transform",
-                            position
-                        );
-
-                    if (start < 0)
-                        break;
-
-                    int end =
-                        FindClosingTag(
-                            text,
-                            "transform",
-                            start
-                        );
-
-                    if (end < 0)
-                        break;
-
-                    string element =
-                        text.Substring(
-                            start,
-                            end - start +
-                            "</transform>".Length
-                        );
-
-                    PvZReanimTransform transform =
-                        ParseTransformElement(
-                            element
-                        );
-
-                    if (transform != null)
+                    for (int i = 0;
+                         i < compatibilityNodes.Count;
+                         i++)
                     {
+                        PvZReanimTransform transform =
+                            ParseTransformNode(
+                                compatibilityNodes[i]
+                            );
+
+                        if (transform == null)
+                        {
+                            transform =
+                                new PvZReanimTransform();
+                        }
+
                         track.transforms.Add(
                             transform
                         );
                     }
-
-                    position =
-                        end +
-                        "</transform>".Length;
                 }
             }
+
+            /*
+             * Resodded rellena los valores inexistentes
+             * usando el valor anterior.
+             *
+             * También conserva el frame vacío.
+             */
+
+            FillMissingData(
+                track
+            );
 
             Debug.Log(
                 "[PvZReanimParser] Track: " +
@@ -412,177 +400,193 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // PARSE TRANSFORM
+        // TRANSFORM
         // =========================================================
 
-        private static PvZReanimTransform ParseTransformElement(
-            string element)
+        private static PvZReanimTransform ParseTransformNode(
+            XmlNode node)
         {
-            if (string.IsNullOrWhiteSpace(element))
+            if (node == null)
+            {
                 return null;
+            }
 
             PvZReanimTransform transform =
                 new PvZReanimTransform();
 
             // =====================================================
-            // CAMPOS OFICIALES DE RESODDED
-            //
-            // x
-            // y
-            // kx
-            // ky
-            // sx
-            // sy
-            // f
-            // a
-            // i
-            // font
-            // text
+            // POSICIÓN
             // =====================================================
 
             transform.x =
                 ReadValue(
-                    element,
+                    node,
                     "x"
                 );
 
             transform.y =
                 ReadValue(
-                    element,
+                    node,
                     "y"
                 );
 
+            // =====================================================
+            // SKEW
+            // =====================================================
+
             transform.skewX =
                 ReadValue(
-                    element,
+                    node,
                     "kx"
                 );
 
             transform.skewY =
                 ReadValue(
-                    element,
+                    node,
                     "ky"
                 );
 
+            // Compatibilidad
+            if (IsMissingValue(
+                    transform.skewX
+                ))
+            {
+                transform.skewX =
+                    ReadValue(
+                        node,
+                        "skewX"
+                    );
+            }
+
+            if (IsMissingValue(
+                    transform.skewY
+                ))
+            {
+                transform.skewY =
+                    ReadValue(
+                        node,
+                        "skewY"
+                    );
+            }
+
+            // =====================================================
+            // SCALE
+            // =====================================================
+
             transform.scaleX =
                 ReadValue(
-                    element,
+                    node,
                     "sx"
                 );
 
             transform.scaleY =
                 ReadValue(
-                    element,
+                    node,
                     "sy"
                 );
 
-            transform.frame =
-                ReadValue(
-                    element,
-                    "f"
-                );
-
-            transform.alpha =
-                ReadValue(
-                    element,
-                    "a"
-                );
-
-            // =====================================================
-            // COMPATIBILIDAD
-            // =====================================================
-
-            if (IsMissingValue(transform.skewX))
-            {
-                transform.skewX =
-                    ReadValue(
-                        element,
-                        "skewX"
-                    );
-            }
-
-            if (IsMissingValue(transform.skewY))
-            {
-                transform.skewY =
-                    ReadValue(
-                        element,
-                        "skewY"
-                    );
-            }
-
-            if (IsMissingValue(transform.scaleX))
+            if (IsMissingValue(
+                    transform.scaleX
+                ))
             {
                 transform.scaleX =
                     ReadValue(
-                        element,
+                        node,
                         "scaleX"
                     );
             }
 
-            if (IsMissingValue(transform.scaleY))
+            if (IsMissingValue(
+                    transform.scaleY
+                ))
             {
                 transform.scaleY =
                     ReadValue(
-                        element,
+                        node,
                         "scaleY"
                     );
             }
 
-            if (IsMissingValue(transform.frame))
+            // =====================================================
+            // FRAME
+            // =====================================================
+
+            transform.frame =
+                ReadValue(
+                    node,
+                    "f"
+                );
+
+            if (IsMissingValue(
+                    transform.frame
+                ))
             {
                 transform.frame =
                     ReadValue(
-                        element,
+                        node,
                         "frame"
                     );
             }
 
-            if (IsMissingValue(transform.alpha))
+            // =====================================================
+            // ALPHA
+            // =====================================================
+
+            transform.alpha =
+                ReadValue(
+                    node,
+                    "a"
+                );
+
+            if (IsMissingValue(
+                    transform.alpha
+                ))
             {
                 transform.alpha =
                     ReadValue(
-                        element,
+                        node,
                         "alpha"
                     );
             }
 
             // =====================================================
-            // IMAGEN
-            //
-            // PvZ real:
-            //
-            // <i>PeaShooter_Head</i>
-            //
+            // IMAGE
             // =====================================================
 
             string imageName =
-                FindFirstString(
-                    element,
-                    "<i>",
-                    "</i>"
+                GetChildText(
+                    node,
+                    "i"
                 );
 
-            if (string.IsNullOrWhiteSpace(imageName))
+            if (string.IsNullOrWhiteSpace(
+                    imageName
+                ))
             {
                 imageName =
-                    FindFirstString(
-                        element,
-                        "<image>",
-                        "</image>"
+                    GetChildText(
+                        node,
+                        "image"
                     );
             }
 
-            if (string.IsNullOrWhiteSpace(imageName))
+            if (string.IsNullOrWhiteSpace(
+                    imageName
+                ))
             {
                 imageName =
-                    FindAttribute(
-                        element,
+                    GetAttribute(
+                        node,
                         "i"
                     );
             }
 
-            if (!string.IsNullOrWhiteSpace(imageName) &&
-                !IsMissingToken(imageName))
+            if (!string.IsNullOrWhiteSpace(
+                    imageName
+                ) &&
+                !IsMissingToken(
+                    imageName
+                ))
             {
                 transform.imageName =
                     NormalizeImageName(
@@ -594,17 +598,20 @@ namespace PvZReanim
             // FONT
             // =====================================================
 
-            string font =
-                FindFirstString(
-                    element,
-                    "<font>",
-                    "</font>"
+            string fontName =
+                GetChildText(
+                    node,
+                    "font"
                 );
 
-            if (!string.IsNullOrWhiteSpace(font))
+            if (!string.IsNullOrWhiteSpace(
+                    fontName
+                ))
             {
-                font =
-                    CleanValue(font);
+                transform.fontName =
+                    CleanValue(
+                        fontName
+                    );
             }
 
             // =====================================================
@@ -612,322 +619,297 @@ namespace PvZReanim
             // =====================================================
 
             string text =
-                FindFirstString(
-                    element,
-                    "<text>",
-                    "</text>"
+                GetChildText(
+                    node,
+                    "text"
                 );
 
-            if (!string.IsNullOrWhiteSpace(text))
+            if (!string.IsNullOrWhiteSpace(
+                    text
+                ))
             {
                 transform.text =
-                    CleanValue(text);
+                    CleanValue(
+                        text
+                    );
             }
 
-            // =====================================================
-            // COMPROBAR SI TIENE DATOS
-            // =====================================================
-
-            bool hasData =
-                !IsMissingValue(transform.x) ||
-                !IsMissingValue(transform.y) ||
-                !IsMissingValue(transform.skewX) ||
-                !IsMissingValue(transform.skewY) ||
-                !IsMissingValue(transform.scaleX) ||
-                !IsMissingValue(transform.scaleY) ||
-                !IsMissingValue(transform.frame) ||
-                !IsMissingValue(transform.alpha) ||
-                !string.IsNullOrEmpty(
-                    transform.imageName
-                ) ||
-                !string.IsNullOrEmpty(
-                    transform.text
-                );
-
-            if (!hasData)
-            {
-                return null;
-            }
+            /*
+             * IMPORTANTE:
+             *
+             * Aunque no tenga ningún valor, el transform
+             * sigue siendo válido.
+             *
+             * Esto reproduce el comportamiento de
+             * ReanimatorTransformConstructor de Resodded.
+             */
 
             return transform;
         }
 
         // =========================================================
-        // XML INDEPENDIENTE
+        // RELLENAR DATOS FALTANTES
         // =========================================================
 
-        private static void ParseIndependentXmlBlocks(
-            string text,
-            PvZReanimDefinition definition)
+        private static void FillMissingData(
+            PvZReanimTrack track)
         {
-            int position = 0;
-
-            while (true)
+            if (track == null ||
+                track.transforms == null)
             {
-                int start =
-                    FindOpeningTag(
-                        text,
-                        "track",
-                        position
-                    );
+                return;
+            }
 
-                if (start < 0)
-                    break;
+            float previousX = 0f;
+            float previousY = 0f;
 
-                int end =
-                    FindClosingTag(
-                        text,
-                        "track",
-                        start
-                    );
+            float previousSkewX = 0f;
+            float previousSkewY = 0f;
 
-                if (end < 0)
-                    break;
+            float previousScaleX = 1f;
+            float previousScaleY = 1f;
 
-                string block =
-                    text.Substring(
-                        start,
-                        end - start +
-                        "</track>".Length
-                    );
+            float previousFrame = 0f;
+            float previousAlpha = 1f;
 
-                PvZReanimTrack track =
-                    ParseTrackText(
-                        block,
-                        definition.TrackCount
-                    );
+            string previousImage = null;
+            string previousFont = null;
+            string previousText = "";
 
-                if (track != null)
+            for (int i = 0;
+                 i < track.transforms.Count;
+                 i++)
+            {
+                PvZReanimTransform transform =
+                    track.transforms[i];
+
+                if (transform == null)
                 {
-                    definition.tracks.Add(track);
+                    transform =
+                        new PvZReanimTransform();
+
+                    track.transforms[i] =
+                        transform;
                 }
 
-                position =
-                    end +
-                    "</track>".Length;
-            }
-        }
+                // -------------------------------------------------
+                // X
+                // -------------------------------------------------
 
-        // =========================================================
-        // ENCONTRAR TAG DE APERTURA
-        // =========================================================
-
-        private static int FindOpeningTag(
-            string text,
-            string tag,
-            int startIndex)
-        {
-            if (string.IsNullOrEmpty(text) ||
-                string.IsNullOrEmpty(tag))
-            {
-                return -1;
-            }
-
-            int position =
-                startIndex;
-
-            while (position < text.Length)
-            {
-                int index =
-                    text.IndexOf(
-                        "<" + tag,
-                        position,
-                        StringComparison.OrdinalIgnoreCase
-                    );
-
-                if (index < 0)
-                    return -1;
-
-                int afterTag =
-                    index +
-                    tag.Length +
-                    1;
-
-                if (afterTag >= text.Length)
-                    return index;
-
-                char c =
-                    text[afterTag];
-
-                // Evita confundir:
-                //
-                // <t>
-                //
-                // con:
-                //
-                // <track>
-                //
-                if (char.IsWhiteSpace(c) ||
-                    c == '>' ||
-                    c == '/')
-                {
-                    return index;
-                }
-
-                position =
-                    afterTag;
-            }
-
-            return -1;
-        }
-
-        // =========================================================
-        // ENCONTRAR CIERRE DE ELEMENTO
-        // =========================================================
-
-        private static int FindClosingTag(
-            string text,
-            string tag,
-            int openingStart)
-        {
-            if (string.IsNullOrEmpty(text))
-                return -1;
-
-            string openPrefix =
-                "<" + tag;
-
-            string closeTag =
-                "</" + tag + ">";
-
-            int openEnd =
-                text.IndexOf(
-                    '>',
-                    openingStart
+                FillFloat(
+                    ref previousX,
+                    ref transform.x
                 );
 
-            if (openEnd < 0)
-                return -1;
+                // -------------------------------------------------
+                // Y
+                // -------------------------------------------------
 
-            // Elemento self-closing:
-            //
-            // <t ... />
-            //
-            string opening =
-                text.Substring(
-                    openingStart,
-                    openEnd - openingStart + 1
+                FillFloat(
+                    ref previousY,
+                    ref transform.y
                 );
 
-            if (opening.TrimEnd().EndsWith(
-                    "/>",
-                    StringComparison.Ordinal))
-            {
-                return openEnd;
-            }
+                // -------------------------------------------------
+                // SKEW
+                // -------------------------------------------------
 
-            int depth = 1;
-            int position = openEnd + 1;
+                FillFloat(
+                    ref previousSkewX,
+                    ref transform.skewX
+                );
 
-            while (position < text.Length)
-            {
-                int nextOpen =
-                    FindOpeningTag(
-                        text,
-                        tag,
-                        position
-                    );
+                FillFloat(
+                    ref previousSkewY,
+                    ref transform.skewY
+                );
 
-                int nextClose =
-                    text.IndexOf(
-                        closeTag,
-                        position,
-                        StringComparison.OrdinalIgnoreCase
-                    );
+                // -------------------------------------------------
+                // SCALE
+                // -------------------------------------------------
 
-                if (nextClose < 0)
-                    return -1;
+                FillFloat(
+                    ref previousScaleX,
+                    ref transform.scaleX
+                );
 
-                // Si hay otro tag de apertura antes
-                // del cierre, incrementamos profundidad.
-                if (nextOpen >= 0 &&
-                    nextOpen < nextClose)
+                FillFloat(
+                    ref previousScaleY,
+                    ref transform.scaleY
+                );
+
+                // -------------------------------------------------
+                // FRAME
+                // -------------------------------------------------
+
+                FillFloat(
+                    ref previousFrame,
+                    ref transform.frame
+                );
+
+                // -------------------------------------------------
+                // ALPHA
+                // -------------------------------------------------
+
+                FillFloat(
+                    ref previousAlpha,
+                    ref transform.alpha
+                );
+
+                // -------------------------------------------------
+                // IMAGE
+                // -------------------------------------------------
+
+                if (string.IsNullOrEmpty(
+                        transform.imageName
+                    ))
                 {
-                    int nextOpenEnd =
-                        text.IndexOf(
-                            '>',
-                            nextOpen
-                        );
-
-                    if (nextOpenEnd < 0)
-                        return -1;
-
-                    string nestedOpening =
-                        text.Substring(
-                            nextOpen,
-                            nextOpenEnd -
-                            nextOpen +
-                            1
-                        );
-
-                    if (!nestedOpening
-                            .TrimEnd()
-                            .EndsWith(
-                                "/>",
-                                StringComparison.Ordinal))
-                    {
-                        depth++;
-                    }
-
-                    position =
-                        nextOpenEnd + 1;
-
-                    continue;
+                    transform.imageName =
+                        previousImage;
+                }
+                else
+                {
+                    previousImage =
+                        transform.imageName;
                 }
 
-                depth--;
+                // -------------------------------------------------
+                // FONT
+                // -------------------------------------------------
 
-                if (depth == 0)
+                if (string.IsNullOrEmpty(
+                        transform.fontName
+                    ))
                 {
-                    return nextClose;
+                    transform.fontName =
+                        previousFont;
+                }
+                else
+                {
+                    previousFont =
+                        transform.fontName;
                 }
 
-                position =
-                    nextClose +
-                    closeTag.Length;
-            }
+                // -------------------------------------------------
+                // TEXT
+                // -------------------------------------------------
 
-            return -1;
+                if (string.IsNullOrEmpty(
+                        transform.text
+                    ))
+                {
+                    transform.text =
+                        previousText;
+                }
+                else
+                {
+                    previousText =
+                        transform.text;
+                }
+            }
         }
 
         // =========================================================
-        // LEER FLOAT
+        // FILL FLOAT
         // =========================================================
+
+        private static void FillFloat(
+            ref float previous,
+            ref float value)
+        {
+            if (IsMissingValue(
+                    value
+                ))
+            {
+                value =
+                    previous;
+            }
+            else
+            {
+                previous =
+                    value;
+            }
+        }
+
+        // =========================================================
+        // XML HELPERS
+        // =========================================================
+
+        private static string GetChildText(
+            XmlNode node,
+            string name)
+        {
+            if (node == null)
+                return null;
+
+            XmlNode child =
+                node.SelectSingleNode(
+                    "./" + name
+                );
+
+            if (child == null)
+                return null;
+
+            return CleanValue(
+                child.InnerText
+            );
+        }
+
+        private static string GetAttribute(
+            XmlNode node,
+            string name)
+        {
+            if (node == null ||
+                node.Attributes == null)
+            {
+                return null;
+            }
+
+            XmlAttribute attribute =
+                node.Attributes[name];
+
+            if (attribute == null)
+                return null;
+
+            return CleanValue(
+                attribute.Value
+            );
+        }
 
         private static float ReadValue(
-            string element,
+            XmlNode node,
             string name)
         {
             string value =
-                FindFirstString(
-                    element,
-                    "<" + name + ">",
-                    "</" + name + ">"
+                GetChildText(
+                    node,
+                    name
                 );
 
-            if (string.IsNullOrWhiteSpace(value))
+            if (string.IsNullOrWhiteSpace(
+                    value
+                ))
             {
                 value =
-                    FindAttribute(
-                        element,
+                    GetAttribute(
+                        node,
                         name
                     );
             }
 
-            if (string.IsNullOrWhiteSpace(value))
+            if (string.IsNullOrWhiteSpace(
+                    value
+                ))
             {
                 return PvZReanimConstants.MissingValue;
             }
 
-            value =
-                CleanValue(value);
-
             float result;
 
-            if (float.TryParse(
+            if (TryParseFloat(
                     value,
-                    NumberStyles.Float,
-                    CultureInfo.InvariantCulture,
-                    out result))
+                    out result
+                ))
             {
                 return result;
             }
@@ -935,171 +917,64 @@ namespace PvZReanim
             return PvZReanimConstants.MissingValue;
         }
 
-        // =========================================================
-        // BUSCAR FLOAT
-        // =========================================================
-
-        private static float FindFirstFloat(
-            string text,
-            string open,
-            string close)
+        private static bool TryParseFloat(
+            string value,
+            out float result)
         {
-            string value =
-                FindFirstString(
-                    text,
-                    open,
-                    close
-                );
-
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return PvZReanimConstants.MissingValue;
-            }
-
-            float result;
-
-            if (float.TryParse(
-                    CleanValue(value),
-                    NumberStyles.Float,
-                    CultureInfo.InvariantCulture,
-                    out result))
-            {
-                return result;
-            }
-
-            return PvZReanimConstants.MissingValue;
+            return float.TryParse(
+                CleanValue(value),
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out result
+            );
         }
 
         // =========================================================
-        // BUSCAR STRING
+        // TEXTO
         // =========================================================
 
-        private static string FindFirstString(
-            string text,
-            string open,
-            string close)
+        private static string NormalizeText(
+            string text)
         {
             if (string.IsNullOrEmpty(text))
-                return null;
+                return text;
 
-            int start =
-                IndexOfIgnoreCase(
-                    text,
-                    open
-                );
+            return text
+                .Replace("\r\n", "\n")
+                .Replace('\r', '\n');
+        }
 
-            if (start < 0)
-                return null;
-
-            start +=
-                open.Length;
-
-            int end =
-                IndexOfIgnoreCase(
-                    text,
-                    close,
-                    start
-                );
-
-            if (end < 0)
-                return null;
-
-            return text.Substring(
-                start,
-                end - start
+        private static string RemoveXmlDeclaration(
+            string text)
+        {
+            return Regex.Replace(
+                text,
+                @"<\?xml[\s\S]*?\?>",
+                "",
+                RegexOptions.IgnoreCase
             );
         }
 
-        // =========================================================
-        // BUSCAR ATRIBUTO
-        // =========================================================
-
-        private static string FindAttribute(
-            string text,
-            string attribute)
+        private static string RemoveDoctype(
+            string text)
         {
-            if (string.IsNullOrWhiteSpace(text) ||
-                string.IsNullOrWhiteSpace(attribute))
-            {
-                return null;
-            }
-
-            string[] patterns =
-            {
-                attribute + "=\"",
-                attribute + "='"
-            };
-
-            for (int i = 0;
-                 i < patterns.Length;
-                 i++)
-            {
-                int start =
-                    IndexOfIgnoreCase(
-                        text,
-                        patterns[i]
-                    );
-
-                if (start < 0)
-                    continue;
-
-                start +=
-                    patterns[i].Length;
-
-                char quote =
-                    patterns[i][
-                        patterns[i].Length - 1
-                    ];
-
-                int end =
-                    text.IndexOf(
-                        quote,
-                        start
-                    );
-
-                if (end < 0)
-                    continue;
-
-                return text.Substring(
-                    start,
-                    end - start
-                );
-            }
-
-            return null;
-        }
-
-        // =========================================================
-        // INDEX IGNORE CASE
-        // =========================================================
-
-        private static int IndexOfIgnoreCase(
-            string source,
-            string value,
-            int startIndex = 0)
-        {
-            if (string.IsNullOrEmpty(source) ||
-                string.IsNullOrEmpty(value))
-            {
-                return -1;
-            }
-
-            return source.IndexOf(
-                value,
-                startIndex,
-                StringComparison.OrdinalIgnoreCase
+            return Regex.Replace(
+                text,
+                @"<!DOCTYPE[\s\S]*?>",
+                "",
+                RegexOptions.IgnoreCase
             );
         }
-
-        // =========================================================
-        // LIMPIAR
-        // =========================================================
 
         private static string CleanValue(
             string value)
         {
-            if (string.IsNullOrWhiteSpace(value))
+            if (string.IsNullOrWhiteSpace(
+                    value
+                ))
+            {
                 return null;
+            }
 
             value =
                 value.Trim();
@@ -1123,32 +998,20 @@ namespace PvZReanim
                 );
 
             value =
-                value.Replace(
-                    "&lt;",
-                    "<"
-                );
-
-            value =
-                value.Replace(
-                    "&gt;",
-                    ">"
-                );
-
-            value =
                 Unquote(value);
 
             return value.Trim();
         }
 
-        // =========================================================
-        // QUOTES
-        // =========================================================
-
         private static string Unquote(
             string value)
         {
-            if (string.IsNullOrEmpty(value))
+            if (string.IsNullOrEmpty(
+                    value
+                ))
+            {
                 return value;
+            }
 
             if (value.Length >= 2)
             {
@@ -1174,17 +1037,23 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // NORMALIZAR IMAGEN
+        // IMAGE
         // =========================================================
 
         private static string NormalizeImageName(
             string imageName)
         {
             imageName =
-                CleanValue(imageName);
+                CleanValue(
+                    imageName
+                );
 
-            if (string.IsNullOrWhiteSpace(imageName))
+            if (string.IsNullOrWhiteSpace(
+                    imageName
+                ))
+            {
                 return null;
+            }
 
             imageName =
                 imageName.Replace(
@@ -1196,14 +1065,18 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // TOKEN FALTANTE
+        // MISSING
         // =========================================================
 
         private static bool IsMissingToken(
             string value)
         {
-            if (string.IsNullOrWhiteSpace(value))
+            if (string.IsNullOrWhiteSpace(
+                    value
+                ))
+            {
                 return true;
+            }
 
             string normalized =
                 value.Trim();
@@ -1211,22 +1084,76 @@ namespace PvZReanim
             return
                 normalized == "-1" ||
                 normalized == "-1.0" ||
-                normalized == "null" ||
-                normalized == "NULL" ||
-                normalized == "none" ||
-                normalized == "None";
+                normalized.Equals(
+                    "null",
+                    StringComparison.OrdinalIgnoreCase
+                ) ||
+                normalized.Equals(
+                    "none",
+                    StringComparison.OrdinalIgnoreCase
+                );
         }
-
-        // =========================================================
-        // FLOAT FALTANTE
-        // =========================================================
 
         private static bool IsMissingValue(
             float value)
         {
-            return
-                value ==
-                PvZReanimConstants.MissingValue;
+            return value ==
+                   PvZReanimConstants.MissingValue;
+        }
+
+        // =========================================================
+        // VALIDACIÓN
+        // =========================================================
+
+        private static void ValidateTrackFrameCounts(
+            PvZReanimDefinition definition)
+        {
+            if (definition == null ||
+                definition.TrackCount == 0)
+            {
+                return;
+            }
+
+            int expected =
+                definition.GetTrack(0)
+                    .TransformCount;
+
+            bool valid = true;
+
+            for (int i = 0;
+                 i < definition.TrackCount;
+                 i++)
+            {
+                PvZReanimTrack track =
+                    definition.GetTrack(i);
+
+                if (track == null)
+                    continue;
+
+                if (track.TransformCount != expected)
+                {
+                    valid = false;
+
+                    Debug.LogWarning(
+                        "[PvZReanimParser] Track '" +
+                        track.name +
+                        "' tiene " +
+                        track.TransformCount +
+                        " frames; se esperaban " +
+                        expected +
+                        "."
+                    );
+                }
+            }
+
+            if (valid)
+            {
+                Debug.Log(
+                    "[PvZReanimParser] Todos los tracks tienen " +
+                    expected +
+                    " frames."
+                );
+            }
         }
     }
 }
