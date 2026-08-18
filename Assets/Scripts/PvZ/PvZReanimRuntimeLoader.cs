@@ -109,7 +109,6 @@ namespace PvZReanim
                         PvZReanimSpriteLoader>();
             }
 
-            // Configurar resolver
             if (imageResolver != null)
             {
                 imageResolver.SetProvider(
@@ -121,8 +120,6 @@ namespace PvZReanim
                 );
             }
 
-            // Importante:
-            // Las imágenes vienen del main.pak.
             if (imageProvider != null)
             {
                 imageProvider.SearchResources = false;
@@ -159,8 +156,6 @@ namespace PvZReanim
             PvZReanimDefinition definition =
                 LoadFromPak();
 
-            // Solo como fallback.
-            // En el funcionamiento normal se carga desde main.pak.
             if (definition == null)
             {
                 definition =
@@ -237,10 +232,6 @@ namespace PvZReanim
                 pakPath
             );
 
-            // =====================================================
-            // CARGAR PAK
-            // =====================================================
-
             PvZPakReader pak =
                 new PvZPakReader();
 
@@ -254,10 +245,6 @@ namespace PvZReanim
                 return null;
             }
 
-            // =====================================================
-            // NORMALIZAR RUTA
-            // =====================================================
-
             string normalizedPath =
                 relativePath
                     .Replace('\\', '/')
@@ -268,16 +255,6 @@ namespace PvZReanim
                 "Buscando dentro del PAK:\n" +
                 normalizedPath
             );
-
-            // =====================================================
-            // BUSCAR .REANIM ORIGINAL
-            //
-            // NO usamos compiled/reanim aquí.
-            //
-            // El .reanim original ya funciona y contiene
-            // toda la información necesaria para nuestra
-            // reconstrucción de Unity.
-            // =====================================================
 
             byte[] data;
 
@@ -302,10 +279,6 @@ namespace PvZReanim
                 data.Length
             );
 
-            // =====================================================
-            // PARSEAR REANIM
-            // =====================================================
-
             PvZReanimDefinition definition =
                 PvZReanimFileLoader.LoadBytes(
                     data
@@ -322,8 +295,6 @@ namespace PvZReanim
                 return null;
             }
 
-            // El archivo puede no traer nombre.
-            // Usamos el nombre del archivo.
             definition.name =
                 Path.GetFileNameWithoutExtension(
                     normalizedPath
@@ -424,34 +395,18 @@ namespace PvZReanim
                 obj.AddComponent<
                     PvZReanimation>();
 
-            // =====================================================
-            // RESOLVER IMÁGENES
-            // =====================================================
-
             reanimation.SetImageResolver(
                 imageResolver
             );
-
-            // =====================================================
-            // INICIALIZAR
-            // =====================================================
 
             reanimation.Initialize(
                 definition
             );
 
-            // =====================================================
-            // REPRODUCIR
-            // =====================================================
-
             reanimation.Play(
                 loopType,
                 animRate
             );
-
-            // =====================================================
-            // INFORMACIÓN
-            // =====================================================
 
             if (logInformation)
             {
