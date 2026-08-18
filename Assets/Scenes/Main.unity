@@ -182,6 +182,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: be5bd9c4a1a25d44f98f49c4c9bf4f25, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  plantas: []
 --- !u!4 &103352794
 Transform:
   m_ObjectHideFlags: 0
@@ -280,6 +281,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   tipo: 4
+  datos: {fileID: 0}
+  boton: {fileID: 0}
 --- !u!114 &259834501
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -426,6 +429,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   tipo: 3
+  datos: {fileID: 0}
+  boton: {fileID: 0}
 --- !u!114 &515636968
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -657,6 +662,55 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   plantaSeleccionada: 0
+--- !u!1 &552322369
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 552322371}
+  - component: {fileID: 552322370}
+  m_Layer: 0
+  m_Name: ZombieSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &552322370
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 552322369}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 040e3b5c445d48f488619b7e1c5253f5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  zombies:
+  - {fileID: 0}
+  intervaloInicial: 5
+  intervaloMinimo: 2
+  reduccionIntervalo: 0.1
+--- !u!4 &552322371
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 552322369}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &658574369
 GameObject:
   m_ObjectHideFlags: 0
@@ -977,6 +1031,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   tipo: 1
+  datos: {fileID: 0}
+  boton: {fileID: 0}
 --- !u!114 &1321250732
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1123,6 +1179,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   tipo: 2
+  datos: {fileID: 0}
+  boton: {fileID: 0}
 --- !u!114 &1497547430
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1246,8 +1304,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 76aea53450741dc4299c01475f49e3cc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  plantas:
-  - {fileID: 11400000, guid: 91f2a714ef069df48a10691407dfd647, type: 2}
 --- !u!4 &1653028546
 Transform:
   m_ObjectHideFlags: 0
@@ -1516,3 +1572,4 @@ SceneRoots:
   - {fileID: 3859375383733033106}
   - {fileID: 1060947925}
   - {fileID: 978178759}
+  - {fileID: 552322371}
