@@ -50,10 +50,22 @@ public class PlantFactory : MonoBehaviour
             );
 
         if (cell == null)
+        {
+            Debug.LogWarning(
+                "[PvZ] La celda no existe."
+            );
+
             return null;
+        }
 
         if (!cell.PuedePlantar())
+        {
+            Debug.LogWarning(
+                "[PvZ] La celda ya está ocupada."
+            );
+
             return null;
+        }
 
         Plant planta =
             Instantiate(datos.prefab);
@@ -63,6 +75,13 @@ public class PlantFactory : MonoBehaviour
             columna,
             datos
         );
+
+        if (PlantManager.Instancia != null)
+        {
+            PlantManager.Instancia.RegistrarPlanta(
+                planta
+            );
+        }
 
         return planta;
     }
