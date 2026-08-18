@@ -9,8 +9,10 @@ public class WaveManager : MonoBehaviour
     public class ZombieGroup
     {
         public ZombieData zombie;
+
         [Min(1)]
         public int cantidad = 1;
+
         [Min(0f)]
         public float retraso = 1f;
     }
@@ -35,17 +37,28 @@ public class WaveManager : MonoBehaviour
     [Header("Configuración")]
     public bool iniciarAutomaticamente = true;
 
+    [Min(0f)]
     public float retrasoInicial = 3f;
 
     [Header("Estado")]
-    public int oleadaActual = -1;
+    [SerializeField]
+    private int oleadaActual = -1;
+
+    [SerializeField]
+    private bool ejecutando;
+
+    private Coroutine rutina;
+
+    public int OleadaActual =>
+        oleadaActual;
 
     public bool EnOleada =>
         ejecutando;
 
-    private bool ejecutando;
-
-    private Coroutine rutina;
+    public int CantidadOleadas =>
+        oleadas != null
+            ? oleadas.Length
+            : 0;
 
     private void Awake()
     {
@@ -70,6 +83,16 @@ public class WaveManager : MonoBehaviour
         if (ejecutando)
             return;
 
+        if (oleadas == null ||
+            oleadas.Length == 0)
+        {
+            Debug.LogWarning(
+                "[PvZ] WaveManager no tiene oleadas configuradas."
+            );
+
+            return;
+        }
+
         rutina =
             StartCoroutine(
                 RutinaPrincipal()
@@ -85,6 +108,17 @@ public class WaveManager : MonoBehaviour
             StopCoroutine(rutina);
             rutina = null;
         }
+
+        StopAllCoroutines();
+    }
+
+    public void Reiniciar()
+    {
+        Detener();
+
+        oleadaActual = -1;
+
+        Iniciar();
     }
 
     private IEnumerator RutinaPrincipal()
@@ -104,10 +138,22 @@ public class WaveManager : MonoBehaviour
             i++
         )
         {
+            if (!ejecutando)
+                yield break;
+
             oleadaActual = i;
 
+            Debug.Log(
+                "[PvZ] Iniciando oleada " +
+                (i + 1) +
+                ": " +
+                ObtenerNombreOleada(
+                    oleadas[i]
+                )
+            );
+
             yield return StartCoroutine(
-                EjecutarOleada(
+                EjecutarOleadaInterna(
                     oleadas[i]
                 )
             );
@@ -115,9 +161,13 @@ public class WaveManager : MonoBehaviour
 
         ejecutando = false;
         rutina = null;
+
+        Debug.Log(
+            "[PvZ] Todas las oleadas terminaron."
+        );
     }
 
-    private IEnumerator EjecutarOleada(
+    private IEnumerator EjecutarOleadaInterna(
         Wave oleada)
     {
         if (oleada == null)
@@ -130,6 +180,9 @@ public class WaveManager : MonoBehaviour
             ZombieGroup grupo
             in oleada.grupos)
         {
+            if (!ejecutando)
+                yield break;
+
             if (grupo == null ||
                 grupo.zombie == null)
             {
@@ -148,11 +201,15 @@ public class WaveManager : MonoBehaviour
                 i++
             )
             {
+                if (!ejecutando)
+                    yield break;
+
                 Generar(
                     grupo.zombie
                 );
 
-                if (grupo.retraso > 0f)
+                if (grupo.retraso > 0f &&
+                    i < cantidad - 1)
                 {
                     yield return new WaitForSeconds(
                         grupo.retraso
@@ -172,8 +229,26 @@ public class WaveManager : MonoBehaviour
     private void Generar(
         ZombieData datos)
     {
-        if (ZombieManager.Instancia == null)
+        if (datos == null)
             return;
+
+        if (Board.Instancia == null)
+        {
+            Debug.LogError(
+                "[PvZ] No existe Board."
+            );
+
+            return;
+        }
+
+        if (ZombieManager.Instancia == null)
+        {
+            Debug.LogError(
+                "[PvZ] No existe ZombieManager."
+            );
+
+            return;
+        }
 
         int fila =
             Random.Range(
@@ -190,17 +265,39 @@ public class WaveManager : MonoBehaviour
     public void EjecutarOleada(
         int indice)
     {
-        if (indice < 0 ||
-            indice >= oleadas.Length)
+        if (ejecutando)
         {
+            Debug.LogWarning(
+                "[PvZ] Ya hay una oleada ejecutándose."
+            );
+
             return;
         }
 
+        if (!IndiceValido(indice))
+            return;
+
+        oleadaActual = indice;
+
         StartCoroutine(
-            EjecutarOleada(
+            EjecutarOleadaManual(
                 oleadas[indice]
             )
         );
+    }
+
+    private IEnumerator EjecutarOleadaManual(
+        Wave oleada)
+    {
+        ejecutando = true;
+
+        yield return StartCoroutine(
+            EjecutarOleadaInterna(
+                oleada
+            )
+        );
+
+        ejecutando = false;
     }
 
     public void SiguienteOleada()
@@ -208,24 +305,63 @@ public class WaveManager : MonoBehaviour
         int siguiente =
             oleadaActual + 1;
 
-        if (siguiente >= oleadas.Length)
+        if (!IndiceValido(siguiente))
+        {
+            Debug.Log(
+                "[PvZ] No quedan más oleadas."
+            );
+
             return;
+        }
 
-        oleadaActual = siguiente;
-
-        StartCoroutine(
-            EjecutarOleada(
-                oleadas[siguiente]
-            )
+        EjecutarOleada(
+            siguiente
         );
     }
 
     public bool EsUltimaOleada()
     {
-        return oleadas != null &&
-               oleadas.Length > 0 &&
-               oleadaActual >=
+        if (oleadas == null ||
+            oleadas.Length == 0)
+        {
+            return false;
+        }
+
+        return oleadaActual >=
                oleadas.Length - 1;
+    }
+
+    public bool HaySiguienteOleada()
+    {
+        if (oleadas == null)
+            return false;
+
+        return oleadaActual + 1 <
+               oleadas.Length;
+    }
+
+    private bool IndiceValido(
+        int indice)
+    {
+        return oleadas != null &&
+               indice >= 0 &&
+               indice < oleadas.Length;
+    }
+
+    private string ObtenerNombreOleada(
+        Wave oleada)
+    {
+        if (oleada == null)
+            return "Desconocida";
+
+        if (string.IsNullOrWhiteSpace(
+                oleada.nombre))
+        {
+            return "Oleada " +
+                   (oleadaActual + 1);
+        }
+
+        return oleada.nombre;
     }
 
     private void OnDestroy()
