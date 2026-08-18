@@ -1,0 +1,9 @@
+fps 12
+
+track "body"
+
+transform 0 0 0 0 1 1 0 1
+transform 0 30 0 0 1.15 1.15 1 1
+transform 0 0 0 0 1 1 2 1
+transform 0 -30 0 0 1.15 1.15 3 1
+transform 0 0 0 0 1 1 4 1
