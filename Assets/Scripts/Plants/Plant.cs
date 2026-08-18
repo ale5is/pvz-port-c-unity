@@ -2,31 +2,39 @@ using UnityEngine;
 
 public class Plant : GameObject
 {
-    [Header("Datos de la planta")]
+    [Header("Datos")]
     public PlantData datos;
 
-    [Header("Estado")]
+    [Header("Vida")]
     public int vida;
     public int vidaMaxima;
 
     [Header("Ataque")]
     protected float temporizadorAtaque;
 
+    [Header("Producción")]
+    protected float temporizadorProduccion;
+
     protected override void Start()
     {
         base.Start();
 
-        InicializarVida();
+        if (datos != null)
+            InicializarVida();
     }
 
     protected override void Update()
     {
+        if (!activo || muerto)
+            return;
+
         base.Update();
 
-        if (!activo || datos == null)
+        if (datos == null)
             return;
 
         ActualizarAtaque();
+        ActualizarProduccion();
     }
 
     public virtual void Inicializar(
@@ -36,12 +44,18 @@ public class Plant : GameObject
     {
         fila = row;
         columna = col;
-
         datos = plantData;
+
+        activo = true;
+        muerto = false;
 
         InicializarVida();
 
         temporizadorAtaque = 0f;
+        temporizadorProduccion =
+            datos != null
+                ? datos.intervaloProduccion
+                : 0f;
 
         if (Board.Instancia != null)
         {
@@ -53,14 +67,18 @@ public class Plant : GameObject
 
             if (cell != null)
             {
-                transform.position = cell.posicion;
+                transform.position =
+                    cell.posicion;
+
                 cell.ColocarPlanta(this);
             }
         }
 
         if (PlantManager.Instancia != null)
         {
-            PlantManager.Instancia.RegistrarPlanta(this);
+            PlantManager.Instancia.RegistrarPlanta(
+                this
+            );
         }
     }
 
@@ -69,21 +87,35 @@ public class Plant : GameObject
         if (datos == null)
             return;
 
-        vidaMaxima = datos.vida;
+        vidaMaxima =
+            Mathf.Max(1, datos.vida);
+
         vida = vidaMaxima;
     }
 
     protected virtual void ActualizarAtaque()
     {
-        if (datos.tipo != PlantType.Peashooter)
+        if (!datos.puedeAtacar)
             return;
 
-        temporizadorAtaque -= Time.deltaTime;
+        if (datos.daño <= 0)
+            return;
+
+        if (datos.tipo == PlantType.WallNut ||
+            datos.tipo == PlantType.TallNut ||
+            datos.tipo == PlantType.Pumpkin)
+        {
+            return;
+        }
+
+        temporizadorAtaque -=
+            Time.deltaTime;
 
         if (temporizadorAtaque > 0f)
             return;
 
-        Zombie objetivo = BuscarZombie();
+        Zombie objetivo =
+            BuscarZombie();
 
         if (objetivo == null)
             return;
@@ -91,7 +123,10 @@ public class Plant : GameObject
         Atacar(objetivo);
 
         temporizadorAtaque =
-            datos.intervaloAtaque;
+            Mathf.Max(
+                0.05f,
+                datos.intervaloAtaque
+            );
     }
 
     protected virtual Zombie BuscarZombie()
@@ -100,7 +135,9 @@ public class Plant : GameObject
             return null;
 
         Zombie objetivo = null;
-        float distanciaMinima = float.MaxValue;
+
+        float distanciaMinima =
+            float.MaxValue;
 
         foreach (
             Zombie zombie
@@ -108,16 +145,19 @@ public class Plant : GameObject
         {
             if (zombie == null ||
                 zombie.Muerto ||
-                zombie.fila != fila)
+                !zombie.activo)
             {
                 continue;
             }
+
+            if (zombie.fila != fila)
+                continue;
 
             float distancia =
                 zombie.transform.position.x -
                 transform.position.x;
 
-            if (distancia < 0f)
+            if (distancia < -0.05f)
                 continue;
 
             if (distancia > datos.rangoAtaque)
@@ -133,17 +173,16 @@ public class Plant : GameObject
         return objetivo;
     }
 
-    protected virtual void Atacar(Zombie objetivo)
+    protected virtual void Atacar(
+        Zombie objetivo)
     {
         if (objetivo == null)
             return;
 
         if (datos.prefabProyectil == null)
         {
-            Debug.LogWarning(
-                "[PvZ] La planta '" +
-                datos.nombre +
-                "' no tiene prefab de proyectil."
+            objetivo.RecibirDaño(
+                datos.daño
             );
 
             return;
@@ -161,12 +200,70 @@ public class Plant : GameObject
             datos.daño,
             datos.velocidadProyectil
         );
+
+        proyectil.dañoEnArea =
+            datos.dañoEnArea;
+
+        proyectil.radioDaño =
+            datos.radioDaño;
+
+        proyectil.ralentiza =
+            datos.ralentiza;
+
+        proyectil.multiplicadorRalentizacion =
+            datos.multiplicadorRalentizacion;
     }
 
-    public virtual void RecibirDaño(int daño)
+    protected virtual void ActualizarProduccion()
     {
-        if (daño <= 0 || !activo)
+        if (!datos.puedeProducirSol)
             return;
+
+        if (datos.produccionSol <= 0)
+            return;
+
+        temporizadorProduccion -=
+            Time.deltaTime;
+
+        if (temporizadorProduccion > 0f)
+            return;
+
+        ProducirSol();
+
+        temporizadorProduccion =
+            Mathf.Max(
+                0.1f,
+                datos.intervaloProduccion
+            );
+    }
+
+    protected virtual void ProducirSol()
+    {
+        Debug.Log(
+            "[PvZ] " +
+            datos.nombre +
+            " produjo " +
+            datos.produccionSol +
+            " soles."
+        );
+
+        if (SeedBank.Instancia != null)
+        {
+            SeedBank.Instancia.AgregarSol(
+                datos.produccionSol
+            );
+        }
+    }
+
+    public virtual void RecibirDaño(
+        int daño)
+    {
+        if (daño <= 0 ||
+            !activo ||
+            muerto)
+        {
+            return;
+        }
 
         vida -= daño;
 
@@ -176,6 +273,10 @@ public class Plant : GameObject
 
     protected virtual void Morir()
     {
+        if (muerto)
+            return;
+
+        muerto = true;
         activo = false;
 
         if (PlantManager.Instancia != null)
@@ -193,21 +294,58 @@ public class Plant : GameObject
                     columna
                 );
 
-            if (cell != null)
+            if (cell != null &&
+                cell.planta == this)
+            {
                 cell.QuitarPlanta();
+            }
         }
 
         Destroy(gameObject);
     }
 
-    public virtual void Curar(int cantidad)
+    public override void Kill()
     {
-        if (cantidad <= 0 || !activo)
-            return;
+        Morir();
+    }
 
-        vida = Mathf.Min(
-            vida + cantidad,
+    public virtual void Curar(
+        int cantidad)
+    {
+        if (cantidad <= 0 ||
+            !activo ||
+            muerto)
+        {
+            return;
+        }
+
+        vida =
+            Mathf.Min(
+                vida + cantidad,
+                vidaMaxima
+            );
+    }
+
+    public float PorcentajeVida()
+    {
+        if (vidaMaxima <= 0)
+            return 0f;
+
+        return Mathf.Clamp01(
+            (float)vida /
             vidaMaxima
         );
+    }
+
+    public bool EstaHerida()
+    {
+        return vida < vidaMaxima;
+    }
+
+    public bool EstaViva()
+    {
+        return activo &&
+               !muerto &&
+               vida > 0;
     }
 }
