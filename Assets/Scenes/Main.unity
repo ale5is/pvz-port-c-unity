@@ -564,8 +564,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9540a5a2c4abaa2469900c8fad3445ec, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  relativePath: Reanim/test.reanim
-  imageProvider: {fileID: 1036647281}
+  relativePath: reanim/PeaShooter.reanim
+  imageProvider: {fileID: 0}
   imageResolver: {fileID: 0}
   spriteLoader: {fileID: 0}
   loopType: 1

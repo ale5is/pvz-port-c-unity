@@ -7,7 +7,8 @@ namespace PvZReanim
     {
         [Header("Reanim")]
         [SerializeField]
-        private string relativePath = "reanim/PeaShooter.reanim";
+        private string relativePath =
+            "reanim/PeaShooter.reanim";
 
         [Header("Image System")]
         [SerializeField]
@@ -21,7 +22,8 @@ namespace PvZReanim
 
         [Header("Playback")]
         [SerializeField]
-        private PvZReanimLoopType loopType = PvZReanimLoopType.Loop;
+        private PvZReanimLoopType loopType =
+            PvZReanimLoopType.Loop;
 
         [SerializeField]
         private float animRate = 1f;
@@ -32,7 +34,8 @@ namespace PvZReanim
 
         private PvZReanimation reanimation;
 
-        public PvZReanimation Reanimation => reanimation;
+        public PvZReanimation Reanimation =>
+            reanimation;
 
         private void Start()
         {
@@ -40,185 +43,370 @@ namespace PvZReanim
             Load();
         }
 
+        // =========================================================
+        // COMPONENTES
+        // =========================================================
+
         private void FindImageComponents()
         {
             if (imageProvider == null)
-                imageProvider = GetComponent<PvZReanimImageProvider>();
+            {
+                imageProvider =
+                    GetComponent<PvZReanimImageProvider>();
+            }
 
             if (imageProvider == null)
-                imageProvider = GetComponentInParent<PvZReanimImageProvider>();
+            {
+                imageProvider =
+                    GetComponentInParent<
+                        PvZReanimImageProvider>();
+            }
 
             if (imageProvider == null)
-                imageProvider = FindFirstObjectByType<PvZReanimImageProvider>();
+            {
+                imageProvider =
+                    FindFirstObjectByType<
+                        PvZReanimImageProvider>();
+            }
 
             if (imageResolver == null)
-                imageResolver = GetComponent<PvZReanimImageResolver>();
+            {
+                imageResolver =
+                    GetComponent<PvZReanimImageResolver>();
+            }
 
             if (imageResolver == null)
-                imageResolver = GetComponentInParent<PvZReanimImageResolver>();
+            {
+                imageResolver =
+                    GetComponentInParent<
+                        PvZReanimImageResolver>();
+            }
 
             if (imageResolver == null)
-                imageResolver = FindFirstObjectByType<PvZReanimImageResolver>();
+            {
+                imageResolver =
+                    FindFirstObjectByType<
+                        PvZReanimImageResolver>();
+            }
 
             if (spriteLoader == null)
-                spriteLoader = GetComponent<PvZReanimSpriteLoader>();
+            {
+                spriteLoader =
+                    GetComponent<PvZReanimSpriteLoader>();
+            }
 
             if (spriteLoader == null)
-                spriteLoader = GetComponentInParent<PvZReanimSpriteLoader>();
+            {
+                spriteLoader =
+                    GetComponentInParent<
+                        PvZReanimSpriteLoader>();
+            }
 
             if (spriteLoader == null)
-                spriteLoader = FindFirstObjectByType<PvZReanimSpriteLoader>();
+            {
+                spriteLoader =
+                    FindFirstObjectByType<
+                        PvZReanimSpriteLoader>();
+            }
 
             if (imageResolver != null)
             {
-                imageResolver.SetProvider(imageProvider);
-                imageResolver.SetSpriteLoader(spriteLoader);
+                imageResolver.SetProvider(
+                    imageProvider
+                );
+
+                imageResolver.SetSpriteLoader(
+                    spriteLoader
+                );
             }
 
             if (imageProvider != null)
-                imageProvider.SearchResources = false;
+            {
+                imageProvider.SearchResources =
+                    false;
+            }
         }
+
+        // =========================================================
+        // LOAD
+        // =========================================================
 
         public void Load()
         {
-            if (string.IsNullOrWhiteSpace(relativePath))
+            if (string.IsNullOrWhiteSpace(
+                    relativePath))
             {
                 Debug.LogError(
-                    "PvZReanimRuntimeLoader: La ruta del Reanim está vacía."
+                    "PvZReanimRuntimeLoader: " +
+                    "La ruta del Reanim está vacía."
                 );
+
                 return;
             }
 
-            PvZReanimDefinition definition = LoadFromPak();
+            PvZReanimDefinition definition =
+                LoadFromPak();
 
             if (definition == null)
-                definition = LoadFromFile();
+            {
+                definition =
+                    LoadFromFile();
+            }
 
             if (definition == null)
             {
                 Debug.LogError(
-                    "PvZReanimRuntimeLoader: No se pudo cargar el Reanim:\n" +
+                    "PvZReanimRuntimeLoader: " +
+                    "No se pudo cargar el Reanim:\n" +
                     relativePath
                 );
+
                 return;
             }
 
-            if (!PvZReanimAssetLoader.IsValidDefinition(definition))
+            Debug.Log(
+                "[PvZReanimRuntimeLoader] " +
+                "Definición obtenida | " +
+                "Tracks: " +
+                definition.TrackCount +
+                " | Frames: " +
+                definition.GetMaxFrameCount() +
+                " | FPS: " +
+                definition.fps
+            );
+
+            if (!PvZReanimAssetLoader.IsValidDefinition(
+                    definition))
             {
                 Debug.LogError(
-                    "PvZReanimRuntimeLoader: La definición cargada no es válida."
+                    "PvZReanimRuntimeLoader: " +
+                    "La definición cargada no es válida."
                 );
+
                 return;
             }
 
-            CreateReanimation(definition);
+            CreateReanimation(
+                definition
+            );
         }
+
+        // =========================================================
+        // PAK
+        // =========================================================
 
         private PvZReanimDefinition LoadFromPak()
         {
-            string pakPath = Path.Combine(
-                Application.streamingAssetsPath,
-                "PvZ",
-                "main.pak"
-            );
+            string pakPath =
+                Path.Combine(
+                    Application.streamingAssetsPath,
+                    "PvZ",
+                    "main.pak"
+                );
 
             if (!File.Exists(pakPath))
             {
                 Debug.LogWarning(
-                    "PvZReanimRuntimeLoader: No se encontró main.pak:\n" +
+                    "PvZReanimRuntimeLoader: " +
+                    "No se encontró main.pak:\n" +
                     pakPath
                 );
-                return null;
-            }
 
-            Debug.Log(
-                "[PvZReanimRuntimeLoader] Buscando Reanim en PAK:\n" +
-                pakPath
-            );
-
-            // PvZPakReader.Load NO es static.
-            // Primero creamos el lector y después cargamos el PAK.
-            PvZPakReader pak = new PvZPakReader();
-
-            if (!pak.Load(pakPath))
-            {
-                Debug.LogWarning(
-                    "PvZReanimRuntimeLoader: No se pudo cargar main.pak."
-                );
-                return null;
-            }
-
-            string reanimPath = relativePath
-                .Replace('\\', '/')
-                .TrimStart('/');
-
-            Debug.Log(
-                "[PvZReanimRuntimeLoader] Buscando dentro del PAK:\n" +
-                reanimPath
-            );
-
-            byte[] data;
-
-            if (!pak.TryGetFile(reanimPath, out data))
-            {
-                Debug.LogWarning(
-                    "PvZReanimRuntimeLoader: No se encontró el Reanim dentro del PAK:\n" +
-                    reanimPath
-                );
-                return null;
-            }
-
-            Debug.Log(
-                "[PvZReanimRuntimeLoader] Reanim encontrado en PAK:\n" +
-                reanimPath +
-                " | Bytes: " +
-                data.Length
-            );
-
-            PvZReanimDefinition definition =
-                PvZReanimFileLoader.LoadBytes(data);
-
-            if (definition == null)
-            {
-                Debug.LogError(
-                    "[PvZReanimRuntimeLoader] " +
-                    "El Reanim fue encontrado en el PAK, " +
-                    "pero no se pudo parsear."
-                );
                 return null;
             }
 
             Debug.Log(
                 "[PvZReanimRuntimeLoader] " +
-                "Reanim parseado desde PAK correctamente."
+                "Buscando Reanim compilado en PAK:\n" +
+                pakPath
             );
 
-            return definition;
-        }
+            PvZPakReader pak =
+                new PvZPakReader();
 
-        private PvZReanimDefinition LoadFromFile()
-        {
-            string path = Path.Combine(
-                Application.streamingAssetsPath,
-                relativePath
-            );
-
-            if (!File.Exists(path))
+            if (!pak.Load(pakPath))
             {
                 Debug.LogWarning(
-                    "PvZReanimRuntimeLoader: No existe archivo físico:\n" +
-                    path
+                    "PvZReanimRuntimeLoader: " +
+                    "No se pudo cargar main.pak."
                 );
+
+                return null;
+            }
+
+            // =====================================================
+            // CONVERTIR
+            // =====================================================
+
+            string normalizedPath =
+                relativePath
+                    .Replace('\\', '/')
+                    .TrimStart('/');
+
+            string compiledPath =
+                "compiled/" +
+                normalizedPath +
+                ".compiled";
+
+            Debug.Log(
+                "[PvZReanimRuntimeLoader] " +
+                "Buscando compilado:\n" +
+                compiledPath
+            );
+
+            byte[] compiledData;
+
+            if (pak.TryGetFile(
+                    compiledPath,
+                    out compiledData))
+            {
+                Debug.Log(
+                    "[PvZReanimRuntimeLoader] " +
+                    "Reanim compilado encontrado:\n" +
+                    compiledPath +
+                    " | Bytes: " +
+                    compiledData.Length
+                );
+
+                PvZReanimDefinition compiledDefinition =
+                    PvZReanimCompiledLoader.LoadBytes(
+                        compiledData
+                    );
+
+                if (compiledDefinition != null)
+                {
+                    compiledDefinition.name =
+                        Path.GetFileNameWithoutExtension(
+                            normalizedPath
+                        );
+
+                    Debug.Log(
+                        "[PvZReanimRuntimeLoader] " +
+                        "Reanim compilado reconstruido correctamente."
+                    );
+
+                    return compiledDefinition;
+                }
+
+                Debug.LogWarning(
+                    "[PvZReanimRuntimeLoader] " +
+                    "El compilado fue encontrado " +
+                    "pero no pudo reconstruirse."
+                );
+            }
+            else
+            {
+                Debug.LogWarning(
+                    "[PvZReanimRuntimeLoader] " +
+                    "No se encontró:\n" +
+                    compiledPath
+                );
+            }
+
+            // =====================================================
+            // FALLBACK AL .REANIM
+            // =====================================================
+
+            Debug.Log(
+                "[PvZReanimRuntimeLoader] " +
+                "Intentando Reanim original:\n" +
+                normalizedPath
+            );
+
+            byte[] data;
+
+            if (!pak.TryGetFile(
+                    normalizedPath,
+                    out data))
+            {
+                Debug.LogWarning(
+                    "[PvZReanimRuntimeLoader] " +
+                    "No se encontró el Reanim original:\n" +
+                    normalizedPath
+                );
+
                 return null;
             }
 
             Debug.Log(
-                "[PvZReanimRuntimeLoader] Cargando Reanim físico:\n" +
+                "[PvZReanimRuntimeLoader] " +
+                "Reanim original encontrado:\n" +
+                normalizedPath +
+                " | Bytes: " +
+                data.Length
+            );
+
+            PvZReanimDefinition definition =
+                PvZReanimFileLoader.LoadBytes(
+                    data
+                );
+
+            if (definition == null)
+            {
+                Debug.LogWarning(
+                    "[PvZReanimRuntimeLoader] " +
+                    "El Reanim original no pudo parsearse."
+                );
+
+                return null;
+            }
+
+            definition.name =
+                Path.GetFileNameWithoutExtension(
+                    normalizedPath
+                );
+
+            return definition;
+        }
+
+        // =========================================================
+        // ARCHIVO FÍSICO
+        // =========================================================
+
+        private PvZReanimDefinition LoadFromFile()
+        {
+            string path =
+                Path.Combine(
+                    Application.streamingAssetsPath,
+                    relativePath
+                );
+
+            if (!File.Exists(path))
+            {
+                Debug.LogWarning(
+                    "PvZReanimRuntimeLoader: " +
+                    "No existe archivo físico:\n" +
+                    path
+                );
+
+                return null;
+            }
+
+            Debug.Log(
+                "[PvZReanimRuntimeLoader] " +
+                "Cargando Reanim físico:\n" +
                 path
             );
 
-            return PvZReanimFileLoader.LoadFile(path);
+            PvZReanimDefinition definition =
+                PvZReanimFileLoader.LoadFile(
+                    path
+                );
+
+            if (definition != null)
+            {
+                definition.name =
+                    Path.GetFileNameWithoutExtension(
+                        relativePath
+                    );
+            }
+
+            return definition;
         }
+
+        // =========================================================
+        // CREAR REANIMATION
+        // =========================================================
 
         private void CreateReanimation(
             PvZReanimDefinition definition)
@@ -226,19 +414,33 @@ namespace PvZReanim
             DestroyReanimation();
 
             string objectName =
-                string.IsNullOrEmpty(definition.name)
+                string.IsNullOrEmpty(
+                    definition.name)
                     ? "Reanimation"
-                    : definition.name + "_Reanimation";
+                    : definition.name +
+                      "_Reanimation";
 
-            GameObject obj = new GameObject(objectName);
+            GameObject obj =
+                new GameObject(
+                    objectName
+                );
 
-            obj.transform.SetParent(transform, false);
+            obj.transform.SetParent(
+                transform,
+                false
+            );
 
-            reanimation = obj.AddComponent<PvZReanimation>();
+            reanimation =
+                obj.AddComponent<
+                    PvZReanimation>();
 
-            reanimation.SetImageResolver(imageResolver);
+            reanimation.SetImageResolver(
+                imageResolver
+            );
 
-            reanimation.Initialize(definition);
+            reanimation.Initialize(
+                definition
+            );
 
             reanimation.Play(
                 loopType,
@@ -259,6 +461,10 @@ namespace PvZReanim
             );
         }
 
+        // =========================================================
+        // CONTROL
+        // =========================================================
+
         public void Stop()
         {
             if (reanimation == null)
@@ -278,27 +484,40 @@ namespace PvZReanim
             );
         }
 
-        public void SetAnimRate(float rate)
+        public void SetAnimRate(
+            float rate)
         {
             animRate = rate;
 
             if (reanimation != null)
-                reanimation.AnimRate = rate;
+            {
+                reanimation.AnimRate =
+                    rate;
+            }
         }
+
+        // =========================================================
+        // LIMPIEZA
+        // =========================================================
 
         private void DestroyReanimation()
         {
             if (reanimation == null)
                 return;
 
-            GameObject obj = reanimation.gameObject;
+            GameObject obj =
+                reanimation.gameObject;
 
             reanimation = null;
 
             if (Application.isPlaying)
+            {
                 Destroy(obj);
+            }
             else
+            {
                 DestroyImmediate(obj);
+            }
         }
 
         private void OnDestroy()
