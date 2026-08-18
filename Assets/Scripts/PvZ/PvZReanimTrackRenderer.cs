@@ -13,6 +13,8 @@ namespace PvZReanim
 
         private Sprite currentSprite;
 
+        private int trackIndex;
+
         // =========================================================
         // UNITY
         // =========================================================
@@ -36,6 +38,16 @@ namespace PvZReanim
             currentImageName = null;
             currentSprite = null;
         }
+
+        public void SetTrackIndex(
+            int index)
+        {
+            trackIndex =
+                index;
+        }
+
+        public int TrackIndex =>
+            trackIndex;
 
         // =========================================================
         // APPLY
@@ -123,7 +135,7 @@ namespace PvZReanim
                 );
 
             // =====================================================
-            // COLOR / ALPHA
+            // ALPHA
             // =====================================================
 
             Color color =
