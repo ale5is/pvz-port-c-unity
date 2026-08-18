@@ -9,12 +9,6 @@ namespace PvZReanim
 
         private PvZReanimImageResolver imageResolver;
 
-        private string currentImageName;
-
-        private Sprite currentSprite;
-
-        private int trackIndex;
-
         // =========================================================
         // UNITY
         // =========================================================
@@ -26,28 +20,36 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // CONFIGURATION
+        // IMAGE RESOLVER
         // =========================================================
 
         public void SetImageResolver(
-            PvZReanimImageResolver resolver)
+            PvZReanimImageResolver newResolver)
         {
             imageResolver =
-                resolver;
-
-            currentImageName = null;
-            currentSprite = null;
+                newResolver;
         }
 
-        public void SetTrackIndex(
-            int index)
+        // =========================================================
+        // SORTING
+        // =========================================================
+
+        public void SetSorting(
+            int sortingLayer,
+            int order)
         {
-            trackIndex =
-                index;
-        }
+            if (spriteRenderer == null)
+            {
+                spriteRenderer =
+                    GetComponent<SpriteRenderer>();
+            }
 
-        public int TrackIndex =>
-            trackIndex;
+            spriteRenderer.sortingLayerID =
+                sortingLayer;
+
+            spriteRenderer.sortingOrder =
+                order;
+        }
 
         // =========================================================
         // APPLY
@@ -57,12 +59,8 @@ namespace PvZReanim
             PvZReanimTransform reanimTransform,
             PvZReanimTrackInstance instance)
         {
-            if (reanimTransform == null ||
-                instance == null)
-            {
-                Hide();
+            if (reanimTransform == null)
                 return;
-            }
 
             if (spriteRenderer == null)
             {
@@ -74,18 +72,23 @@ namespace PvZReanim
             // SPRITE
             // =====================================================
 
-            Sprite sprite =
-                instance.imageOverride;
+            Sprite sprite = null;
 
-            if (sprite == null)
+            if (instance != null &&
+                instance.imageOverride != null)
             {
                 sprite =
-                    ResolveImage(
-                        reanimTransform.imageName
+                    instance.imageOverride;
+            }
+            else
+            {
+                sprite =
+                    ResolveSprite(
+                        reanimTransform
                     );
             }
 
-            currentSprite =
+            spriteRenderer.sprite =
                 sprite;
 
             // =====================================================
@@ -93,16 +96,10 @@ namespace PvZReanim
             // =====================================================
 
             float x =
-                GetValue(
-                    reanimTransform.x,
-                    0f
-                );
+                reanimTransform.GetX();
 
             float y =
-                GetValue(
-                    reanimTransform.y,
-                    0f
-                );
+                reanimTransform.GetY();
 
             transform.localPosition =
                 new Vector3(
@@ -116,16 +113,10 @@ namespace PvZReanim
             // =====================================================
 
             float scaleX =
-                GetValue(
-                    reanimTransform.scaleX,
-                    1f
-                );
+                reanimTransform.GetScaleX();
 
             float scaleY =
-                GetValue(
-                    reanimTransform.scaleY,
-                    1f
-                );
+                reanimTransform.GetScaleY();
 
             transform.localScale =
                 new Vector3(
@@ -135,54 +126,62 @@ namespace PvZReanim
                 );
 
             // =====================================================
-            // ALPHA
+            // ROTATION / SKEW
+            // =====================================================
+
+            ApplySkew(
+                reanimTransform.GetSkewX(),
+                reanimTransform.GetSkewY()
+            );
+
+            // =====================================================
+            // COLOR
             // =====================================================
 
             Color color =
-                instance.trackColor;
+                instance != null
+                    ? instance.trackColor
+                    : Color.white;
 
             float alpha =
-                GetValue(
-                    reanimTransform.alpha,
-                    1f
-                );
+                reanimTransform.GetAlpha();
 
-            color.a *= alpha;
+            color.a *=
+                Mathf.Clamp01(
+                    alpha
+                );
 
             spriteRenderer.color =
                 color;
-
-            // =====================================================
-            // SPRITE
-            // =====================================================
-
-            spriteRenderer.sprite =
-                sprite;
 
             // =====================================================
             // VISIBILITY
             // =====================================================
 
             bool visible =
-                sprite != null &&
-                instance.renderGroup !=
-                PvZReanimRenderGroup.Hidden;
+                sprite != null;
+
+            if (instance != null)
+            {
+                visible &=
+                    instance.renderGroup !=
+                    PvZReanimRenderGroup.Hidden;
+            }
 
             spriteRenderer.enabled =
                 visible;
         }
 
         // =========================================================
-        // IMAGE RESOLUTION
+        // SPRITE RESOLUTION
         // =========================================================
 
-        private Sprite ResolveImage(
-            string imageName)
+        private Sprite ResolveSprite(
+            PvZReanimTransform reanimTransform)
         {
-            if (string.IsNullOrWhiteSpace(
-                imageName))
+            if (reanimTransform.image != null)
             {
-                return null;
+                return reanimTransform.image;
             }
 
             if (imageResolver == null)
@@ -190,119 +189,44 @@ namespace PvZReanim
                 return null;
             }
 
-            string normalized =
-                PvZReanimImageResolver
-                    .NormalizeName(
-                        imageName
-                    );
-
-            if (string.Equals(
-                currentImageName,
-                normalized,
-                System.StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(
+                    reanimTransform.imageName))
             {
-                return currentSprite;
+                return null;
             }
 
-            currentImageName =
-                normalized;
-
             return imageResolver.Resolve(
-                imageName
+                reanimTransform.imageName
             );
         }
 
         // =========================================================
-        // VALUE
+        // SKEW
         // =========================================================
 
-        private static float GetValue(
-            float value,
-            float defaultValue)
+        private void ApplySkew(
+            float skewX,
+            float skewY)
         {
-            return value ==
-                   PvZReanimConstants.MissingValue
-                ? defaultValue
-                : value;
-        }
+            /*
+             * Unity Transform no posee shear/skew.
+             *
+             * Por ahora mantenemos la transformación
+             * compatible con Transform.
+             *
+             * La representación exacta del shear se hará
+             * posteriormente mediante un quad/malla propio.
+             */
 
-        // =========================================================
-        // VISIBILITY
-        // =========================================================
+            float rotation =
+                skewY - skewX;
 
-        public void Hide()
-        {
-            if (spriteRenderer == null)
-                return;
-
-            spriteRenderer.enabled =
-                false;
-        }
-
-        public void Show()
-        {
-            if (spriteRenderer == null)
-                return;
-
-            spriteRenderer.enabled =
-                currentSprite != null;
-        }
-
-        // =========================================================
-        // CURRENT IMAGE
-        // =========================================================
-
-        public Sprite CurrentSprite =>
-            currentSprite;
-
-        public string CurrentImageName =>
-            currentImageName;
-
-        // =========================================================
-        // SORTING
-        // =========================================================
-
-        public void SetSorting(
-            int sortingLayerId,
-            int order)
-        {
-            if (spriteRenderer == null)
-            {
-                spriteRenderer =
-                    GetComponent<SpriteRenderer>();
-            }
-
-            spriteRenderer.sortingLayerID =
-                sortingLayerId;
-
-            spriteRenderer.sortingOrder =
-                order;
-        }
-
-        public void SetSortingLayer(
-            string sortingLayer)
-        {
-            if (spriteRenderer == null)
-            {
-                spriteRenderer =
-                    GetComponent<SpriteRenderer>();
-            }
-
-            spriteRenderer.sortingLayerName =
-                sortingLayer;
-        }
-
-        public void SetSortingOrder(
-            int order)
-        {
-            if (spriteRenderer == null)
-            {
-                spriteRenderer =
-                    GetComponent<SpriteRenderer>();
-            }
-
-            spriteRenderer.sortingOrder =
-                order;
+            transform.localRotation =
+                Quaternion.Euler(
+                    0f,
+                    0f,
+                    rotation
+                );
         }
     }
 }
