@@ -8,9 +8,9 @@ namespace PvZReanim
         [SerializeField]
         private PvZReanimDefinition definition;
 
-        [Header("Atlas")]
+        [Header("Image Resolver")]
         [SerializeField]
-        private PvZReanimAtlas atlas;
+        private PvZReanimImageResolver imageResolver;
 
         [Header("Playback")]
         [SerializeField]
@@ -40,8 +40,8 @@ namespace PvZReanim
         public PvZReanimDefinition Definition =>
             definition;
 
-        public PvZReanimAtlas Atlas =>
-            atlas;
+        public PvZReanimImageResolver ImageResolver =>
+            imageResolver;
 
         public float AnimTime =>
             animTime;
@@ -65,6 +65,8 @@ namespace PvZReanim
 
         private void Awake()
         {
+            FindImageResolver();
+
             Initialize();
         }
 
@@ -97,6 +99,8 @@ namespace PvZReanim
         {
             if (definition == null)
                 return;
+
+            FindImageResolver();
 
             DestroyTrackObjects();
 
@@ -133,6 +137,25 @@ namespace PvZReanim
             dead = false;
 
             UpdateTracks();
+        }
+
+        private void FindImageResolver()
+        {
+            if (imageResolver != null)
+                return;
+
+            imageResolver =
+                GetComponent<
+                    PvZReanimImageResolver
+                >();
+
+            if (imageResolver == null)
+            {
+                imageResolver =
+                    GetComponentInParent<
+                        PvZReanimImageResolver
+                    >();
+            }
         }
 
         private void DestroyTrackObjects()
@@ -183,13 +206,16 @@ namespace PvZReanim
                 if (track == null)
                     continue;
 
+                string trackName =
+                    string.IsNullOrEmpty(
+                        track.name
+                    )
+                        ? $"Track_{i}"
+                        : track.name;
+
                 GameObject child =
                     new GameObject(
-                        string.IsNullOrEmpty(
-                            track.name
-                        )
-                            ? $"Track_{i}"
-                            : track.name
+                        trackName
                     );
 
                 child.transform.SetParent(
@@ -202,8 +228,13 @@ namespace PvZReanim
                         PvZReanimTrackRenderer
                     >();
 
-                renderer.SetAtlas(
-                    atlas
+                renderer.SetImageResolver(
+                    imageResolver
+                );
+
+                renderer.SetSorting(
+                    0,
+                    i
                 );
 
                 trackRenderers[i] =
@@ -212,7 +243,7 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // DEFINITION / ATLAS
+        // DEFINITION / IMAGE RESOLVER
         // =========================================================
 
         public void SetDefinition(
@@ -224,11 +255,11 @@ namespace PvZReanim
             Initialize();
         }
 
-        public void SetAtlas(
-            PvZReanimAtlas newAtlas)
+        public void SetImageResolver(
+            PvZReanimImageResolver newResolver)
         {
-            atlas =
-                newAtlas;
+            imageResolver =
+                newResolver;
 
             if (trackRenderers == null)
                 return;
@@ -240,9 +271,10 @@ namespace PvZReanim
                 if (trackRenderers[i] == null)
                     continue;
 
-                trackRenderers[i].SetAtlas(
-                    atlas
-                );
+                trackRenderers[i]
+                    .SetImageResolver(
+                        imageResolver
+                    );
             }
 
             UpdateTracks();
@@ -799,6 +831,15 @@ namespace PvZReanim
         public void ReanimationDie()
         {
             dead = true;
+        }
+
+        // =========================================================
+        // CLEANUP
+        // =========================================================
+
+        private void OnDestroy()
+        {
+            DestroyTrackObjects();
         }
     }
 }

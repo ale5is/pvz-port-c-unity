@@ -2,13 +2,12 @@ using UnityEngine;
 
 namespace PvZReanim
 {
-    public class PvZReanimTrackRenderer : MonoBehaviour
+    public class PvZReanimTrackRenderer :
+        MonoBehaviour
     {
         private PvZReanimMeshRenderer meshRenderer;
 
-        private PvZReanimAtlas atlas;
-
-        private SpriteRenderer legacySpriteRenderer;
+        private PvZReanimImageResolver imageResolver;
 
         private void Awake()
         {
@@ -27,17 +26,23 @@ namespace PvZReanim
                         PvZReanimMeshRenderer
                     >();
             }
+
+            imageResolver =
+                GetComponent<
+                    PvZReanimImageResolver
+                >();
         }
 
-        public void SetAtlas(
-            PvZReanimAtlas newAtlas)
+        public void SetImageResolver(
+            PvZReanimImageResolver resolver)
         {
-            atlas =
-                newAtlas;
+            imageResolver =
+                resolver;
         }
 
-        public PvZReanimAtlas Atlas =>
-            atlas;
+        public PvZReanimImageResolver
+            ImageResolver =>
+            imageResolver;
 
         public void Apply(
             PvZReanimTransform reanimTransform,
@@ -75,15 +80,13 @@ namespace PvZReanim
         }
 
         private Sprite ResolveSprite(
-            PvZReanimTransform reanimTransform,
+            PvZReanimTransform transform,
             PvZReanimTrackInstance instance)
         {
             /*
-             * Prioridad:
+             * PRIORIDAD 1
              *
-             * 1. Override manual
-             * 2. Sprite almacenado directamente
-             * 3. Sprite obtenido del atlas
+             * Override manual.
              */
 
             if (instance.imageOverride != null)
@@ -91,24 +94,31 @@ namespace PvZReanim
                 return instance.imageOverride;
             }
 
-            if (reanimTransform.image != null)
+            /*
+             * PRIORIDAD 2
+             *
+             * Sprite que ya haya sido asignado
+             * directamente al transform.
+             */
+
+            if (transform.image != null)
             {
-                return reanimTransform.image;
+                return transform.image;
             }
 
-            if (atlas != null &&
-                !string.IsNullOrEmpty(
-                    reanimTransform.imageName))
-            {
-                Sprite sprite =
-                    atlas.GetSprite(
-                        reanimTransform.imageName
-                    );
+            /*
+             * PRIORIDAD 3
+             *
+             * Resolver externo.
+             */
 
-                if (sprite != null)
-                {
-                    return sprite;
-                }
+            if (imageResolver != null &&
+                !string.IsNullOrEmpty(
+                    transform.imageName))
+            {
+                return imageResolver.Resolve(
+                    transform.imageName
+                );
             }
 
             return null;
@@ -119,20 +129,17 @@ namespace PvZReanim
             if (meshRenderer == null)
                 return;
 
-            /*
-             * Aplicamos un estado oculto.
-             *
-             * El renderer del mesh controla
-             * posteriormente su visibilidad.
-             */
+            meshRenderer.Hide();
+        }
 
-            MeshRenderer renderer =
-                GetComponent<MeshRenderer>();
-
-            if (renderer != null)
+        public void Show()
+        {
+            if (meshRenderer == null)
             {
-                renderer.enabled = false;
+                InitializeRenderer();
             }
+
+            meshRenderer.Show();
         }
 
         public void SetSorting(
@@ -148,24 +155,6 @@ namespace PvZReanim
                 sortingLayerID,
                 sortingOrder
             );
-        }
-
-        /*
-         * Compatibilidad con código anterior.
-         *
-         * Si alguna parte del proyecto todavía
-         * intenta acceder al SpriteRenderer,
-         * no rompemos inmediatamente el sistema.
-         */
-        public SpriteRenderer GetLegacySpriteRenderer()
-        {
-            if (legacySpriteRenderer == null)
-            {
-                legacySpriteRenderer =
-                    GetComponent<SpriteRenderer>();
-            }
-
-            return legacySpriteRenderer;
         }
     }
 }
