@@ -6,33 +6,17 @@ using UnityEngine;
 public class PvZReanimTrackRenderer : MonoBehaviour
 {
     private PvZReanimRenderer propietario;
-
     private PvZReanimTrack track;
-
     private MeshFilter meshFilter;
-
     private MeshRenderer meshRenderer;
-
     private Mesh mesh;
-
     private Material material;
-
     private Vector3[] verticesBase;
-
     private int indiceTrack;
-
     private bool inicializado;
-
     private string ultimaImagen;
-
-    private int ultimoImageFrame =
-        int.MinValue;
-
+    private int ultimoImageFrame = int.MinValue;
     private Texture2D ultimaTextura;
-
-    // ============================================================
-    // INICIALIZAR
-    // ============================================================
 
     public void Inicializar(
         PvZReanimRenderer propietario,
@@ -40,100 +24,58 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         SpriteRenderer spriteRenderer,
         int indiceTrack)
     {
-        this.propietario =
-            propietario;
+        this.propietario = propietario;
+        this.track = track;
+        this.indiceTrack = indiceTrack;
 
-        this.track =
-            track;
+        meshFilter = GetComponent<MeshFilter>();
+        meshRenderer = GetComponent<MeshRenderer>();
 
-        this.indiceTrack =
-            indiceTrack;
-
-        meshFilter =
-            GetComponent<MeshFilter>();
-
-        meshRenderer =
-            GetComponent<MeshRenderer>();
-
-        mesh =
-            new Mesh();
-
-        mesh.name =
-            "REANIM_Track_" +
-            indiceTrack;
-
+        mesh = new Mesh();
+        mesh.name = "REANIM_Track_" + indiceTrack;
         mesh.MarkDynamic();
 
-        meshFilter.sharedMesh =
-            mesh;
+        meshFilter.sharedMesh = mesh;
 
-        material =
-            CrearMaterial();
+        material = CrearMaterial();
 
         if (material != null)
-        {
-            meshRenderer.sharedMaterial =
-                material;
-        }
+            meshRenderer.sharedMaterial = material;
 
-        meshRenderer.sortingOrder =
-            indiceTrack;
+        meshRenderer.sortingOrder = indiceTrack;
 
-        inicializado =
-            true;
-
+        inicializado = true;
         Ocultar();
     }
 
-    // ============================================================
-    // MATERIAL
-    // ============================================================
-
     private Material CrearMaterial()
     {
-        Shader shader =
-            Shader.Find(
-                "Sprites/Default");
+        Shader shader = Shader.Find("Sprites/Default");
 
         if (shader == null)
-        {
-            shader =
-                Shader.Find(
-                    "Unlit/Transparent");
-        }
+            shader = Shader.Find("Unlit/Transparent");
 
         if (shader == null)
         {
             Debug.LogError(
-                "[PvZ Reanim] " +
-                "No se encontró shader.");
-
+                "[PvZ Reanim] No se encontró shader.");
             return null;
         }
 
-        Material resultado =
-            new Material(shader);
-
+        Material resultado = new Material(shader);
         resultado.name =
             "REANIM_Track_Material_" +
             indiceTrack;
-
-        resultado.renderQueue =
-            3000;
+        resultado.renderQueue = 3000;
 
         return resultado;
     }
-
-    // ============================================================
-    // APLICAR TIEMPO
-    // ============================================================
 
     public void AplicarTiempo(
         float tiempoFrames,
         float escala)
     {
-        if (
-            !inicializado ||
+        if (!inicializado ||
             track == null ||
             track.frames == null ||
             track.frames.Count == 0)
@@ -141,29 +83,15 @@ public class PvZReanimTrackRenderer : MonoBehaviour
             return;
         }
 
-        int cantidad =
-            track.frames.Count;
+        int cantidad = track.frames.Count;
 
-        // ========================================================
-        // Resodded utiliza:
-        //
-        // frame anterior
-        // frame siguiente
-        // fracción
-        //
-        // ========================================================
-
-        float tiempo =
-            Mathf.Clamp(
-                tiempoFrames,
-                0f,
-                Mathf.Max(
-                    0,
-                    cantidad - 1));
+        float tiempo = Mathf.Clamp(
+            tiempoFrames,
+            0f,
+            Mathf.Max(0, cantidad - 1));
 
         int indiceAntes =
-            Mathf.FloorToInt(
-                tiempo);
+            Mathf.FloorToInt(tiempo);
 
         int indiceDespues =
             Mathf.Min(
@@ -171,60 +99,36 @@ public class PvZReanimTrackRenderer : MonoBehaviour
                 cantidad - 1);
 
         float fraccion =
-            tiempo -
-            indiceAntes;
+            tiempo - indiceAntes;
 
         PvZReanimFrame anterior =
-            track.frames[
-                indiceAntes];
+            track.frames[indiceAntes];
 
         PvZReanimFrame siguiente =
-            track.frames[
-                indiceDespues];
+            track.frames[indiceDespues];
 
-        if (
-            anterior == null ||
+        if (anterior == null ||
             siguiente == null)
         {
             Ocultar();
-
             return;
         }
 
-        // ========================================================
-        // IMAGEN
-        //
-        // Resodded utiliza la imagen del frame anterior.
-        // ========================================================
-
-        if (
-            anterior.imageFrame < 0 ||
-            string.IsNullOrWhiteSpace(
-                anterior.image))
+        if (anterior.imageFrame < 0 ||
+            string.IsNullOrWhiteSpace(anterior.image))
         {
             Ocultar();
-
             return;
         }
 
-        string imagen =
-            anterior.image;
+        string imagen = anterior.image;
+        int imageFrame = anterior.imageFrame;
 
-        int imageFrame =
-            anterior.imageFrame;
-
-        if (!AplicarImagen(
-            imagen,
-            imageFrame))
+        if (!AplicarImagen(imagen, imageFrame))
         {
             Ocultar();
-
             return;
         }
-
-        // ========================================================
-        // TRANSFORMACIÓN
-        // ========================================================
 
         AplicarTransformacion(
             anterior,
@@ -232,55 +136,34 @@ public class PvZReanimTrackRenderer : MonoBehaviour
             fraccion,
             escala);
 
-        // ========================================================
-        // ALPHA
-        // ========================================================
+        float alpha = Mathf.Lerp(
+            anterior.alpha,
+            siguiente.alpha,
+            fraccion);
 
-        float alpha =
-            Mathf.Lerp(
-                anterior.alpha,
-                siguiente.alpha,
-                fraccion);
+        AplicarAlpha(alpha);
 
-        AplicarAlpha(
-            alpha);
-
-        meshRenderer.enabled =
-            true;
+        meshRenderer.enabled = true;
     }
-
-    // ============================================================
-    // IMAGEN
-    // ============================================================
 
     private bool AplicarImagen(
         string imagen,
         int imageFrame)
     {
-        if (
-            propietario == null ||
-            string.IsNullOrWhiteSpace(
-                imagen))
+        if (propietario == null ||
+            string.IsNullOrWhiteSpace(imagen))
         {
             return false;
         }
 
-        // ========================================================
-        // Si no cambió imagen/cel,
-        // no reconstruimos.
-        // ========================================================
-
-        if (
-            string.Equals(
+        if (string.Equals(
                 ultimaImagen,
                 imagen,
                 StringComparison.OrdinalIgnoreCase) &&
-            ultimoImageFrame ==
-            imageFrame)
+            ultimoImageFrame == imageFrame)
         {
-            return
-                meshRenderer.sharedMaterial != null &&
-                mesh.vertexCount == 4;
+            return meshRenderer.sharedMaterial != null &&
+                   mesh.vertexCount == 4;
         }
 
         Texture2D textura;
@@ -289,8 +172,7 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         int height;
 
         int maxFrame =
-            propietario.ObtenerMaxImageFrame(
-                imagen);
+            propietario.ObtenerMaxImageFrame(imagen);
 
         bool atlas =
             propietario.Atlas.TryGet(
@@ -303,99 +185,62 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         if (!atlas)
         {
             if (!propietario.Atlas.TryGetIndividual(
-                imagen,
-                propietario.CargarTexturaParaTrack,
-                out textura,
-                out rect,
-                out width,
-                out height))
+                    imagen,
+                    propietario.CargarTexturaParaTrack,
+                    out textura,
+                    out rect,
+                    out width,
+                    out height))
             {
                 return false;
             }
         }
 
         if (textura == null)
-        {
             return false;
-        }
-
-        // ========================================================
-        // Determinar cantidad de celdas.
-        //
-        // Resodded solo mete al atlas imágenes 1x1.
-        //
-        // Para imágenes individuales con f > 0,
-        // inferimos columnas.
-        // ========================================================
 
         int columnas = 1;
 
         if (!atlas && maxFrame > 0)
         {
-            columnas =
-                maxFrame + 1;
+            columnas = maxFrame + 1;
 
-            if (
-                columnas <= 0 ||
+            if (columnas <= 0 ||
                 width % columnas != 0)
             {
                 columnas = 1;
             }
         }
 
-        int celWidth =
-            width /
-            columnas;
+        int celWidth = width / columnas;
+        int celHeight = height;
 
-        int celHeight =
-            height;
-
-        int cel =
-            Mathf.Max(
-                0,
-                imageFrame);
+        int cel = Mathf.Max(0, imageFrame);
 
         if (cel >= columnas)
-        {
-            cel =
-                columnas - 1;
-        }
+            cel = columnas - 1;
 
         Rect region;
 
         if (columnas == 1)
         {
-            region =
-                rect;
+            region = rect;
         }
         else
         {
-            region =
-                new Rect(
-                    rect.x +
-                    cel *
-                    celWidth,
-
-                    rect.y,
-
-                    celWidth,
-                    celHeight);
+            region = new Rect(
+                rect.x + cel * celWidth,
+                rect.y,
+                celWidth,
+                celHeight);
         }
 
-        ultimaImagen =
-            imagen;
-
-        ultimoImageFrame =
-            imageFrame;
-
-        ultimaTextura =
-            textura;
+        ultimaImagen = imagen;
+        ultimoImageFrame = imageFrame;
+        ultimaTextura = textura;
 
         if (material != null)
-        {
-            material.mainTexture =
-                textura;
-        }
+            material.mainTexture = textura;
 
         ConstruirMesh(
             region,
@@ -407,10 +252,6 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         return true;
     }
 
-    // ============================================================
-    // CREAR MESH
-    // ============================================================
-
     private void ConstruirMesh(
         Rect region,
         int textureWidth,
@@ -419,95 +260,43 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         int height)
     {
         if (mesh == null)
-        {
             return;
-        }
 
         mesh.Clear();
 
-        // Igual que un Sprite con pivot 0.5.
-        float ancho =
-            width /
-            100f;
+        float ancho = width / 100f;
+        float alto = height / 100f;
 
-        float alto =
-            height /
-            100f;
-
-        float pivotX =
-            ancho *
-            0.5f;
-
-        float pivotY =
-            alto *
-            0.5f;
+        float pivotX = ancho * 0.5f;
+        float pivotY = alto * 0.5f;
 
         Vector3[] vertices =
         {
-            new Vector3(
-                -pivotX,
-                -pivotY,
-                0f),
-
-            new Vector3(
-                ancho - pivotX,
-                -pivotY,
-                0f),
-
-            new Vector3(
-                ancho - pivotX,
-                alto - pivotY,
-                0f),
-
-            new Vector3(
-                -pivotX,
-                alto - pivotY,
-                0f)
+            new Vector3(-pivotX, -pivotY, 0f),
+            new Vector3(ancho - pivotX, -pivotY, 0f),
+            new Vector3(ancho - pivotX, alto - pivotY, 0f),
+            new Vector3(-pivotX, alto - pivotY, 0f)
         };
 
         verticesBase =
             (Vector3[])vertices.Clone();
 
-        mesh.vertices =
-            vertices;
+        mesh.vertices = vertices;
 
-        float uMin =
-            region.xMin /
-            textureWidth;
-
-        float uMax =
-            region.xMax /
-            textureWidth;
-
-        float vMin =
-            region.yMin /
-            textureHeight;
-
-        float vMax =
-            region.yMax /
-            textureHeight;
+        float uMin = region.xMin / textureWidth;
+        float uMax = region.xMax / textureWidth;
+        float vMin = region.yMin / textureHeight;
+        float vMax = region.yMax / textureHeight;
 
         Vector2[] uv =
         {
-            new Vector2(
-                uMin,
-                vMin),
-
-            new Vector2(
-                uMax,
-                vMin),
-
-            new Vector2(
-                uMax,
-                vMax),
-
-            new Vector2(
-                uMin,
-                vMax)
+            new Vector2(uMin, vMin),
+            new Vector2(uMax, vMin),
+            new Vector2(uMax, vMax),
+            new Vector2(uMin, vMax)
         };
 
-        mesh.uv =
-            uv;
+        mesh.uv = uv;
 
         mesh.triangles =
             new int[]
@@ -528,99 +317,70 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         mesh.RecalculateBounds();
     }
 
-    // ============================================================
-    // TRANSFORMACIÓN
-    // ============================================================
-
     private void AplicarTransformacion(
         PvZReanimFrame anterior,
         PvZReanimFrame siguiente,
         float t,
         float escala)
     {
-        float x =
-            Mathf.Lerp(
-                anterior.x,
-                siguiente.x,
-                t);
+        float x = Mathf.Lerp(
+            anterior.x,
+            siguiente.x,
+            t);
 
-        float y =
-            Mathf.Lerp(
-                anterior.y,
-                siguiente.y,
-                t);
+        float y = Mathf.Lerp(
+            anterior.y,
+            siguiente.y,
+            t);
 
-        float kx =
-            Mathf.Lerp(
-                anterior.kx,
-                siguiente.kx,
-                t);
+        float kx = Mathf.Lerp(
+            anterior.kx,
+            siguiente.kx,
+            t);
 
-        float ky =
-            Mathf.Lerp(
-                anterior.ky,
-                siguiente.ky,
-                t);
+        float ky = Mathf.Lerp(
+            anterior.ky,
+            siguiente.ky,
+            t);
 
-        float sx =
-            Mathf.Lerp(
-                anterior.sx,
-                siguiente.sx,
-                t);
+        float sx = Mathf.Lerp(
+            anterior.sx,
+            siguiente.sx,
+            t);
 
-        float sy =
-            Mathf.Lerp(
-                anterior.sy,
-                siguiente.sy,
-                t);
-
-        // ========================================================
-        // MATRIZ DE RESODDED
-        //
-        // m00 = cos(-kx) * sx
-        // m10 = -sin(-kx) * sx
-        // m01 = sin(-ky) * sy
-        // m11 = cos(-ky) * sy
-        //
-        // ========================================================
+        float sy = Mathf.Lerp(
+            anterior.sy,
+            siguiente.sy,
+            t);
 
         float kxRad =
-            -kx *
-            Mathf.Deg2Rad;
+            -kx * Mathf.Deg2Rad;
 
         float kyRad =
-            -ky *
-            Mathf.Deg2Rad;
+            -ky * Mathf.Deg2Rad;
 
         float m00 =
-            Mathf.Cos(kxRad) *
-            sx;
+            Mathf.Cos(kxRad) * sx;
 
         float m10 =
-            -Mathf.Sin(kxRad) *
-            sx;
+            -Mathf.Sin(kxRad) * sx;
 
         float m01 =
-            Mathf.Sin(kyRad) *
-            sy;
+            Mathf.Sin(kyRad) * sy;
 
         float m11 =
-            Mathf.Cos(kyRad) *
-            sy;
+            Mathf.Cos(kyRad) * sy;
 
-        if (
-            mesh != null &&
+        if (mesh != null &&
             verticesBase != null &&
             verticesBase.Length == 4)
         {
             Vector3[] vertices =
-                new Vector3[
-                    verticesBase.Length];
+                new Vector3[verticesBase.Length];
 
-            for (
-                int i = 0;
-                i < verticesBase.Length;
-                i++)
+            for (int i = 0;
+                 i < verticesBase.Length;
+                 i++)
             {
                 Vector3 v =
                     verticesBase[i];
@@ -636,14 +396,10 @@ public class PvZReanimTrackRenderer : MonoBehaviour
                         0f);
             }
 
-            mesh.vertices =
-                vertices;
-
+            mesh.vertices = vertices;
             mesh.RecalculateBounds();
         }
 
-        // PvZ Y positivo va hacia arriba en su sistema,
-        // mientras que usamos el equivalente visual 2D.
         transform.localPosition =
             new Vector3(
                 x * escala,
@@ -657,53 +413,26 @@ public class PvZReanimTrackRenderer : MonoBehaviour
             Vector3.one;
     }
 
-    // ============================================================
-    // ALPHA
-    // ============================================================
-
-    private void AplicarAlpha(
-        float alpha)
+    private void AplicarAlpha(float alpha)
     {
         if (material == null)
-        {
             return;
-        }
 
-        alpha =
-            Mathf.Clamp01(
-                alpha);
+        alpha = Mathf.Clamp01(alpha);
 
-        if (
-            material.HasProperty(
-                "_Color"))
+        if (material.HasProperty("_Color"))
         {
-            Color color =
-                Color.white;
-
-            color.a =
-                alpha;
-
-            material.color =
-                color;
+            Color color = Color.white;
+            color.a = alpha;
+            material.color = color;
         }
     }
-
-    // ============================================================
-    // OCULTAR
-    // ============================================================
 
     private void Ocultar()
     {
         if (meshRenderer != null)
-        {
-            meshRenderer.enabled =
-                false;
-        }
+            meshRenderer.enabled = false;
     }
-
-    // ============================================================
-    // COMPATIBILIDAD
-    // ============================================================
 
     public void AplicarFrame(
         int indiceFrame,
@@ -714,21 +443,22 @@ public class PvZReanimTrackRenderer : MonoBehaviour
             escala);
     }
 
-    // ============================================================
-    // LIMPIAR
-    // ============================================================
+    public void ActualizarFrame(
+        int indiceFrame,
+        float escala = 1f)
+    {
+        AplicarTiempo(
+            indiceFrame,
+            escala);
+    }
 
     private void OnDestroy()
     {
         if (mesh != null)
-        {
             Destroy(mesh);
-        }
 
         if (material != null)
-        {
             Destroy(material);
-        }
 
         propietario = null;
         track = null;
@@ -739,8 +469,7 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         verticesBase = null;
         ultimaImagen = null;
         ultimaTextura = null;
-        ultimoImageFrame =
-            int.MinValue;
+        ultimoImageFrame = int.MinValue;
         inicializado = false;
     }
 }
