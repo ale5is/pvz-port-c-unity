@@ -243,7 +243,7 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // DEFINITION / IMAGE RESOLVER
+        // DEFINITION / RESOLVER
         // =========================================================
 
         public void SetDefinition(
