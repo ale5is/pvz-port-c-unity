@@ -5,7 +5,8 @@ public class ZombieManager : MonoBehaviour
 {
     public static ZombieManager Instancia { get; private set; }
 
-    private readonly List<Zombie> zombies = new();
+    private readonly List<Zombie> zombies =
+        new List<Zombie>();
 
     public IReadOnlyList<Zombie> ZombiesActivos =>
         zombies;
@@ -26,51 +27,41 @@ public class ZombieManager : MonoBehaviour
         ZombieData datos,
         int fila)
     {
-        if (datos == null)
+        if (datos == null ||
+            datos.prefab == null)
         {
             Debug.LogError(
-                "[PvZ] ZombieData es null."
+                "[PvZ] ZombieData o prefab inválido."
             );
 
             return null;
         }
 
-        if (datos.prefab == null)
+        if (!Board.Instancia ||
+            !Board.Instancia.EsFilaValida(fila))
         {
             Debug.LogError(
-                "[PvZ] ZombieData '" +
-                datos.nombre +
-                "' no tiene prefab."
-            );
-
-            return null;
-        }
-
-        if (fila < 0 ||
-            fila >= Board.FILAS)
-        {
-            Debug.LogError(
-                "[PvZ] Fila de zombie inválida: " +
-                fila
+                "[PvZ] Fila inválida: " + fila
             );
 
             return null;
         }
 
         Zombie zombie =
-            Instantiate(datos.prefab);
+            Instantiate(
+                datos.prefab
+            );
 
         zombie.Inicializar(
             fila,
             datos
         );
 
-        RegistrarZombie(zombie);
-
         return zombie;
     }
 
-    public void RegistrarZombie(Zombie zombie)
+    public void RegistrarZombie(
+        Zombie zombie)
     {
         if (zombie == null)
             return;
@@ -91,21 +82,15 @@ public class ZombieManager : MonoBehaviour
     public List<Zombie> ObtenerZombiesEnFila(
         int fila)
     {
-        List<Zombie> resultado = new();
+        LimpiarReferencias();
 
-        for (int i = zombies.Count - 1;
-             i >= 0;
-             i--)
+        List<Zombie> resultado =
+            new List<Zombie>();
+
+        foreach (Zombie zombie in zombies)
         {
-            Zombie zombie = zombies[i];
-
-            if (zombie == null)
-            {
-                zombies.RemoveAt(i);
-                continue;
-            }
-
-            if (zombie.Muerto)
+            if (zombie == null ||
+                zombie.Muerto)
                 continue;
 
             if (zombie.fila == fila)
@@ -125,24 +110,69 @@ public class ZombieManager : MonoBehaviour
     public Zombie ObtenerPrimerZombieEnFila(
         int fila)
     {
-        Zombie objetivo = null;
+        Zombie resultado = null;
 
         foreach (
             Zombie zombie
             in ObtenerZombiesEnFila(fila))
         {
-            if (objetivo == null ||
+            if (resultado == null ||
                 zombie.transform.position.x <
-                objetivo.transform.position.x)
+                resultado.transform.position.x)
             {
-                objetivo = zombie;
+                resultado = zombie;
             }
         }
 
-        return objetivo;
+        return resultado;
+    }
+
+    public Zombie ObtenerZombieMasCercano(
+        Vector3 posicion,
+        int fila)
+    {
+        Zombie resultado = null;
+        float distancia = float.MaxValue;
+
+        foreach (
+            Zombie zombie
+            in ObtenerZombiesEnFila(fila))
+        {
+            float d =
+                Mathf.Abs(
+                    zombie.transform.position.x -
+                    posicion.x
+                );
+
+            if (d < distancia)
+            {
+                distancia = d;
+                resultado = zombie;
+            }
+        }
+
+        return resultado;
     }
 
     public int CantidadVivos()
+    {
+        LimpiarReferencias();
+
+        return zombies.Count;
+    }
+
+    public void LimpiarZombies()
+    {
+        foreach (Zombie zombie in zombies)
+        {
+            if (zombie != null)
+                Destroy(zombie.gameObject);
+        }
+
+        zombies.Clear();
+    }
+
+    private void LimpiarReferencias()
     {
         for (int i = zombies.Count - 1;
              i >= 0;
@@ -154,23 +184,6 @@ public class ZombieManager : MonoBehaviour
                 zombies.RemoveAt(i);
             }
         }
-
-        return zombies.Count;
-    }
-
-    public void LimpiarZombies()
-    {
-        for (int i = zombies.Count - 1;
-             i >= 0;
-             i--)
-        {
-            if (zombies[i] != null)
-                Destroy(
-                    zombies[i].gameObject
-                );
-        }
-
-        zombies.Clear();
     }
 
     private void OnDestroy()

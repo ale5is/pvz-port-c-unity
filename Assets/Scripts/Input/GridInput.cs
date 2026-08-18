@@ -15,7 +15,7 @@ public class GridInput : MonoBehaviour
             PlantFactory.Instancia == null)
             return;
 
-        if (!CursorManager.Instancia.TienePlanta())
+        if (!CursorManager.Instancia.TieneSeleccion())
             return;
 
         Camera camara = Camera.main;
@@ -55,16 +55,18 @@ public class GridInput : MonoBehaviour
             return;
         }
 
+        PlantType tipo =
+            CursorManager.Instancia
+                .ObtenerPlantaSeleccionada();
+
         PlantData datos =
-            ObtenerDatos(
-                CursorManager.Instancia.plantaSeleccionada
-            );
+            ObtenerDatos(tipo);
 
         if (datos == null)
             return;
 
         if (SeedBank.Instancia != null &&
-            !SeedBank.Instancia.PuedeComprar(datos))
+            !SeedBank.Instancia.PuedePlantar(datos))
         {
             return;
         }
@@ -80,12 +82,19 @@ public class GridInput : MonoBehaviour
             return;
 
         if (SeedBank.Instancia != null)
-            SeedBank.Instancia.Comprar(datos);
+        {
+            if (!SeedBank.Instancia.ComprarPlanta(datos))
+            {
+                Destroy(planta.gameObject);
+                return;
+            }
+        }
 
-        CursorManager.Instancia.Cancelar();
+        CursorManager.Instancia.CancelarSeleccion();
     }
 
-    private PlantData ObtenerDatos(PlantType tipo)
+    private PlantData ObtenerDatos(
+        PlantType tipo)
     {
         if (plantas == null)
             return null;

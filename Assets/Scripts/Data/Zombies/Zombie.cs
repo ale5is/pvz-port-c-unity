@@ -6,225 +6,416 @@ public class Zombie : GameObject
     public ZombieData datos;
 
     [Header("Vida")]
-    protected int vida;
-    protected int vidaArmadura;
+    public int vida;
+    public int vidaMaxima;
+
+    [Header("Estado")]
+    public bool congelado;
+    public bool ralentizado;
+    public bool aturdido;
+
+    [Header("Movimiento")]
+    public float velocidadActual;
 
     [Header("Ataque")]
-    protected float temporizadorAtaque;
+    public Plant plantaObjetivo;
 
-    public bool Muerto =>
-        !activo || vida <= 0;
+    private float temporizadorAtaque;
+    private float temporizadorEstado;
+
+    public bool Muerto => muerto;
 
     protected override void Start()
     {
         base.Start();
 
-        if (datos != null)
+        if (datos != null && vidaMaxima <= 0)
+            InicializarVida();
+    }
+
+    protected override void Update()
+    {
+        if (!activo || muerto)
+            return;
+
+        ActualizarEstados();
+
+        if (muerto)
+            return;
+
+        BuscarPlanta();
+
+        if (plantaObjetivo != null)
         {
-            vida = datos.vida;
-            vidaArmadura =
-                datos.vidaArmadura;
+            AtacarPlanta();
+        }
+        else
+        {
+            Caminar();
         }
     }
 
-    public virtual void Inicializar(
+    public void Inicializar(
         int row,
         ZombieData zombieData)
     {
-        datos = zombieData;
-
         fila = row;
         columna = Board.COLUMNAS;
 
-        if (datos != null)
-        {
-            vida = datos.vida;
-            vidaArmadura =
-                datos.vidaArmadura;
-        }
+        datos = zombieData;
+
+        activo = true;
+        muerto = false;
+
+        congelado = false;
+        ralentizado = false;
+        aturdido = false;
+
+        InicializarVida();
+
+        velocidadActual =
+            datos != null
+                ? datos.velocidad
+                : 0.2f;
 
         temporizadorAtaque = 0f;
 
         if (Board.Instancia != null)
         {
             transform.position =
-                ObtenerPosicionInicial(row);
+                Board.Instancia
+                    .ObtenerPosicionFueraDelTablero(
+                        fila
+                    );
         }
-    }
 
-    protected override void Update()
-    {
-        base.Update();
-
-        if (!activo ||
-            datos == null)
+        if (ZombieManager.Instancia != null)
         {
-            return;
+            ZombieManager.Instancia.RegistrarZombie(
+                this
+            );
         }
-
-        ActualizarCombate();
-
-        if (!activo)
-            return;
-
-        if (!EstaAtacando())
-            Avanzar();
-
-        ComprobarLimite();
     }
 
-    protected virtual Vector3 ObtenerPosicionInicial(
-        int row)
+    private void InicializarVida()
     {
-        Cell ultimaCelda =
-            Board.Instancia.ObtenerCelda(
-                row,
-                Board.COLUMNAS - 1
+        if (datos == null)
+            return;
+
+        vidaMaxima =
+            Mathf.Max(
+                1,
+                datos.VidaTotal()
             );
 
-        if (ultimaCelda == null)
-            return Board.Instancia.origen;
-
-        return ultimaCelda.posicion +
-            Vector3.right *
-            Board.Instancia.anchoCelda;
+        vida = vidaMaxima;
     }
 
-    protected virtual void Avanzar()
+    private void Caminar()
     {
+        if (congelado ||
+            aturdido)
+            return;
+
+        float velocidad =
+            velocidadActual;
+
+        if (ralentizado &&
+            datos != null)
+        {
+            velocidad *=
+                0.5f;
+        }
+
         transform.position +=
             Vector3.left *
-            datos.velocidad *
+            velocidad *
             Time.deltaTime;
+
+        ActualizarColumna();
     }
 
-    protected virtual void ActualizarCombate()
+    private void ActualizarColumna()
     {
-        temporizadorAtaque -=
-            Time.deltaTime;
-
-        Plant objetivo =
-            BuscarPlanta();
-
-        if (objetivo == null)
+        if (Board.Instancia == null)
             return;
 
         float distancia =
-            Mathf.Abs(
-                transform.position.x -
-                objetivo.transform.position.x
+            transform.position.x -
+            Board.Instancia.origen.x;
+
+        columna =
+            Mathf.FloorToInt(
+                distancia /
+                Board.Instancia.anchoCelda
             );
 
-        if (distancia <=
-                datos.rangoAtaque &&
-            temporizadorAtaque <= 0f)
+        columna =
+            Mathf.Clamp(
+                columna,
+                -1,
+                Board.COLUMNAS
+            );
+    }
+
+    private void BuscarPlanta()
+    {
+        plantaObjetivo = null;
+
+        if (Board.Instancia == null)
+            return;
+
+        if (!Board.Instancia.EsFilaValida(fila))
+            return;
+
+        var plantas =
+            Board.Instancia
+                .ObtenerPlantasEnFila(fila);
+
+        float distanciaMinima =
+            float.MaxValue;
+
+        foreach (Plant planta in plantas)
         {
-            objetivo.RecibirDaño(
-                datos.daño
-            );
+            if (planta == null ||
+                planta.muerto ||
+                !planta.activo)
+            {
+                continue;
+            }
 
-            temporizadorAtaque =
-                datos.intervaloAtaque;
+            float distancia =
+                transform.position.x -
+                planta.transform.position.x;
+
+            if (distancia < -0.2f)
+                continue;
+
+            if (distancia >
+                ObtenerRangoAtaque())
+            {
+                continue;
+            }
+
+            if (distancia < distanciaMinima)
+            {
+                distanciaMinima = distancia;
+                plantaObjetivo = planta;
+            }
         }
     }
 
-    protected virtual bool EstaAtacando()
+    private float ObtenerRangoAtaque()
     {
-        Plant planta =
-            BuscarPlanta();
+        if (datos == null)
+            return 0.7f;
 
-        if (planta == null)
-            return false;
-
-        return Mathf.Abs(
-            transform.position.x -
-            planta.transform.position.x
-        ) <= datos.rangoAtaque;
-    }
-
-    protected virtual Plant BuscarPlanta()
-    {
-        if (Board.Instancia == null)
-            return null;
-
-        PlantManager manager =
-            PlantManager.Instancia;
-
-        if (manager == null)
-            return null;
-
-        return manager.ObtenerPrimeraPlantaEnFila(
-            fila
+        return Mathf.Max(
+            0.1f,
+            datos.rangoAtaque
         );
     }
 
-    public virtual void RecibirDaño(
-        int daño)
+    private void AtacarPlanta()
+    {
+        if (plantaObjetivo == null)
+            return;
+
+        if (plantaObjetivo.muerto ||
+            !plantaObjetivo.activo)
+        {
+            plantaObjetivo = null;
+            return;
+        }
+
+        temporizadorAtaque -=
+            Time.deltaTime;
+
+        if (temporizadorAtaque > 0f)
+            return;
+
+        int daño =
+            datos != null
+                ? Mathf.Max(0, datos.daño)
+                : 20;
+
+        plantaObjetivo.RecibirDaño(
+            daño
+        );
+
+        temporizadorAtaque =
+            datos != null
+                ? Mathf.Max(
+                    0.05f,
+                    datos.intervaloAtaque
+                )
+                : 1f;
+    }
+
+    public void RecibirDaño(int daño)
     {
         if (daño <= 0 ||
-            Muerto)
+            muerto ||
+            !activo)
         {
             return;
         }
 
-        if (vidaArmadura > 0)
+        int dañoRestante = daño;
+
+        if (datos != null &&
+            datos.vidaEscudo > 0)
+        {
+            int dañoEscudo =
+                Mathf.Min(
+                    datos.vidaEscudo,
+                    dañoRestante
+                );
+
+            datos.vidaEscudo -=
+                dañoEscudo;
+
+            dañoRestante -=
+                dañoEscudo;
+        }
+
+        if (dañoRestante <= 0)
+            return;
+
+        if (datos != null &&
+            datos.vidaArmadura > 0)
         {
             int dañoArmadura =
                 Mathf.Min(
-                    vidaArmadura,
-                    daño
+                    datos.vidaArmadura,
+                    dañoRestante
                 );
 
-            vidaArmadura -=
+            datos.vidaArmadura -=
                 dañoArmadura;
 
-            daño -=
+            dañoRestante -=
                 dañoArmadura;
         }
 
-        if (daño > 0)
-            vida -= daño;
+        if (dañoRestante <= 0)
+            return;
+
+        vida -= dañoRestante;
 
         if (vida <= 0)
             Morir();
     }
 
-    protected virtual void Morir()
+    public void Ralentizar(
+        float duracion)
     {
-        if (!activo)
+        if (muerto ||
+            datos == null ||
+            !datos.puedeSerRalentizado)
+        {
+            return;
+        }
+
+        ralentizado = true;
+
+        temporizadorEstado =
+            Mathf.Max(
+                temporizadorEstado,
+                duracion
+            );
+    }
+
+    public void Congelar(
+        float duracion)
+    {
+        if (muerto ||
+            datos == null ||
+            !datos.puedeSerCongelado)
+        {
+            return;
+        }
+
+        congelado = true;
+
+        temporizadorEstado =
+            Mathf.Max(
+                temporizadorEstado,
+                duracion
+            );
+    }
+
+    public void Aturdir(
+        float duracion)
+    {
+        if (muerto)
             return;
 
+        aturdido = true;
+
+        temporizadorEstado =
+            Mathf.Max(
+                temporizadorEstado,
+                duracion
+            );
+    }
+
+    private void ActualizarEstados()
+    {
+        if (temporizadorEstado <= 0f)
+            return;
+
+        temporizadorEstado -=
+            Time.deltaTime;
+
+        if (temporizadorEstado > 0f)
+            return;
+
+        congelado = false;
+        ralentizado = false;
+        aturdido = false;
+    }
+
+    private void Morir()
+    {
+        if (muerto)
+            return;
+
+        muerto = true;
         activo = false;
+
+        plantaObjetivo = null;
 
         if (ZombieManager.Instancia != null)
         {
-            ZombieManager.Instancia
-                .NotificarMuerte(this);
+            ZombieManager.Instancia.NotificarMuerte(
+                this
+            );
         }
 
         Destroy(gameObject);
     }
 
-    protected virtual void ComprobarLimite()
+    public override void Kill()
     {
-        if (Board.Instancia == null)
-            return;
+        Morir();
+    }
 
-        float limite =
-            Board.Instancia.origen.x -
-            Board.Instancia.anchoCelda;
+    public bool EstaVivo()
+    {
+        return activo &&
+               !muerto &&
+               vida > 0;
+    }
 
-        if (transform.position.x < limite)
-        {
-            activo = false;
+    public float PorcentajeVida()
+    {
+        if (vidaMaxima <= 0)
+            return 0f;
 
-            if (ZombieManager.Instancia != null)
-            {
-                ZombieManager.Instancia
-                    .NotificarMuerte(this);
-            }
-
-            Destroy(gameObject);
-        }
+        return Mathf.Clamp01(
+            (float)vida /
+            vidaMaxima
+        );
     }
 }

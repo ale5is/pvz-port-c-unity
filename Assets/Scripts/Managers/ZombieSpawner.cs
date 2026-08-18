@@ -1,19 +1,28 @@
+using System.Collections;
 using UnityEngine;
 
 public class ZombieSpawner : MonoBehaviour
 {
     public static ZombieSpawner Instancia { get; private set; }
 
-    [Header("Zombie")]
-    public ZombieData[] zombies;
+    [Header("Zombies disponibles")]
+    public ZombieData[] zombiesDisponibles;
 
-    [Header("Generación")]
-    public float intervaloInicial = 5f;
-    public float intervaloMinimo = 2f;
-    public float reduccionIntervalo = 0.1f;
+    [Header("Configuración")]
+    [Min(0.1f)]
+    public float intervaloSpawn = 10f;
 
-    private float temporizador;
-    private float intervaloActual;
+    public bool iniciarAutomaticamente = true;
+
+    [Header("Oleada")]
+    public int zombiesPorOleada = 5;
+    public float tiempoEntreOleadas = 20f;
+
+    private bool generando;
+    private int oleadaActual;
+
+    public int OleadaActual =>
+        oleadaActual;
 
     private void Awake()
     {
@@ -29,43 +38,107 @@ public class ZombieSpawner : MonoBehaviour
 
     private void Start()
     {
-        intervaloActual = intervaloInicial;
-        temporizador = intervaloInicial;
+        if (iniciarAutomaticamente)
+            IniciarSpawner();
     }
 
-    private void Update()
+    public void IniciarSpawner()
     {
-        if (ZombieManager.Instancia == null)
+        if (generando)
             return;
 
-        if (zombies == null ||
-            zombies.Length == 0)
-            return;
+        generando = true;
 
-        temporizador -= Time.deltaTime;
+        StartCoroutine(
+            RutinaOleadas()
+        );
+    }
 
-        if (temporizador > 0f)
-            return;
+    public void DetenerSpawner()
+    {
+        generando = false;
 
-        CrearZombie();
+        StopAllCoroutines();
+    }
 
-        intervaloActual =
-            Mathf.Max(
-                intervaloMinimo,
-                intervaloActual -
-                reduccionIntervalo
+    private IEnumerator RutinaOleadas()
+    {
+        while (generando)
+        {
+            oleadaActual++;
+
+            yield return StartCoroutine(
+                GenerarOleada()
             );
 
-        temporizador = intervaloActual;
+            yield return new WaitForSeconds(
+                tiempoEntreOleadas
+            );
+        }
     }
 
-    private void CrearZombie()
+    private IEnumerator GenerarOleada()
     {
-        ZombieData datos =
-            ObtenerZombieAleatorio();
+        int cantidad =
+            Mathf.Max(
+                1,
+                zombiesPorOleada +
+                Mathf.FloorToInt(
+                    oleadaActual * 0.5f
+                )
+            );
 
+        for (int i = 0;
+             i < cantidad;
+             i++)
+        {
+            GenerarZombieAleatorio();
+
+            yield return new WaitForSeconds(
+                intervaloSpawn
+            );
+        }
+    }
+
+    public Zombie GenerarZombieAleatorio()
+    {
+        if (zombiesDisponibles == null ||
+            zombiesDisponibles.Length == 0)
+        {
+            Debug.LogWarning(
+                "[PvZ] No hay ZombieData configurados."
+            );
+
+            return null;
+        }
+
+        ZombieData datos =
+            zombiesDisponibles[
+                Random.Range(
+                    0,
+                    zombiesDisponibles.Length
+                )
+            ];
+
+        return GenerarZombie(
+            datos
+        );
+    }
+
+    public Zombie GenerarZombie(
+        ZombieData datos)
+    {
         if (datos == null)
-            return;
+            return null;
+
+        if (ZombieManager.Instancia == null)
+        {
+            Debug.LogError(
+                "[PvZ] No existe ZombieManager."
+            );
+
+            return null;
+        }
 
         int fila =
             Random.Range(
@@ -73,33 +146,90 @@ public class ZombieSpawner : MonoBehaviour
                 Board.FILAS
             );
 
-        ZombieManager.Instancia.CrearZombie(
+        return ZombieManager.Instancia.CrearZombie(
             datos,
             fila
         );
     }
 
-    private ZombieData ObtenerZombieAleatorio()
+    public Zombie GenerarZombie(
+        ZombieData datos,
+        int fila)
     {
-        if (zombies == null ||
-            zombies.Length == 0)
-        {
+        if (datos == null)
             return null;
-        }
 
-        int indice =
-            Random.Range(
-                0,
-                zombies.Length
-            );
+        if (ZombieManager.Instancia == null)
+            return null;
 
-        return zombies[indice];
+        return ZombieManager.Instancia.CrearZombie(
+            datos,
+            fila
+        );
     }
 
-    public void Reiniciar()
+    public void GenerarCantidad(
+        ZombieData datos,
+        int cantidad)
     {
-        intervaloActual = intervaloInicial;
-        temporizador = intervaloInicial;
+        if (datos == null ||
+            cantidad <= 0)
+            return;
+
+        StartCoroutine(
+            GenerarCantidadRutina(
+                datos,
+                cantidad
+            )
+        );
+    }
+
+    private IEnumerator GenerarCantidadRutina(
+        ZombieData datos,
+        int cantidad)
+    {
+        for (int i = 0;
+             i < cantidad;
+             i++)
+        {
+            GenerarZombie(datos);
+
+            yield return new WaitForSeconds(
+                intervaloSpawn
+            );
+        }
+    }
+
+    public void IniciarOleada()
+    {
+        if (!gameObject.activeInHierarchy)
+            return;
+
+        StartCoroutine(
+            GenerarOleadaManual()
+        );
+    }
+
+    private IEnumerator GenerarOleadaManual()
+    {
+        oleadaActual++;
+
+        int cantidad =
+            Mathf.Max(
+                1,
+                zombiesPorOleada
+            );
+
+        for (int i = 0;
+             i < cantidad;
+             i++)
+        {
+            GenerarZombieAleatorio();
+
+            yield return new WaitForSeconds(
+                intervaloSpawn
+            );
+        }
     }
 
     private void OnDestroy()
