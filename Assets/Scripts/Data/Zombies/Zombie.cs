@@ -9,6 +9,14 @@ public class Zombie : GameObject
     public int vida;
     public int vidaMaxima;
 
+    [Header("Armadura")]
+    public int vidaArmadura;
+    public int vidaArmaduraMaxima;
+
+    [Header("Escudo")]
+    public int vidaEscudo;
+    public int vidaEscudoMaxima;
+
     [Header("Estado")]
     public bool congelado;
     public bool ralentizado;
@@ -46,13 +54,9 @@ public class Zombie : GameObject
         BuscarPlanta();
 
         if (plantaObjetivo != null)
-        {
             AtacarPlanta();
-        }
         else
-        {
             Caminar();
-        }
     }
 
     public void Inicializar(
@@ -71,14 +75,15 @@ public class Zombie : GameObject
         ralentizado = false;
         aturdido = false;
 
+        temporizadorAtaque = 0f;
+        temporizadorEstado = 0f;
+
         InicializarVida();
 
         velocidadActual =
             datos != null
                 ? datos.velocidad
                 : 0.2f;
-
-        temporizadorAtaque = 0f;
 
         if (Board.Instancia != null)
         {
@@ -105,27 +110,41 @@ public class Zombie : GameObject
         vidaMaxima =
             Mathf.Max(
                 1,
-                datos.VidaTotal()
+                datos.vida
             );
 
-        vida = vidaMaxima;
+        vida =
+            vidaMaxima;
+
+        vidaArmaduraMaxima =
+            Mathf.Max(
+                0,
+                datos.vidaArmadura
+            );
+
+        vidaArmadura =
+            vidaArmaduraMaxima;
+
+        vidaEscudoMaxima =
+            Mathf.Max(
+                0,
+                datos.vidaEscudo
+            );
+
+        vidaEscudo =
+            vidaEscudoMaxima;
     }
 
     private void Caminar()
     {
-        if (congelado ||
-            aturdido)
+        if (congelado || aturdido)
             return;
 
         float velocidad =
             velocidadActual;
 
-        if (ralentizado &&
-            datos != null)
-        {
-            velocidad *=
-                0.5f;
-        }
+        if (ralentizado)
+            velocidad *= 0.5f;
 
         transform.position +=
             Vector3.left *
@@ -143,6 +162,9 @@ public class Zombie : GameObject
         float distancia =
             transform.position.x -
             Board.Instancia.origen.x;
+
+        if (Board.Instancia.anchoCelda <= 0f)
+            return;
 
         columna =
             Mathf.FloorToInt(
@@ -228,6 +250,9 @@ public class Zombie : GameObject
             return;
         }
 
+        if (congelado || aturdido)
+            return;
+
         temporizadorAtaque -=
             Time.deltaTime;
 
@@ -236,7 +261,10 @@ public class Zombie : GameObject
 
         int daño =
             datos != null
-                ? Mathf.Max(0, datos.daño)
+                ? Mathf.Max(
+                    0,
+                    datos.daño
+                )
                 : 20;
 
         plantaObjetivo.RecibirDaño(
@@ -263,16 +291,16 @@ public class Zombie : GameObject
 
         int dañoRestante = daño;
 
-        if (datos != null &&
-            datos.vidaEscudo > 0)
+        // Primero recibe el escudo.
+        if (vidaEscudo > 0)
         {
             int dañoEscudo =
                 Mathf.Min(
-                    datos.vidaEscudo,
+                    vidaEscudo,
                     dañoRestante
                 );
 
-            datos.vidaEscudo -=
+            vidaEscudo -=
                 dañoEscudo;
 
             dañoRestante -=
@@ -282,16 +310,16 @@ public class Zombie : GameObject
         if (dañoRestante <= 0)
             return;
 
-        if (datos != null &&
-            datos.vidaArmadura > 0)
+        // Después la armadura.
+        if (vidaArmadura > 0)
         {
             int dañoArmadura =
                 Mathf.Min(
-                    datos.vidaArmadura,
+                    vidaArmadura,
                     dañoRestante
                 );
 
-            datos.vidaArmadura -=
+            vidaArmadura -=
                 dañoArmadura;
 
             dañoRestante -=
@@ -301,10 +329,15 @@ public class Zombie : GameObject
         if (dañoRestante <= 0)
             return;
 
-        vida -= dañoRestante;
+        // Finalmente la vida.
+        vida -=
+            dañoRestante;
 
         if (vida <= 0)
+        {
+            vida = 0;
             Morir();
+        }
     }
 
     public void Ralentizar(
@@ -416,6 +449,28 @@ public class Zombie : GameObject
         return Mathf.Clamp01(
             (float)vida /
             vidaMaxima
+        );
+    }
+
+    public float PorcentajeArmadura()
+    {
+        if (vidaArmaduraMaxima <= 0)
+            return 0f;
+
+        return Mathf.Clamp01(
+            (float)vidaArmadura /
+            vidaArmaduraMaxima
+        );
+    }
+
+    public float PorcentajeEscudo()
+    {
+        if (vidaEscudoMaxima <= 0)
+            return 0f;
+
+        return Mathf.Clamp01(
+            (float)vidaEscudo /
+            vidaEscudoMaxima
         );
     }
 }
