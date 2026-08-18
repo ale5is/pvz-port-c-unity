@@ -31,13 +31,10 @@ namespace PvZReanim
                 );
             }
 
-            string text =
-                File.ReadAllText(
-                    path,
-                    Encoding.UTF8
-                );
+            byte[] data =
+                File.ReadAllBytes(path);
 
-            return Parse(text);
+            return LoadBytes(data);
         }
 
         public static PvZReanimDefinition LoadBytes(
@@ -69,11 +66,13 @@ namespace PvZReanim
                 );
             }
 
-            string[] lines =
+            string normalized =
                 text
                     .Replace("\r\n", "\n")
-                    .Replace('\r', '\n')
-                    .Split('\n');
+                    .Replace('\r', '\n');
+
+            string[] lines =
+                normalized.Split('\n');
 
             PvZReanimDefinition definition =
                 ScriptableObject.CreateInstance<
@@ -102,6 +101,7 @@ namespace PvZReanim
 
                 string command =
                     tokens[0]
+                        .Trim()
                         .ToLowerInvariant();
 
                 switch (command)
@@ -121,10 +121,13 @@ namespace PvZReanim
                         if (currentTrack == null)
                         {
                             Debug.LogWarning(
-                                $"PvZReanimParser: transform sin track en línea {i + 1}."
+                                "PvZReanimParser: " +
+                                "transform encontrado " +
+                                "sin track en línea " +
+                                (i + 1)
                             );
 
-                            break;
+                            continue;
                         }
 
                         ParseTransform(
@@ -152,14 +155,14 @@ namespace PvZReanim
             PvZReanimDefinition definition,
             string[] tokens)
         {
-            string trackName =
+            string name =
                 tokens.Length > 1
                     ? tokens[1]
                     : string.Empty;
 
             PvZReanimTrack track =
                 new PvZReanimTrack(
-                    trackName
+                    Unquote(name)
                 );
 
             definition.tracks.Add(
@@ -182,87 +185,114 @@ namespace PvZReanim
 
             int index = 1;
 
+            transform.x =
+                ReadFloat(
+                    tokens,
+                    ref index
+                );
+
+            transform.y =
+                ReadFloat(
+                    tokens,
+                    ref index
+                );
+
+            transform.skewX =
+                ReadFloat(
+                    tokens,
+                    ref index
+                );
+
+            transform.skewY =
+                ReadFloat(
+                    tokens,
+                    ref index
+                );
+
+            transform.scaleX =
+                ReadFloat(
+                    tokens,
+                    ref index
+                );
+
+            transform.scaleY =
+                ReadFloat(
+                    tokens,
+                    ref index
+                );
+
+            transform.frame =
+                ReadFloat(
+                    tokens,
+                    ref index
+                );
+
+            transform.alpha =
+                ReadFloat(
+                    tokens,
+                    ref index
+                );
+
+            /*
+             * El nombre de imagen no se convierte
+             * en Sprite aquí.
+             *
+             * El parser solamente conserva
+             * el identificador original.
+             *
+             * Esto es importante porque el parser
+             * no debe conocer cómo Unity almacena
+             * las texturas.
+             */
+
             if (index < tokens.Length)
             {
-                transform.x =
-                    ParseFloat(
+                string imageName =
+                    Unquote(
                         tokens[index++]
                     );
-            }
 
-            if (index < tokens.Length)
-            {
-                transform.y =
-                    ParseFloat(
-                        tokens[index++]
-                    );
-            }
-
-            if (index < tokens.Length)
-            {
-                transform.skewX =
-                    ParseFloat(
-                        tokens[index++]
-                    );
-            }
-
-            if (index < tokens.Length)
-            {
-                transform.skewY =
-                    ParseFloat(
-                        tokens[index++]
-                    );
-            }
-
-            if (index < tokens.Length)
-            {
-                transform.scaleX =
-                    ParseFloat(
-                        tokens[index++]
-                    );
-            }
-
-            if (index < tokens.Length)
-            {
-                transform.scaleY =
-                    ParseFloat(
-                        tokens[index++]
-                    );
-            }
-
-            if (index < tokens.Length)
-            {
-                transform.frame =
-                    ParseFloat(
-                        tokens[index++]
-                    );
-            }
-
-            if (index < tokens.Length)
-            {
-                transform.alpha =
-                    ParseFloat(
-                        tokens[index++]
-                    );
-            }
-
-            if (index < tokens.Length)
-            {
-                string image =
-                    tokens[index++];
-
-                if (!IsMissingToken(image))
+                if (!IsMissingToken(imageName))
                 {
                     transform.imageName =
-                        image;
+                        imageName;
                 }
             }
 
+            /*
+             * El texto también pertenece al frame.
+             */
+
             if (index < tokens.Length)
             {
-                transform.text =
-                    tokens[index++];
+                string text =
+                    Unquote(
+                        tokens[index++]
+                    );
+
+                if (!IsMissingToken(text))
+                {
+                    transform.text =
+                        text;
+                }
             }
+        }
+
+        private static float ReadFloat(
+            string[] tokens,
+            ref int index)
+        {
+            if (index >= tokens.Length)
+            {
+                return PvZReanimConstants.MissingValue;
+            }
+
+            string value =
+                tokens[index++];
+
+            return ParseFloat(
+                value
+            );
         }
 
         private static void ParseGlobalProperty(
@@ -274,6 +304,7 @@ namespace PvZReanim
 
             string property =
                 tokens[0]
+                    .Trim()
                     .ToLowerInvariant();
 
             string value =
@@ -284,21 +315,27 @@ namespace PvZReanim
                 case "fps":
 
                     definition.fps =
-                        ParseFloat(value);
+                        ParseFloat(
+                            value
+                        );
 
                     break;
 
                 case "framerate":
 
                     definition.fps =
-                        ParseFloat(value);
+                        ParseFloat(
+                            value
+                        );
 
                     break;
 
                 case "rate":
 
                     definition.fps =
-                        ParseFloat(value);
+                        ParseFloat(
+                            value
+                        );
 
                     break;
             }
@@ -312,6 +349,11 @@ namespace PvZReanim
                 return PvZReanimConstants.MissingValue;
             }
 
+            value =
+                Unquote(
+                    value
+                );
+
             if (IsMissingToken(value))
             {
                 return PvZReanimConstants.MissingValue;
@@ -323,11 +365,13 @@ namespace PvZReanim
                     '.'
                 );
 
+            float result;
+
             if (float.TryParse(
                     value,
                     NumberStyles.Float,
                     CultureInfo.InvariantCulture,
-                    out float result))
+                    out result))
             {
                 return result;
             }
@@ -354,22 +398,59 @@ namespace PvZReanim
                 normalized == "-10000";
         }
 
+        private static string Unquote(
+            string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return value;
+
+            value =
+                value.Trim();
+
+            if (value.Length >= 2 &&
+                value[0] == '"' &&
+                value[value.Length - 1] == '"')
+            {
+                return value.Substring(
+                    1,
+                    value.Length - 2
+                );
+            }
+
+            return value;
+        }
+
         private static string RemoveComment(
             string line)
         {
             if (string.IsNullOrEmpty(line))
                 return string.Empty;
 
-            int commentIndex =
-                line.IndexOf('#');
+            bool quoted = false;
 
-            if (commentIndex >= 0)
+            for (int i = 0;
+                 i < line.Length;
+                 i++)
             {
-                line =
-                    line.Substring(
+                char c =
+                    line[i];
+
+                if (c == '"')
+                {
+                    quoted =
+                        !quoted;
+
+                    continue;
+                }
+
+                if (c == '#' &&
+                    !quoted)
+                {
+                    return line.Substring(
                         0,
-                        commentIndex
+                        i
                     );
+                }
             }
 
             return line;
@@ -379,7 +460,9 @@ namespace PvZReanim
             string line)
         {
             if (string.IsNullOrWhiteSpace(line))
+            {
                 return Array.Empty<string>();
+            }
 
             List<string> tokens =
                 new List<string>();
@@ -398,7 +481,11 @@ namespace PvZReanim
 
                 if (c == '"')
                 {
-                    quoted = !quoted;
+                    quoted =
+                        !quoted;
+
+                    current.Append(c);
+
                     continue;
                 }
 
