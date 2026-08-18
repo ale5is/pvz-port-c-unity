@@ -3,15 +3,16 @@ using UnityEngine;
 namespace PvZReanim
 {
     /// <summary>
-    /// Transformación 2D afín utilizada por Reanim.
+    /// Matriz 2D utilizada por Reanim.
     ///
-    /// Representa:
+    /// Equivalente a:
     ///
-    /// x' = m00*x + m01*y + m02
-    /// y' = m10*x + m11*y + m12
+    /// m00 = cos(-skewX) * scaleX
+    /// m10 = -sin(-skewX) * scaleX
+    /// m01 = sin(-skewY) * scaleY
+    /// m11 = cos(-skewY) * scaleY
     ///
-    /// Esto permite representar escala y skew
-    /// directamente sobre los vértices del Mesh.
+    /// siguiendo MatrixFromTransform() de Resodded.
     /// </summary>
     [System.Serializable]
     public struct PvZReanimMatrix
@@ -27,18 +28,6 @@ namespace PvZReanim
         public float m20;
         public float m21;
         public float m22;
-
-        public static PvZReanimMatrix Identity
-        {
-            get
-            {
-                return new PvZReanimMatrix(
-                    1f, 0f, 0f,
-                    0f, 1f, 0f,
-                    0f, 0f, 1f
-                );
-            }
-        }
 
         public PvZReanimMatrix(
             float m00,
@@ -64,6 +53,22 @@ namespace PvZReanim
             this.m22 = m22;
         }
 
+        public static PvZReanimMatrix Identity
+        {
+            get
+            {
+                return new PvZReanimMatrix(
+                    1f, 0f, 0f,
+                    0f, 1f, 0f,
+                    0f, 0f, 1f
+                );
+            }
+        }
+
+        // =========================================================
+        // CREAR MATRIZ DESDE REANIM
+        // =========================================================
+
         public static PvZReanimMatrix FromTransform(
             PvZReanimTransform transform)
         {
@@ -82,18 +87,6 @@ namespace PvZReanim
                     0f
                 );
 
-            float scaleX =
-                GetValue(
-                    transform.scaleX,
-                    1f
-                );
-
-            float scaleY =
-                GetValue(
-                    transform.scaleY,
-                    1f
-                );
-
             float skewX =
                 GetValue(
                     transform.skewX,
@@ -106,59 +99,58 @@ namespace PvZReanim
                     0f
                 );
 
-            /*
-             * Los valores de skew se convierten
-             * en una transformación shear.
-             *
-             * skewX:
-             *
-             * x' = x + tan(skewX) * y
-             *
-             * skewY:
-             *
-             * y' = tan(skewY) * x + y
-             */
-
-            float shearX =
-                Mathf.Tan(
-                    skewX *
-                    Mathf.Deg2Rad
+            float scaleX =
+                GetValue(
+                    transform.scaleX,
+                    1f
                 );
 
-            float shearY =
-                Mathf.Tan(
-                    skewY *
-                    Mathf.Deg2Rad
+            float scaleY =
+                GetValue(
+                    transform.scaleY,
+                    1f
                 );
 
             /*
-             * Escala + shear.
+             * Esto es lo que hace Resodded:
              *
-             * La posición se mantiene separada
-             * como traslación.
+             * float aSkewX = -DEG_TO_RAD(mSkewX);
+             * float aSkewY = -DEG_TO_RAD(mSkewY);
+             *
+             * m00 = cos(aSkewX) * scaleX;
+             * m10 = -sin(aSkewX) * scaleX;
+             *
+             * m01 = sin(aSkewY) * scaleY;
+             * m11 = cos(aSkewY) * scaleY;
              */
 
-            float a =
-                scaleX;
+            float radiansX =
+                -skewX *
+                Mathf.Deg2Rad;
 
-            float b =
-                shearY *
-                scaleX;
+            float radiansY =
+                -skewY *
+                Mathf.Deg2Rad;
 
-            float c =
-                shearX *
-                scaleY;
+            float cosX =
+                Mathf.Cos(radiansX);
 
-            float d =
-                scaleY;
+            float sinX =
+                Mathf.Sin(radiansX);
+
+            float cosY =
+                Mathf.Cos(radiansY);
+
+            float sinY =
+                Mathf.Sin(radiansY);
 
             return new PvZReanimMatrix(
-                a,
-                c,
+                cosX * scaleX,
+                sinY * scaleY,
                 x,
 
-                b,
-                d,
+                -sinX * scaleX,
+                cosY * scaleY,
                 y,
 
                 0f,
@@ -166,6 +158,10 @@ namespace PvZReanim
                 1f
             );
         }
+
+        // =========================================================
+        // MULTIPLICAR PUNTO
+        // =========================================================
 
         public Vector2 MultiplyPoint(
             Vector2 point)
@@ -203,6 +199,10 @@ namespace PvZReanim
                 point.z
             );
         }
+
+        // =========================================================
+        // MULTIPLICAR MATRICES
+        // =========================================================
 
         public static PvZReanimMatrix Multiply(
             PvZReanimMatrix a,
@@ -247,6 +247,10 @@ namespace PvZReanim
             );
         }
 
+        // =========================================================
+        // UNITY
+        // =========================================================
+
         public Matrix4x4 ToUnityMatrix()
         {
             Matrix4x4 result =
@@ -267,6 +271,10 @@ namespace PvZReanim
             return result;
         }
 
+        // =========================================================
+        // POSITION
+        // =========================================================
+
         public Vector3 GetPosition()
         {
             return new Vector3(
@@ -275,6 +283,10 @@ namespace PvZReanim
                 0f
             );
         }
+
+        // =========================================================
+        // LERP
+        // =========================================================
 
         public static PvZReanimMatrix Lerp(
             PvZReanimMatrix a,
