@@ -23,6 +23,16 @@ namespace PvZReanim
         [SerializeField]
         private float pixelsPerUnit = 64f;
 
+        [Header("Image System")]
+        [SerializeField]
+        private PvZReanimImageProvider imageProvider;
+
+        [SerializeField]
+        private PvZReanimImageResolver imageResolver;
+
+        [SerializeField]
+        private PvZReanimSpriteLoader spriteLoader;
+
         [Header("Playback")]
         [SerializeField]
         private PvZReanimLoopType loopType =
@@ -35,6 +45,9 @@ namespace PvZReanim
         [SerializeField]
         private bool logInformation = true;
 
+        [SerializeField]
+        private bool logImageTest = true;
+
         private PvZReanimation reanimation;
 
         private Sprite testSprite;
@@ -46,7 +59,98 @@ namespace PvZReanim
 
         private void Start()
         {
+            FindImageComponents();
             Load();
+        }
+
+        // =========================================================
+        // FIND IMAGE COMPONENTS
+        // =========================================================
+
+        private void FindImageComponents()
+        {
+            if (imageProvider == null)
+            {
+                imageProvider =
+                    GetComponent<PvZReanimImageProvider>();
+            }
+
+            if (imageProvider == null)
+            {
+                imageProvider =
+                    GetComponentInParent<
+                        PvZReanimImageProvider
+                    >();
+            }
+
+            if (imageProvider == null)
+            {
+                imageProvider =
+                    FindFirstObjectByType<
+                        PvZReanimImageProvider
+                    >();
+            }
+
+            if (imageResolver == null)
+            {
+                imageResolver =
+                    GetComponent<PvZReanimImageResolver>();
+            }
+
+            if (imageResolver == null)
+            {
+                imageResolver =
+                    GetComponentInParent<
+                        PvZReanimImageResolver
+                    >();
+            }
+
+            if (imageResolver == null)
+            {
+                imageResolver =
+                    FindFirstObjectByType<
+                        PvZReanimImageResolver
+                    >();
+            }
+
+            if (spriteLoader == null)
+            {
+                spriteLoader =
+                    GetComponent<PvZReanimSpriteLoader>();
+            }
+
+            if (spriteLoader == null)
+            {
+                spriteLoader =
+                    GetComponentInParent<
+                        PvZReanimSpriteLoader
+                    >();
+            }
+
+            if (spriteLoader == null)
+            {
+                spriteLoader =
+                    FindFirstObjectByType<
+                        PvZReanimSpriteLoader
+                    >();
+            }
+
+            if (imageResolver != null)
+            {
+                imageResolver.SetProvider(
+                    imageProvider
+                );
+
+                imageResolver.SetSpriteLoader(
+                    spriteLoader
+                );
+            }
+
+            if (imageProvider != null)
+            {
+                imageProvider.SearchResources =
+                    false;
+            }
         }
 
         // =========================================================
@@ -117,60 +221,12 @@ namespace PvZReanim
 
             CreateTestSpriteIfNeeded();
 
+            RegisterTestSprite();
+
+            TestImageResolution();
+
             CreateReanimation(
                 definition
-            );
-        }
-
-        // =========================================================
-        // REANIMATION
-        // =========================================================
-
-        private void CreateReanimation(
-            PvZReanimDefinition definition)
-        {
-            DestroyReanimation();
-
-            GameObject obj =
-                new GameObject(
-                    definition.name +
-                    "_Reanimation"
-                );
-
-            obj.transform.SetParent(
-                transform,
-                false
-            );
-
-            reanimation =
-                obj.AddComponent<
-                    PvZReanimation
-                >();
-
-            reanimation.Initialize(
-                definition
-            );
-
-            AssignTestSprites(
-                definition
-            );
-
-            reanimation.Play(
-                loopType,
-                animRate
-            );
-
-            if (logInformation)
-            {
-                PvZReanimAssetLoader.LogDefinitionInfo(
-                    definition
-                );
-            }
-
-            Debug.Log(
-                "PvZReanimRuntimeLoader: " +
-                "Reanim cargado correctamente: " +
-                definition.name
             );
         }
 
@@ -273,44 +329,136 @@ namespace PvZReanim
                 );
 
             testSprite.name =
-                "PvZ_Reanim_Runtime_Test_Sprite";
+                "test";
         }
 
         // =========================================================
-        // ASSIGN SPRITES
+        // REGISTER TEST SPRITE
         // =========================================================
 
-        private void AssignTestSprites(
-            PvZReanimDefinition definition)
+        private void RegisterTestSprite()
         {
             if (!createTestSprite ||
-                testSprite == null ||
-                reanimation == null)
+                testSprite == null)
             {
                 return;
             }
 
-            for (int i = 0;
-                 i < definition.TrackCount;
-                 i++)
+            if (imageProvider == null)
             {
-                PvZReanimTrack track =
-                    definition.GetTrack(i);
+                Debug.LogError(
+                    "PvZReanimRuntimeLoader: " +
+                    "No existe PvZReanimImageProvider."
+                );
 
-                if (track == null)
-                    continue;
+                return;
+            }
 
-                if (!reanimation.TrackExists(
-                        track.name))
-                {
-                    continue;
-                }
+            imageProvider.RegisterSprite(
+                "test",
+                testSprite
+            );
 
-                reanimation.SetImageOverride(
-                    track.name,
-                    testSprite
+            if (logImageTest)
+            {
+                Debug.Log(
+                    "[PvZReanim] " +
+                    "Sprite de prueba registrado: test"
                 );
             }
+        }
+
+        // =========================================================
+        // TEST RESOLUTION
+        // =========================================================
+
+        private void TestImageResolution()
+        {
+            if (!logImageTest)
+                return;
+
+            if (imageResolver == null)
+            {
+                Debug.LogError(
+                    "[PvZReanim] " +
+                    "No existe PvZReanimImageResolver."
+                );
+
+                return;
+            }
+
+            Sprite resolved =
+                imageResolver.Resolve(
+                    "test"
+                );
+
+            if (resolved == null)
+            {
+                Debug.LogError(
+                    "[PvZReanim] " +
+                    "ERROR: el Resolver NO pudo encontrar test."
+                );
+
+                return;
+            }
+
+            Debug.Log(
+                "[PvZReanim] " +
+                "OK: test resuelto correctamente -> " +
+                resolved.name
+            );
+        }
+
+        // =========================================================
+        // REANIMATION
+        // =========================================================
+
+        private void CreateReanimation(
+            PvZReanimDefinition definition)
+        {
+            DestroyReanimation();
+
+            GameObject obj =
+                new GameObject(
+                    definition.name +
+                    "_Reanimation"
+                );
+
+            obj.transform.SetParent(
+                transform,
+                false
+            );
+
+            reanimation =
+                obj.AddComponent<
+                    PvZReanimation
+                >();
+
+            reanimation.SetImageResolver(
+                imageResolver
+            );
+
+            reanimation.Initialize(
+                definition
+            );
+
+            reanimation.Play(
+                loopType,
+                animRate
+            );
+
+            if (logInformation)
+            {
+                PvZReanimAssetLoader.LogDefinitionInfo(
+                    definition
+                );
+            }
+
+            Debug.Log(
+                "PvZReanimRuntimeLoader: " +
+                "Reanim cargado correctamente: " +
+                definition.name
+            );
         }
 
         // =========================================================
