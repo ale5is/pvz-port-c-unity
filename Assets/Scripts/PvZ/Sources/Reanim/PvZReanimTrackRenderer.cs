@@ -1,15 +1,27 @@
 using System;
 using UnityEngine;
 
+[RequireComponent(typeof(MeshFilter))]
+[RequireComponent(typeof(MeshRenderer))]
 public class PvZReanimTrackRenderer : MonoBehaviour
 {
     private PvZReanimRenderer propietario;
 
     private PvZReanimTrack track;
 
-    private SpriteRenderer spriteRenderer;
+    private MeshFilter meshFilter;
+
+    private MeshRenderer meshRenderer;
+
+    private Mesh mesh;
+
+    private Material material;
+
+    private Texture2D ultimaTextura;
 
     private string ultimaImagen;
+
+    private Vector3[] verticesBase;
 
     private int indiceTrack;
 
@@ -21,146 +33,92 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         SpriteRenderer spriteRenderer,
         int indiceTrack)
     {
-        this.propietario = propietario;
-        this.track = track;
-        this.spriteRenderer = spriteRenderer;
-        this.indiceTrack = indiceTrack;
+        this.propietario =
+            propietario;
 
-        inicializado = true;
+        this.track =
+            track;
 
-        if (this.spriteRenderer != null)
+        this.indiceTrack =
+            indiceTrack;
+
+        meshFilter =
+            GetComponent<MeshFilter>();
+
+        meshRenderer =
+            GetComponent<MeshRenderer>();
+
+        mesh =
+            new Mesh();
+
+        mesh.name =
+            "REANIM_Track_" +
+            indiceTrack;
+
+        mesh.MarkDynamic();
+
+        meshFilter.sharedMesh =
+            mesh;
+
+        material =
+            CrearMaterial();
+
+        if (material != null)
         {
-            this.spriteRenderer.enabled = false;
-
-            this.spriteRenderer.sortingOrder =
-                indiceTrack;
+            meshRenderer.sharedMaterial =
+                material;
         }
+
+        meshRenderer.sortingOrder =
+            indiceTrack;
+
+        inicializado =
+            true;
+
+        Ocultar();
     }
 
-    public void AplicarFrame(
-        int indiceFrame,
-        float escala)
+    private Material CrearMaterial()
     {
-        if (!inicializado ||
-            track == null ||
-            spriteRenderer == null ||
-            track.frames == null ||
-            track.frames.Count == 0)
+        Shader shader =
+            Shader.Find(
+                "Sprites/Default");
+
+        if (shader == null)
         {
-            return;
+            shader =
+                Shader.Find(
+                    "Unlit/Transparent");
         }
 
-        indiceFrame =
-            Mathf.Clamp(
-                indiceFrame,
-                0,
-                track.frames.Count - 1);
-
-        PvZReanimFrame frame =
-            track.frames[indiceFrame];
-
-        if (frame == null)
+        if (shader == null)
         {
-            spriteRenderer.enabled = false;
-            return;
+            Debug.LogError(
+                "[PvZ Reanim] " +
+                "No se encontró shader.");
+
+            return null;
         }
 
-        // --------------------------------------------------------
-        // SPRITE
-        // --------------------------------------------------------
+        Material nuevo =
+            new Material(shader);
 
-        if (!string.IsNullOrWhiteSpace(
-            frame.image))
-        {
-            if (!string.Equals(
-                ultimaImagen,
-                frame.image,
-                StringComparison.OrdinalIgnoreCase))
-            {
-                spriteRenderer.sprite =
-                    propietario.ObtenerSprite(
-                        frame.image);
+        nuevo.name =
+            "REANIM_Track_Material_" +
+            indiceTrack;
 
-                ultimaImagen =
-                    frame.image;
-            }
-        }
-        else
-        {
-            spriteRenderer.sprite = null;
-            ultimaImagen = null;
-        }
+        nuevo.renderQueue =
+            3000;
 
-        if (spriteRenderer.sprite == null)
-        {
-            spriteRenderer.enabled = false;
-            return;
-        }
-
-        spriteRenderer.enabled = true;
-
-        // --------------------------------------------------------
-        // TRANSFORMACIÓN
-        // --------------------------------------------------------
-
-        transform.localPosition =
-            new Vector3(
-                frame.x * escala,
-                -frame.y * escala,
-                0f);
-
-        float sx =
-            frame.sx;
-
-        float sy =
-            frame.sy;
-
-        if (Mathf.Approximately(
-            sx,
-            0f))
-        {
-            sx = 1f;
-        }
-
-        if (Mathf.Approximately(
-            sy,
-            0f))
-        {
-            sy = 1f;
-        }
-
-        transform.localScale =
-            new Vector3(
-                sx,
-                sy,
-                1f);
-
-        transform.localRotation =
-            Quaternion.Euler(
-                0f,
-                0f,
-                -frame.rotation);
-
-        // --------------------------------------------------------
-        // ALPHA
-        // --------------------------------------------------------
-
-        Color color =
-            spriteRenderer.color;
-
-        color.a =
-            Mathf.Clamp01(
-                frame.alpha);
-
-        spriteRenderer.color =
-            color;
+        return nuevo;
     }
 
     public void AplicarTiempo(
         float tiempoFrames,
         float escala)
     {
-        if (!inicializado ||
+        if (
+            !inicializado ||
             track == null ||
             track.frames == null ||
             track.frames.Count == 0)
@@ -168,25 +126,9 @@ public class PvZReanimTrackRenderer : MonoBehaviour
             return;
         }
 
-        if (track.frames.Count == 1)
-        {
-            AplicarFrame(
-                0,
-                escala);
+        PvZReanimFrame anterior = null;
 
-            return;
-        }
-
-        // --------------------------------------------------------
-        // Encontrar frame anterior/siguiente.
-        // --------------------------------------------------------
-
-        PvZReanimFrame anterior =
-            track.frames[0];
-
-        PvZReanimFrame siguiente =
-            track.frames[
-                track.frames.Count - 1];
+        PvZReanimFrame siguiente = null;
 
         for (
             int i = 0;
@@ -196,24 +138,67 @@ public class PvZReanimTrackRenderer : MonoBehaviour
             PvZReanimFrame actual =
                 track.frames[i];
 
-            if (actual.frameNumber <=
-                tiempoFrames)
+            if (actual == null)
             {
-                anterior = actual;
+                continue;
             }
 
-            if (actual.frameNumber >=
+            if (
+                actual.frameNumber <=
                 tiempoFrames)
             {
-                siguiente = actual;
+                anterior =
+                    actual;
+            }
+
+            if (
+                actual.frameNumber >=
+                tiempoFrames)
+            {
+                siguiente =
+                    actual;
+
                 break;
             }
         }
 
-        if (anterior == null ||
+        if (anterior == null)
+        {
+            anterior =
+                ObtenerPrimerFrame();
+
+            siguiente =
+                anterior;
+        }
+
+        if (siguiente == null)
+        {
+            siguiente =
+                ObtenerUltimoFrame();
+
+            anterior =
+                siguiente;
+        }
+
+        if (
+            anterior == null &&
             siguiente == null)
         {
+            Ocultar();
+
             return;
+        }
+
+        if (anterior == null)
+        {
+            anterior =
+                siguiente;
+        }
+
+        if (siguiente == null)
+        {
+            siguiente =
+                anterior;
         }
 
         float rango =
@@ -222,9 +207,10 @@ public class PvZReanimTrackRenderer : MonoBehaviour
 
         float t;
 
-        if (Mathf.Approximately(
-            rango,
-            0f))
+        if (
+            Mathf.Approximately(
+                rango,
+                0f))
         {
             t = 0f;
         }
@@ -237,42 +223,250 @@ public class PvZReanimTrackRenderer : MonoBehaviour
                     tiempoFrames);
         }
 
-        // --------------------------------------------------------
-        // Sprite:
-        // usamos el sprite del frame anterior.
-        // --------------------------------------------------------
+        t =
+            Mathf.Clamp01(t);
 
         string imagen =
-            !string.IsNullOrWhiteSpace(
-                siguiente.image)
-                ? siguiente.image
-                : anterior.image;
+            ObtenerImagenActual(
+                anterior,
+                siguiente,
+                t);
 
-        if (!string.Equals(
-            ultimaImagen,
-            imagen,
-            StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(imagen))
         {
-            spriteRenderer.sprite =
-                propietario.ObtenerSprite(
-                    imagen);
+            Ocultar();
 
-            ultimaImagen =
-                imagen;
-        }
-
-        if (spriteRenderer.sprite == null)
-        {
-            spriteRenderer.enabled = false;
             return;
         }
 
-        spriteRenderer.enabled = true;
+        Sprite sprite =
+            propietario.ObtenerSprite(
+                imagen);
 
-        // --------------------------------------------------------
-        // INTERPOLACIÓN
-        // --------------------------------------------------------
+        if (sprite == null)
+        {
+            Ocultar();
 
+            return;
+        }
+
+        AplicarSprite(
+            sprite,
+            imagen);
+
+        AplicarTransformacion(
+            anterior,
+            siguiente,
+            t,
+            escala);
+
+        float alpha =
+            Mathf.Lerp(
+                anterior.alpha,
+                siguiente.alpha,
+                t);
+
+        AplicarAlpha(
+            alpha);
+
+        meshRenderer.enabled =
+            true;
+    }
+
+    private void AplicarSprite(
+        Sprite sprite,
+        string imagen)
+    {
+        if (
+            mesh == null ||
+            sprite == null)
+        {
+            return;
+        }
+
+        Texture2D textura =
+            sprite.texture;
+
+        if (textura == null)
+        {
+            Ocultar();
+
+            return;
+        }
+
+        if (
+            ultimaTextura != textura ||
+            !string.Equals(
+                ultimaImagen,
+                imagen,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            ultimaTextura =
+                textura;
+
+            ultimaImagen =
+                imagen;
+
+            if (material != null)
+            {
+                material.mainTexture =
+                    textura;
+            }
+
+            ConstruirMesh(
+                sprite);
+        }
+    }
+
+    private void ConstruirMesh(
+        Sprite sprite)
+    {
+        if (
+            mesh == null ||
+            sprite == null)
+        {
+            return;
+        }
+
+        mesh.Clear();
+
+        Rect rect =
+            sprite.rect;
+
+        Vector2 pivot =
+            sprite.pivot;
+
+        float pixelsPerUnit =
+            sprite.pixelsPerUnit;
+
+        if (
+            Mathf.Approximately(
+                pixelsPerUnit,
+                0f))
+        {
+            pixelsPerUnit =
+                100f;
+        }
+
+        float ancho =
+            rect.width /
+            pixelsPerUnit;
+
+        float alto =
+            rect.height /
+            pixelsPerUnit;
+
+        float pivotX =
+            pivot.x /
+            pixelsPerUnit;
+
+        float pivotY =
+            pivot.y /
+            pixelsPerUnit;
+
+        Vector3[] vertices =
+        {
+            new Vector3(
+                -pivotX,
+                -pivotY,
+                0f),
+
+            new Vector3(
+                ancho - pivotX,
+                -pivotY,
+                0f),
+
+            new Vector3(
+                ancho - pivotX,
+                alto - pivotY,
+                0f),
+
+            new Vector3(
+                -pivotX,
+                alto - pivotY,
+                0f)
+        };
+
+        verticesBase =
+            (Vector3[])vertices.Clone();
+
+        mesh.vertices =
+            vertices;
+
+        Rect uvRect =
+            sprite.textureRect;
+
+        float textureWidth =
+            sprite.texture.width;
+
+        float textureHeight =
+            sprite.texture.height;
+
+        float uMin =
+            uvRect.xMin /
+            textureWidth;
+
+        float uMax =
+            uvRect.xMax /
+            textureWidth;
+
+        float vMin =
+            uvRect.yMin /
+            textureHeight;
+
+        float vMax =
+            uvRect.yMax /
+            textureHeight;
+
+        Vector2[] uvs =
+        {
+            new Vector2(
+                uMin,
+                vMin),
+
+            new Vector2(
+                uMax,
+                vMin),
+
+            new Vector2(
+                uMax,
+                vMax),
+
+            new Vector2(
+                uMin,
+                vMax)
+        };
+
+        mesh.uv =
+            uvs;
+
+        mesh.triangles =
+            new int[]
+            {
+                0, 2, 1,
+                0, 3, 2
+            };
+
+        mesh.colors =
+            new Color[]
+            {
+                Color.white,
+                Color.white,
+                Color.white,
+                Color.white
+            };
+
+        mesh.RecalculateNormals();
+
+        mesh.RecalculateBounds();
+    }
+
+    private void AplicarTransformacion(
+        PvZReanimFrame anterior,
+        PvZReanimFrame siguiente,
+        float t,
+        float escala)
+    {
         float x =
             Mathf.Lerp(
                 anterior.x,
@@ -284,6 +478,12 @@ public class PvZReanimTrackRenderer : MonoBehaviour
                 anterior.y,
                 siguiente.y,
                 t);
+
+        transform.localPosition =
+            new Vector3(
+                x * escala,
+                -y * escala,
+                0f);
 
         float sx =
             Mathf.Lerp(
@@ -297,37 +497,21 @@ public class PvZReanimTrackRenderer : MonoBehaviour
                 siguiente.sy,
                 t);
 
-        float rotacion =
-            Mathf.LerpAngle(
-                anterior.rotation,
-                siguiente.rotation,
-                t);
-
-        float alpha =
-            Mathf.Lerp(
-                anterior.alpha,
-                siguiente.alpha,
-                t);
-
-        if (Mathf.Approximately(
-            sx,
-            0f))
+        if (
+            Mathf.Approximately(
+                sx,
+                0f))
         {
             sx = 1f;
         }
 
-        if (Mathf.Approximately(
-            sy,
-            0f))
+        if (
+            Mathf.Approximately(
+                sy,
+                0f))
         {
             sy = 1f;
         }
-
-        transform.localPosition =
-            new Vector3(
-                x * escala,
-                -y * escala,
-                0f);
 
         transform.localScale =
             new Vector3(
@@ -335,28 +519,295 @@ public class PvZReanimTrackRenderer : MonoBehaviour
                 sy,
                 1f);
 
+        float kx =
+            Mathf.LerpAngle(
+                anterior.kx,
+                siguiente.kx,
+                t);
+
+        float ky =
+            Mathf.LerpAngle(
+                anterior.ky,
+                siguiente.ky,
+                t);
+
+        float skew =
+            ky - kx;
+
+        float rotacion =
+            kx;
+
+        if (
+            Mathf.Approximately(
+                anterior.kx,
+                0f) &&
+            Mathf.Approximately(
+                siguiente.kx,
+                0f) &&
+            (
+                !Mathf.Approximately(
+                    anterior.rotation,
+                    0f) ||
+                !Mathf.Approximately(
+                    siguiente.rotation,
+                    0f)
+            ))
+        {
+            rotacion =
+                Mathf.LerpAngle(
+                    anterior.rotation,
+                    siguiente.rotation,
+                    t);
+        }
+
         transform.localRotation =
             Quaternion.Euler(
                 0f,
                 0f,
                 -rotacion);
 
-        Color color =
-            spriteRenderer.color;
+        AplicarSkew(
+            skew);
+    }
 
-        color.a =
-            Mathf.Clamp01(alpha);
+    private void AplicarSkew(
+        float grados)
+    {
+        if (
+            mesh == null ||
+            verticesBase == null ||
+            verticesBase.Length != 4)
+        {
+            return;
+        }
 
-        spriteRenderer.color =
-            color;
+        float radianes =
+            grados *
+            Mathf.Deg2Rad;
+
+        float shear =
+            Mathf.Tan(
+                radianes);
+
+        Vector3[] vertices =
+            new Vector3[
+                verticesBase.Length];
+
+        for (
+            int i = 0;
+            i < verticesBase.Length;
+            i++)
+        {
+            Vector3 v =
+                verticesBase[i];
+
+            v.x =
+                verticesBase[i].x +
+                verticesBase[i].y *
+                shear;
+
+            vertices[i] =
+                v;
+        }
+
+        mesh.vertices =
+            vertices;
+
+        mesh.RecalculateBounds();
+    }
+
+    private void AplicarAlpha(
+        float alpha)
+    {
+        if (material == null)
+        {
+            return;
+        }
+
+        alpha =
+            Mathf.Clamp01(
+                alpha);
+
+        if (
+            material.HasProperty(
+                "_Color"))
+        {
+            Color color =
+                Color.white;
+
+            color.a =
+                alpha;
+
+            material.color =
+                color;
+        }
+    }
+
+    private string ObtenerImagenActual(
+        PvZReanimFrame anterior,
+        PvZReanimFrame siguiente,
+        float t)
+    {
+        if (
+            anterior == null &&
+            siguiente == null)
+        {
+            return null;
+        }
+
+        if (anterior == null)
+        {
+            return siguiente.image;
+        }
+
+        if (siguiente == null)
+        {
+            return anterior.image;
+        }
+
+        if (
+            anterior.frameNumber ==
+            siguiente.frameNumber)
+        {
+            if (
+                !string.IsNullOrWhiteSpace(
+                    siguiente.image))
+            {
+                return siguiente.image;
+            }
+
+            return anterior.image;
+        }
+
+        if (t < 1f)
+        {
+            if (
+                !string.IsNullOrWhiteSpace(
+                    anterior.image))
+            {
+                return anterior.image;
+            }
+
+            return siguiente.image;
+        }
+
+        if (
+            !string.IsNullOrWhiteSpace(
+                siguiente.image))
+        {
+            return siguiente.image;
+        }
+
+        return anterior.image;
+    }
+
+    private PvZReanimFrame ObtenerPrimerFrame()
+    {
+        if (
+            track == null ||
+            track.frames == null ||
+            track.frames.Count == 0)
+        {
+            return null;
+        }
+
+        PvZReanimFrame resultado = null;
+
+        foreach (
+            PvZReanimFrame frame
+            in track.frames)
+        {
+            if (frame == null)
+            {
+                continue;
+            }
+
+            if (
+                resultado == null ||
+                frame.frameNumber <
+                resultado.frameNumber)
+            {
+                resultado =
+                    frame;
+            }
+        }
+
+        return resultado;
+    }
+
+    private PvZReanimFrame ObtenerUltimoFrame()
+    {
+        if (
+            track == null ||
+            track.frames == null ||
+            track.frames.Count == 0)
+        {
+            return null;
+        }
+
+        PvZReanimFrame resultado = null;
+
+        foreach (
+            PvZReanimFrame frame
+            in track.frames)
+        {
+            if (frame == null)
+            {
+                continue;
+            }
+
+            if (
+                resultado == null ||
+                frame.frameNumber >
+                resultado.frameNumber)
+            {
+                resultado =
+                    frame;
+            }
+        }
+
+        return resultado;
+    }
+
+    private void Ocultar()
+    {
+        if (meshRenderer != null)
+        {
+            meshRenderer.enabled =
+                false;
+        }
+    }
+
+    public void AplicarFrame(
+        int indiceFrame,
+        float escala)
+    {
+        AplicarTiempo(
+            indiceFrame,
+            escala);
     }
 
     private void OnDestroy()
     {
+        if (mesh != null)
+        {
+            Destroy(mesh);
+        }
+
+        if (material != null)
+        {
+            Destroy(material);
+        }
+
         propietario = null;
         track = null;
-        spriteRenderer = null;
+        meshFilter = null;
+        meshRenderer = null;
+        mesh = null;
+        material = null;
+        ultimaTextura = null;
         ultimaImagen = null;
+        verticesBase = null;
         inicializado = false;
     }
 }

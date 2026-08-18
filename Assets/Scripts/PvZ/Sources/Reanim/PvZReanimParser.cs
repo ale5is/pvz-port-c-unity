@@ -51,7 +51,8 @@ public static class PvZReanimParser
 
         try
         {
-            texto = LimpiarTexto(texto);
+            texto =
+                LimpiarTexto(texto);
 
             if (texto.Length == 0)
             {
@@ -117,9 +118,9 @@ public static class PvZReanimParser
             }
         }
 
-        // --------------------------------------------------------
+        // ========================================================
         // FPS
-        // --------------------------------------------------------
+        // ========================================================
 
         float fps;
 
@@ -130,7 +131,8 @@ public static class PvZReanimParser
         {
             if (fps > 0f)
             {
-                resultado.fps = fps;
+                resultado.fps =
+                    fps;
             }
         }
 
@@ -154,13 +156,15 @@ public static class PvZReanimParser
         PvZReanimData resultado)
     {
         XmlNodeList nodos =
-            documento.SelectNodes("//track");
+            documento.SelectNodes(
+                "//track");
 
         if (nodos == null ||
             nodos.Count == 0)
         {
             nodos =
-                documento.SelectNodes("//Track");
+                documento.SelectNodes(
+                    "//Track");
         }
 
         if (nodos == null)
@@ -168,7 +172,8 @@ public static class PvZReanimParser
             return;
         }
 
-        int indice = 0;
+        int indice =
+            0;
 
         foreach (XmlNode nodo in nodos)
         {
@@ -179,7 +184,8 @@ public static class PvZReanimParser
 
             if (track != null)
             {
-                resultado.tracks.Add(track);
+                resultado.tracks.Add(
+                    track);
             }
 
             indice++;
@@ -197,6 +203,10 @@ public static class PvZReanimParser
 
         PvZReanimTrack track =
             new PvZReanimTrack();
+
+        // ========================================================
+        // NOMBRE
+        // ========================================================
 
         string nombre =
             ObtenerValor(
@@ -229,60 +239,48 @@ public static class PvZReanimParser
         track.name =
             nombre.Trim();
 
-        // --------------------------------------------------------
+        // ========================================================
         // ESTADO HEREDADO
-        // --------------------------------------------------------
+        // ========================================================
 
-        float ultimoX = 0f;
-        float ultimoY = 0f;
+        float ultimoX =
+            0f;
 
-        float ultimoSX = DEFAULT_SCALE;
-        float ultimoSY = DEFAULT_SCALE;
+        float ultimoY =
+            0f;
 
-        float ultimaRotacion = 0f;
-        float ultimoAlpha = 1f;
+        float ultimoKX =
+            0f;
 
-        string ultimaImagen = null;
+        float ultimoKY =
+            0f;
 
-        // --------------------------------------------------------
-        // FRAMES
-        // --------------------------------------------------------
+        float ultimoSX =
+            DEFAULT_SCALE;
+
+        float ultimoSY =
+            DEFAULT_SCALE;
+
+        float ultimaRotacion =
+            0f;
+
+        float ultimoAlpha =
+            1f;
+
+        string ultimaImagen =
+            null;
+
+        // ========================================================
+        // OBTENER KEYFRAMES
+        // ========================================================
 
         List<XmlNode> frames =
-            new List<XmlNode>();
+            ObtenerNodosFrame(
+                nodoTrack);
 
-        XmlNodeList t =
-            nodoTrack.SelectNodes("./t");
-
-        if (t != null)
-        {
-            foreach (XmlNode nodo in t)
-            {
-                if (nodo.NodeType ==
-                    XmlNodeType.Element)
-                {
-                    frames.Add(nodo);
-                }
-            }
-        }
-
-        if (frames.Count == 0)
-        {
-            XmlNodeList f =
-                nodoTrack.SelectNodes("./frame");
-
-            if (f != null)
-            {
-                foreach (XmlNode nodo in f)
-                {
-                    if (nodo.NodeType ==
-                        XmlNodeType.Element)
-                    {
-                        frames.Add(nodo);
-                    }
-                }
-            }
-        }
+        // ========================================================
+        // LEER KEYFRAMES
+        // ========================================================
 
         for (
             int i = 0;
@@ -295,9 +293,9 @@ public static class PvZReanimParser
             PvZReanimFrame frame =
                 new PvZReanimFrame();
 
-            // ----------------------------------------------------
-            // NÚMERO DE FRAME
-            // ----------------------------------------------------
+            // ====================================================
+            // FRAME REAL
+            // ====================================================
 
             float numeroFrame;
 
@@ -312,85 +310,135 @@ public static class PvZReanimParser
             }
             else
             {
-                frame.frameNumber = i;
+                frame.frameNumber =
+                    i;
             }
 
-            // ----------------------------------------------------
-            // X
-            // ----------------------------------------------------
-
             float valor;
+
+            // ====================================================
+            // X
+            // ====================================================
 
             if (TryObtenerFloat(
                 nodo,
                 "x",
                 out valor))
             {
-                ultimoX = valor;
+                ultimoX =
+                    valor;
             }
 
-            frame.x = ultimoX;
+            frame.x =
+                ultimoX;
 
-            // ----------------------------------------------------
+            // ====================================================
             // Y
-            // ----------------------------------------------------
+            // ====================================================
 
             if (TryObtenerFloat(
                 nodo,
                 "y",
                 out valor))
             {
-                ultimoY = valor;
+                ultimoY =
+                    valor;
             }
 
-            frame.y = ultimoY;
+            frame.y =
+                ultimoY;
 
-            // ----------------------------------------------------
+            // ====================================================
+            // KX
+            // ====================================================
+
+            if (TryObtenerFloat(
+                nodo,
+                "kx",
+                out valor))
+            {
+                ultimoKX =
+                    valor;
+            }
+
+            frame.kx =
+                ultimoKX;
+
+            // ====================================================
+            // KY
+            // ====================================================
+
+            if (TryObtenerFloat(
+                nodo,
+                "ky",
+                out valor))
+            {
+                ultimoKY =
+                    valor;
+            }
+
+            frame.ky =
+                ultimoKY;
+
+            // ====================================================
             // SCALE X
-            // ----------------------------------------------------
+            // ====================================================
 
             if (TryObtenerFloat(
                 nodo,
                 "sx",
                 out valor))
             {
-                ultimoSX = valor;
+                ultimoSX =
+                    valor;
             }
 
-            frame.sx = ultimoSX;
+            frame.sx =
+                ultimoSX;
 
-            // ----------------------------------------------------
+            // ====================================================
             // SCALE Y
-            // ----------------------------------------------------
+            // ====================================================
 
             if (TryObtenerFloat(
                 nodo,
                 "sy",
                 out valor))
             {
-                ultimoSY = valor;
+                ultimoSY =
+                    valor;
             }
 
-            frame.sy = ultimoSY;
+            frame.sy =
+                ultimoSY;
 
-            // ----------------------------------------------------
+            // ====================================================
             // ROTACIÓN
-            // ----------------------------------------------------
+            // ====================================================
 
             if (TryObtenerFloat(
                 nodo,
                 "r",
                 out valor))
             {
-                ultimaRotacion = valor;
+                ultimaRotacion =
+                    valor;
+            }
+            else if (TryObtenerFloat(
+                nodo,
+                "rot",
+                out valor))
+            {
+                ultimaRotacion =
+                    valor;
             }
 
             frame.rotation =
                 ultimaRotacion;
 
-            // ----------------------------------------------------
+            // ====================================================
             // ALPHA
-            // ----------------------------------------------------
+            // ====================================================
 
             if (TryObtenerFloat(
                 nodo,
@@ -404,16 +452,17 @@ public static class PvZReanimParser
             frame.alpha =
                 ultimoAlpha;
 
-            // ----------------------------------------------------
+            // ====================================================
             // IMAGEN
-            // ----------------------------------------------------
+            // ====================================================
 
             string imagen =
                 ObtenerValor(
                     nodo,
                     "i");
 
-            if (string.IsNullOrWhiteSpace(imagen))
+            if (string.IsNullOrWhiteSpace(
+                imagen))
             {
                 imagen =
                     ObtenerValor(
@@ -421,7 +470,8 @@ public static class PvZReanimParser
                         "image");
             }
 
-            if (!string.IsNullOrWhiteSpace(imagen))
+            if (!string.IsNullOrWhiteSpace(
+                imagen))
             {
                 ultimaImagen =
                     imagen.Trim();
@@ -430,19 +480,65 @@ public static class PvZReanimParser
             frame.image =
                 ultimaImagen;
 
-            frame.tieneTransformacion = true;
+            frame.tieneTransformacion =
+                true;
 
-            track.frames.Add(frame);
+            track.frames.Add(
+                frame);
+        }
 
-            if (indiceTrack == 0 &&
-                i < 10)
+        // ========================================================
+        // ORDENAR POR FRAME REAL
+        // ========================================================
+
+        track.frames.Sort(
+            delegate (
+                PvZReanimFrame a,
+                PvZReanimFrame b)
             {
-                Debug.Log(
-                    "[PvZ REANIM] " +
-                    track.name +
-                    " | " +
-                    frame);
+                return a.frameNumber.CompareTo(
+                    b.frameNumber);
+            });
+
+        // ========================================================
+        // ELIMINAR DUPLICADOS
+        // ========================================================
+
+        if (track.frames.Count > 1)
+        {
+            List<PvZReanimFrame> limpios =
+                new List<PvZReanimFrame>();
+
+            for (
+                int i = 0;
+                i < track.frames.Count;
+                i++)
+            {
+                PvZReanimFrame actual =
+                    track.frames[i];
+
+                if (
+                    limpios.Count > 0 &&
+                    limpios[
+                        limpios.Count - 1
+                    ].frameNumber ==
+                    actual.frameNumber)
+                {
+                    // Conservamos el último.
+                    limpios[
+                        limpios.Count - 1
+                    ] =
+                        actual;
+                }
+                else
+                {
+                    limpios.Add(
+                        actual);
+                }
             }
+
+            track.frames =
+                limpios;
         }
 
         Debug.Log(
@@ -451,10 +547,108 @@ public static class PvZReanimParser
             " '" +
             track.name +
             "' | Frames=" +
-            track.frames.Count);
+            track.frames.Count +
+            " | Primer=" +
+            ObtenerPrimerFrame(track) +
+            " | Último=" +
+            ObtenerUltimoFrame(track));
 
         return track;
     }
+
+    // ============================================================
+    // OBTENER NODOS DE FRAME
+    // ============================================================
+
+    private static List<XmlNode> ObtenerNodosFrame(
+        XmlNode nodoTrack)
+    {
+        List<XmlNode> frames =
+            new List<XmlNode>();
+
+        XmlNodeList t =
+            nodoTrack.SelectNodes(
+                "./t");
+
+        if (t != null)
+        {
+            foreach (XmlNode nodo in t)
+            {
+                if (nodo.NodeType ==
+                    XmlNodeType.Element)
+                {
+                    frames.Add(
+                        nodo);
+                }
+            }
+        }
+
+        if (frames.Count == 0)
+        {
+            XmlNodeList f =
+                nodoTrack.SelectNodes(
+                    "./frame");
+
+            if (f != null)
+            {
+                foreach (XmlNode nodo in f)
+                {
+                    if (nodo.NodeType ==
+                        XmlNodeType.Element)
+                    {
+                        frames.Add(
+                            nodo);
+                    }
+                }
+            }
+        }
+
+        return frames;
+    }
+
+    // ============================================================
+    // PRIMER FRAME
+    // ============================================================
+
+    private static int ObtenerPrimerFrame(
+        PvZReanimTrack track)
+    {
+        if (
+            track == null ||
+            track.frames == null ||
+            track.frames.Count == 0)
+        {
+            return 0;
+        }
+
+        return
+            track.frames[0].frameNumber;
+    }
+
+    // ============================================================
+    // ÚLTIMO FRAME
+    // ============================================================
+
+    private static int ObtenerUltimoFrame(
+        PvZReanimTrack track)
+    {
+        if (
+            track == null ||
+            track.frames == null ||
+            track.frames.Count == 0)
+        {
+            return 0;
+        }
+
+        return
+            track.frames[
+                track.frames.Count - 1
+            ].frameNumber;
+    }
+
+    // ============================================================
+    // OBTENER VALOR
+    // ============================================================
 
     private static string ObtenerValor(
         XmlNode nodo,
@@ -470,7 +664,8 @@ public static class PvZReanimParser
                 nodo,
                 nombre);
 
-        if (!string.IsNullOrWhiteSpace(atributo))
+        if (!string.IsNullOrWhiteSpace(
+            atributo))
         {
             return atributo;
         }
@@ -495,19 +690,25 @@ public static class PvZReanimParser
         return null;
     }
 
+    // ============================================================
+    // FLOAT
+    // ============================================================
+
     private static bool TryObtenerFloat(
         XmlNode nodo,
         string nombre,
         out float resultado)
     {
-        resultado = 0f;
+        resultado =
+            0f;
 
         string texto =
             ObtenerValor(
                 nodo,
                 nombre);
 
-        if (string.IsNullOrWhiteSpace(texto))
+        if (string.IsNullOrWhiteSpace(
+            texto))
         {
             return false;
         }
@@ -519,11 +720,16 @@ public static class PvZReanimParser
             out resultado);
     }
 
+    // ============================================================
+    // ATRIBUTO
+    // ============================================================
+
     private static string ObtenerAtributo(
         XmlNode nodo,
         string nombre)
     {
-        if (nodo == null ||
+        if (
+            nodo == null ||
             nodo.Attributes == null)
         {
             return null;
@@ -545,10 +751,15 @@ public static class PvZReanimParser
         return null;
     }
 
+    // ============================================================
+    // LIMPIAR
+    // ============================================================
+
     private static string LimpiarTexto(
         string texto)
     {
-        if (string.IsNullOrEmpty(texto))
+        if (string.IsNullOrEmpty(
+            texto))
         {
             return string.Empty;
         }
@@ -559,16 +770,22 @@ public static class PvZReanimParser
             '\u0000').Trim();
     }
 
+    // ============================================================
+    // DECODIFICAR
+    // ============================================================
+
     private static string Decodificar(
         byte[] datos)
     {
-        if (datos == null ||
+        if (
+            datos == null ||
             datos.Length == 0)
         {
             return string.Empty;
         }
 
-        if (datos.Length >= 3 &&
+        if (
+            datos.Length >= 3 &&
             datos[0] == 0xEF &&
             datos[1] == 0xBB &&
             datos[2] == 0xBF)
@@ -579,7 +796,8 @@ public static class PvZReanimParser
                 datos.Length - 3);
         }
 
-        if (datos.Length >= 2 &&
+        if (
+            datos.Length >= 2 &&
             datos[0] == 0xFF &&
             datos[1] == 0xFE)
         {
@@ -589,7 +807,8 @@ public static class PvZReanimParser
                 datos.Length - 2);
         }
 
-        if (datos.Length >= 2 &&
+        if (
+            datos.Length >= 2 &&
             datos[0] == 0xFE &&
             datos[1] == 0xFF)
         {
@@ -600,7 +819,8 @@ public static class PvZReanimParser
         }
 
         string utf8 =
-            Encoding.UTF8.GetString(datos);
+            Encoding.UTF8.GetString(
+                datos);
 
         if (utf8.IndexOf('<') >= 0)
         {
@@ -608,7 +828,8 @@ public static class PvZReanimParser
         }
 
         string unicode =
-            Encoding.Unicode.GetString(datos);
+            Encoding.Unicode.GetString(
+                datos);
 
         if (unicode.IndexOf('<') >= 0)
         {
@@ -616,13 +837,15 @@ public static class PvZReanimParser
         }
 
         string bigEndian =
-            Encoding.BigEndianUnicode.GetString(datos);
+            Encoding.BigEndianUnicode.GetString(
+                datos);
 
         if (bigEndian.IndexOf('<') >= 0)
         {
             return bigEndian;
         }
 
-        return Encoding.ASCII.GetString(datos);
+        return Encoding.ASCII.GetString(
+            datos);
     }
 }
