@@ -94,7 +94,7 @@ namespace PvZReanim
             );
 
             // -----------------------------------------------------
-            // DEBUG PEASHOOTER
+            // DEBUG: MOSTRAR ARCHIVOS DEL PEASHOOTER
             // -----------------------------------------------------
 
             if (debugPeashooterFiles)
@@ -285,9 +285,7 @@ namespace PvZReanim
                 Debug.LogWarning(
                     "[PvZPakImageProvider] " +
                     "No se pudo decodificar la imagen:\n" +
-                    path +
-                    " | Bytes: " +
-                    data.Length,
+                    path,
                     this
                 );
 
@@ -298,12 +296,6 @@ namespace PvZReanim
                 Path.GetFileNameWithoutExtension(
                     path
                 );
-
-            if (string.IsNullOrEmpty(texture.name))
-            {
-                texture.name =
-                    normalizedName;
-            }
 
             texture.filterMode =
                 FilterMode.Point;
@@ -424,35 +416,81 @@ namespace PvZReanim
                 return null;
 
             // =====================================================
-            // 1. RUTA DIRECTA ORIGINAL
+            // 0. RUTA REAL COMPLETA
             // =====================================================
 
-            string directPath =
+            string originalPath =
                 NormalizePakPath(
                     imageName
                 );
 
-            if (!string.IsNullOrEmpty(directPath))
+            if (!string.IsNullOrEmpty(originalPath))
             {
                 if (pakReader.Contains(
-                        directPath))
+                        originalPath))
                 {
                     if (logSearches)
                     {
                         Debug.Log(
                             "[PvZPakImageProvider] " +
                             "Imagen encontrada por ruta directa: " +
-                            directPath,
+                            originalPath,
                             this
                         );
                     }
 
-                    return directPath;
+                    return originalPath;
                 }
             }
 
             // =====================================================
-            // 2. CANDIDATOS CON EXTENSION
+            // 1. NOMBRE REANIM
+            //
+            // Reanim puede pedir:
+            //
+            // IMAGE_REANIM_PEASHOOTER_BLINK1
+            //
+            // pero el PAK contiene:
+            //
+            // reanim/PeaShooter_blink1.png
+            //
+            // Por eso quitamos IMAGE_REANIM_.
+            // =====================================================
+
+            string reanimName =
+                ExtractReanimImageName(
+                    imageName
+                );
+
+            if (!string.IsNullOrEmpty(reanimName))
+            {
+                if (logSearches)
+                {
+                    Debug.Log(
+                        "[PvZPakImageProvider] " +
+                        "Nombre Reanim detectado: " +
+                        imageName +
+                        " -> " +
+                        reanimName,
+                        this
+                    );
+                }
+
+                string reanimPath =
+                    FindImageByName(
+                        reanimName,
+                        true
+                    );
+
+                if (!string.IsNullOrEmpty(
+                        reanimPath))
+                {
+                    return reanimPath;
+                }
+            }
+
+            // =====================================================
+            // 2. CANDIDATOS NORMALES
             // =====================================================
 
             string[] extensions =
@@ -471,6 +509,10 @@ namespace PvZReanim
                 "images/",
                 ""
             };
+
+            // =====================================================
+            // BUSQUEDA DIRECTA
+            // =====================================================
 
             for (int f = 0;
                  f < folders.Length;
@@ -504,11 +546,7 @@ namespace PvZReanim
             }
 
             // =====================================================
-            // 3. BUSQUEDA REAL
-            //
-            // IMPORTANTE:
-            // El PAK de PvZ puede tener archivos de imagen SIN
-            // extension.
+            // 3. BUSQUEDA REAL DENTRO DEL PAK
             // =====================================================
 
             List<string> matches =
@@ -534,11 +572,6 @@ namespace PvZReanim
 
             // =====================================================
             // 4. NOMBRE EXACTO
-            //
-            // Acepta:
-            // IMAGE_REANIM_PEASHOOTER_BLINK1
-            // IMAGE_REANIM_PEASHOOTER_BLINK1.tga
-            // IMAGE_REANIM_PEASHOOTER_BLINK1.png
             // =====================================================
 
             for (int i = 0;
@@ -550,109 +583,24 @@ namespace PvZReanim
                         matches[i]
                     );
 
-                if (string.IsNullOrEmpty(match))
+                if (!IsImageFile(match))
                     continue;
 
                 string fileName =
-                    Path.GetFileName(
-                        match
-                    );
-
-                string fileNameWithoutExtension =
                     Path.GetFileNameWithoutExtension(
                         match
                     );
 
-                bool exactName =
-                    string.Equals(
+                if (string.Equals(
                         fileName,
                         normalized,
-                        StringComparison.OrdinalIgnoreCase
-                    );
-
-                bool exactWithoutExtension =
-                    string.Equals(
-                        fileNameWithoutExtension,
-                        normalized,
-                        StringComparison.OrdinalIgnoreCase
-                    );
-
-                if (!exactName &&
-                    !exactWithoutExtension)
-                {
-                    continue;
-                }
-
-                // -------------------------------------------------
-                // COMPROBAR QUE REALMENTE SEA UNA IMAGEN
-                // -------------------------------------------------
-
-                byte[] data;
-
-                if (pakReader.TryGetFile(
-                        match,
-                        out data))
-                {
-                    if (IsImageData(data))
-                    {
-                        if (logSearches)
-                        {
-                            Debug.Log(
-                                "[PvZPakImageProvider] " +
-                                "Imagen encontrada por nombre exacto: " +
-                                match +
-                                " | Bytes: " +
-                                data.Length,
-                                this
-                            );
-                        }
-
-                        return match;
-                    }
-
-                    // -------------------------------------------------
-                    // Si tiene nombre exacto pero no pudimos reconocer
-                    // el formato, igualmente lo devolvemos.
-                    // DecodeImage intentará leerlo.
-                    // -------------------------------------------------
-
-                    if (logSearches)
-                    {
-                        Debug.Log(
-                            "[PvZPakImageProvider] " +
-                            "Archivo con nombre exacto encontrado " +
-                            "pero formato no identificado: " +
-                            match,
-                            this
-                        );
-                    }
-
-                    return match;
-                }
-            }
-
-            // =====================================================
-            // 5. TGA CON EXTENSION
-            // =====================================================
-
-            for (int i = 0;
-                 i < matches.Count;
-                 i++)
-            {
-                string match =
-                    NormalizePakPath(
-                        matches[i]
-                    );
-
-                if (match.EndsWith(
-                        ".tga",
                         StringComparison.OrdinalIgnoreCase))
                 {
                     if (logSearches)
                     {
                         Debug.Log(
                             "[PvZPakImageProvider] " +
-                            "Imagen TGA encontrada: " +
+                            "Imagen encontrada por nombre exacto: " +
                             match,
                             this
                         );
@@ -663,7 +611,7 @@ namespace PvZReanim
             }
 
             // =====================================================
-            // 6. ARCHIVO DE IMAGEN SIN EXTENSION
+            // 5. PRIORIDAD TGA
             // =====================================================
 
             for (int i = 0;
@@ -675,45 +623,31 @@ namespace PvZReanim
                         matches[i]
                     );
 
-                if (string.IsNullOrEmpty(match))
+                if (!IsImageFile(match))
                     continue;
 
-                // -------------------------------------------------
-                // Si tiene extension conocida ya fue revisado.
-                // -------------------------------------------------
-
-                if (Path.HasExtension(match))
+                if (!match.EndsWith(
+                        ".tga",
+                        StringComparison.OrdinalIgnoreCase))
+                {
                     continue;
+                }
 
-                byte[] data;
-
-                if (!pakReader.TryGetFile(
+                if (logSearches)
+                {
+                    Debug.Log(
+                        "[PvZPakImageProvider] " +
+                        "Imagen TGA encontrada: " +
                         match,
-                        out data))
-                {
-                    continue;
+                        this
+                    );
                 }
 
-                if (IsImageData(data))
-                {
-                    if (logSearches)
-                    {
-                        Debug.Log(
-                            "[PvZPakImageProvider] " +
-                            "Imagen SIN EXTENSION encontrada: " +
-                            match +
-                            " | Bytes: " +
-                            data.Length,
-                            this
-                        );
-                    }
-
-                    return match;
-                }
+                return match;
             }
 
             // =====================================================
-            // 7. CUALQUIER ARCHIVO DE IMAGEN
+            // 6. PRIORIDAD REANIM
             // =====================================================
 
             for (int i = 0;
@@ -725,13 +659,18 @@ namespace PvZReanim
                         matches[i]
                     );
 
-                if (IsImageFile(match))
+                if (!IsImageFile(match))
+                    continue;
+
+                if (match.StartsWith(
+                        "reanim/",
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     if (logSearches)
                     {
                         Debug.Log(
                             "[PvZPakImageProvider] " +
-                            "Imagen encontrada como fallback: " +
+                            "Imagen encontrada en reanim/: " +
                             match,
                             this
                         );
@@ -742,8 +681,7 @@ namespace PvZReanim
             }
 
             // =====================================================
-            // 8. FALLBACK: REVISAR CUALQUIER MATCH
-            // POR CONTENIDO
+            // 7. CUALQUIER IMAGEN
             // =====================================================
 
             for (int i = 0;
@@ -755,137 +693,305 @@ namespace PvZReanim
                         matches[i]
                     );
 
-                if (string.IsNullOrEmpty(match))
+                if (!IsImageFile(match))
                     continue;
 
-                byte[] data;
-
-                if (!pakReader.TryGetFile(
+                if (logSearches)
+                {
+                    Debug.Log(
+                        "[PvZPakImageProvider] " +
+                        "Imagen encontrada como fallback: " +
                         match,
-                        out data))
-                {
-                    continue;
+                        this
+                    );
                 }
 
-                if (IsImageData(data))
-                {
-                    if (logSearches)
-                    {
-                        Debug.Log(
-                            "[PvZPakImageProvider] " +
-                            "Imagen encontrada por contenido: " +
-                            match,
-                            this
-                        );
-                    }
-
-                    return match;
-                }
+                return match;
             }
 
             return null;
         }
 
         // =========================================================
-        // IMAGE DATA DETECTION
+        // EXTRACT REANIM IMAGE NAME
         // =========================================================
 
-        private static bool IsImageData(
-            byte[] data)
+        private static string ExtractReanimImageName(
+            string imageName)
         {
-            if (data == null ||
-                data.Length < 4)
+            if (string.IsNullOrWhiteSpace(imageName))
+                return string.Empty;
+
+            string value =
+                imageName.Trim();
+
+            // -----------------------------------------------------
+            // Quitar comillas
+            // -----------------------------------------------------
+
+            if (value.Length >= 2 &&
+                value[0] == '"' &&
+                value[value.Length - 1] == '"')
             {
-                return false;
+                value =
+                    value.Substring(
+                        1,
+                        value.Length - 2
+                    );
             }
 
+            value =
+                value.Replace(
+                    '\\',
+                    '/'
+                );
+
             // -----------------------------------------------------
-            // PNG
-            // 89 50 4E 47 0D 0A 1A 0A
+            // Si viene una ruta, quedarse con el archivo
             // -----------------------------------------------------
 
-            if (data.Length >= 8 &&
-                data[0] == 0x89 &&
-                data[1] == 0x50 &&
-                data[2] == 0x4E &&
-                data[3] == 0x47 &&
-                data[4] == 0x0D &&
-                data[5] == 0x0A &&
-                data[6] == 0x1A &&
-                data[7] == 0x0A)
+            int slash =
+                value.LastIndexOf('/');
+
+            if (slash >= 0 &&
+                slash + 1 < value.Length)
             {
-                return true;
+                value =
+                    value.Substring(
+                        slash + 1
+                    );
             }
 
-            // -----------------------------------------------------
-            // JPG
-            // FF D8 FF
-            // -----------------------------------------------------
-
-            if (data.Length >= 3 &&
-                data[0] == 0xFF &&
-                data[1] == 0xD8 &&
-                data[2] == 0xFF)
-            {
-                return true;
-            }
+            value =
+                RemoveImageExtension(
+                    value
+                );
 
             // -----------------------------------------------------
-            // TGA
+            // FORMATO:
             //
-            // TGA no tiene una firma fija como PNG/JPG.
-            // Revisamos el header:
+            // IMAGE_REANIM_PEASHOOTER_BLINK1
             //
-            // byte 1 = color map
-            // byte 2 = image type
-            // bytes 12-15 = width/height
-            // byte 16 = bpp
+            // ->
+            //
+            // PEASHOOTER_BLINK1
             // -----------------------------------------------------
 
-            if (data.Length >= 18)
+            const string prefix =
+                "IMAGE_REANIM_";
+
+            if (value.StartsWith(
+                    prefix,
+                    StringComparison.OrdinalIgnoreCase))
             {
-                int colorMapType =
-                    data[1];
+                return value.Substring(
+                    prefix.Length
+                );
+            }
 
-                int imageType =
-                    data[2];
+            // -----------------------------------------------------
+            // También aceptar IMAGE_REANIM/...
+            // -----------------------------------------------------
 
-                int width =
-                    data[12] |
-                    (data[13] << 8);
+            const string alternativePrefix =
+                "IMAGE_REANIM/";
 
-                int height =
-                    data[14] |
-                    (data[15] << 8);
+            if (value.StartsWith(
+                    alternativePrefix,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return value.Substring(
+                    alternativePrefix.Length
+                );
+            }
 
-                int bitsPerPixel =
-                    data[16];
+            return string.Empty;
+        }
 
-                bool validColorMap =
-                    colorMapType == 0;
+        // =========================================================
+        // FIND IMAGE BY NAME
+        // =========================================================
 
-                bool validImageType =
-                    imageType == 2 ||
-                    imageType == 10;
+        private string FindImageByName(
+            string imageName,
+            bool preferReanim)
+        {
+            if (string.IsNullOrWhiteSpace(imageName))
+                return null;
 
-                bool validBpp =
-                    bitsPerPixel == 24 ||
-                    bitsPerPixel == 32;
+            string normalized =
+                NormalizeImageName(
+                    imageName
+                );
 
-                bool validSize =
-                    width > 0 &&
-                    height > 0;
+            if (string.IsNullOrEmpty(normalized))
+                return null;
 
-                if (validColorMap &&
-                    validImageType &&
-                    validBpp &&
-                    validSize)
+            // -----------------------------------------------------
+            // PRIMERO: reanim/NOMBRE.extension
+            // -----------------------------------------------------
+
+            string[] extensions =
+            {
+                ".png",
+                ".tga",
+                ".jpg",
+                ".jpeg",
+                ".gif",
+                ".webp"
+            };
+
+            if (preferReanim)
+            {
+                for (int i = 0;
+                     i < extensions.Length;
+                     i++)
                 {
-                    return true;
+                    string candidate =
+                        "reanim/" +
+                        normalized +
+                        extensions[i];
+
+                    if (pakReader.Contains(
+                            candidate))
+                    {
+                        if (logSearches)
+                        {
+                            Debug.Log(
+                                "[PvZPakImageProvider] " +
+                                "Reanim encontrado directamente: " +
+                                candidate,
+                                this
+                            );
+                        }
+
+                        return candidate;
+                    }
                 }
             }
 
-            return false;
+            // -----------------------------------------------------
+            // Buscar por nombre
+            // -----------------------------------------------------
+
+            List<string> matches =
+                pakReader.Find(
+                    normalized
+                );
+
+            if (matches == null ||
+                matches.Count == 0)
+            {
+                if (logSearches)
+                {
+                    Debug.LogWarning(
+                        "[PvZPakImageProvider] " +
+                        "No se encontraron archivos para: " +
+                        normalized,
+                        this
+                    );
+                }
+
+                return null;
+            }
+
+            // -----------------------------------------------------
+            // EXACTO
+            // -----------------------------------------------------
+
+            for (int i = 0;
+                 i < matches.Count;
+                 i++)
+            {
+                string match =
+                    NormalizePakPath(
+                        matches[i]
+                    );
+
+                if (!IsImageFile(match))
+                    continue;
+
+                string fileName =
+                    Path.GetFileNameWithoutExtension(
+                        match
+                    );
+
+                if (string.Equals(
+                        fileName,
+                        normalized,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    if (logSearches)
+                    {
+                        Debug.Log(
+                            "[PvZPakImageProvider] " +
+                            "Reanim encontrado por nombre exacto: " +
+                            match,
+                            this
+                        );
+                    }
+
+                    return match;
+                }
+            }
+
+            // -----------------------------------------------------
+            // REANIM
+            // -----------------------------------------------------
+
+            if (preferReanim)
+            {
+                for (int i = 0;
+                     i < matches.Count;
+                     i++)
+                {
+                    string match =
+                        NormalizePakPath(
+                            matches[i]
+                        );
+
+                    if (!IsImageFile(match))
+                        continue;
+
+                    if (match.StartsWith(
+                            "reanim/",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (logSearches)
+                        {
+                            Debug.Log(
+                                "[PvZPakImageProvider] " +
+                                "Reanim encontrado por búsqueda: " +
+                                match,
+                                this
+                            );
+                        }
+
+                        return match;
+                    }
+                }
+            }
+
+            // -----------------------------------------------------
+            // CUALQUIER IMAGEN
+            // -----------------------------------------------------
+
+            for (int i = 0;
+                 i < matches.Count;
+                 i++)
+            {
+                string match =
+                    NormalizePakPath(
+                        matches[i]
+                    );
+
+                if (!IsImageFile(match))
+                    continue;
+
+                return match;
+            }
+
+            return null;
         }
 
         // =========================================================
@@ -902,7 +1008,7 @@ namespace PvZReanim
                 ).ToLowerInvariant();
 
             // -----------------------------------------------------
-            // TGA POR EXTENSION
+            // TGA
             // -----------------------------------------------------
 
             if (extension == ".tga")
@@ -911,16 +1017,7 @@ namespace PvZReanim
             }
 
             // -----------------------------------------------------
-            // TGA SIN EXTENSION
-            // -----------------------------------------------------
-
-            if (IsTGAData(data))
-            {
-                return DecodeTGA(data);
-            }
-
-            // -----------------------------------------------------
-            // PNG / JPG / OTROS FORMATOS UNITY
+            // PNG / JPG
             // -----------------------------------------------------
 
             Texture2D texture =
@@ -945,60 +1042,6 @@ namespace PvZReanim
             }
 
             return texture;
-        }
-
-        // =========================================================
-        // IS TGA DATA
-        // =========================================================
-
-        private static bool IsTGAData(
-            byte[] data)
-        {
-            if (data == null ||
-                data.Length < 18)
-            {
-                return false;
-            }
-
-            int colorMapType =
-                data[1];
-
-            int imageType =
-                data[2];
-
-            int width =
-                data[12] |
-                (data[13] << 8);
-
-            int height =
-                data[14] |
-                (data[15] << 8);
-
-            int bitsPerPixel =
-                data[16];
-
-            if (colorMapType != 0)
-                return false;
-
-            if (imageType != 2 &&
-                imageType != 10)
-            {
-                return false;
-            }
-
-            if (bitsPerPixel != 24 &&
-                bitsPerPixel != 32)
-            {
-                return false;
-            }
-
-            if (width <= 0 ||
-                height <= 0)
-            {
-                return false;
-            }
-
-            return true;
         }
 
         // =========================================================
@@ -1044,22 +1087,24 @@ namespace PvZReanim
                 data[17];
 
             // -----------------------------------------------------
-            // COLOR MAP
+            // SIN COLOR MAP
             // -----------------------------------------------------
 
             if (colorMapType != 0)
             {
                 Debug.LogWarning(
                     "[PvZPakImageProvider] " +
-                    "TGA con color map no soportado.",
-                    this
+                    "TGA con color map no soportado."
                 );
 
                 return null;
             }
 
             // -----------------------------------------------------
-            // TIPOS
+            // TIPOS:
+            //
+            // 2  = RGB sin compresión
+            // 10 = RGB RLE
             // -----------------------------------------------------
 
             if (imageType != 2 &&
@@ -1068,16 +1113,11 @@ namespace PvZReanim
                 Debug.LogWarning(
                     "[PvZPakImageProvider] " +
                     "Tipo TGA no soportado: " +
-                    imageType,
-                    this
+                    imageType
                 );
 
                 return null;
             }
-
-            // -----------------------------------------------------
-            // BITS
-            // -----------------------------------------------------
 
             if (bitsPerPixel != 24 &&
                 bitsPerPixel != 32)
@@ -1085,8 +1125,7 @@ namespace PvZReanim
                 Debug.LogWarning(
                     "[PvZPakImageProvider] " +
                     "Profundidad TGA no soportada: " +
-                    bitsPerPixel,
-                    this
+                    bitsPerPixel
                 );
 
                 return null;
@@ -1114,10 +1153,7 @@ namespace PvZReanim
                 return null;
 
             // -----------------------------------------------------
-            // ORIENTACION
-            //
-            // bit 5 = vertical
-            // bit 4 = horizontal
+            // ORIENTACIÓN
             // -----------------------------------------------------
 
             bool topOrigin =
@@ -1126,7 +1162,8 @@ namespace PvZReanim
             bool rightOrigin =
                 (descriptor & 0x10) != 0;
 
-            int currentPixel = 0;
+            int currentPixel =
+                0;
 
             // -----------------------------------------------------
             // READ PIXEL
@@ -1155,7 +1192,8 @@ namespace PvZReanim
                     byte r =
                         data[offset++];
 
-                    byte a = 255;
+                    byte a =
+                        255;
 
                     if (bytesPerPixel == 4)
                     {
@@ -1171,9 +1209,9 @@ namespace PvZReanim
                     );
                 };
 
-            // =====================================================
-            // SIN COMPRESION
-            // =====================================================
+            // -----------------------------------------------------
+            // SIN COMPRESIÓN
+            // -----------------------------------------------------
 
             if (imageType == 2)
             {
@@ -1213,9 +1251,9 @@ namespace PvZReanim
                 }
             }
 
-            // =====================================================
+            // -----------------------------------------------------
             // RLE
-            // =====================================================
+            // -----------------------------------------------------
 
             else
             {
@@ -1360,10 +1398,6 @@ namespace PvZReanim
             string result =
                 value.Trim();
 
-            // -----------------------------------------------------
-            // QUITAR COMILLAS
-            // -----------------------------------------------------
-
             if (result.Length >= 2 &&
                 result[0] == '"' &&
                 result[result.Length - 1] == '"')
@@ -1375,19 +1409,11 @@ namespace PvZReanim
                     );
             }
 
-            // -----------------------------------------------------
-            // NORMALIZAR SLASH
-            // -----------------------------------------------------
-
             result =
                 result.Replace(
                     '\\',
                     '/'
                 );
-
-            // -----------------------------------------------------
-            // QUITAR "./"
-            // -----------------------------------------------------
 
             while (result.StartsWith(
                        "./",
@@ -1401,7 +1427,7 @@ namespace PvZReanim
                 result.TrimStart('/');
 
             // -----------------------------------------------------
-            // SI ES RUTA, QUEDARSE CON EL NOMBRE
+            // SI ES UNA RUTA, QUEDARSE CON EL NOMBRE
             // -----------------------------------------------------
 
             int slash =
@@ -1415,10 +1441,6 @@ namespace PvZReanim
                         slash + 1
                     );
             }
-
-            // -----------------------------------------------------
-            // QUITAR EXTENSION CONOCIDA
-            // -----------------------------------------------------
 
             result =
                 RemoveImageExtension(
@@ -1440,6 +1462,17 @@ namespace PvZReanim
 
             string result =
                 value.Trim();
+
+            if (result.Length >= 2 &&
+                result[0] == '"' &&
+                result[result.Length - 1] == '"')
+            {
+                result =
+                    result.Substring(
+                        1,
+                        result.Length - 2
+                    );
+            }
 
             result =
                 result.Replace(
@@ -1501,7 +1534,7 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // IS IMAGE FILE
+        // IS IMAGE
         // =========================================================
 
         private static bool IsImageFile(
