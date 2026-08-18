@@ -14,10 +14,9 @@ namespace PvZReanim
         // CARGAR ARCHIVO
         // =========================================================
 
-        public static PvZReanimDefinition LoadFile(
-            string path)
+        public static PvZReanimDefinition LoadFile(string path)
         {
-            if (string.IsNullOrEmpty(path))
+            if (string.IsNullOrWhiteSpace(path))
             {
                 throw new ArgumentException(
                     "La ruta del archivo .reanim está vacía.",
@@ -33,21 +32,16 @@ namespace PvZReanim
                 );
             }
 
-            byte[] data =
-                File.ReadAllBytes(path);
-
-            return LoadBytes(data);
+            return LoadBytes(File.ReadAllBytes(path));
         }
 
         // =========================================================
         // CARGAR BYTES
         // =========================================================
 
-        public static PvZReanimDefinition LoadBytes(
-            byte[] data)
+        public static PvZReanimDefinition LoadBytes(byte[] data)
         {
-            if (data == null ||
-                data.Length == 0)
+            if (data == null || data.Length == 0)
             {
                 throw new ArgumentException(
                     "Los datos del .reanim están vacíos.",
@@ -55,37 +49,17 @@ namespace PvZReanim
                 );
             }
 
-            /*
-             * Los .reanim originales de PvZ son XML.
-             *
-             * No utilizamos Encoding.UTF8.GetString()
-             * directamente como único sistema de lectura,
-             * porque algunos archivos pueden contener
-             * información de encoding en la cabecera XML.
-             */
-
-            string text =
-                DecodeText(data);
+            string text = DecodeText(data);
 
             return Parse(text);
         }
 
         // =========================================================
-        // DECODIFICAR TEXTO
+        // DECODIFICAR
         // =========================================================
 
-        private static string DecodeText(
-            byte[] data)
+        private static string DecodeText(byte[] data)
         {
-            if (data == null ||
-                data.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            /*
-             * UTF-8 BOM
-             */
             if (data.Length >= 3 &&
                 data[0] == 0xEF &&
                 data[1] == 0xBB &&
@@ -98,9 +72,6 @@ namespace PvZReanim
                 );
             }
 
-            /*
-             * UTF-16 LE BOM
-             */
             if (data.Length >= 2 &&
                 data[0] == 0xFF &&
                 data[1] == 0xFE)
@@ -112,9 +83,6 @@ namespace PvZReanim
                 );
             }
 
-            /*
-             * UTF-16 BE BOM
-             */
             if (data.Length >= 2 &&
                 data[0] == 0xFE &&
                 data[1] == 0xFF)
@@ -126,17 +94,14 @@ namespace PvZReanim
                 );
             }
 
-            return Encoding.UTF8.GetString(
-                data
-            );
+            return Encoding.UTF8.GetString(data);
         }
 
         // =========================================================
         // PARSER PRINCIPAL
         // =========================================================
 
-        public static PvZReanimDefinition Parse(
-            string text)
+        public static PvZReanimDefinition Parse(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
             {
@@ -147,257 +112,328 @@ namespace PvZReanim
             }
 
             /*
-             * Primero intentamos el formato XML real
-             * utilizado por los Reanim de PvZ.
+             * IMPORTANTE:
+             *
+             * Los Reanim reales de PvZ pueden contener
+             * múltiples bloques XML consecutivos.
+             *
+             * Por eso NO usamos directamente:
+             *
+             * document.LoadXml(text)
+             *
+             * ya que produce:
+             *
+             * "There are multiple root elements."
              */
-
-            try
-            {
-                PvZReanimDefinition definition =
-                    ParseXml(text);
-
-                if (definition != null &&
-                    definition.TrackCount > 0)
-                {
-                    return definition;
-                }
-
-                /*
-                 * Si XML pudo abrirse pero no encontró
-                 * tracks, probamos el parser antiguo
-                 * como compatibilidad.
-                 */
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning(
-                    "[PvZReanimParser] " +
-                    "Error leyendo XML: " +
-                    exception.Message
-                );
-            }
-
-            /*
-             * Compatibilidad con el formato de texto
-             * simplificado utilizado por versiones
-             * anteriores del proyecto.
-             */
-
-            return ParseLegacyText(
-                text
-            );
-        }
-
-        // =========================================================
-        // XML REAL DE PVZ
-        // =========================================================
-
-        private static PvZReanimDefinition ParseXml(
-            string text)
-        {
-            XmlDocument document =
-                new XmlDocument();
-
-            document.XmlResolver = null;
-
-            document.LoadXml(
-                text
-            );
 
             PvZReanimDefinition definition =
-                ScriptableObject.CreateInstance<
-                    PvZReanimDefinition
-                >();
+                ParsePvZReanimText(text);
 
-            /*
-             * Buscar FPS en cualquier nivel.
-             */
-
-            XmlNode fpsNode =
-                FindFirstElement(
-                    document.DocumentElement,
-                    "fps"
+            if (definition != null &&
+                definition.TrackCount > 0)
+            {
+                Debug.Log(
+                    "[PvZReanimParser] Reanim parseado correctamente | " +
+                    "FPS: " + definition.fps +
+                    " | Tracks: " + definition.TrackCount +
+                    " | Frames: " +
+                    definition.GetMaxFrameCount()
                 );
 
-            if (fpsNode != null)
-            {
-                float fps =
-                    ParseFloat(
-                        fpsNode.InnerText
-                    );
-
-                if (!IsMissingValue(fps))
-                {
-                    definition.fps =
-                        fps;
-                }
+                return definition;
             }
 
-            /*
-             * Los tracks pueden encontrarse
-             * directamente debajo de la raíz.
-             *
-             * También buscamos recursivamente
-             * por seguridad.
-             */
-
-            List<XmlNode> trackNodes =
-                new List<XmlNode>();
-
-            FindElements(
-                document.DocumentElement,
-                "track",
-                trackNodes
-            );
-
-            for (int i = 0;
-                 i < trackNodes.Count;
-                 i++)
-            {
-                ParseXmlTrack(
-                    definition,
-                    trackNodes[i]
-                );
-            }
-
-            /*
-             * Nombre opcional de la definición.
-             *
-             * No siempre está presente en el XML,
-             * por eso el RuntimeLoader lo completa
-             * usando el nombre del archivo.
-             */
-
-            XmlNode nameNode =
-                FindFirstElement(
-                    document.DocumentElement,
-                    "name"
-                );
-
-            if (nameNode != null)
-            {
-                /*
-                 * El primer <name> puede pertenecer
-                 * a un track. No lo usamos como nombre
-                 * global si ya tenemos tracks.
-                 */
-
-                if (definition.TrackCount == 0)
-                {
-                    /*
-                     * No hay campo name en
-                     * PvZReanimDefinition actualmente,
-                     * así que no hacemos nada aquí.
-                     */
-                }
-            }
-
-            Debug.Log(
-                "[PvZReanimParser] XML parseado | " +
-                "FPS: " +
-                definition.fps +
-                " | Tracks: " +
-                definition.TrackCount +
-                " | Frames: " +
-                definition.GetMaxFrameCount()
+            Debug.LogWarning(
+                "[PvZReanimParser] " +
+                "No se encontraron tracks en el Reanim."
             );
 
             return definition;
         }
 
         // =========================================================
-        // TRACK XML
+        // PARSER PVZ
         // =========================================================
 
-        private static void ParseXmlTrack(
-            PvZReanimDefinition definition,
-            XmlNode trackNode)
+        private static PvZReanimDefinition ParsePvZReanimText(
+            string text)
         {
-            if (definition == null ||
-                trackNode == null)
-            {
-                return;
-            }
+            PvZReanimDefinition definition =
+                ScriptableObject.CreateInstance<PvZReanimDefinition>();
 
-            string trackName =
-                GetChildValue(
-                    trackNode,
-                    "name"
+            definition.fps =
+                PvZReanimConstants.DefaultFPS;
+
+            /*
+             * Normalizamos saltos.
+             */
+
+            text = text.Replace(
+                "\r\n",
+                "\n"
+            );
+
+            text = text.Replace(
+                '\r',
+                '\n'
+            );
+
+            /*
+             * Primero intentamos localizar el FPS.
+             */
+
+            float fps =
+                FindFirstFloat(
+                    text,
+                    "<fps>",
+                    "</fps>"
                 );
 
-            if (string.IsNullOrEmpty(trackName))
+            if (!IsMissingValue(fps) &&
+                fps > 0f)
             {
-                /*
-                 * Algunos formatos pueden guardar
-                 * el nombre como atributo.
-                 */
+                definition.fps = fps;
+            }
 
+            /*
+             * El formato real puede tener:
+             *
+             * <track>
+             * ...
+             * </track>
+             *
+             * repetido.
+             */
+
+            int searchPosition = 0;
+
+            while (true)
+            {
+                int trackStart =
+                    IndexOfIgnoreCase(
+                        text,
+                        "<track",
+                        searchPosition
+                    );
+
+                if (trackStart < 0)
+                    break;
+
+                int openEnd =
+                    text.IndexOf(
+                        '>',
+                        trackStart
+                    );
+
+                if (openEnd < 0)
+                    break;
+
+                int trackEnd =
+                    IndexOfIgnoreCase(
+                        text,
+                        "</track>",
+                        openEnd + 1
+                    );
+
+                if (trackEnd < 0)
+                    break;
+
+                int contentStart =
+                    openEnd + 1;
+
+                int contentLength =
+                    trackEnd - contentStart;
+
+                if (contentLength < 0)
+                    break;
+
+                string trackText =
+                    text.Substring(
+                        contentStart,
+                        contentLength
+                    );
+
+                PvZReanimTrack track =
+                    ParseTrackText(
+                        trackText,
+                        definition.TrackCount
+                    );
+
+                if (track != null)
+                {
+                    definition.tracks.Add(track);
+                }
+
+                searchPosition =
+                    trackEnd +
+                    "</track>".Length;
+            }
+
+            /*
+             * Si no encontramos <track>, intentamos
+             * buscar bloques de track mediante XML
+             * individualmente.
+             */
+
+            if (definition.TrackCount == 0)
+            {
+                ParseIndependentXmlBlocks(
+                    text,
+                    definition
+                );
+            }
+
+            return definition;
+        }
+
+        // =========================================================
+        // PARSE TRACK
+        // =========================================================
+
+        private static PvZReanimTrack ParseTrackText(
+            string text,
+            int index)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return null;
+
+            string trackName =
+                FindFirstString(
+                    text,
+                    "<name>",
+                    "</name>"
+                );
+
+            if (string.IsNullOrWhiteSpace(trackName))
+            {
                 trackName =
-                    GetAttribute(
-                        trackNode,
+                    FindAttribute(
+                        text,
                         "name"
                     );
             }
 
-            if (string.IsNullOrEmpty(trackName))
+            if (string.IsNullOrWhiteSpace(trackName))
             {
                 trackName =
-                    "track_" +
-                    definition.TrackCount;
+                    "track_" + index;
             }
+
+            trackName =
+                CleanValue(trackName);
 
             PvZReanimTrack track =
-                new PvZReanimTrack(
-                    trackName
-                );
-
-            definition.tracks.Add(
-                track
-            );
+                new PvZReanimTrack(trackName);
 
             /*
-             * Cada <t> representa un frame/keyframe
-             * del track.
+             * Buscar todos los <t> del track.
              */
 
-            List<XmlNode> transformNodes =
-                new List<XmlNode>();
+            int position = 0;
 
-            FindDirectElements(
-                trackNode,
-                "t",
-                transformNodes
-            );
-
-            /*
-             * Compatibilidad:
-             * algunas variantes pueden utilizar
-             * "transform".
-             */
-
-            if (transformNodes.Count == 0)
+            while (true)
             {
-                FindDirectElements(
-                    trackNode,
-                    "transform",
-                    transformNodes
-                );
+                int start =
+                    IndexOfIgnoreCase(
+                        text,
+                        "<t",
+                        position
+                    );
+
+                if (start < 0)
+                    break;
+
+                int end =
+                    FindElementEnd(
+                        text,
+                        start
+                    );
+
+                if (end < 0)
+                    break;
+
+                string element =
+                    text.Substring(
+                        start,
+                        end - start + 1
+                    );
+
+                /*
+                 * Evitamos confundir:
+                 *
+                 * <track>
+                 *
+                 * con:
+                 *
+                 * <t>
+                 */
+
+                if (IsTransformElement(element))
+                {
+                    PvZReanimTransform transform =
+                        ParseTransformElement(
+                            element
+                        );
+
+                    if (transform != null)
+                    {
+                        track.transforms.Add(
+                            transform
+                        );
+                    }
+                }
+
+                position = end + 1;
             }
 
-            for (int i = 0;
-                 i < transformNodes.Count;
-                 i++)
-            {
-                PvZReanimTransform transform =
-                    ParseXmlTransform(
-                        transformNodes[i]
-                    );
+            /*
+             * Compatibilidad con <transform>.
+             */
 
-                if (transform != null)
+            if (track.TransformCount == 0)
+            {
+                position = 0;
+
+                while (true)
                 {
-                    track.transforms.Add(
-                        transform
-                    );
+                    int start =
+                        IndexOfIgnoreCase(
+                            text,
+                            "<transform",
+                            position
+                        );
+
+                    if (start < 0)
+                        break;
+
+                    int end =
+                        FindElementEnd(
+                            text,
+                            start
+                        );
+
+                    if (end < 0)
+                        break;
+
+                    string element =
+                        text.Substring(
+                            start,
+                            end - start + 1
+                        );
+
+                    PvZReanimTransform transform =
+                        ParseTransformElement(
+                            element
+                        );
+
+                    if (transform != null)
+                    {
+                        track.transforms.Add(
+                            transform
+                        );
+                    }
+
+                    position = end + 1;
                 }
             }
 
@@ -407,255 +443,161 @@ namespace PvZReanim
                 " | Frames: " +
                 track.TransformCount
             );
+
+            return track;
         }
 
         // =========================================================
-        // TRANSFORM XML
+        // TRANSFORM
         // =========================================================
 
-        private static PvZReanimTransform ParseXmlTransform(
-            XmlNode node)
+        private static PvZReanimTransform ParseTransformElement(
+            string element)
         {
-            if (node == null)
-            {
+            if (string.IsNullOrWhiteSpace(element))
                 return null;
-            }
 
             PvZReanimTransform transform =
                 new PvZReanimTransform();
 
-            /*
-             * Valores por defecto.
-             */
-
             transform.x =
-                PvZReanimConstants.MissingValue;
-
-            transform.y =
-                PvZReanimConstants.MissingValue;
-
-            transform.skewX =
-                PvZReanimConstants.MissingValue;
-
-            transform.skewY =
-                PvZReanimConstants.MissingValue;
-
-            transform.scaleX =
-                PvZReanimConstants.MissingValue;
-
-            transform.scaleY =
-                PvZReanimConstants.MissingValue;
-
-            transform.frame =
-                PvZReanimConstants.MissingValue;
-
-            transform.alpha =
-                PvZReanimConstants.MissingValue;
-
-            transform.imageName =
-                null;
-
-            transform.text =
-                null;
-
-            /*
-             * POSITION
-             */
-
-            transform.x =
-                ReadProperty(
-                    node,
-                    "x",
-                    PvZReanimConstants.MissingValue
+                ReadValue(
+                    element,
+                    "x"
                 );
 
             transform.y =
-                ReadProperty(
-                    node,
-                    "y",
-                    PvZReanimConstants.MissingValue
+                ReadValue(
+                    element,
+                    "y"
                 );
 
-            /*
-             * SKEW
-             *
-             * PvZ utiliza kx / ky.
-             *
-             * El proyecto Unity utiliza
-             * skewX / skewY.
-             */
-
             transform.skewX =
-                ReadProperty(
-                    node,
-                    "kx",
-                    PvZReanimConstants.MissingValue
+                ReadValue(
+                    element,
+                    "kx"
                 );
 
             transform.skewY =
-                ReadProperty(
-                    node,
-                    "ky",
-                    PvZReanimConstants.MissingValue
+                ReadValue(
+                    element,
+                    "ky"
                 );
 
-            /*
-             * Algunas variantes pueden escribir
-             * directamente skewX / skewY.
-             */
-
-            if (IsMissingValue(
-                    transform.skewX))
+            if (IsMissingValue(transform.skewX))
             {
                 transform.skewX =
-                    ReadProperty(
-                        node,
-                        "skewX",
-                        PvZReanimConstants.MissingValue
+                    ReadValue(
+                        element,
+                        "skewX"
                     );
             }
 
-            if (IsMissingValue(
-                    transform.skewY))
+            if (IsMissingValue(transform.skewY))
             {
                 transform.skewY =
-                    ReadProperty(
-                        node,
-                        "skewY",
-                        PvZReanimConstants.MissingValue
+                    ReadValue(
+                        element,
+                        "skewY"
                     );
             }
 
-            /*
-             * SCALE
-             */
-
             transform.scaleX =
-                ReadProperty(
-                    node,
-                    "sx",
-                    PvZReanimConstants.MissingValue
+                ReadValue(
+                    element,
+                    "sx"
                 );
 
             transform.scaleY =
-                ReadProperty(
-                    node,
-                    "sy",
-                    PvZReanimConstants.MissingValue
+                ReadValue(
+                    element,
+                    "sy"
                 );
 
-            /*
-             * Compatibilidad con scaleX / scaleY.
-             */
-
-            if (IsMissingValue(
-                    transform.scaleX))
+            if (IsMissingValue(transform.scaleX))
             {
                 transform.scaleX =
-                    ReadProperty(
-                        node,
-                        "scaleX",
-                        PvZReanimConstants.MissingValue
+                    ReadValue(
+                        element,
+                        "scaleX"
                     );
             }
 
-            if (IsMissingValue(
-                    transform.scaleY))
+            if (IsMissingValue(transform.scaleY))
             {
                 transform.scaleY =
-                    ReadProperty(
-                        node,
-                        "scaleY",
-                        PvZReanimConstants.MissingValue
+                    ReadValue(
+                        element,
+                        "scaleY"
                     );
             }
-
-            /*
-             * FRAME
-             *
-             * En Reanim:
-             *
-             * f = frame / image frame
-             */
 
             transform.frame =
-                ReadProperty(
-                    node,
-                    "f",
-                    PvZReanimConstants.MissingValue
+                ReadValue(
+                    element,
+                    "f"
                 );
 
-            if (IsMissingValue(
-                    transform.frame))
+            if (IsMissingValue(transform.frame))
             {
                 transform.frame =
-                    ReadProperty(
-                        node,
-                        "frame",
-                        PvZReanimConstants.MissingValue
+                    ReadValue(
+                        element,
+                        "frame"
                     );
             }
-
-            /*
-             * ALPHA
-             */
 
             transform.alpha =
-                ReadProperty(
-                    node,
-                    "a",
-                    PvZReanimConstants.MissingValue
+                ReadValue(
+                    element,
+                    "a"
                 );
 
-            if (IsMissingValue(
-                    transform.alpha))
+            if (IsMissingValue(transform.alpha))
             {
                 transform.alpha =
-                    ReadProperty(
-                        node,
-                        "alpha",
-                        PvZReanimConstants.MissingValue
+                    ReadValue(
+                        element,
+                        "alpha"
                     );
             }
 
             /*
-             * IMAGE
+             * Imagen.
              *
-             * En los Reanim originales:
+             * Formato habitual:
              *
-             * i = nombre de imagen
+             * <i>PeaShooter_Head</i>
              */
 
             string imageName =
-                GetChildValue(
-                    node,
-                    "i"
+                FindFirstString(
+                    element,
+                    "<i>",
+                    "</i>"
                 );
 
-            if (string.IsNullOrEmpty(
-                    imageName))
+            if (string.IsNullOrWhiteSpace(imageName))
             {
                 imageName =
-                    GetChildValue(
-                        node,
-                        "image"
+                    FindFirstString(
+                        element,
+                        "<image>",
+                        "</image>"
                     );
             }
 
-            if (string.IsNullOrEmpty(
-                    imageName))
+            if (string.IsNullOrWhiteSpace(imageName))
             {
                 imageName =
-                    GetAttribute(
-                        node,
+                    FindAttribute(
+                        element,
                         "i"
                     );
             }
 
-            if (!string.IsNullOrEmpty(
-                    imageName) &&
-                !IsMissingToken(
-                    imageName))
+            if (!string.IsNullOrWhiteSpace(imageName) &&
+                !IsMissingToken(imageName))
             {
                 transform.imageName =
                     NormalizeImageName(
@@ -664,671 +606,232 @@ namespace PvZReanim
             }
 
             /*
-             * TEXT
+             * Texto.
              */
 
             string text =
-                GetChildValue(
-                    node,
-                    "text"
+                FindFirstString(
+                    element,
+                    "<text>",
+                    "</text>"
                 );
 
-            if (string.IsNullOrEmpty(
-                    text))
-            {
-                text =
-                    GetChildValue(
-                        node,
-                        "font"
-                    );
-            }
-
-            if (!string.IsNullOrEmpty(
-                    text) &&
-                !IsMissingToken(
-                    text))
+            if (!string.IsNullOrWhiteSpace(text))
             {
                 transform.text =
-                    text;
+                    CleanValue(text);
+            }
+
+            /*
+             * Si el elemento no tiene absolutamente
+             * ninguna propiedad útil, no lo agregamos.
+             */
+
+            bool hasData =
+                !IsMissingValue(transform.x) ||
+                !IsMissingValue(transform.y) ||
+                !IsMissingValue(transform.skewX) ||
+                !IsMissingValue(transform.skewY) ||
+                !IsMissingValue(transform.scaleX) ||
+                !IsMissingValue(transform.scaleY) ||
+                !IsMissingValue(transform.frame) ||
+                !IsMissingValue(transform.alpha) ||
+                !string.IsNullOrEmpty(transform.imageName) ||
+                !string.IsNullOrEmpty(transform.text);
+
+            if (!hasData)
+            {
+                return null;
             }
 
             return transform;
         }
 
         // =========================================================
-        // NORMALIZAR IMAGEN
+        // PARSE XML INDIVIDUAL
         // =========================================================
 
-        private static string NormalizeImageName(
-            string imageName)
+        private static void ParseIndependentXmlBlocks(
+            string text,
+            PvZReanimDefinition definition)
         {
-            if (string.IsNullOrWhiteSpace(
-                    imageName))
-            {
-                return null;
-            }
-
-            imageName =
-                imageName.Trim();
-
-            imageName =
-                Unquote(
-                    imageName
-                );
-
-            if (IsMissingToken(
-                    imageName))
-            {
-                return null;
-            }
-
-            imageName =
-                imageName.Replace(
-                    '\\',
-                    '/'
-                );
-
             /*
-             * Si el Reanim guarda solamente:
+             * Algunos archivos pueden estar formados
+             * por bloques XML independientes.
              *
-             * PeaShooter_Head
-             *
-             * el resolver del proyecto se encargará
-             * de buscar el PNG.
-             *
-             * Si ya contiene .png lo conservamos.
+             * Intentamos localizar <track ...>
+             * y convertir solamente ese bloque.
              */
 
-            return imageName;
-        }
+            int position = 0;
 
-        // =========================================================
-        // READ PROPERTY
-        // =========================================================
-
-        private static float ReadProperty(
-            XmlNode parent,
-            string name,
-            float fallback)
-        {
-            if (parent == null)
+            while (true)
             {
-                return fallback;
-            }
-
-            string value =
-                GetChildValue(
-                    parent,
-                    name
-                );
-
-            if (string.IsNullOrEmpty(
-                    value))
-            {
-                value =
-                    GetAttribute(
-                        parent,
-                        name
-                    );
-            }
-
-            if (string.IsNullOrEmpty(
-                    value))
-            {
-                return fallback;
-            }
-
-            float result =
-                ParseFloat(
-                    value
-                );
-
-            if (IsMissingValue(
-                    result))
-            {
-                return fallback;
-            }
-
-            return result;
-        }
-
-        // =========================================================
-        // FIND FIRST ELEMENT
-        // =========================================================
-
-        private static XmlNode FindFirstElement(
-            XmlNode parent,
-            string elementName)
-        {
-            if (parent == null)
-            {
-                return null;
-            }
-
-            if (string.Equals(
-                    parent.Name,
-                    elementName,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                return parent;
-            }
-
-            for (XmlNode child =
-                    parent.FirstChild;
-                 child != null;
-                 child =
-                    child.NextSibling)
-            {
-                if (child.NodeType !=
-                    XmlNodeType.Element)
-                {
-                    continue;
-                }
-
-                XmlNode result =
-                    FindFirstElement(
-                        child,
-                        elementName
+                int start =
+                    IndexOfIgnoreCase(
+                        text,
+                        "<track",
+                        position
                     );
 
-                if (result != null)
-                {
-                    return result;
-                }
-            }
+                if (start < 0)
+                    break;
 
-            return null;
-        }
-
-        // =========================================================
-        // FIND ELEMENTS
-        // =========================================================
-
-        private static void FindElements(
-            XmlNode parent,
-            string elementName,
-            List<XmlNode> result)
-        {
-            if (parent == null ||
-                result == null)
-            {
-                return;
-            }
-
-            if (parent.NodeType ==
-                    XmlNodeType.Element &&
-                string.Equals(
-                    parent.Name,
-                    elementName,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                result.Add(
-                    parent
-                );
-            }
-
-            for (XmlNode child =
-                    parent.FirstChild;
-                 child != null;
-                 child =
-                    child.NextSibling)
-            {
-                if (child.NodeType !=
-                    XmlNodeType.Element)
-                {
-                    continue;
-                }
-
-                FindElements(
-                    child,
-                    elementName,
-                    result
-                );
-            }
-        }
-
-        // =========================================================
-        // FIND DIRECT ELEMENTS
-        // =========================================================
-
-        private static void FindDirectElements(
-            XmlNode parent,
-            string elementName,
-            List<XmlNode> result)
-        {
-            if (parent == null ||
-                result == null)
-            {
-                return;
-            }
-
-            for (XmlNode child =
-                    parent.FirstChild;
-                 child != null;
-                 child =
-                    child.NextSibling)
-            {
-                if (child.NodeType !=
-                    XmlNodeType.Element)
-                {
-                    continue;
-                }
-
-                if (string.Equals(
-                        child.Name,
-                        elementName,
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    result.Add(
-                        child
-                    );
-                }
-            }
-        }
-
-        // =========================================================
-        // GET CHILD VALUE
-        // =========================================================
-
-        private static string GetChildValue(
-            XmlNode parent,
-            string childName)
-        {
-            if (parent == null)
-            {
-                return null;
-            }
-
-            for (XmlNode child =
-                    parent.FirstChild;
-                 child != null;
-                 child =
-                    child.NextSibling)
-            {
-                if (child.NodeType !=
-                    XmlNodeType.Element)
-                {
-                    continue;
-                }
-
-                if (string.Equals(
-                        child.Name,
-                        childName,
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    return child.InnerText.Trim();
-                }
-            }
-
-            return null;
-        }
-
-        // =========================================================
-        // GET ATTRIBUTE
-        // =========================================================
-
-        private static string GetAttribute(
-            XmlNode node,
-            string name)
-        {
-            if (node == null ||
-                node.Attributes == null)
-            {
-                return null;
-            }
-
-            XmlAttribute attribute =
-                node.Attributes[name];
-
-            if (attribute == null)
-            {
-                return null;
-            }
-
-            return attribute.Value;
-        }
-
-        // =========================================================
-        // PARSER LEGACY
-        // =========================================================
-
-        private static PvZReanimDefinition ParseLegacyText(
-            string text)
-        {
-            string normalized =
-                text
-                    .Replace(
-                        "\r\n",
-                        "\n"
-                    )
-                    .Replace(
-                        '\r',
-                        '\n'
+                int end =
+                    IndexOfIgnoreCase(
+                        text,
+                        "</track>",
+                        start
                     );
 
-            string[] lines =
-                normalized.Split(
-                    '\n'
-                );
+                if (end < 0)
+                    break;
 
-            PvZReanimDefinition definition =
-                ScriptableObject.CreateInstance<
-                    PvZReanimDefinition
-                >();
+                end += "</track>".Length;
 
-            PvZReanimTrack currentTrack =
-                null;
-
-            for (int i = 0;
-                 i < lines.Length;
-                 i++)
-            {
-                string line =
-                    RemoveComment(
-                        lines[i]
-                    ).Trim();
-
-                if (string.IsNullOrEmpty(
-                        line))
-                {
-                    continue;
-                }
-
-                string[] tokens =
-                    Tokenize(
-                        line
+                string block =
+                    text.Substring(
+                        start,
+                        end - start
                     );
 
-                if (tokens.Length == 0)
-                {
-                    continue;
-                }
-
-                string command =
-                    tokens[0]
-                        .Trim()
-                        .ToLowerInvariant();
-
-                switch (command)
-                {
-                    case "track":
-
-                        currentTrack =
-                            ParseLegacyTrack(
-                                definition,
-                                tokens
-                            );
-
-                        break;
-
-                    case "transform":
-
-                        if (currentTrack == null)
-                        {
-                            Debug.LogWarning(
-                                "[PvZReanimParser] " +
-                                "transform sin track " +
-                                "en línea " +
-                                (i + 1)
-                            );
-
-                            continue;
-                        }
-
-                        ParseLegacyTransform(
-                            currentTrack,
-                            tokens
-                        );
-
-                        break;
-
-                    default:
-
-                        ParseLegacyGlobalProperty(
-                            definition,
-                            tokens
-                        );
-
-                        break;
-                }
-            }
-
-            Debug.Log(
-                "[PvZReanimParser] " +
-                "Legacy parseado | " +
-                "FPS: " +
-                definition.fps +
-                " | Tracks: " +
-                definition.TrackCount +
-                " | Frames: " +
-                definition.GetMaxFrameCount()
-            );
-
-            return definition;
-        }
-
-        // =========================================================
-        // LEGACY TRACK
-        // =========================================================
-
-        private static PvZReanimTrack ParseLegacyTrack(
-            PvZReanimDefinition definition,
-            string[] tokens)
-        {
-            string name =
-                tokens.Length > 1
-                    ? tokens[1]
-                    : "track_" +
-                      definition.TrackCount;
-
-            PvZReanimTrack track =
-                new PvZReanimTrack(
-                    Unquote(
-                        name
-                    )
-                );
-
-            definition.tracks.Add(
-                track
-            );
-
-            return track;
-        }
-
-        // =========================================================
-        // LEGACY TRANSFORM
-        // =========================================================
-
-        private static void ParseLegacyTransform(
-            PvZReanimTrack track,
-            string[] tokens)
-        {
-            PvZReanimTransform transform =
-                new PvZReanimTransform();
-
-            int index = 1;
-
-            transform.x =
-                ReadLegacyFloat(
-                    tokens,
-                    ref index
-                );
-
-            transform.y =
-                ReadLegacyFloat(
-                    tokens,
-                    ref index
-                );
-
-            transform.skewX =
-                ReadLegacyFloat(
-                    tokens,
-                    ref index
-                );
-
-            transform.skewY =
-                ReadLegacyFloat(
-                    tokens,
-                    ref index
-                );
-
-            transform.scaleX =
-                ReadLegacyFloat(
-                    tokens,
-                    ref index
-                );
-
-            transform.scaleY =
-                ReadLegacyFloat(
-                    tokens,
-                    ref index
-                );
-
-            transform.frame =
-                ReadLegacyFloat(
-                    tokens,
-                    ref index
-                );
-
-            transform.alpha =
-                ReadLegacyFloat(
-                    tokens,
-                    ref index
-                );
-
-            if (index <
-                tokens.Length)
-            {
-                string imageName =
-                    Unquote(
-                        tokens[index++]
+                int nameStart =
+                    IndexOfIgnoreCase(
+                        block,
+                        "<name>"
                     );
 
-                if (!IsMissingToken(
-                        imageName))
+                string name = null;
+
+                if (nameStart >= 0)
                 {
-                    transform.imageName =
-                        NormalizeImageName(
-                            imageName
+                    name =
+                        FindFirstString(
+                            block,
+                            "<name>",
+                            "</name>"
                         );
                 }
-            }
 
-            if (index <
-                tokens.Length)
-            {
-                string text =
-                    Unquote(
-                        tokens[index++]
+                PvZReanimTrack track =
+                    ParseTrackText(
+                        block,
+                        definition.TrackCount
                     );
 
-                if (!IsMissingToken(
-                        text))
+                if (track != null)
                 {
-                    transform.text =
-                        text;
-                }
-            }
-
-            track.transforms.Add(
-                transform
-            );
-        }
-
-        // =========================================================
-        // LEGACY FLOAT
-        // =========================================================
-
-        private static float ReadLegacyFloat(
-            string[] tokens,
-            ref int index)
-        {
-            if (index >=
-                tokens.Length)
-            {
-                return PvZReanimConstants.MissingValue;
-            }
-
-            string value =
-                tokens[index++];
-
-            return ParseFloat(
-                value
-            );
-        }
-
-        // =========================================================
-        // LEGACY GLOBAL
-        // =========================================================
-
-        private static void ParseLegacyGlobalProperty(
-            PvZReanimDefinition definition,
-            string[] tokens)
-        {
-            if (tokens.Length < 2)
-            {
-                return;
-            }
-
-            string property =
-                tokens[0]
-                    .Trim()
-                    .ToLowerInvariant();
-
-            string value =
-                tokens[1];
-
-            switch (property)
-            {
-                case "fps":
-                case "framerate":
-                case "rate":
-
-                    float fps =
-                        ParseFloat(
-                            value
-                        );
-
-                    if (!IsMissingValue(
-                            fps))
+                    if (!string.IsNullOrWhiteSpace(name))
                     {
-                        definition.fps =
-                            fps;
+                        track.name =
+                            CleanValue(name);
                     }
 
-                    break;
+                    definition.tracks.Add(track);
+                }
+
+                position = end;
             }
         }
 
         // =========================================================
-        // FLOAT
+        // HELPERS
         // =========================================================
 
-        private static float ParseFloat(
-            string value)
+        private static int IndexOfIgnoreCase(
+            string source,
+            string value,
+            int startIndex = 0)
         {
-            if (string.IsNullOrEmpty(
-                    value))
+            if (string.IsNullOrEmpty(source) ||
+                string.IsNullOrEmpty(value))
+            {
+                return -1;
+            }
+
+            return source.IndexOf(
+                value,
+                startIndex,
+                StringComparison.OrdinalIgnoreCase
+            );
+        }
+
+        private static int FindElementEnd(
+            string text,
+            int start)
+        {
+            int end =
+                text.IndexOf(
+                    '>',
+                    start
+                );
+
+            if (end < 0)
+                return -1;
+
+            return end;
+        }
+
+        private static bool IsTransformElement(
+            string element)
+        {
+            if (string.IsNullOrWhiteSpace(element))
+                return false;
+
+            string trimmed =
+                element.TrimStart();
+
+            if (trimmed.StartsWith(
+                    "<track",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (trimmed.StartsWith(
+                    "<transform",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (trimmed.StartsWith(
+                    "<t",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static float ReadValue(
+            string element,
+            string name)
+        {
+            string value =
+                FindFirstString(
+                    element,
+                    "<" + name + ">",
+                    "</" + name + ">"
+                );
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                value =
+                    FindAttribute(
+                        element,
+                        name
+                    );
+            }
+
+            if (string.IsNullOrWhiteSpace(value))
             {
                 return PvZReanimConstants.MissingValue;
             }
 
             value =
-                Unquote(
-                    value
-                );
-
-            if (IsMissingToken(
-                    value))
-            {
-                return PvZReanimConstants.MissingValue;
-            }
-
-            value =
-                value.Replace(
-                    ',',
-                    '.'
-                );
+                CleanValue(value);
 
             float result;
 
@@ -1344,181 +847,233 @@ namespace PvZReanim
             return PvZReanimConstants.MissingValue;
         }
 
-        // =========================================================
-        // MISSING VALUE
-        // =========================================================
-
-        private static bool IsMissingValue(
-            float value)
+        private static float FindFirstFloat(
+            string text,
+            string open,
+            string close)
         {
-            return value ==
-                PvZReanimConstants.MissingValue;
-        }
+            string value =
+                FindFirstString(
+                    text,
+                    open,
+                    close
+                );
 
-        private static bool IsMissingToken(
-            string value)
-        {
-            if (string.IsNullOrEmpty(
-                    value))
+            if (string.IsNullOrWhiteSpace(value))
             {
-                return true;
+                return PvZReanimConstants.MissingValue;
             }
 
-            string normalized =
-                value.Trim()
-                    .ToLowerInvariant();
+            float result;
 
-            return
-                normalized == "null" ||
-                normalized == "none" ||
-                normalized == "-" ||
-                normalized == "missing" ||
-                normalized == "undefined" ||
-                normalized == "-10000";
+            if (float.TryParse(
+                    CleanValue(value),
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture,
+                    out result))
+            {
+                return result;
+            }
+
+            return PvZReanimConstants.MissingValue;
         }
 
-        // =========================================================
-        // UNQUOTE
-        // =========================================================
+        private static string FindFirstString(
+            string text,
+            string open,
+            string close)
+        {
+            if (string.IsNullOrEmpty(text))
+                return null;
 
-        private static string Unquote(
+            int start =
+                IndexOfIgnoreCase(
+                    text,
+                    open
+                );
+
+            if (start < 0)
+                return null;
+
+            start += open.Length;
+
+            int end =
+                IndexOfIgnoreCase(
+                    text,
+                    close,
+                    start
+                );
+
+            if (end < 0)
+                return null;
+
+            return text.Substring(
+                start,
+                end - start
+            );
+        }
+
+        private static string FindAttribute(
+            string text,
+            string attribute)
+        {
+            if (string.IsNullOrWhiteSpace(text) ||
+                string.IsNullOrWhiteSpace(attribute))
+            {
+                return null;
+            }
+
+            string[] patterns =
+            {
+                attribute + "=\"",
+                attribute + "='"
+            };
+
+            for (int i = 0;
+                 i < patterns.Length;
+                 i++)
+            {
+                int start =
+                    IndexOfIgnoreCase(
+                        text,
+                        patterns[i]
+                    );
+
+                if (start < 0)
+                    continue;
+
+                start +=
+                    patterns[i].Length;
+
+                char quote =
+                    patterns[i][patterns[i].Length - 1];
+
+                int end =
+                    text.IndexOf(
+                        quote,
+                        start
+                    );
+
+                if (end < 0)
+                    continue;
+
+                return text.Substring(
+                    start,
+                    end - start
+                );
+            }
+
+            return null;
+        }
+
+        private static string CleanValue(
             string value)
         {
-            if (string.IsNullOrEmpty(
-                    value))
-            {
-                return value;
-            }
+            if (string.IsNullOrWhiteSpace(value))
+                return null;
 
             value =
                 value.Trim();
 
-            if (value.Length >= 2 &&
-                value[0] == '"' &&
-                value[value.Length - 1] == '"')
-            {
-                return value.Substring(
-                    1,
-                    value.Length - 2
+            value =
+                value.Replace(
+                    "&quot;",
+                    "\""
                 );
+
+            value =
+                value.Replace(
+                    "&apos;",
+                    "'"
+                );
+
+            value =
+                value.Replace(
+                    "&amp;",
+                    "&"
+                );
+
+            value =
+                Unquote(value);
+
+            return value.Trim();
+        }
+
+        private static string Unquote(
+            string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return value;
+
+            if (value.Length >= 2)
+            {
+                char first =
+                    value[0];
+
+                char last =
+                    value[value.Length - 1];
+
+                if ((first == '"' && last == '"') ||
+                    (first == '\'' && last == '\''))
+                {
+                    return value.Substring(
+                        1,
+                        value.Length - 2
+                    );
+                }
             }
 
             return value;
         }
 
-        // =========================================================
-        // REMOVE COMMENT
-        // =========================================================
-
-        private static string RemoveComment(
-            string line)
+        private static string NormalizeImageName(
+            string imageName)
         {
-            if (string.IsNullOrEmpty(
-                    line))
-            {
-                return string.Empty;
-            }
+            imageName =
+                CleanValue(imageName);
 
-            bool quoted =
-                false;
+            if (string.IsNullOrWhiteSpace(imageName))
+                return null;
 
-            for (int i = 0;
-                 i < line.Length;
-                 i++)
-            {
-                char c =
-                    line[i];
+            imageName =
+                imageName.Replace(
+                    '\\',
+                    '/'
+                );
 
-                if (c == '"')
-                {
-                    quoted =
-                        !quoted;
+            /*
+             * No añadimos .png automáticamente.
+             *
+             * El ImageResolver debe decidir cómo
+             * encontrar la imagen correspondiente.
+             */
 
-                    continue;
-                }
-
-                if (c == '#' &&
-                    !quoted)
-                {
-                    return line.Substring(
-                        0,
-                        i
-                    );
-                }
-            }
-
-            return line;
+            return imageName;
         }
 
-        // =========================================================
-        // TOKENIZE
-        // =========================================================
-
-        private static string[] Tokenize(
-            string line)
+        private static bool IsMissingToken(
+            string value)
         {
-            if (string.IsNullOrWhiteSpace(
-                    line))
-            {
-                return Array.Empty<string>();
-            }
+            if (string.IsNullOrWhiteSpace(value))
+                return true;
 
-            List<string> tokens =
-                new List<string>();
+            string normalized =
+                value.Trim();
 
-            StringBuilder current =
-                new StringBuilder();
+            return
+                normalized == "-1" ||
+                normalized == "-1.0" ||
+                normalized == "null" ||
+                normalized == "NULL" ||
+                normalized == "none" ||
+                normalized == "None";
+        }
 
-            bool quoted =
-                false;
-
-            for (int i = 0;
-                 i < line.Length;
-                 i++)
-            {
-                char c =
-                    line[i];
-
-                if (c == '"')
-                {
-                    quoted =
-                        !quoted;
-
-                    current.Append(
-                        c
-                    );
-
-                    continue;
-                }
-
-                if (char.IsWhiteSpace(c) &&
-                    !quoted)
-                {
-                    if (current.Length > 0)
-                    {
-                        tokens.Add(
-                            current.ToString()
-                        );
-
-                        current.Clear();
-                    }
-
-                    continue;
-                }
-
-                current.Append(
-                    c
-                );
-            }
-
-            if (current.Length > 0)
-            {
-                tokens.Add(
-                    current.ToString()
-                );
-            }
-
-            return tokens.ToArray();
+        private static bool IsMissingValue(
+            float value)
+        {
+            return value ==
+                   PvZReanimConstants.MissingValue;
         }
     }
 }
