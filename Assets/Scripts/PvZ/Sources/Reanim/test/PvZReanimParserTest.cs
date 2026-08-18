@@ -1,17 +1,13 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PvZReanimParserTest : MonoBehaviour
 {
-    // ============================================================
-    // CONFIGURACIÓN
-    // ============================================================
-
     [Header("REANIM")]
     [SerializeField]
-    private string rutaReanim =
-        "REANIM/PEASHOOTER.REANIM";
+    private string rutaReanim = "REANIM/PEASHOOTER.REANIM";
 
     [Header("Debug")]
     [SerializeField]
@@ -20,16 +16,8 @@ public class PvZReanimParserTest : MonoBehaviour
     [SerializeField]
     private int maxFramesPorTrack = 20;
 
-    // ============================================================
-    // START
-    // ============================================================
-
     private IEnumerator Start()
     {
-        // ========================================================
-        // ESPERAR RESOURCE MANAGER
-        // ========================================================
-
         while (
             PvZResourceManager.Instancia == null ||
             !PvZResourceManager.Instancia.EstaListo)
@@ -38,46 +26,24 @@ public class PvZReanimParserTest : MonoBehaviour
         }
 
         Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "ResourceManager listo.");
-
-        // ========================================================
-        // CARGAR REANIM
-        // ========================================================
-
-        Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "========================================");
-
-        Debug.Log(
-            "[PvZ ReanimParserTest] Cargando: " +
-            rutaReanim);
+            "[PvZ ReanimParserTest] ResourceManager listo.");
 
         byte[] datos =
-            PvZResourceManager.Instancia.Leer(
-                rutaReanim);
+            PvZResourceManager.Instancia.Leer(rutaReanim);
 
-        if (datos == null ||
-            datos.Length == 0)
+        if (datos == null || datos.Length == 0)
         {
             Debug.LogError(
-                "[PvZ ReanimParserTest] " +
-                "No se pudo leer el REANIM:\n" +
+                "[PvZ ReanimParserTest] No se pudo leer el REANIM:\n" +
                 rutaReanim);
-
             yield break;
         }
 
         Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "Bytes: " +
+            "[PvZ ReanimParserTest] Bytes: " +
             datos.Length);
 
-        // ========================================================
-        // PARSEAR
-        // ========================================================
-
-        PvZReanimData reanim = null;
+        PvZReanimData reanim;
 
         try
         {
@@ -89,58 +55,35 @@ public class PvZReanimParserTest : MonoBehaviour
         catch (Exception e)
         {
             Debug.LogError(
-                "[PvZ ReanimParserTest] " +
-                "Error analizando REANIM:\n" +
+                "[PvZ ReanimParserTest] Error analizando REANIM:\n" +
                 e);
-
             yield break;
         }
-
-        // ========================================================
-        // VALIDAR
-        // ========================================================
 
         if (reanim == null)
         {
             Debug.LogError(
-                "[PvZ ReanimParserTest] " +
-                "El parser devolvió NULL.");
-
+                "[PvZ ReanimParserTest] El parser devolvió NULL.");
             yield break;
         }
 
         if (reanim.tracks == null)
         {
             Debug.LogError(
-                "[PvZ ReanimParserTest] " +
-                "El REANIM no contiene lista de tracks.");
-
+                "[PvZ ReanimParserTest] El REANIM no contiene tracks.");
             yield break;
         }
 
-        // ========================================================
-        // INFORMACIÓN GENERAL
-        // ========================================================
-
-        int cantidadTracks =
-            reanim.tracks.Count;
-
+        int cantidadTracks = reanim.tracks.Count;
         int cantidadFramesTotal = 0;
-
         int cantidadFramesMaxima = 0;
 
-        foreach (
-            PvZReanimTrack track
-            in reanim.tracks)
+        foreach (PvZReanimTrack track in reanim.tracks)
         {
-            if (track == null ||
-                track.frames == null)
-            {
+            if (track == null || track.frames == null)
                 continue;
-            }
 
-            cantidadFramesTotal +=
-                track.frames.Count;
+            cantidadFramesTotal += track.frames.Count;
 
             cantidadFramesMaxima =
                 Mathf.Max(
@@ -149,41 +92,30 @@ public class PvZReanimParserTest : MonoBehaviour
         }
 
         Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "========================================");
+            "[PvZ ReanimParserTest] ========================================");
 
         Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "REANIM PARSEADO");
+            "[PvZ ReanimParserTest] REANIM PARSEADO");
 
         Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "Ruta: " +
+            "[PvZ ReanimParserTest] Ruta: " +
             rutaReanim);
 
         Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "FPS: " +
+            "[PvZ ReanimParserTest] FPS: " +
             reanim.fps);
 
         Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "Tracks: " +
+            "[PvZ ReanimParserTest] Tracks: " +
             cantidadTracks);
 
         Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "Frames totales: " +
+            "[PvZ ReanimParserTest] Frames totales: " +
             cantidadFramesTotal);
 
         Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "Frames máximos por track: " +
+            "[PvZ ReanimParserTest] Frames máximos por track: " +
             cantidadFramesMaxima);
-
-        // ========================================================
-        // MOSTRAR TRACKS
-        // ========================================================
 
         for (
             int indiceTrack = 0;
@@ -196,11 +128,9 @@ public class PvZReanimParserTest : MonoBehaviour
             if (track == null)
             {
                 Debug.LogWarning(
-                    "[PvZ REANIM TEST] " +
-                    "Track " +
+                    "[PvZ REANIM TEST] Track " +
                     indiceTrack +
                     " es NULL.");
-
                 continue;
             }
 
@@ -211,39 +141,15 @@ public class PvZReanimParserTest : MonoBehaviour
 
             Debug.Log(
                 "[PvZ REANIM TRACK] " +
-                "================================");
-
-            Debug.Log(
-                "[PvZ REANIM TRACK] " +
-                "Índice: " +
-                indiceTrack);
-
-            Debug.Log(
-                "[PvZ REANIM TRACK] " +
-                "Nombre: " +
-                track.name);
-
-            Debug.Log(
-                "[PvZ REANIM TRACK] " +
-                "Frames: " +
+                "Índice=" +
+                indiceTrack +
+                " | Nombre=" +
+                track.name +
+                " | Frames=" +
                 cantidadFrames);
 
-            // ----------------------------------------------------
-            // SIN FRAMES
-            // ----------------------------------------------------
-
             if (cantidadFrames == 0)
-            {
-                Debug.LogWarning(
-                    "[PvZ REANIM TRACK] " +
-                    "Este track no tiene frames.");
-
                 continue;
-            }
-
-            // ----------------------------------------------------
-            // FRAMES
-            // ----------------------------------------------------
 
             int cantidadAMostrar =
                 mostrarTodosLosFrames
@@ -263,25 +169,16 @@ public class PvZReanimParserTest : MonoBehaviour
                 if (frame == null)
                 {
                     Debug.LogWarning(
-                        "[PvZ REANIM FRAME] " +
-                        "Frame " +
+                        "[PvZ REANIM FRAME] Frame " +
                         indiceFrame +
                         " es NULL.");
-
                     continue;
                 }
-
-                // =================================================
-                // INFORMACIÓN DEL FRAME
-                // =================================================
 
                 Debug.Log(
                     "[PvZ REANIM FRAME] " +
                     "Track=" +
-                    indiceTrack +
-                    " (" +
                     track.name +
-                    ")" +
                     " | Frame=" +
                     indiceFrame +
                     " | X=" +
@@ -292,7 +189,7 @@ public class PvZReanimParserTest : MonoBehaviour
                     frame.sx +
                     " | SY=" +
                     frame.sy +
-                    " | Rot=" +
+                    " | Alpha=" +
                     frame.alpha +
                     " | Image=" +
                     frame.image +
@@ -300,15 +197,10 @@ public class PvZReanimParserTest : MonoBehaviour
                     frame.tieneTransformacion);
             }
 
-            // ----------------------------------------------------
-            // AVISO SI SE OMITIERON FRAMES
-            // ----------------------------------------------------
-
             if (cantidadAMostrar < cantidadFrames)
             {
                 Debug.Log(
-                    "[PvZ REANIM TRACK] " +
-                    "Se muestran " +
+                    "[PvZ REANIM TRACK] Se muestran " +
                     cantidadAMostrar +
                     " de " +
                     cantidadFrames +
@@ -316,58 +208,33 @@ public class PvZReanimParserTest : MonoBehaviour
             }
         }
 
-        // ========================================================
-        // BUSCAR IMÁGENES ÚNICAS
-        // ========================================================
-
         int imagenesUnicas =
             ContarImagenesUnicas(reanim);
 
         Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "Imágenes únicas utilizadas: " +
+            "[PvZ ReanimParserTest] Imágenes únicas: " +
             imagenesUnicas);
 
-        // ========================================================
-        // RESULTADO FINAL
-        // ========================================================
-
         Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "========================================");
+            "[PvZ ReanimParserTest] ========================================");
 
         Debug.Log(
             "[PvZ ReanimParserTest] " +
             "¡REANIM INTERPRETADO CORRECTAMENTE!");
 
         Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "FPS = " +
-            reanim.fps);
-
-        Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "Tracks = " +
-            cantidadTracks);
-
-        Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "Frames máximos = " +
-            cantidadFramesMaxima);
-
-        Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "Imágenes únicas = " +
+            "[PvZ ReanimParserTest] FPS=" +
+            reanim.fps +
+            " | Tracks=" +
+            cantidadTracks +
+            " | Frames=" +
+            cantidadFramesTotal +
+            " | Imágenes=" +
             imagenesUnicas);
 
         Debug.Log(
-            "[PvZ ReanimParserTest] " +
-            "========================================");
+            "[PvZ ReanimParserTest] ========================================");
     }
-
-    // ============================================================
-    // CONTAR IMÁGENES ÚNICAS
-    // ============================================================
 
     private int ContarImagenesUnicas(
         PvZReanimData reanim)
@@ -378,14 +245,11 @@ public class PvZReanimParserTest : MonoBehaviour
             return 0;
         }
 
-        System.Collections.Generic.HashSet<string>
-            imagenes =
-                new System.Collections.Generic.HashSet<string>(
-                    StringComparer.OrdinalIgnoreCase);
+        HashSet<string> imagenes =
+            new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase);
 
-        foreach (
-            PvZReanimTrack track
-            in reanim.tracks)
+        foreach (PvZReanimTrack track in reanim.tracks)
         {
             if (track == null ||
                 track.frames == null)
@@ -393,17 +257,10 @@ public class PvZReanimParserTest : MonoBehaviour
                 continue;
             }
 
-            foreach (
-                PvZReanimFrame frame
-                in track.frames)
+            foreach (PvZReanimFrame frame in track.frames)
             {
-                if (frame == null)
-                {
-                    continue;
-                }
-
-                if (string.IsNullOrWhiteSpace(
-                    frame.image))
+                if (frame == null ||
+                    string.IsNullOrWhiteSpace(frame.image))
                 {
                     continue;
                 }
