@@ -3,13 +3,10 @@ using UnityEngine;
 
 public class PvZReanimAnimator : MonoBehaviour
 {
-    [Header("REANIM")]
     public string reanimNombre;
 
-    [Header("Renderer")]
     public PvZReanimRenderer rendererReanim;
 
-    [Header("Estado")]
     [SerializeField]
     private string animacionActual;
 
@@ -59,7 +56,17 @@ public class PvZReanimAnimator : MonoBehaviour
         if (string.IsNullOrWhiteSpace(reanimNombre))
             yield break;
 
-        CargarReanim();
+        ConfigurarRenderer();
+    }
+
+    private void ConfigurarRenderer()
+    {
+        BuscarRenderer();
+
+        if (rendererReanim == null)
+            return;
+
+        rendererReanim.enabled = true;
     }
 
     public bool CargarReanim()
@@ -73,45 +80,26 @@ public class PvZReanimAnimator : MonoBehaviour
             return false;
         }
 
-        BuscarRenderer();
-
-        if (rendererReanim == null)
-        {
-            Debug.LogWarning(
-                "[PvZ Reanim] No existe PvZReanimRenderer en " +
-                gameObject.name
-            );
-
+        if (!PvZResourceManager.Instancia.Existe(reanimNombre))
             return false;
-        }
 
-        recursoCargado =
-            PvZResourceManager.Instancia.Existe(
-                reanimNombre
-            );
+        ConfigurarRenderer();
 
-        if (!recursoCargado)
-        {
-            Debug.LogWarning(
-                "[PvZ Reanim] No se encontró REANIM: " +
-                reanimNombre
-            );
-
-            return false;
-        }
+        recursoCargado = true;
 
         return true;
     }
 
     public void ConfigurarReanim(string nombre)
     {
+        if (string.IsNullOrWhiteSpace(nombre))
+            return;
+
         reanimNombre = nombre;
+
         recursoCargado = false;
 
-        BuscarRenderer();
-
-        if (rendererReanim != null)
-            rendererReanim.enabled = true;
+        ConfigurarRenderer();
 
         if (PvZResourceManager.Instancia != null &&
             PvZResourceManager.Instancia.EstaListo)
