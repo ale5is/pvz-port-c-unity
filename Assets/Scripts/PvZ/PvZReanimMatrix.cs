@@ -3,16 +3,15 @@ using UnityEngine;
 namespace PvZReanim
 {
     /// <summary>
-    /// Matriz 2D utilizada para representar la transformación
-    /// de un track de Reanim.
+    /// Transformación 2D afín utilizada por Reanim.
     ///
-    /// Mantiene separadas:
-    /// - posición
-    /// - escala
-    /// - skew
+    /// Representa:
     ///
-    /// para que el renderer pueda aplicar posteriormente
-    /// la transformación completa.
+    /// x' = m00*x + m01*y + m02
+    /// y' = m10*x + m11*y + m12
+    ///
+    /// Esto permite representar escala y skew
+    /// directamente sobre los vértices del Mesh.
     /// </summary>
     [System.Serializable]
     public struct PvZReanimMatrix
@@ -33,22 +32,11 @@ namespace PvZReanim
         {
             get
             {
-                PvZReanimMatrix matrix =
-                    new PvZReanimMatrix();
-
-                matrix.m00 = 1f;
-                matrix.m01 = 0f;
-                matrix.m02 = 0f;
-
-                matrix.m10 = 0f;
-                matrix.m11 = 1f;
-                matrix.m12 = 0f;
-
-                matrix.m20 = 0f;
-                matrix.m21 = 0f;
-                matrix.m22 = 1f;
-
-                return matrix;
+                return new PvZReanimMatrix(
+                    1f, 0f, 0f,
+                    0f, 1f, 0f,
+                    0f, 0f, 1f
+                );
             }
         }
 
@@ -76,9 +64,6 @@ namespace PvZReanim
             this.m22 = m22;
         }
 
-        /// <summary>
-        /// Crea una matriz a partir de un transform de Reanim.
-        /// </summary>
         public static PvZReanimMatrix FromTransform(
             PvZReanimTransform transform)
         {
@@ -122,57 +107,50 @@ namespace PvZReanim
                 );
 
             /*
-             * Reanim utiliza valores de skew para construir
-             * una transformación 2D.
+             * Los valores de skew se convierten
+             * en una transformación shear.
              *
-             * Convertimos los ángulos a radianes.
+             * skewX:
+             *
+             * x' = x + tan(skewX) * y
+             *
+             * skewY:
+             *
+             * y' = tan(skewY) * x + y
              */
-            float skewXRadians =
-                skewX *
-                Mathf.Deg2Rad;
 
-            float skewYRadians =
-                skewY *
-                Mathf.Deg2Rad;
+            float shearX =
+                Mathf.Tan(
+                    skewX *
+                    Mathf.Deg2Rad
+                );
+
+            float shearY =
+                Mathf.Tan(
+                    skewY *
+                    Mathf.Deg2Rad
+                );
 
             /*
-             * Construcción de la base 2D.
+             * Escala + shear.
              *
-             * Los términos de skew generan una matriz
-             * afín que puede representar inclinación sin
-             * convertirla simplemente en rotación.
+             * La posición se mantiene separada
+             * como traslación.
              */
-            float cosX =
-                Mathf.Cos(
-                    skewXRadians
-                );
-
-            float sinX =
-                Mathf.Sin(
-                    skewXRadians
-                );
-
-            float cosY =
-                Mathf.Cos(
-                    skewYRadians
-                );
-
-            float sinY =
-                Mathf.Sin(
-                    skewYRadians
-                );
 
             float a =
-                scaleX * cosY;
+                scaleX;
 
             float b =
-                scaleX * sinY;
+                shearY *
+                scaleX;
 
             float c =
-                -scaleY * sinX;
+                shearX *
+                scaleY;
 
             float d =
-                scaleY * cosX;
+                scaleY;
 
             return new PvZReanimMatrix(
                 a,

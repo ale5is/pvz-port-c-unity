@@ -4,24 +4,31 @@ namespace PvZReanim
 {
     [RequireComponent(typeof(MeshFilter))]
     [RequireComponent(typeof(MeshRenderer))]
-    public class PvZReanimMeshRenderer : MonoBehaviour
+    public class PvZReanimMeshRenderer :
+        MonoBehaviour
     {
         private MeshFilter meshFilter;
+
         private MeshRenderer meshRenderer;
+
         private Mesh mesh;
 
         private Vector3[] vertices;
+
         private Vector2[] uvs;
+
         private int[] triangles;
 
-        private Texture2D texture;
+        private Texture2D currentTexture;
+
+        private Material material;
 
         private void Awake()
         {
-            InitializeMesh();
+            Initialize();
         }
 
-        private void InitializeMesh()
+        private void Initialize()
         {
             meshFilter =
                 GetComponent<MeshFilter>();
@@ -56,33 +63,33 @@ namespace PvZReanim
 
         public void Apply(
             Sprite sprite,
-            PvZReanimTransform reanimTransform,
+            PvZReanimTransform transform,
             PvZReanimTrackInstance instance)
         {
             if (sprite == null ||
-                reanimTransform == null ||
+                transform == null ||
                 instance == null)
             {
-                meshRenderer.enabled = false;
+                Hide();
                 return;
             }
 
             if (mesh == null)
             {
-                InitializeMesh();
+                Initialize();
             }
 
             BuildMesh(
                 sprite,
-                reanimTransform
+                transform
             );
 
-            ApplyMaterial(
-                sprite
+            UpdateMaterial(
+                sprite.texture
             );
 
-            ApplyColor(
-                reanimTransform,
+            UpdateColor(
+                transform,
                 instance
             );
 
@@ -93,16 +100,19 @@ namespace PvZReanim
 
         private void BuildMesh(
             Sprite sprite,
-            PvZReanimTransform reanimTransform)
+            PvZReanimTransform transform)
         {
-            Rect rect =
-                sprite.rect;
-
             float pixelsPerUnit =
                 sprite.pixelsPerUnit;
 
             if (pixelsPerUnit <= 0f)
-                pixelsPerUnit = 100f;
+            {
+                pixelsPerUnit =
+                    100f;
+            }
+
+            Rect rect =
+                sprite.rect;
 
             float width =
                 rect.width /
@@ -112,30 +122,24 @@ namespace PvZReanim
                 rect.height /
                 pixelsPerUnit;
 
+            Vector2 pivot =
+                sprite.pivot;
+
             float left =
-                -sprite.pivot.x /
+                -pivot.x /
+                pixelsPerUnit;
+
+            float bottom =
+                -pivot.y /
                 pixelsPerUnit;
 
             float right =
                 left +
                 width;
 
-            float bottom =
-                -sprite.pivot.y /
-                pixelsPerUnit;
-
             float top =
                 bottom +
                 height;
-
-            /*
-             * Orden:
-             *
-             * 3 ---- 2
-             * |      |
-             * |      |
-             * 0 ---- 1
-             */
 
             vertices[0] =
                 new Vector3(
@@ -165,10 +169,20 @@ namespace PvZReanim
                     0f
                 );
 
-            ApplyReanimMatrix(
-                vertices,
-                reanimTransform
-            );
+            PvZReanimMatrix matrix =
+                PvZReanimMatrix.FromTransform(
+                    transform
+                );
+
+            for (int i = 0;
+                 i < vertices.Length;
+                 i++)
+            {
+                vertices[i] =
+                    matrix.MultiplyPoint(
+                        vertices[i]
+                    );
+            }
 
             Rect textureRect =
                 sprite.textureRect;
@@ -178,6 +192,12 @@ namespace PvZReanim
 
             float textureHeight =
                 sprite.texture.height;
+
+            if (textureWidth <= 0f ||
+                textureHeight <= 0f)
+            {
+                return;
+            }
 
             float uMin =
                 textureRect.xMin /
@@ -233,40 +253,27 @@ namespace PvZReanim
             mesh.RecalculateBounds();
         }
 
-        private void ApplyReanimMatrix(
-            Vector3[] targetVertices,
-            PvZReanimTransform reanimTransform)
+        private void UpdateMaterial(
+            Texture2D texture)
         {
-            PvZReanimMatrix matrix =
-                PvZReanimMatrix.FromTransform(
-                    reanimTransform
+            if (texture == null)
+                return;
+
+            if (material != null &&
+                currentTexture == texture)
+            {
+                return;
+            }
+
+            currentTexture =
+                texture;
+
+            if (material != null)
+            {
+                Destroy(
+                    material
                 );
-
-            for (int i = 0;
-                 i < targetVertices.Length;
-                 i++)
-            {
-                targetVertices[i] =
-                    matrix.MultiplyPoint(
-                        targetVertices[i]
-                    );
             }
-        }
-
-        private void ApplyMaterial(
-            Sprite sprite)
-        {
-            if (sprite.texture == null)
-                return;
-
-            if (texture == sprite.texture &&
-                meshRenderer.sharedMaterial != null)
-            {
-                return;
-            }
-
-            texture =
-                sprite.texture;
 
             Shader shader =
                 Shader.Find(
@@ -284,7 +291,7 @@ namespace PvZReanim
             if (shader == null)
                 return;
 
-            Material material =
+            material =
                 new Material(
                     shader
                 );
@@ -299,29 +306,29 @@ namespace PvZReanim
                 material;
         }
 
-        private void ApplyColor(
-            PvZReanimTransform reanimTransform,
+        private void UpdateColor(
+            PvZReanimTransform transform,
             PvZReanimTrackInstance instance)
         {
+            if (material == null)
+                return;
+
             Color color =
                 instance.trackColor;
 
             float alpha =
-                reanimTransform.alpha ==
+                transform.alpha ==
                 PvZReanimConstants.MissingValue
                     ? 1f
-                    : reanimTransform.alpha;
+                    : transform.alpha;
 
             color.a *=
                 Mathf.Clamp01(
                     alpha
                 );
 
-            if (meshRenderer.sharedMaterial != null)
-            {
-                meshRenderer.sharedMaterial.color =
-                    color;
-            }
+            material.color =
+                color;
         }
 
         public void SetSorting(
@@ -341,18 +348,37 @@ namespace PvZReanim
                 sortingOrder;
         }
 
+        public void Hide()
+        {
+            if (meshRenderer == null)
+                return;
+
+            meshRenderer.enabled =
+                false;
+        }
+
+        public void Show()
+        {
+            if (meshRenderer == null)
+                return;
+
+            meshRenderer.enabled =
+                true;
+        }
+
         private void OnDestroy()
         {
             if (mesh != null)
             {
-                Destroy(mesh);
+                Destroy(
+                    mesh
+                );
             }
 
-            if (meshRenderer != null &&
-                meshRenderer.sharedMaterial != null)
+            if (material != null)
             {
                 Destroy(
-                    meshRenderer.sharedMaterial
+                    material
                 );
             }
         }
