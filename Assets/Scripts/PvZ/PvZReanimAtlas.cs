@@ -1,26 +1,19 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace PvZReanim
 {
-    /// <summary>
-    /// Tabla de imágenes utilizadas por una reanimación.
-    ///
-    /// El .reanim guarda el nombre/referencia de la imagen.
-    /// Este objeto se encarga de resolver esa referencia
-    /// a un Sprite de Unity.
-    /// </summary>
     [CreateAssetMenu(
         fileName = "PvZReanimAtlas",
         menuName = "PvZ/Reanim Atlas"
     )]
     public class PvZReanimAtlas : ScriptableObject
     {
-        [Serializable]
+        [System.Serializable]
         public class Entry
         {
             public string name;
+
             public Sprite sprite;
         }
 
@@ -28,21 +21,23 @@ namespace PvZReanim
         private List<Entry> entries =
             new List<Entry>();
 
-        private Dictionary<string, Sprite> lookup;
+        private Dictionary<string, Sprite> spriteCache;
+
+        public int Count =>
+            entries != null
+                ? entries.Count
+                : 0;
 
         private void OnEnable()
         {
-            BuildLookup();
+            BuildCache();
         }
 
-        /// <summary>
-        /// Reconstruye la tabla interna de búsqueda.
-        /// </summary>
-        public void BuildLookup()
+        public void BuildCache()
         {
-            lookup =
+            spriteCache =
                 new Dictionary<string, Sprite>(
-                    StringComparer.OrdinalIgnoreCase
+                    System.StringComparer.OrdinalIgnoreCase
                 );
 
             if (entries == null)
@@ -58,47 +53,74 @@ namespace PvZReanim
                 if (entry == null)
                     continue;
 
-                if (string.IsNullOrEmpty(entry.name))
+                if (string.IsNullOrEmpty(
+                    entry.name))
+                {
                     continue;
+                }
 
                 if (entry.sprite == null)
                     continue;
 
-                lookup[NormalizeName(entry.name)] =
+                spriteCache[
+                    entry.name
+                ] =
                     entry.sprite;
             }
         }
 
-        /// <summary>
-        /// Busca un Sprite por nombre.
-        /// </summary>
         public Sprite GetSprite(
             string imageName)
         {
-            if (string.IsNullOrEmpty(imageName))
+            if (string.IsNullOrEmpty(
+                imageName))
+            {
                 return null;
+            }
 
-            if (lookup == null)
-                BuildLookup();
+            if (spriteCache == null)
+            {
+                BuildCache();
+            }
+
+            Sprite sprite;
+
+            if (spriteCache.TryGetValue(
+                imageName,
+                out sprite))
+            {
+                return sprite;
+            }
+
+            /*
+             * Algunos nombres de Reanim pueden
+             * llegar con extensiones o rutas.
+             *
+             * Intentamos también comparar
+             * únicamente el nombre final.
+             */
 
             string normalized =
                 NormalizeName(
                     imageName
                 );
 
-            if (lookup.TryGetValue(
-                    normalized,
-                    out Sprite sprite))
+            if (!string.Equals(
+                normalized,
+                imageName,
+                System.StringComparison.OrdinalIgnoreCase))
             {
-                return sprite;
+                if (spriteCache.TryGetValue(
+                    normalized,
+                    out sprite))
+                {
+                    return sprite;
+                }
             }
 
             return null;
         }
 
-        /// <summary>
-        /// Comprueba si existe una imagen.
-        /// </summary>
         public bool Contains(
             string imageName)
         {
@@ -107,14 +129,17 @@ namespace PvZReanim
             ) != null;
         }
 
-        /// <summary>
-        /// Asigna un Sprite a un nombre.
-        /// </summary>
         public void SetSprite(
             string imageName,
             Sprite sprite)
         {
-            if (string.IsNullOrEmpty(imageName))
+            if (string.IsNullOrEmpty(
+                imageName))
+            {
+                return;
+            }
+
+            if (sprite == null)
                 return;
 
             if (entries == null)
@@ -122,11 +147,6 @@ namespace PvZReanim
                 entries =
                     new List<Entry>();
             }
-
-            string normalized =
-                NormalizeName(
-                    imageName
-                );
 
             for (int i = 0;
                  i < entries.Count;
@@ -138,8 +158,10 @@ namespace PvZReanim
                 if (entry == null)
                     continue;
 
-                if (NormalizeName(entry.name) !=
-                    normalized)
+                if (!string.Equals(
+                    entry.name,
+                    imageName,
+                    System.StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -147,42 +169,40 @@ namespace PvZReanim
                 entry.sprite =
                     sprite;
 
-                BuildLookup();
+                BuildCache();
 
                 return;
             }
 
+            Entry newEntry =
+                new Entry();
+
+            newEntry.name =
+                imageName;
+
+            newEntry.sprite =
+                sprite;
+
             entries.Add(
-                new Entry
-                {
-                    name = imageName,
-                    sprite = sprite
-                }
+                newEntry
             );
 
-            BuildLookup();
+            BuildCache();
         }
 
-        /// <summary>
-        /// Elimina una entrada.
-        /// </summary>
-        public bool Remove(
+        public bool RemoveSprite(
             string imageName)
         {
             if (entries == null ||
-                string.IsNullOrEmpty(imageName))
+                string.IsNullOrEmpty(
+                    imageName))
             {
                 return false;
             }
 
-            string normalized =
-                NormalizeName(
-                    imageName
-                );
-
-            for (int i = entries.Count - 1;
-                 i >= 0;
-                 i--)
+            for (int i = 0;
+                 i < entries.Count;
+                 i++)
             {
                 Entry entry =
                     entries[i];
@@ -190,15 +210,17 @@ namespace PvZReanim
                 if (entry == null)
                     continue;
 
-                if (NormalizeName(entry.name) !=
-                    normalized)
+                if (!string.Equals(
+                    entry.name,
+                    imageName,
+                    System.StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
 
                 entries.RemoveAt(i);
 
-                BuildLookup();
+                BuildCache();
 
                 return true;
             }
@@ -206,85 +228,102 @@ namespace PvZReanim
             return false;
         }
 
-        public int Count
+        public void Clear()
         {
-            get
-            {
-                return entries != null
-                    ? entries.Count
-                    : 0;
-            }
+            if (entries == null)
+                return;
+
+            entries.Clear();
+
+            BuildCache();
         }
 
-        public Entry GetEntry(
-            int index)
+        public string GetSpriteName(
+            Sprite sprite)
         {
-            if (entries == null ||
-                index < 0 ||
-                index >= entries.Count)
+            if (sprite == null ||
+                entries == null)
             {
                 return null;
             }
 
-            return entries[index];
+            for (int i = 0;
+                 i < entries.Count;
+                 i++)
+            {
+                Entry entry =
+                    entries[i];
+
+                if (entry == null)
+                    continue;
+
+                if (entry.sprite == sprite)
+                {
+                    return entry.name;
+                }
+            }
+
+            return null;
         }
 
         private static string NormalizeName(
             string value)
         {
             if (string.IsNullOrEmpty(value))
-                return string.Empty;
+                return value;
 
-            value =
+            string result =
                 value.Trim();
 
-            value =
-                value.Replace(
-                    '\\',
-                    '/'
+            int slash =
+                Mathf.Max(
+                    result.LastIndexOf('/'),
+                    result.LastIndexOf('\\')
                 );
 
-            int slash =
-                value.LastIndexOf('/');
-
             if (slash >= 0 &&
-                slash + 1 < value.Length)
+                slash + 1 < result.Length)
             {
-                value =
-                    value.Substring(
+                result =
+                    result.Substring(
                         slash + 1
                     );
             }
 
-            int extension =
-                value.LastIndexOf('.');
-
-            if (extension > 0)
+            if (result.EndsWith(
+                ".png",
+                System.StringComparison.OrdinalIgnoreCase))
             {
-                string ext =
-                    value.Substring(
-                        extension
+                result =
+                    result.Substring(
+                        0,
+                        result.Length - 4
                     );
-
-                if (ext.Equals(
-                        ".png",
-                        StringComparison.OrdinalIgnoreCase) ||
-                    ext.Equals(
-                        ".jpg",
-                        StringComparison.OrdinalIgnoreCase) ||
-                    ext.Equals(
-                        ".jpeg",
-                        StringComparison.OrdinalIgnoreCase))
-                {
-                    value =
-                        value.Substring(
-                            0,
-                            extension
-                        );
-                }
             }
 
-            return value.ToLowerInvariant();
+            if (result.EndsWith(
+                ".jpg",
+                System.StringComparison.OrdinalIgnoreCase))
+            {
+                result =
+                    result.Substring(
+                        0,
+                        result.Length - 4
+                    );
+            }
+
+            if (result.EndsWith(
+                ".jpeg",
+                System.StringComparison.OrdinalIgnoreCase))
+            {
+                result =
+                    result.Substring(
+                        0,
+                        result.Length - 5
+                    );
+            }
+
+            return result;
         }
     }
 }
