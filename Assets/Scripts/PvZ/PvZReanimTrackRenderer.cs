@@ -2,10 +2,15 @@ using UnityEngine;
 
 namespace PvZReanim
 {
-    [RequireComponent(typeof(SpriteRenderer))]
     public class PvZReanimTrackRenderer : MonoBehaviour
     {
+        [Header("Renderer")]
+        [SerializeField]
+        private bool useMeshRenderer = true;
+
         private SpriteRenderer spriteRenderer;
+
+        private PvZReanimMeshRenderer meshRenderer;
 
         private PvZReanimImageResolver imageResolver;
 
@@ -13,14 +18,39 @@ namespace PvZReanim
 
         private int sortingOrder;
 
-        // =========================================================
-        // UNITY
-        // =========================================================
-
         private void Awake()
         {
-            spriteRenderer =
-                GetComponent<SpriteRenderer>();
+            InitializeRenderer();
+        }
+
+        private void InitializeRenderer()
+        {
+            if (useMeshRenderer)
+            {
+                meshRenderer =
+                    GetComponent<PvZReanimMeshRenderer>();
+
+                if (meshRenderer == null)
+                {
+                    meshRenderer =
+                        gameObject.AddComponent<
+                            PvZReanimMeshRenderer
+                        >();
+                }
+            }
+            else
+            {
+                spriteRenderer =
+                    GetComponent<SpriteRenderer>();
+
+                if (spriteRenderer == null)
+                {
+                    spriteRenderer =
+                        gameObject.AddComponent<
+                            SpriteRenderer
+                        >();
+                }
+            }
         }
 
         // =========================================================
@@ -58,11 +88,35 @@ namespace PvZReanim
 
         private void ApplySorting()
         {
+            if (useMeshRenderer)
+            {
+                if (meshRenderer == null)
+                {
+                    meshRenderer =
+                        GetComponent<
+                            PvZReanimMeshRenderer
+                        >();
+                }
+
+                if (meshRenderer != null)
+                {
+                    meshRenderer.SetSorting(
+                        sortingLayerId,
+                        sortingOrder
+                    );
+                }
+
+                return;
+            }
+
             if (spriteRenderer == null)
             {
                 spriteRenderer =
                     GetComponent<SpriteRenderer>();
             }
+
+            if (spriteRenderer == null)
+                return;
 
             spriteRenderer.sortingLayerID =
                 sortingLayerId;
@@ -82,15 +136,7 @@ namespace PvZReanim
             if (reanimTransform == null)
                 return;
 
-            if (spriteRenderer == null)
-            {
-                spriteRenderer =
-                    GetComponent<SpriteRenderer>();
-            }
-
-            // =====================================================
-            // SPRITE
-            // =====================================================
+            InitializeRenderer();
 
             Sprite sprite =
                 ResolveSprite(
@@ -98,12 +144,77 @@ namespace PvZReanim
                     instance
                 );
 
+            if (useMeshRenderer)
+            {
+                ApplyMesh(
+                    sprite,
+                    reanimTransform,
+                    instance
+                );
+
+                return;
+            }
+
+            ApplySprite(
+                sprite,
+                reanimTransform,
+                instance
+            );
+        }
+
+        // =========================================================
+        // MESH
+        // =========================================================
+
+        private void ApplyMesh(
+            Sprite sprite,
+            PvZReanimTransform reanimTransform,
+            PvZReanimTrackInstance instance)
+        {
+            if (meshRenderer == null)
+                return;
+
+            if (sprite == null ||
+                instance == null)
+            {
+                meshRenderer.Hide();
+                return;
+            }
+
+            meshRenderer.Apply(
+                sprite,
+                reanimTransform,
+                instance
+            );
+
+            ApplySorting();
+        }
+
+        // =========================================================
+        // SPRITE
+        // =========================================================
+
+        private void ApplySprite(
+            Sprite sprite,
+            PvZReanimTransform reanimTransform,
+            PvZReanimTrackInstance instance)
+        {
+            if (spriteRenderer == null)
+            {
+                spriteRenderer =
+                    GetComponent<SpriteRenderer>();
+
+                if (spriteRenderer == null)
+                {
+                    spriteRenderer =
+                        gameObject.AddComponent<
+                            SpriteRenderer
+                        >();
+                }
+            }
+
             spriteRenderer.sprite =
                 sprite;
-
-            // =====================================================
-            // POSITION
-            // =====================================================
 
             float x =
                 reanimTransform.GetX();
@@ -118,10 +229,6 @@ namespace PvZReanim
                     0f
                 );
 
-            // =====================================================
-            // SCALE
-            // =====================================================
-
             float scaleX =
                 reanimTransform.GetScaleX();
 
@@ -135,17 +242,9 @@ namespace PvZReanim
                     1f
                 );
 
-            // =====================================================
-            // ROTATION
-            // =====================================================
-
             ApplyRotation(
                 reanimTransform
             );
-
-            // =====================================================
-            // COLOR
-            // =====================================================
 
             Color color =
                 instance != null
@@ -163,10 +262,6 @@ namespace PvZReanim
             spriteRenderer.color =
                 color;
 
-            // =====================================================
-            // VISIBILITY
-            // =====================================================
-
             bool visible =
                 sprite != null;
 
@@ -180,10 +275,6 @@ namespace PvZReanim
             spriteRenderer.enabled =
                 visible;
 
-            // =====================================================
-            // SORTING
-            // =====================================================
-
             ApplySorting();
         }
 
@@ -195,33 +286,19 @@ namespace PvZReanim
             PvZReanimTransform reanimTransform,
             PvZReanimTrackInstance instance)
         {
-            // -----------------------------------------------------
-            // Override
-            // -----------------------------------------------------
-
             if (instance != null &&
                 instance.imageOverride != null)
             {
                 return instance.imageOverride;
             }
 
-            // -----------------------------------------------------
-            // Sprite directo
-            // -----------------------------------------------------
-
             if (reanimTransform.image != null)
             {
                 return reanimTransform.image;
             }
 
-            // -----------------------------------------------------
-            // Resolver
-            // -----------------------------------------------------
-
             if (imageResolver == null)
-            {
                 return null;
-            }
 
             if (string.IsNullOrEmpty(
                 reanimTransform.imageName))
@@ -235,26 +312,12 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // ROTATION
+        // ROTATION FALLBACK
         // =========================================================
 
         private void ApplyRotation(
             PvZReanimTransform reanimTransform)
         {
-            /*
-             * PvZ Reanim utiliza skewX/skewY.
-             *
-             * Unity Transform no soporta shear directamente.
-             *
-             * Para esta etapa mantenemos la rotación
-             * aproximada utilizando la diferencia entre
-             * ambos valores.
-             *
-             * Más adelante reemplazaremos esta parte
-             * por un renderer basado en Mesh para obtener
-             * shear real.
-             */
-
             float skewX =
                 reanimTransform.GetSkewX();
 
@@ -278,20 +341,24 @@ namespace PvZReanim
 
         public void ResetRenderer()
         {
-            if (spriteRenderer == null)
+            InitializeRenderer();
+
+            if (meshRenderer != null)
             {
-                spriteRenderer =
-                    GetComponent<SpriteRenderer>();
+                meshRenderer.Hide();
             }
 
-            spriteRenderer.sprite =
-                null;
+            if (spriteRenderer != null)
+            {
+                spriteRenderer.sprite =
+                    null;
 
-            spriteRenderer.color =
-                Color.white;
+                spriteRenderer.color =
+                    Color.white;
 
-            spriteRenderer.enabled =
-                false;
+                spriteRenderer.enabled =
+                    false;
+            }
 
             transform.localPosition =
                 Vector3.zero;
