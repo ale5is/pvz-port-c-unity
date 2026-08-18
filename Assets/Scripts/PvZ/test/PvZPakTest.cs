@@ -1,67 +1,60 @@
-using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 
 namespace PvZReanim
 {
     public class PvZPakTest : MonoBehaviour
     {
-        [SerializeField]
-        private string pakFileName = "main.pak";
-
         private void Start()
         {
-            string path =
-                Path.Combine(
-                    Application.streamingAssetsPath,
-                    "PvZ",
-                    pakFileName
-                );
-
-            Debug.Log(
-                "[PvZPakTest] Buscando:\n" +
-                path
-            );
-
-            PvZPakReader reader =
-                new PvZPakReader();
-
-            if (!reader.Load(path))
+            if (PvZPakImageProvider.Instance == null)
             {
                 Debug.LogError(
                     "[PvZPakTest] " +
-                    "No se pudo cargar main.pak."
+                    "No existe PvZPakImageProvider."
                 );
 
                 return;
             }
 
-            Debug.Log(
-                "[PvZPakTest] PAK OK | " +
-                "Archivos: " +
-                reader.FileCount
-            );
+            Sprite sprite =
+                PvZPakImageProvider.Instance
+                    .LoadSprite(
+                        "PeaShooter_Head"
+                    );
 
-            List<string> results =
-                reader.Find(
-                    "Peashooter"
-                );
-
-            Debug.Log(
-                "[PvZPakTest] Resultados " +
-                "para Peashooter: " +
-                results.Count
-            );
-
-            for (int i = 0;
-                 i < results.Count;
-                 i++)
+            if (sprite == null)
             {
-                Debug.Log(
+                Debug.LogError(
                     "[PvZPakTest] " +
-                    results[i]
+                    "NO se pudo cargar " +
+                    "PeaShooter_Head"
                 );
+
+                return;
             }
+
+            GameObject obj =
+                new GameObject(
+                    "PAK_PeaShooter_Head"
+                );
+
+            SpriteRenderer renderer =
+                obj.AddComponent<SpriteRenderer>();
+
+            renderer.sprite =
+                sprite;
+
+            obj.transform.position =
+                Vector3.zero;
+
+            Debug.Log(
+                "[PvZPakTest] OK: " +
+                sprite.name +
+                " | " +
+                sprite.texture.width +
+                "x" +
+                sprite.texture.height
+            );
         }
     }
 }
