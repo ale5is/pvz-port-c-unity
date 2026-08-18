@@ -2,10 +2,6 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// Atlas de sprites para una REANIM.
-/// Reúne las imágenes utilizadas por los tracks en una sola Texture2D.
-/// </summary>
 public sealed class PvZReanimAtlas : IDisposable
 {
     private const int MaxImages = 64;
@@ -17,27 +13,44 @@ public sealed class PvZReanimAtlas : IDisposable
     {
         public string key;
         public Texture2D texture;
+
         public int x;
         public int y;
+
         public Sprite sprite;
+
+        public int width;
+        public int height;
     }
 
     private readonly Dictionary<string, Entry> entries =
         new Dictionary<string, Entry>(
             StringComparer.OrdinalIgnoreCase);
 
-    private readonly Dictionary<string, Sprite> individual =
-        new Dictionary<string, Sprite>(
+    private readonly Dictionary<string, Texture2D> individual =
+        new Dictionary<string, Texture2D>(
             StringComparer.OrdinalIgnoreCase);
 
     private Texture2D atlasTexture;
 
-    public Texture2D Texture => atlasTexture;
+    public Texture2D Texture
+    {
+        get
+        {
+            return atlasTexture;
+        }
+    }
 
-    public int Count => entries.Count;
+    public int Count
+    {
+        get
+        {
+            return entries.Count;
+        }
+    }
 
     // ============================================================
-    // CONSTRUIR ATLAS
+    // BUILD
     // ============================================================
 
     public bool Build(
@@ -46,103 +59,168 @@ public sealed class PvZReanimAtlas : IDisposable
     {
         Dispose();
 
-        if (data == null ||
+        if (
+            data == null ||
             data.tracks == null ||
             loadTexture == null)
         {
             return false;
         }
 
-        HashSet<string> names =
+        HashSet<string> nombres =
             new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase);
 
-        foreach (PvZReanimTrack track in data.tracks)
+        // ========================================================
+        // Encontrar imágenes
+        // ========================================================
+
+        foreach (
+            PvZReanimTrack track
+            in data.tracks)
         {
-            if (track == null ||
+            if (
+                track == null ||
                 track.frames == null)
             {
                 continue;
             }
 
-            foreach (PvZReanimFrame frame in track.frames)
+            foreach (
+                PvZReanimFrame frame
+                in track.frames)
             {
-                if (frame == null ||
-                    string.IsNullOrWhiteSpace(frame.image))
+                if (
+                    frame == null ||
+                    string.IsNullOrWhiteSpace(
+                        frame.image))
                 {
                     continue;
                 }
 
-                names.Add(
+                // Resodded no mete al atlas imágenes
+                // que realmente sean spritesheets.
+                if (frame.imageFrame > 0)
+                {
+                    continue;
+                }
+
+                nombres.Add(
                     frame.image.Trim());
             }
         }
 
-        List<Entry> list =
+        List<Entry> lista =
             new List<Entry>();
 
-        foreach (string name in names)
+        foreach (string nombre in nombres)
         {
-            if (list.Count >= MaxImages)
+            if (
+                lista.Count >=
+                MaxImages)
+            {
                 break;
+            }
 
-            Texture2D texture =
-                loadTexture(name);
+            Texture2D textura =
+                loadTexture(nombre);
 
-            if (texture == null)
-                continue;
-
-            if (texture.width > MaxImageSize ||
-                texture.height > MaxImageSize)
+            if (textura == null)
             {
                 continue;
             }
 
-            list.Add(
+            if (
+                textura.width >
+                MaxImageSize ||
+                textura.height >
+                MaxImageSize)
+            {
+                // No se mete al atlas.
+                continue;
+            }
+
+            lista.Add(
                 new Entry
                 {
-                    key = name,
-                    texture = texture
+                    key = nombre,
+                    texture = textura,
+                    width = textura.width,
+                    height = textura.height
                 });
         }
 
-        if (list.Count == 0)
+        if (lista.Count == 0)
+        {
             return false;
+        }
 
-        // Primero las imágenes más altas.
-        list.Sort(
-            (a, b) =>
+        // ========================================================
+        // Orden igual que Resodded:
+        // altura descendente
+        // luego ancho descendente.
+        // ========================================================
+
+        lista.Sort(
+            delegate (
+                Entry a,
+                Entry b)
             {
                 int resultado =
-                    b.texture.height.CompareTo(
-                        a.texture.height);
+                    b.height.CompareTo(
+                        a.height);
 
                 if (resultado != 0)
+                {
                     return resultado;
+                }
 
                 return
-                    b.texture.width.CompareTo(
-                        a.texture.width);
+                    b.width.CompareTo(
+                        a.width);
             });
+
+        // ========================================================
+        // WIDTH
+        // ========================================================
+
+        int totalArea = 0;
+        int mayorAncho = 1;
+
+        foreach (Entry entry in lista)
+        {
+            totalArea +=
+                (entry.width + 2) *
+                (entry.height + 2);
+
+            mayorAncho =
+                Mathf.Max(
+                    mayorAncho,
+                    entry.width + 2);
+        }
 
         int width =
             NextPowerOfTwo(
                 Mathf.CeilToInt(
                     Mathf.Sqrt(
-                        TotalArea(list))));
+                        totalArea)));
 
         width =
             Mathf.Clamp(
                 Mathf.Max(
                     width,
-                    LargestWidth(list)),
+                    mayorAncho),
                 1,
                 MaxAtlasSize);
+
+        // ========================================================
+        // PACK
+        // ========================================================
 
         int height;
 
         if (!Pack(
-            list,
+            lista,
             width,
             out height))
         {
@@ -150,7 +228,7 @@ public sealed class PvZReanimAtlas : IDisposable
         }
 
         // ========================================================
-        // CREAR TEXTURA
+        // TEXTURA
         // ========================================================
 
         atlasTexture =
@@ -170,25 +248,28 @@ public sealed class PvZReanimAtlas : IDisposable
         atlasTexture.wrapMode =
             TextureWrapMode.Clamp;
 
-        atlasTexture.SetPixels32(
+        Color32[] pixels =
             new Color32[
-                width * height]);
+                width * height];
+
+        atlasTexture.SetPixels32(
+            pixels);
 
         // ========================================================
-        // COPIAR IMÁGENES
+        // COPIAR
         // ========================================================
 
-        foreach (Entry entry in list)
+        foreach (Entry entry in lista)
         {
-            Color32[] pixels =
+            Color32[] source =
                 entry.texture.GetPixels32();
 
             atlasTexture.SetPixels32(
                 entry.x,
                 entry.y,
-                entry.texture.width,
-                entry.texture.height,
-                pixels);
+                entry.width,
+                entry.height,
+                source);
         }
 
         atlasTexture.Apply(
@@ -196,10 +277,10 @@ public sealed class PvZReanimAtlas : IDisposable
             false);
 
         // ========================================================
-        // CREAR SPRITES
+        // SPRITES
         // ========================================================
 
-        foreach (Entry entry in list)
+        foreach (Entry entry in lista)
         {
             entry.sprite =
                 Sprite.Create(
@@ -207,8 +288,8 @@ public sealed class PvZReanimAtlas : IDisposable
                     new Rect(
                         entry.x,
                         entry.y,
-                        entry.texture.width,
-                        entry.texture.height),
+                        entry.width,
+                        entry.height),
                     new Vector2(
                         0.5f,
                         0.5f),
@@ -223,7 +304,8 @@ public sealed class PvZReanimAtlas : IDisposable
                 entry.key] =
                 entry;
 
-            UnityEngine.Object.Destroy(entry.texture);
+            Destroy(
+                entry.texture);
 
             entry.texture = null;
         }
@@ -240,20 +322,23 @@ public sealed class PvZReanimAtlas : IDisposable
     }
 
     // ============================================================
-    // OBTENER SPRITE DEL ATLAS
+    // GET SPRITE
     // ============================================================
 
     public Sprite Get(
         string name)
     {
         if (string.IsNullOrWhiteSpace(name))
+        {
             return null;
+        }
 
         Entry entry;
 
-        if (entries.TryGetValue(
-            name.Trim(),
-            out entry))
+        if (
+            entries.TryGetValue(
+                name.Trim(),
+                out entry))
         {
             return entry.sprite;
         }
@@ -262,14 +347,65 @@ public sealed class PvZReanimAtlas : IDisposable
     }
 
     // ============================================================
-    // SPRITE INDIVIDUAL
+    // INFORMACIÓN DEL ATLAS
+    // ============================================================
+
+    public bool TryGet(
+        string name,
+        out Texture2D texture,
+        out Rect rect,
+        out int width,
+        out int height)
+    {
+        texture = null;
+        rect = new Rect();
+        width = 0;
+        height = 0;
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        Entry entry;
+
+        if (
+            !entries.TryGetValue(
+                name.Trim(),
+                out entry))
+        {
+            return false;
+        }
+
+        texture =
+            atlasTexture;
+
+        rect =
+            new Rect(
+                entry.x,
+                entry.y,
+                entry.width,
+                entry.height);
+
+        width =
+            entry.width;
+
+        height =
+            entry.height;
+
+        return true;
+    }
+
+    // ============================================================
+    // INDIVIDUAL
     // ============================================================
 
     public Sprite GetIndividual(
         string name,
         Func<string, Texture2D> loadTexture)
     {
-        if (string.IsNullOrWhiteSpace(name) ||
+        if (
+            string.IsNullOrWhiteSpace(name) ||
             loadTexture == null)
         {
             return null;
@@ -278,86 +414,119 @@ public sealed class PvZReanimAtlas : IDisposable
         name =
             name.Trim();
 
-        Sprite sprite;
+        Texture2D textura;
 
-        if (individual.TryGetValue(
-            name,
-            out sprite))
+        if (
+            !individual.TryGetValue(
+                name,
+                out textura))
         {
-            return sprite;
+            textura =
+                loadTexture(name);
+
+            if (textura == null)
+            {
+                return null;
+            }
+
+            textura.filterMode =
+                FilterMode.Point;
+
+            textura.wrapMode =
+                TextureWrapMode.Clamp;
+
+            individual[
+                name] =
+                textura;
         }
 
-        Texture2D texture =
-            loadTexture(name);
-
-        if (texture == null)
-            return null;
-
-        texture.filterMode =
-            FilterMode.Point;
-
-        texture.wrapMode =
-            TextureWrapMode.Clamp;
-
-        sprite =
+        return
             Sprite.Create(
-                texture,
+                textura,
                 new Rect(
                     0,
                     0,
-                    texture.width,
-                    texture.height),
+                    textura.width,
+                    textura.height),
                 new Vector2(
                     0.5f,
                     0.5f),
                 100f);
-
-        sprite.name =
-            name;
-
-        individual[name] =
-            sprite;
-
-        return sprite;
     }
 
     // ============================================================
-    // UTILIDADES
+    // INFORMACIÓN INDIVIDUAL
     // ============================================================
 
-    private static int TotalArea(
-        List<Entry> list)
+    public bool TryGetIndividual(
+        string name,
+        Func<string, Texture2D> loadTexture,
+        out Texture2D texture,
+        out Rect rect,
+        out int width,
+        out int height)
     {
-        int area = 0;
+        texture = null;
+        rect = new Rect();
+        width = 0;
+        height = 0;
 
-        foreach (Entry entry in list)
+        if (
+            string.IsNullOrWhiteSpace(name) ||
+            loadTexture == null)
         {
-            area +=
-                (entry.texture.width + 2) *
-                (entry.texture.height + 2);
+            return false;
         }
 
-        return area;
-    }
+        name =
+            name.Trim();
 
-    private static int LargestWidth(
-        List<Entry> list)
-    {
-        int value = 1;
-
-        foreach (Entry entry in list)
+        if (
+            !individual.TryGetValue(
+                name,
+                out texture))
         {
-            value =
-                Mathf.Max(
-                    value,
-                    entry.texture.width + 2);
+            texture =
+                loadTexture(name);
+
+            if (texture == null)
+            {
+                return false;
+            }
+
+            texture.filterMode =
+                FilterMode.Point;
+
+            texture.wrapMode =
+                TextureWrapMode.Clamp;
+
+            individual[
+                name] =
+                texture;
         }
 
-        return value;
+        width =
+            texture.width;
+
+        height =
+            texture.height;
+
+        rect =
+            new Rect(
+                0,
+                0,
+                width,
+                height);
+
+        return true;
     }
+
+    // ============================================================
+    // PACK
+    // ============================================================
 
     private static bool Pack(
-        List<Entry> list,
+        List<Entry> lista,
         int width,
         out int height)
     {
@@ -368,16 +537,13 @@ public sealed class PvZReanimAtlas : IDisposable
 
         height = 0;
 
-        foreach (Entry entry in list)
+        foreach (Entry entry in lista)
         {
-            int w =
-                entry.texture.width;
-
-            int h =
-                entry.texture.height;
-
-            // Siguiente fila.
-            if (x + w + Padding > width)
+            if (
+                x +
+                entry.width +
+                Padding >
+                width)
             {
                 x = Padding;
 
@@ -388,23 +554,26 @@ public sealed class PvZReanimAtlas : IDisposable
                 rowHeight = 0;
             }
 
-            entry.x = x;
-            entry.y = y;
+            entry.x =
+                x;
+
+            entry.y =
+                y;
 
             x +=
-                w +
+                entry.width +
                 Padding;
 
             rowHeight =
                 Mathf.Max(
                     rowHeight,
-                    h);
+                    entry.height);
 
             height =
                 Mathf.Max(
                     height,
                     y +
-                    h +
+                    entry.height +
                     Padding);
         }
 
@@ -416,6 +585,10 @@ public sealed class PvZReanimAtlas : IDisposable
             width <= MaxAtlasSize &&
             height <= MaxAtlasSize;
     }
+
+    // ============================================================
+    // POWER OF TWO
+    // ============================================================
 
     private static int NextPowerOfTwo(
         int value)
@@ -429,43 +602,37 @@ public sealed class PvZReanimAtlas : IDisposable
             result <<= 1;
         }
 
-        return
-            Mathf.Min(
-                result,
-                MaxAtlasSize);
+        return Mathf.Min(
+            result,
+            MaxAtlasSize);
     }
 
     // ============================================================
-    // LIMPIEZA
+    // LIMPIAR
     // ============================================================
 
     public void Dispose()
     {
-        foreach (Entry entry in entries.Values)
+        foreach (
+            Entry entry
+            in entries.Values)
         {
             if (entry.sprite != null)
             {
-                UnityEngine.Object.Destroy(
+                Destroy(
                     entry.sprite);
             }
         }
 
         entries.Clear();
 
-        foreach (Sprite sprite in individual.Values)
+        foreach (
+            Texture2D texture
+            in individual.Values)
         {
-            if (sprite == null)
-                continue;
-
-            Texture2D texture =
-                sprite.texture;
-
-            UnityEngine.Object.Destroy(
-                sprite);
-
             if (texture != null)
             {
-                UnityEngine.Object.Destroy(
+                Destroy(
                     texture);
             }
         }
@@ -474,7 +641,7 @@ public sealed class PvZReanimAtlas : IDisposable
 
         if (atlasTexture != null)
         {
-            UnityEngine.Object.Destroy(
+            Destroy(
                 atlasTexture);
         }
 
@@ -484,5 +651,25 @@ public sealed class PvZReanimAtlas : IDisposable
     public void OnDestroy()
     {
         Dispose();
+    }
+
+    private static void Destroy(
+        UnityEngine.Object objeto)
+    {
+        if (objeto == null)
+        {
+            return;
+        }
+
+        if (Application.isPlaying)
+        {
+            UnityEngine.Object.Destroy(
+                objeto);
+        }
+        else
+        {
+            UnityEngine.Object.DestroyImmediate(
+                objeto);
+        }
     }
 }

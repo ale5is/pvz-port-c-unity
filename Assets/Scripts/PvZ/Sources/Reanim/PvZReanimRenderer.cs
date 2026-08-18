@@ -36,7 +36,8 @@ public class PvZReanimRenderer : MonoBehaviour
 
     private PvZReanimAtlas atlas;
 
-    private readonly List<PvZReanimTrackRenderer> renderTracks =
+    private readonly List<PvZReanimTrackRenderer>
+        renderTracks =
         new List<PvZReanimTrackRenderer>();
 
     private float tiempoFrames;
@@ -46,6 +47,10 @@ public class PvZReanimRenderer : MonoBehaviour
     private int frameFinal;
 
     private bool listo;
+
+    // ============================================================
+    // START
+    // ============================================================
 
     private IEnumerator Start()
     {
@@ -69,7 +74,8 @@ public class PvZReanimRenderer : MonoBehaviour
 
         CrearRenderer();
 
-        listo = true;
+        listo =
+            true;
 
         if (mostrarDebug)
         {
@@ -85,9 +91,14 @@ public class PvZReanimRenderer : MonoBehaviour
         }
     }
 
+    // ============================================================
+    // CARGAR
+    // ============================================================
+
     private bool CargarReanim()
     {
-        if (string.IsNullOrWhiteSpace(rutaReanim))
+        if (string.IsNullOrWhiteSpace(
+            rutaReanim))
         {
             Debug.LogError(
                 "[PvZ Reanim] Ruta vacía.");
@@ -118,20 +129,10 @@ public class PvZReanimRenderer : MonoBehaviour
             return false;
         }
 
-        try
-        {
-            reanim =
-                PvZReanimParser.Parse(
-                    datos);
-        }
-        catch (Exception e)
-        {
-            Debug.LogError(
-                "[PvZ Reanim] Error parser:\n" +
-                e);
-
-            return false;
-        }
+        reanim =
+            PvZReanimParser.Parse(
+                datos,
+                rutaReanim);
 
         if (reanim == null)
         {
@@ -155,23 +156,12 @@ public class PvZReanimRenderer : MonoBehaviour
         if (mostrarDebug)
         {
             Debug.Log(
-                "[PvZ Reanim] Atlas creado: " +
+                "[PvZ Reanim] Atlas=" +
                 atlasCreado +
-                " | Sprites: " +
-                atlas.Count);
-        }
-
-        if (mostrarDebug)
-        {
-            Debug.Log(
-                "[PvZ Reanim] FPS=" +
+                " | Sprites=" +
+                atlas.Count +
+                " | FPS=" +
                 reanim.fps +
-                " | Tracks=" +
-                (
-                    reanim.tracks != null
-                        ? reanim.tracks.Count
-                        : 0
-                ) +
                 " | FrameFinal=" +
                 frameFinal);
         }
@@ -179,12 +169,17 @@ public class PvZReanimRenderer : MonoBehaviour
         return true;
     }
 
+    // ============================================================
+    // CARGAR TEXTURA
+    // ============================================================
+
     private Texture2D CargarTexturaImagen(
         string nombreImagen)
     {
         if (
             PvZResourceManager.Instancia == null ||
-            string.IsNullOrWhiteSpace(nombreImagen))
+            string.IsNullOrWhiteSpace(
+                nombreImagen))
         {
             return null;
         }
@@ -192,15 +187,6 @@ public class PvZReanimRenderer : MonoBehaviour
         string ruta =
             ConvertirImagenARuta(
                 nombreImagen);
-
-        if (mostrarDebug)
-        {
-            Debug.Log(
-                "[PvZ Reanim Atlas] Imagen: " +
-                nombreImagen +
-                " -> " +
-                ruta);
-        }
 
         byte[] datos =
             PvZResourceManager.Instancia.Leer(
@@ -213,8 +199,7 @@ public class PvZReanimRenderer : MonoBehaviour
             if (mostrarDebug)
             {
                 Debug.LogWarning(
-                    "[PvZ Reanim Atlas] " +
-                    "Imagen no encontrada: " +
+                    "[PvZ Reanim] Imagen no encontrada: " +
                     ruta);
             }
 
@@ -237,18 +222,10 @@ public class PvZReanimRenderer : MonoBehaviour
         textura.wrapMode =
             TextureWrapMode.Clamp;
 
-        bool cargada =
-            textura.LoadImage(
-                datos,
-                false);
-
-        if (!cargada)
+        if (!textura.LoadImage(
+            datos,
+            false))
         {
-            Debug.LogError(
-                "[PvZ Reanim Atlas] " +
-                "No se pudo cargar: " +
-                nombreImagen);
-
             Destroy(textura);
 
             return null;
@@ -257,16 +234,39 @@ public class PvZReanimRenderer : MonoBehaviour
         return textura;
     }
 
+    // ============================================================
+    // MÉTODO USADO POR TRACK RENDERER
+    // ============================================================
+
+    public Texture2D CargarTexturaParaTrack(
+        string nombreImagen)
+    {
+        return
+            CargarTexturaImagen(
+                nombreImagen);
+    }
+
+    // ============================================================
+    // FRAME FINAL
+    // ============================================================
+
     private int ObtenerFrameFinal()
     {
-        int maximo = 0;
-
         if (
             reanim == null ||
-            reanim.tracks == null)
+            reanim.tracks == null ||
+            reanim.tracks.Count == 0)
         {
             return 0;
         }
+
+        // Resodded utiliza el número de transforms
+        // del primer track como duración.
+        //
+        // Usamos el máximo como protección
+        // si algún REANIM está incompleto.
+
+        int cantidadMaxima = 0;
 
         foreach (
             PvZReanimTrack track
@@ -279,27 +279,21 @@ public class PvZReanimRenderer : MonoBehaviour
                 continue;
             }
 
-            foreach (
-                PvZReanimFrame frame
-                in track.frames)
-            {
-                if (frame == null)
-                {
-                    continue;
-                }
-
-                if (
-                    frame.frameNumber >
-                    maximo)
-                {
-                    maximo =
-                        frame.frameNumber;
-                }
-            }
+            cantidadMaxima =
+                Mathf.Max(
+                    cantidadMaxima,
+                    track.frames.Count);
         }
 
-        return maximo;
+        return
+            Mathf.Max(
+                0,
+                cantidadMaxima - 1);
     }
+
+    // ============================================================
+    // CREAR RENDERER
+    // ============================================================
 
     private void CrearRenderer()
     {
@@ -358,15 +352,21 @@ public class PvZReanimRenderer : MonoBehaviour
                 i);
         }
 
-        AplicarTiempo(0f);
+        AplicarTiempo(
+            0f);
     }
+
+    // ============================================================
+    // TRACK
+    // ============================================================
 
     private void CrearTrack(
         PvZReanimTrack track,
         int indice)
     {
         string nombre =
-            string.IsNullOrWhiteSpace(track.name)
+            string.IsNullOrWhiteSpace(
+                track.name)
                 ? "Track_" + indice
                 : track.name;
 
@@ -389,14 +389,11 @@ public class PvZReanimRenderer : MonoBehaviour
 
         objeto.AddComponent<MeshFilter>();
 
-        MeshRenderer meshRenderer =
-            objeto.AddComponent<MeshRenderer>();
-
-        meshRenderer.sortingOrder =
-            indice;
+        objeto.AddComponent<MeshRenderer>();
 
         PvZReanimTrackRenderer rendererTrack =
-            objeto.AddComponent<PvZReanimTrackRenderer>();
+            objeto.AddComponent<
+                PvZReanimTrackRenderer>();
 
         rendererTrack.Inicializar(
             this,
@@ -412,120 +409,64 @@ public class PvZReanimRenderer : MonoBehaviour
             Debug.Log(
                 "[PvZ Reanim] Track " +
                 indice +
-                ": " +
+                " | " +
                 nombre +
                 " | Frames=" +
-                (
-                    track.frames != null
-                        ? track.frames.Count
-                        : 0
-                ) +
-                " | FrameInicial=" +
-                ObtenerPrimerFrame(track) +
-                " | FrameFinal=" +
-                ObtenerUltimoFrame(track));
+                track.frames.Count);
         }
     }
 
-    private int ObtenerPrimerFrame(
-        PvZReanimTrack track)
-    {
-        if (
-            track == null ||
-            track.frames == null ||
-            track.frames.Count == 0)
-        {
-            return 0;
-        }
-
-        int minimo =
-            int.MaxValue;
-
-        foreach (
-            PvZReanimFrame frame
-            in track.frames)
-        {
-            if (frame == null)
-            {
-                continue;
-            }
-
-            if (
-                frame.frameNumber <
-                minimo)
-            {
-                minimo =
-                    frame.frameNumber;
-            }
-        }
-
-        return
-            minimo == int.MaxValue
-                ? 0
-                : minimo;
-    }
-
-    private int ObtenerUltimoFrame(
-        PvZReanimTrack track)
-    {
-        if (
-            track == null ||
-            track.frames == null ||
-            track.frames.Count == 0)
-        {
-            return 0;
-        }
-
-        int maximo = 0;
-
-        foreach (
-            PvZReanimFrame frame
-            in track.frames)
-        {
-            if (frame == null)
-            {
-                continue;
-            }
-
-            if (
-                frame.frameNumber >
-                maximo)
-            {
-                maximo =
-                    frame.frameNumber;
-            }
-        }
-
-        return maximo;
-    }
+    // ============================================================
+    // APLICAR TIEMPO
+    // ============================================================
 
     private void AplicarTiempo(
         float nuevoTiempoFrames)
     {
-        if (frameFinal < 0)
+        if (frameFinal <= 0)
         {
+            tiempoFrames =
+                0f;
+
+            frameActual =
+                0;
+
+            for (
+                int i = 0;
+                i < renderTracks.Count;
+                i++)
+            {
+                if (renderTracks[i] != null)
+                {
+                    renderTracks[i].AplicarTiempo(
+                        0f,
+                        escala);
+                }
+            }
+
             return;
         }
+
+        // ========================================================
+        // Igual que Resodded:
+        //
+        // normal loop:
+        //     0 -> frameFinal
+        //
+        // no:
+        //     frameFinal -> 0
+        //
+        // ========================================================
 
         if (hacerLoop)
         {
             float duracion =
-                frameFinal + 1f;
+                frameFinal;
 
-            if (duracion > 0f)
-            {
-                nuevoTiempoFrames =
-                    nuevoTiempoFrames %
-                    duracion;
-
-                if (
-                    nuevoTiempoFrames <
-                    0f)
-                {
-                    nuevoTiempoFrames +=
-                        duracion;
-                }
-            }
+            nuevoTiempoFrames =
+                Mathf.Repeat(
+                    nuevoTiempoFrames,
+                    duracion);
         }
         else
         {
@@ -544,9 +485,7 @@ public class PvZReanimRenderer : MonoBehaviour
                 Mathf.FloorToInt(
                     tiempoFrames),
                 0,
-                Mathf.Max(
-                    0,
-                    frameFinal));
+                frameFinal);
 
         for (
             int i = 0;
@@ -566,6 +505,10 @@ public class PvZReanimRenderer : MonoBehaviour
                 escala);
         }
     }
+
+    // ============================================================
+    // UPDATE
+    // ============================================================
 
     private void Update()
     {
@@ -600,26 +543,20 @@ public class PvZReanimRenderer : MonoBehaviour
             tiempoFrames);
     }
 
+    // ============================================================
+    // SPRITE COMPATIBILIDAD
+    // ============================================================
+
     public Sprite ObtenerSprite(
         string nombreImagen)
     {
         if (
+            atlas == null ||
             string.IsNullOrWhiteSpace(
                 nombreImagen))
         {
             return null;
         }
-
-        if (atlas == null)
-        {
-            Debug.LogError(
-                "[PvZ Reanim] Atlas no inicializado.");
-
-            return null;
-        }
-
-        nombreImagen =
-            nombreImagen.Trim();
 
         Sprite sprite =
             atlas.Get(
@@ -630,26 +567,74 @@ public class PvZReanimRenderer : MonoBehaviour
             return sprite;
         }
 
-        sprite =
+        return
             atlas.GetIndividual(
                 nombreImagen,
                 CargarTexturaImagen);
+    }
 
-        if (sprite == null)
+    // ============================================================
+    // MAX IMAGE FRAME
+    // ============================================================
+
+    public int ObtenerMaxImageFrame(
+        string nombreImagen)
+    {
+        if (
+            reanim == null ||
+            reanim.tracks == null ||
+            string.IsNullOrWhiteSpace(
+                nombreImagen))
         {
-            if (mostrarDebug)
-            {
-                Debug.LogWarning(
-                    "[PvZ Reanim] " +
-                    "Imagen no encontrada: " +
-                    nombreImagen);
-            }
-
-            return null;
+            return 0;
         }
 
-        return sprite;
+        int maximo = 0;
+
+        foreach (
+            PvZReanimTrack track
+            in reanim.tracks)
+        {
+            if (
+                track == null ||
+                track.frames == null)
+            {
+                continue;
+            }
+
+            foreach (
+                PvZReanimFrame frame
+                in track.frames)
+            {
+                if (
+                    frame == null ||
+                    string.IsNullOrWhiteSpace(
+                        frame.image))
+                {
+                    continue;
+                }
+
+                if (!string.Equals(
+                    frame.image,
+                    nombreImagen,
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                maximo =
+                    Mathf.Max(
+                        maximo,
+                        frame.imageFrame);
+            }
+        }
+
+        return maximo;
     }
+
+    // ============================================================
+    // RUTA IMAGEN
+    // ============================================================
 
     private string ConvertirImagenARuta(
         string nombre)
@@ -685,7 +670,8 @@ public class PvZReanimRenderer : MonoBehaviour
                     ".PNG",
                     StringComparison.OrdinalIgnoreCase))
             {
-                limpio += ".PNG";
+                limpio +=
+                    ".PNG";
             }
 
             return limpio;
@@ -706,6 +692,10 @@ public class PvZReanimRenderer : MonoBehaviour
             limpio +
             ".PNG";
     }
+
+    // ============================================================
+    // NOMBRE
+    // ============================================================
 
     private string ObtenerNombreReanim()
     {
@@ -736,6 +726,10 @@ public class PvZReanimRenderer : MonoBehaviour
         return nombre;
     }
 
+    // ============================================================
+    // CONTROL
+    // ============================================================
+
     public void Reproducir()
     {
         reproducirAutomaticamente =
@@ -750,9 +744,11 @@ public class PvZReanimRenderer : MonoBehaviour
 
     public void Reiniciar()
     {
-        tiempoFrames = 0f;
+        tiempoFrames =
+            0f;
 
-        AplicarTiempo(0f);
+        AplicarTiempo(
+            0f);
     }
 
     public void IrAFrame(
@@ -764,6 +760,10 @@ public class PvZReanimRenderer : MonoBehaviour
         AplicarTiempo(
             tiempoFrames);
     }
+
+    // ============================================================
+    // PROPIEDADES
+    // ============================================================
 
     public int FrameActual
     {
@@ -807,12 +807,19 @@ public class PvZReanimRenderer : MonoBehaviour
         }
     }
 
+    // ============================================================
+    // LIMPIEZA
+    // ============================================================
+
     private void OnDestroy()
     {
         renderTracks.Clear();
 
-        atlas = null;
-        reanim = null;
+        if (atlas != null)
+        {
+            atlas.Dispose();
+            atlas = null;
+        }
 
         if (raiz != null)
         {
@@ -820,6 +827,9 @@ public class PvZReanimRenderer : MonoBehaviour
             raiz = null;
         }
 
-        listo = false;
+        reanim = null;
+
+        listo =
+            false;
     }
 }
