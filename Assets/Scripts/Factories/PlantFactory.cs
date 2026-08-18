@@ -6,7 +6,8 @@ public class PlantFactory : MonoBehaviour
 
     private void Awake()
     {
-        if (Instancia != null && Instancia != this)
+        if (Instancia != null &&
+            Instancia != this)
         {
             Destroy(gameObject);
             return;
@@ -22,7 +23,10 @@ public class PlantFactory : MonoBehaviour
     {
         if (datos == null)
         {
-            Debug.LogError("[PvZ] PlantData es null.");
+            Debug.LogError(
+                "[PvZ] PlantData es null."
+            );
+
             return null;
         }
 
@@ -39,26 +43,23 @@ public class PlantFactory : MonoBehaviour
 
         if (Board.Instancia == null)
         {
-            Debug.LogError("[PvZ] No existe Board.");
+            Debug.LogError(
+                "[PvZ] No existe Board."
+            );
+
             return null;
         }
 
-        Cell cell =
+        Cell celda =
             Board.Instancia.ObtenerCelda(
                 fila,
                 columna
             );
 
-        if (cell == null)
-        {
-            Debug.LogWarning(
-                "[PvZ] La celda no existe."
-            );
-
+        if (celda == null)
             return null;
-        }
 
-        if (!cell.PuedePlantar())
+        if (!celda.PuedePlantar())
         {
             Debug.LogWarning(
                 "[PvZ] La celda ya está ocupada."
@@ -68,20 +69,17 @@ public class PlantFactory : MonoBehaviour
         }
 
         Plant planta =
-            Instantiate(datos.prefab);
+            Instantiate(
+                datos.prefab,
+                celda.posicion,
+                Quaternion.identity
+            );
 
         planta.Inicializar(
             fila,
             columna,
             datos
         );
-
-        if (PlantManager.Instancia != null)
-        {
-            PlantManager.Instancia.RegistrarPlanta(
-                planta
-            );
-        }
 
         return planta;
     }
