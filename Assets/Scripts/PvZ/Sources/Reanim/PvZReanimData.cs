@@ -1,9 +1,6 @@
 using System;
 using System.Collections.Generic;
 
-/// <summary>
-/// Datos completos de una animación REANIM.
-/// </summary>
 [Serializable]
 public class PvZReanimData
 {
@@ -13,9 +10,6 @@ public class PvZReanimData
         new List<PvZReanimTrack>();
 }
 
-/// <summary>
-/// Una pieza individual del REANIM.
-/// </summary>
 [Serializable]
 public class PvZReanimTrack
 {
@@ -25,29 +19,28 @@ public class PvZReanimTrack
         new List<PvZReanimFrame>();
 }
 
-/// <summary>
-/// Estado de una pieza en un frame.
-/// </summary>
 [Serializable]
 public class PvZReanimFrame
 {
-    // Posición REANIM.
+    // Frame real dentro del REANIM.
+    public int frameNumber;
+
+    // Transformación.
     public float x;
     public float y;
 
-    // Escala REANIM.
     public float sx = 1f;
     public float sy = 1f;
 
-    // Rotación REANIM.
-    // Se conserva como float para no perder precisión.
-    public float f;
+    // Rotación.
+    public float rotation;
 
-    // Imagen utilizada por este frame.
+    // Alpha.
+    public float alpha = 1f;
+
+    // Imagen.
     public string image;
 
-    // Indica si el frame contenía alguna
-    // transformación explícita.
     public bool tieneTransformacion;
 
     public bool TieneImagen
@@ -62,11 +55,13 @@ public class PvZReanimFrame
     {
         return new PvZReanimFrame
         {
+            frameNumber = frameNumber,
             x = x,
             y = y,
             sx = sx,
             sy = sy,
-            f = f,
+            rotation = rotation,
+            alpha = alpha,
             image = image,
             tieneTransformacion = tieneTransformacion
         };
@@ -75,11 +70,13 @@ public class PvZReanimFrame
     public override string ToString()
     {
         return
-            "X=" + x +
+            "Frame=" + frameNumber +
+            " X=" + x +
             " Y=" + y +
             " SX=" + sx +
             " SY=" + sy +
-            " F=" + f +
+            " R=" + rotation +
+            " A=" + alpha +
             " IMAGE=" + image;
     }
 }

@@ -8,8 +8,9 @@ using UnityEngine;
 ///
 /// Se encarga de:
 /// - Cargar el REANIM desde el PAK.
+/// - Crear el Atlas de imágenes.
 /// - Crear los tracks.
-/// - Obtener las imágenes desde el PAK.
+/// - Obtener los sprites desde el Atlas.
 /// - Controlar la reproducción.
 /// - Enviar cada frame a PvZReanimTrackRenderer.
 /// </summary>
@@ -52,9 +53,12 @@ public class PvZReanimRenderer : MonoBehaviour
 
     private UnityEngine.GameObject raiz;
 
-    private readonly Dictionary<string, Sprite> sprites =
-        new Dictionary<string, Sprite>(
-            StringComparer.OrdinalIgnoreCase);
+    /*
+     * YA NO usamos este diccionario para cargar las texturas.
+     *
+     * El Atlas es quien mantiene los Sprite.
+     */
+    private PvZReanimAtlas atlas;
 
     private readonly List<PvZReanimTrackRenderer> renderTracks =
         new List<PvZReanimTrackRenderer>();
@@ -165,6 +169,27 @@ public class PvZReanimRenderer : MonoBehaviour
         cantidadFrames =
             ObtenerCantidadFrames();
 
+        // ========================================================
+        // CREAR ATLAS
+        // ========================================================
+
+        atlas =
+            new PvZReanimAtlas();
+
+        bool atlasCreado =
+            atlas.Build(
+                reanim,
+                CargarTexturaImagen);
+
+        if (mostrarDebug)
+        {
+            Debug.Log(
+                "[PvZ Reanim] Atlas creado: " +
+                atlasCreado +
+                " | Sprites: " +
+                atlas.Count);
+        }
+
         if (mostrarDebug)
         {
             Debug.Log(
@@ -178,6 +203,91 @@ public class PvZReanimRenderer : MonoBehaviour
         }
 
         return true;
+    }
+
+    // ============================================================
+    // CARGAR TEXTURA PARA EL ATLAS
+    // ============================================================
+
+    private Texture2D CargarTexturaImagen(
+        string nombreImagen)
+    {
+        if (PvZResourceManager.Instancia == null)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(nombreImagen))
+        {
+            return null;
+        }
+
+        string ruta =
+            ConvertirImagenARuta(
+                nombreImagen);
+
+        if (mostrarDebug)
+        {
+            Debug.Log(
+                "[PvZ Reanim Atlas] Imagen: " +
+                nombreImagen +
+                " -> " +
+                ruta);
+        }
+
+        byte[] datos =
+            PvZResourceManager.Instancia.Leer(
+                ruta);
+
+        if (datos == null ||
+            datos.Length == 0)
+        {
+            if (mostrarDebug)
+            {
+                Debug.LogWarning(
+                    "[PvZ Reanim Atlas] " +
+                    "Imagen no encontrada: " +
+                    ruta);
+            }
+
+            return null;
+        }
+
+        Texture2D textura =
+            new Texture2D(
+                2,
+                2,
+                TextureFormat.RGBA32,
+                false);
+
+        textura.name =
+            nombreImagen;
+
+        textura.filterMode =
+            FilterMode.Point;
+
+        textura.wrapMode =
+            TextureWrapMode.Clamp;
+
+        bool cargada =
+            textura.LoadImage(
+                datos,
+                false);
+
+        if (!cargada)
+        {
+            Debug.LogError(
+                "[PvZ Reanim Atlas] " +
+                "No se pudo cargar: " +
+                nombreImagen);
+
+            UnityEngine.Object.Destroy(
+                textura);
+
+            return null;
+        }
+
+        return textura;
     }
 
     // ============================================================
@@ -437,122 +547,62 @@ public class PvZReanimRenderer : MonoBehaviour
     public Sprite ObtenerSprite(
         string nombreImagen)
     {
-        if (string.IsNullOrWhiteSpace(nombreImagen))
+        if (string.IsNullOrWhiteSpace(
+            nombreImagen))
         {
+            return null;
+        }
+
+        if (atlas == null)
+        {
+            Debug.LogError(
+                "[PvZ Reanim] " +
+                "Atlas no inicializado.");
+
             return null;
         }
 
         nombreImagen =
             nombreImagen.Trim();
 
-        Sprite sprite;
+        // ========================================================
+        // PRIMERO: BUSCAR EN EL ATLAS
+        // ========================================================
 
-        if (sprites.TryGetValue(
-            nombreImagen,
-            out sprite))
+        Sprite sprite =
+            atlas.Get(
+                nombreImagen);
+
+        if (sprite != null)
         {
             return sprite;
         }
 
-        if (PvZResourceManager.Instancia == null)
-        {
-            Debug.LogError(
-                "[PvZ Reanim] " +
-                "ResourceManager no disponible.");
-
-            return null;
-        }
-
-        string ruta =
-            ConvertirImagenARuta(
-                nombreImagen);
-
-        if (mostrarDebug)
-        {
-            Debug.Log(
-                "[PvZ Reanim] Imagen: " +
-                nombreImagen +
-                " -> " +
-                ruta);
-        }
-
-        byte[] datos =
-            PvZResourceManager.Instancia.Leer(
-                ruta);
-
-        if (datos == null ||
-            datos.Length == 0)
-        {
-            Debug.LogWarning(
-                "[PvZ Reanim] " +
-                "Imagen no encontrada: " +
-                ruta);
-
-            return null;
-        }
-
-        Texture2D textura =
-            new Texture2D(
-                2,
-                2,
-                TextureFormat.RGBA32,
-                false);
-
-        textura.name =
-            nombreImagen;
-
-        bool cargada =
-            textura.LoadImage(
-                datos,
-                false);
-
-        if (!cargada)
-        {
-            Debug.LogError(
-                "[PvZ Reanim] " +
-                "No se pudo cargar: " +
-                nombreImagen);
-
-            Destroy(textura);
-
-            return null;
-        }
-
-        // PvZ utiliza pixel art.
-        textura.filterMode =
-            FilterMode.Point;
-
-        textura.wrapMode =
-            TextureWrapMode.Clamp;
-
-        // --------------------------------------------------------
-        // SPRITE
-        // --------------------------------------------------------
+        // ========================================================
+        // FALLBACK
+        // ========================================================
         //
-        // Mantenemos el pivot central por ahora.
-        // No lo cambiamos arbitrariamente hasta comprobar
-        // los offsets reales del REANIM.
-        // --------------------------------------------------------
+        // Si una imagen no pudo entrar en el Atlas
+        // (por ejemplo, demasiado grande), se carga individualmente.
+        //
 
         sprite =
-            Sprite.Create(
-                textura,
-                new Rect(
-                    0f,
-                    0f,
-                    textura.width,
-                    textura.height),
-                new Vector2(
-                    0.5f,
-                    0.5f),
-                100f);
+            atlas.GetIndividual(
+                nombreImagen,
+                CargarTexturaImagen);
 
-        sprite.name =
-            nombreImagen;
+        if (sprite == null)
+        {
+            if (mostrarDebug)
+            {
+                Debug.LogWarning(
+                    "[PvZ Reanim] " +
+                    "Imagen no encontrada: " +
+                    nombreImagen);
+            }
 
-        sprites[
-            nombreImagen] =
-            sprite;
+            return null;
+        }
 
         return sprite;
     }
@@ -723,32 +773,23 @@ public class PvZReanimRenderer : MonoBehaviour
 
     private void OnDestroy()
     {
-        foreach (
-            KeyValuePair<string, Sprite> entrada
-            in sprites)
+        // ========================================================
+        // DESTRUIR ATLAS
+        // ========================================================
+
+        if (atlas != null)
         {
-            Sprite sprite =
-                entrada.Value;
+            atlas.Dispose();
 
-            if (sprite == null)
-            {
-                continue;
-            }
-
-            Texture2D textura =
-                sprite.texture;
-
-            Destroy(sprite);
-
-            if (textura != null)
-            {
-                Destroy(textura);
-            }
+            atlas =
+                null;
         }
 
-        sprites.Clear();
-
         renderTracks.Clear();
+
+        // ========================================================
+        // RAÍZ
+        // ========================================================
 
         if (raiz != null)
         {

@@ -1,21 +1,8 @@
 using System;
 using UnityEngine;
 
-/// <summary>
-/// Renderiza una pieza individual de una REANIM.
-///
-/// Utiliza directamente PvZReanimFrame generado por
-/// PvZReanimParser. No utiliza reflexión.
-///
-/// Incluye DEBUG temporal para analizar los primeros
-/// frames del REANIM.
-/// </summary>
 public class PvZReanimTrackRenderer : MonoBehaviour
 {
-    // ============================================================
-    // DATOS
-    // ============================================================
-
     private PvZReanimRenderer propietario;
 
     private PvZReanimTrack track;
@@ -26,13 +13,7 @@ public class PvZReanimTrackRenderer : MonoBehaviour
 
     private int indiceTrack;
 
-    private int ultimoFrame = -1;
-
     private bool inicializado;
-
-    // ============================================================
-    // INICIALIZAR
-    // ============================================================
 
     public void Inicializar(
         PvZReanimRenderer propietario,
@@ -51,45 +32,29 @@ public class PvZReanimTrackRenderer : MonoBehaviour
         {
             this.spriteRenderer.enabled = false;
 
-            // Los tracks posteriores se dibujan encima.
-            this.spriteRenderer.sortingOrder = indiceTrack;
+            this.spriteRenderer.sortingOrder =
+                indiceTrack;
         }
     }
-
-    // ============================================================
-    // APLICAR FRAME
-    // ============================================================
 
     public void AplicarFrame(
         int indiceFrame,
         float escala)
     {
-        if (!inicializado)
-        {
-            return;
-        }
-
-        if (track == null ||
-            spriteRenderer == null)
-        {
-            return;
-        }
-
-        if (track.frames == null ||
+        if (!inicializado ||
+            track == null ||
+            spriteRenderer == null ||
+            track.frames == null ||
             track.frames.Count == 0)
         {
-            spriteRenderer.enabled = false;
             return;
         }
 
-        // --------------------------------------------------------
-        // CLAMP
-        // --------------------------------------------------------
-
-        indiceFrame = Mathf.Clamp(
-            indiceFrame,
-            0,
-            track.frames.Count - 1);
+        indiceFrame =
+            Mathf.Clamp(
+                indiceFrame,
+                0,
+                track.frames.Count - 1);
 
         PvZReanimFrame frame =
             track.frames[indiceFrame];
@@ -100,40 +65,24 @@ public class PvZReanimTrackRenderer : MonoBehaviour
             return;
         }
 
-        ultimoFrame = indiceFrame;
+        // --------------------------------------------------------
+        // SPRITE
+        // --------------------------------------------------------
 
-        // ========================================================
-        // IMAGEN
-        // ========================================================
-
-        string nombreImagen =
-            frame.image;
-
-        if (!string.IsNullOrWhiteSpace(nombreImagen))
+        if (!string.IsNullOrWhiteSpace(
+            frame.image))
         {
-            nombreImagen =
-                nombreImagen.Trim();
-
             if (!string.Equals(
                 ultimaImagen,
-                nombreImagen,
+                frame.image,
                 StringComparison.OrdinalIgnoreCase))
             {
-                Sprite sprite =
-                    propietario.ObtenerSprite(
-                        nombreImagen);
-
                 spriteRenderer.sprite =
-                    sprite;
+                    propietario.ObtenerSprite(
+                        frame.image);
 
                 ultimaImagen =
-                    nombreImagen;
-            }
-            else if (spriteRenderer.sprite == null)
-            {
-                spriteRenderer.sprite =
-                    propietario.ObtenerSprite(
-                        nombreImagen);
+                    frame.image;
             }
         }
         else
@@ -142,22 +91,237 @@ public class PvZReanimTrackRenderer : MonoBehaviour
             ultimaImagen = null;
         }
 
-        // ========================================================
-        // VISIBILIDAD
-        // ========================================================
+        if (spriteRenderer.sprite == null)
+        {
+            spriteRenderer.enabled = false;
+            return;
+        }
 
-        spriteRenderer.enabled =
-            spriteRenderer.sprite != null;
+        spriteRenderer.enabled = true;
 
-        // ========================================================
-        // POSICIÓN
-        // ========================================================
+        // --------------------------------------------------------
+        // TRANSFORMACIÓN
+        // --------------------------------------------------------
+
+        transform.localPosition =
+            new Vector3(
+                frame.x * escala,
+                -frame.y * escala,
+                0f);
+
+        float sx =
+            frame.sx;
+
+        float sy =
+            frame.sy;
+
+        if (Mathf.Approximately(
+            sx,
+            0f))
+        {
+            sx = 1f;
+        }
+
+        if (Mathf.Approximately(
+            sy,
+            0f))
+        {
+            sy = 1f;
+        }
+
+        transform.localScale =
+            new Vector3(
+                sx,
+                sy,
+                1f);
+
+        transform.localRotation =
+            Quaternion.Euler(
+                0f,
+                0f,
+                -frame.rotation);
+
+        // --------------------------------------------------------
+        // ALPHA
+        // --------------------------------------------------------
+
+        Color color =
+            spriteRenderer.color;
+
+        color.a =
+            Mathf.Clamp01(
+                frame.alpha);
+
+        spriteRenderer.color =
+            color;
+    }
+
+    public void AplicarTiempo(
+        float tiempoFrames,
+        float escala)
+    {
+        if (!inicializado ||
+            track == null ||
+            track.frames == null ||
+            track.frames.Count == 0)
+        {
+            return;
+        }
+
+        if (track.frames.Count == 1)
+        {
+            AplicarFrame(
+                0,
+                escala);
+
+            return;
+        }
+
+        // --------------------------------------------------------
+        // Encontrar frame anterior/siguiente.
+        // --------------------------------------------------------
+
+        PvZReanimFrame anterior =
+            track.frames[0];
+
+        PvZReanimFrame siguiente =
+            track.frames[
+                track.frames.Count - 1];
+
+        for (
+            int i = 0;
+            i < track.frames.Count;
+            i++)
+        {
+            PvZReanimFrame actual =
+                track.frames[i];
+
+            if (actual.frameNumber <=
+                tiempoFrames)
+            {
+                anterior = actual;
+            }
+
+            if (actual.frameNumber >=
+                tiempoFrames)
+            {
+                siguiente = actual;
+                break;
+            }
+        }
+
+        if (anterior == null ||
+            siguiente == null)
+        {
+            return;
+        }
+
+        float rango =
+            siguiente.frameNumber -
+            anterior.frameNumber;
+
+        float t;
+
+        if (Mathf.Approximately(
+            rango,
+            0f))
+        {
+            t = 0f;
+        }
+        else
+        {
+            t =
+                Mathf.InverseLerp(
+                    anterior.frameNumber,
+                    siguiente.frameNumber,
+                    tiempoFrames);
+        }
+
+        // --------------------------------------------------------
+        // Sprite:
+        // usamos el sprite del frame anterior.
+        // --------------------------------------------------------
+
+        string imagen =
+            !string.IsNullOrWhiteSpace(
+                siguiente.image)
+                ? siguiente.image
+                : anterior.image;
+
+        if (!string.Equals(
+            ultimaImagen,
+            imagen,
+            StringComparison.OrdinalIgnoreCase))
+        {
+            spriteRenderer.sprite =
+                propietario.ObtenerSprite(
+                    imagen);
+
+            ultimaImagen =
+                imagen;
+        }
+
+        if (spriteRenderer.sprite == null)
+        {
+            spriteRenderer.enabled = false;
+            return;
+        }
+
+        spriteRenderer.enabled = true;
+
+        // --------------------------------------------------------
+        // INTERPOLACIÓN
+        // --------------------------------------------------------
 
         float x =
-            frame.x;
+            Mathf.Lerp(
+                anterior.x,
+                siguiente.x,
+                t);
 
         float y =
-            frame.y;
+            Mathf.Lerp(
+                anterior.y,
+                siguiente.y,
+                t);
+
+        float sx =
+            Mathf.Lerp(
+                anterior.sx,
+                siguiente.sx,
+                t);
+
+        float sy =
+            Mathf.Lerp(
+                anterior.sy,
+                siguiente.sy,
+                t);
+
+        float rotacion =
+            Mathf.LerpAngle(
+                anterior.rotation,
+                siguiente.rotation,
+                t);
+
+        float alpha =
+            Mathf.Lerp(
+                anterior.alpha,
+                siguiente.alpha,
+                t);
+
+        if (Mathf.Approximately(
+            sx,
+            0f))
+        {
+            sx = 1f;
+        }
+
+        if (Mathf.Approximately(
+            sy,
+            0f))
+        {
+            sy = 1f;
+        }
 
         transform.localPosition =
             new Vector3(
@@ -165,115 +329,34 @@ public class PvZReanimTrackRenderer : MonoBehaviour
                 -y * escala,
                 0f);
 
-        // ========================================================
-        // DEBUG TEMPORAL
-        // ========================================================
-        //
-        // Solamente mostramos los primeros 6 frames
-        // del Track 0.
-        //
-        // Esto permite comprobar qué está leyendo
-        // realmente el parser.
-        //
-
-        if (indiceTrack == 0 &&
-            indiceFrame <= 5)
-        {
-            Debug.Log(
-                "[PvZ DEBUG FRAME] " +
-                "Track=" +
-                indiceTrack +
-                " | " +
-                track.name +
-                " | Frame=" +
-                indiceFrame +
-                " | X=" +
-                frame.x +
-                " Y=" +
-                frame.y +
-                " SX=" +
-                frame.sx +
-                " SY=" +
-                frame.sy +
-                " F=" +
-                frame.f +
-                " | IMG=" +
-                frame.image);
-        }
-
-        // ========================================================
-        // ESCALA
-        // ========================================================
-
-        float escalaX =
-            frame.sx;
-
-        float escalaY =
-            frame.sy;
-
-        // Algunos REANIM pueden dejar los valores
-        // en cero cuando no existe una transformación
-        // explícita.
-
-        if (escalaX == 0f)
-        {
-            escalaX = 1f;
-        }
-
-        if (escalaY == 0f)
-        {
-            escalaY = 1f;
-        }
-
         transform.localScale =
             new Vector3(
-                escalaX,
-                escalaY,
+                sx,
+                sy,
                 1f);
-
-        // ========================================================
-        // ROTACIÓN
-        // ========================================================
 
         transform.localRotation =
             Quaternion.Euler(
                 0f,
                 0f,
-                -frame.f);
+                -rotacion);
+
+        Color color =
+            spriteRenderer.color;
+
+        color.a =
+            Mathf.Clamp01(alpha);
+
+        spriteRenderer.color =
+            color;
     }
-
-    // ============================================================
-    // DEBUG
-    // ============================================================
-
-    private void Start()
-    {
-        if (!inicializado)
-        {
-            Debug.LogWarning(
-                "[PvZ Reanim Track] " +
-                "TrackRenderer no fue inicializado. " +
-                "Track=" +
-                indiceTrack);
-        }
-    }
-
-    // ============================================================
-    // CLEANUP
-    // ============================================================
 
     private void OnDestroy()
     {
         propietario = null;
-
         track = null;
-
         spriteRenderer = null;
-
         ultimaImagen = null;
-
         inicializado = false;
-
-        ultimoFrame = -1;
     }
 }

@@ -5,40 +5,9 @@ using System.Text;
 using System.Xml;
 using UnityEngine;
 
-/// <summary>
-/// Parser de archivos REANIM de Plants vs Zombies.
-///
-/// Soporta el formato REANIM XML utilizado por PvZ,
-/// incluyendo:
-///
-/// <track>
-///     <name>...</name>
-///     <t>
-///         <f>...</f>
-///         <x>...</x>
-///         <y>...</y>
-///         <sx>...</sx>
-///         <sy>...</sy>
-///         <r>...</r>
-///         <a>...</a>
-///         <i>...</i>
-///     </t>
-/// </track>
-///
-/// También soporta archivos que contienen múltiples
-/// elementos raíz.
-/// </summary>
 public static class PvZReanimParser
 {
-    // ============================================================
-    // CONFIGURACIÓN
-    // ============================================================
-
     private const float DEFAULT_SCALE = 1f;
-
-    // ============================================================
-    // PARSEAR DESDE BYTES
-    // ============================================================
 
     public static PvZReanimData Parse(
         byte[] datos,
@@ -55,10 +24,8 @@ public static class PvZReanimParser
 
         try
         {
-            string texto = Decodificar(datos);
-
             return Parse(
-                texto,
+                Decodificar(datos),
                 nombre);
         }
         catch (Exception ex)
@@ -66,16 +33,12 @@ public static class PvZReanimParser
             Debug.LogError(
                 "[PvZ REANIM] Error leyendo " +
                 nombre +
-                ": " +
+                ":\n" +
                 ex);
 
             return null;
         }
     }
-
-    // ============================================================
-    // PARSEAR DESDE STRING
-    // ============================================================
 
     public static PvZReanimData Parse(
         string texto,
@@ -83,10 +46,6 @@ public static class PvZReanimParser
     {
         if (string.IsNullOrWhiteSpace(texto))
         {
-            Debug.LogError(
-                "[PvZ REANIM] Texto vacío: " +
-                nombre);
-
             return null;
         }
 
@@ -99,12 +58,6 @@ public static class PvZReanimParser
                 return null;
             }
 
-            Debug.Log(
-                "[PvZ REANIM] Parseando: " +
-                nombre +
-                " | Caracteres=" +
-                texto.Length);
-
             return ParseXmlFlexible(
                 texto,
                 nombre);
@@ -112,18 +65,12 @@ public static class PvZReanimParser
         catch (Exception ex)
         {
             Debug.LogError(
-                "[PvZ REANIM] Error de parser en " +
-                nombre +
-                ": " +
+                "[PvZ REANIM] Error parser:\n" +
                 ex);
 
             return null;
         }
     }
-
-    // ============================================================
-    // XML FLEXIBLE
-    // ============================================================
 
     private static PvZReanimData ParseXmlFlexible(
         string texto,
@@ -132,145 +79,112 @@ public static class PvZReanimParser
         PvZReanimData resultado =
             new PvZReanimData();
 
-        // --------------------------------------------------------
-        // Intento 1:
-        // XML normal con una única raíz.
-        // --------------------------------------------------------
-
         XmlDocument documento =
             new XmlDocument();
 
-        bool xmlNormal = false;
+        bool correcto = false;
 
         try
         {
             documento.LoadXml(texto);
-            xmlNormal = true;
+            correcto = true;
         }
         catch (XmlException)
         {
-            // El REANIM puede contener múltiples raíces.
-            // No es un error para nosotros.
         }
 
-        if (xmlNormal)
+        if (!correcto)
         {
-            ParsearDocumento(
-                documento,
-                resultado);
-        }
-        else
-        {
-            // ----------------------------------------------------
-            // Intento 2:
-            // Envolver todo en una raíz artificial.
-            // ----------------------------------------------------
-
-            string envuelto =
-                "<reanim>" +
-                texto +
-                "</reanim>";
-
             try
             {
                 documento =
                     new XmlDocument();
 
-                documento.LoadXml(envuelto);
+                documento.LoadXml(
+                    "<reanim>" +
+                    texto +
+                    "</reanim>");
 
-                ParsearDocumento(
-                    documento,
-                    resultado);
+                correcto = true;
             }
             catch (Exception ex)
             {
                 Debug.LogError(
-                    "[PvZ REANIM] No se pudo interpretar el XML: " +
-                    nombre +
-                    "\n" +
+                    "[PvZ REANIM] XML inválido:\n" +
                     ex);
 
                 return null;
             }
         }
 
+        // --------------------------------------------------------
+        // FPS
+        // --------------------------------------------------------
+
+        float fps;
+
+        if (TryObtenerFloat(
+            documento.DocumentElement,
+            "fps",
+            out fps))
+        {
+            if (fps > 0f)
+            {
+                resultado.fps = fps;
+            }
+        }
+
+        ParsearDocumento(
+            documento,
+            resultado);
+
         Debug.Log(
             "[PvZ REANIM] Parse terminado: " +
             nombre +
+            " | FPS=" +
+            resultado.fps +
             " | Tracks=" +
             resultado.tracks.Count);
 
         return resultado;
     }
 
-    // ============================================================
-    // PARSEAR DOCUMENTO
-    // ============================================================
-
     private static void ParsearDocumento(
         XmlDocument documento,
         PvZReanimData resultado)
     {
-        if (documento == null ||
-            resultado == null)
+        XmlNodeList nodos =
+            documento.SelectNodes("//track");
+
+        if (nodos == null ||
+            nodos.Count == 0)
+        {
+            nodos =
+                documento.SelectNodes("//Track");
+        }
+
+        if (nodos == null)
         {
             return;
         }
 
-        // --------------------------------------------------------
-        // Buscar tracks reales.
-        // --------------------------------------------------------
+        int indice = 0;
 
-        XmlNodeList nodosTrack =
-            documento.SelectNodes(
-                "//track");
-
-        if (nodosTrack == null ||
-            nodosTrack.Count == 0)
-        {
-            nodosTrack =
-                documento.SelectNodes(
-                    "//Track");
-        }
-
-        if (nodosTrack == null ||
-            nodosTrack.Count == 0)
-        {
-            Debug.LogWarning(
-                "[PvZ REANIM] No se encontraron tracks.");
-
-            return;
-        }
-
-        Debug.Log(
-            "[PvZ REANIM] Tracks encontrados: " +
-            nodosTrack.Count);
-
-        // --------------------------------------------------------
-        // TRACKS
-        // --------------------------------------------------------
-
-        int indiceTrack = 0;
-
-        foreach (XmlNode nodoTrack in nodosTrack)
+        foreach (XmlNode nodo in nodos)
         {
             PvZReanimTrack track =
                 ParseTrack(
-                    nodoTrack,
-                    indiceTrack);
+                    nodo,
+                    indice);
 
             if (track != null)
             {
                 resultado.tracks.Add(track);
             }
 
-            indiceTrack++;
+            indice++;
         }
     }
-
-    // ============================================================
-    // TRACK
-    // ============================================================
 
     private static PvZReanimTrack ParseTrack(
         XmlNode nodoTrack,
@@ -283,10 +197,6 @@ public static class PvZReanimParser
 
         PvZReanimTrack track =
             new PvZReanimTrack();
-
-        // ========================================================
-        // NOMBRE
-        // ========================================================
 
         string nombre =
             ObtenerValor(
@@ -312,14 +222,6 @@ public static class PvZReanimParser
         if (string.IsNullOrWhiteSpace(nombre))
         {
             nombre =
-                ObtenerAtributo(
-                    nodoTrack,
-                    "n");
-        }
-
-        if (string.IsNullOrWhiteSpace(nombre))
-        {
-            nombre =
                 "track_" +
                 indiceTrack;
         }
@@ -327,250 +229,196 @@ public static class PvZReanimParser
         track.name =
             nombre.Trim();
 
-        // ========================================================
+        // --------------------------------------------------------
         // ESTADO HEREDADO
-        // ========================================================
+        // --------------------------------------------------------
 
         float ultimoX = 0f;
         float ultimoY = 0f;
 
-        float ultimoSX =
-            DEFAULT_SCALE;
+        float ultimoSX = DEFAULT_SCALE;
+        float ultimoSY = DEFAULT_SCALE;
 
-        float ultimoSY =
-            DEFAULT_SCALE;
-
-        float ultimoF = 0f;
+        float ultimaRotacion = 0f;
+        float ultimoAlpha = 1f;
 
         string ultimaImagen = null;
 
-        // ========================================================
-        // BUSCAR FRAMES
-        // ========================================================
+        // --------------------------------------------------------
+        // FRAMES
+        // --------------------------------------------------------
 
-        List<XmlNode> nodosFrame =
+        List<XmlNode> frames =
             new List<XmlNode>();
 
-        // --------------------------------------------------------
-        // FORMATO PRINCIPAL DE PVZ:
-        //
-        // <t>
-        //     <f>0</f>
-        //     <x>...</x>
-        //     ...
-        // </t>
-        // --------------------------------------------------------
+        XmlNodeList t =
+            nodoTrack.SelectNodes("./t");
 
-        XmlNodeList transformaciones =
-            nodoTrack.SelectNodes(
-                "./t");
-
-        if (transformaciones != null)
+        if (t != null)
         {
-            foreach (XmlNode nodo in transformaciones)
+            foreach (XmlNode nodo in t)
             {
                 if (nodo.NodeType ==
                     XmlNodeType.Element)
                 {
-                    nodosFrame.Add(nodo);
+                    frames.Add(nodo);
                 }
             }
         }
 
-        // --------------------------------------------------------
-        // Compatibilidad con <frame>.
-        // --------------------------------------------------------
-
-        if (nodosFrame.Count == 0)
+        if (frames.Count == 0)
         {
-            XmlNodeList frames =
-                nodoTrack.SelectNodes(
-                    "./frame");
+            XmlNodeList f =
+                nodoTrack.SelectNodes("./frame");
 
-            if (frames != null)
+            if (f != null)
             {
-                foreach (XmlNode nodo in frames)
+                foreach (XmlNode nodo in f)
                 {
                     if (nodo.NodeType ==
                         XmlNodeType.Element)
                     {
-                        nodosFrame.Add(nodo);
+                        frames.Add(nodo);
                     }
                 }
             }
         }
-
-        // --------------------------------------------------------
-        // Compatibilidad con <f>.
-        // --------------------------------------------------------
-
-        if (nodosFrame.Count == 0)
-        {
-            XmlNodeList frames =
-                nodoTrack.SelectNodes(
-                    "./f");
-
-            if (frames != null)
-            {
-                foreach (XmlNode nodo in frames)
-                {
-                    if (nodo.NodeType ==
-                        XmlNodeType.Element)
-                    {
-                        nodosFrame.Add(nodo);
-                    }
-                }
-            }
-        }
-
-        // --------------------------------------------------------
-        // Último intento: buscar t/frame recursivamente.
-        // --------------------------------------------------------
-
-        if (nodosFrame.Count == 0)
-        {
-            foreach (XmlNode nodo in nodoTrack.SelectNodes(".//*"))
-            {
-                if (nodo.NodeType !=
-                    XmlNodeType.Element)
-                {
-                    continue;
-                }
-
-                string nombreNodo =
-                    nodo.Name.ToLowerInvariant();
-
-                if (nombreNodo == "t" ||
-                    nombreNodo == "frame" ||
-                    nombreNodo == "transform")
-                {
-                    nodosFrame.Add(nodo);
-                }
-            }
-        }
-
-        // ========================================================
-        // FRAMES
-        // ========================================================
 
         for (
-            int indiceFrame = 0;
-            indiceFrame < nodosFrame.Count;
-            indiceFrame++)
+            int i = 0;
+            i < frames.Count;
+            i++)
         {
-            XmlNode nodoFrame =
-                nodosFrame[indiceFrame];
+            XmlNode nodo =
+                frames[i];
 
             PvZReanimFrame frame =
                 new PvZReanimFrame();
 
-            // ====================================================
+            // ----------------------------------------------------
+            // NÚMERO DE FRAME
+            // ----------------------------------------------------
+
+            float numeroFrame;
+
+            if (TryObtenerFloat(
+                nodo,
+                "f",
+                out numeroFrame))
+            {
+                frame.frameNumber =
+                    Mathf.RoundToInt(
+                        numeroFrame);
+            }
+            else
+            {
+                frame.frameNumber = i;
+            }
+
+            // ----------------------------------------------------
             // X
-            // ====================================================
+            // ----------------------------------------------------
 
             float valor;
 
             if (TryObtenerFloat(
-                nodoFrame,
+                nodo,
                 "x",
                 out valor))
             {
                 ultimoX = valor;
             }
 
-            frame.x =
-                ultimoX;
+            frame.x = ultimoX;
 
-            // ====================================================
+            // ----------------------------------------------------
             // Y
-            // ====================================================
+            // ----------------------------------------------------
 
             if (TryObtenerFloat(
-                nodoFrame,
+                nodo,
                 "y",
                 out valor))
             {
                 ultimoY = valor;
             }
 
-            frame.y =
-                ultimoY;
+            frame.y = ultimoY;
 
-            // ====================================================
+            // ----------------------------------------------------
             // SCALE X
-            // ====================================================
+            // ----------------------------------------------------
 
             if (TryObtenerFloat(
-                nodoFrame,
+                nodo,
                 "sx",
                 out valor))
             {
                 ultimoSX = valor;
             }
 
-            frame.sx =
-                ultimoSX;
+            frame.sx = ultimoSX;
 
-            // ====================================================
+            // ----------------------------------------------------
             // SCALE Y
-            // ====================================================
+            // ----------------------------------------------------
 
             if (TryObtenerFloat(
-                nodoFrame,
+                nodo,
                 "sy",
                 out valor))
             {
                 ultimoSY = valor;
             }
 
-            frame.sy =
-                ultimoSY;
+            frame.sy = ultimoSY;
 
-            // ====================================================
+            // ----------------------------------------------------
             // ROTACIÓN
-            // ====================================================
+            // ----------------------------------------------------
 
             if (TryObtenerFloat(
-                nodoFrame,
+                nodo,
                 "r",
                 out valor))
             {
-                ultimoF = valor;
+                ultimaRotacion = valor;
             }
-            else if (TryObtenerFloat(
-                nodoFrame,
-                "f",
+
+            frame.rotation =
+                ultimaRotacion;
+
+            // ----------------------------------------------------
+            // ALPHA
+            // ----------------------------------------------------
+
+            if (TryObtenerFloat(
+                nodo,
+                "a",
                 out valor))
             {
-                ultimoF = valor;
+                ultimoAlpha =
+                    valor;
             }
 
-            frame.f =
-                ultimoF;
+            frame.alpha =
+                ultimoAlpha;
 
-            // ====================================================
+            // ----------------------------------------------------
             // IMAGEN
-            // ====================================================
+            // ----------------------------------------------------
 
             string imagen =
                 ObtenerValor(
-                    nodoFrame,
+                    nodo,
                     "i");
 
             if (string.IsNullOrWhiteSpace(imagen))
             {
                 imagen =
                     ObtenerValor(
-                        nodoFrame,
+                        nodo,
                         "image");
-            }
-
-            if (string.IsNullOrWhiteSpace(imagen))
-            {
-                imagen =
-                    ObtenerValor(
-                        nodoFrame,
-                        "img");
             }
 
             if (!string.IsNullOrWhiteSpace(imagen))
@@ -582,52 +430,23 @@ public static class PvZReanimParser
             frame.image =
                 ultimaImagen;
 
-            // ====================================================
-            // TRANSFORMACIÓN
-            // ====================================================
+            frame.tieneTransformacion = true;
 
-            frame.tieneTransformacion =
-                true;
-
-            // ====================================================
-            // GUARDAR
-            // ====================================================
-
-            track.frames.Add(
-                frame);
-
-            // ====================================================
-            // DEBUG
-            // ====================================================
+            track.frames.Add(frame);
 
             if (indiceTrack == 0 &&
-                indiceFrame < 10)
+                i < 10)
             {
                 Debug.Log(
-                    "[PvZ REANIM PARSER] " +
-                    "Track=" +
-                    indiceTrack +
-                    " | " +
+                    "[PvZ REANIM] " +
                     track.name +
-                    " | Frame=" +
-                    indiceFrame +
-                    " | X=" +
-                    frame.x +
-                    " | Y=" +
-                    frame.y +
-                    " | SX=" +
-                    frame.sx +
-                    " | SY=" +
-                    frame.sy +
-                    " | F=" +
-                    frame.f +
-                    " | IMG=" +
-                    frame.image);
+                    " | " +
+                    frame);
             }
         }
 
         Debug.Log(
-            "[PvZ REANIM PARSER] Track " +
+            "[PvZ REANIM] Track " +
             indiceTrack +
             " '" +
             track.name +
@@ -636,10 +455,6 @@ public static class PvZReanimParser
 
         return track;
     }
-
-    // ============================================================
-    // OBTENER VALOR DE ELEMENTO
-    // ============================================================
 
     private static string ObtenerValor(
         XmlNode nodo,
@@ -650,10 +465,6 @@ public static class PvZReanimParser
             return null;
         }
 
-        // --------------------------------------------------------
-        // Primero buscar como atributo.
-        // --------------------------------------------------------
-
         string atributo =
             ObtenerAtributo(
                 nodo,
@@ -663,10 +474,6 @@ public static class PvZReanimParser
         {
             return atributo;
         }
-
-        // --------------------------------------------------------
-        // Buscar elemento hijo directo.
-        // --------------------------------------------------------
 
         foreach (XmlNode hijo in nodo.ChildNodes)
         {
@@ -688,10 +495,6 @@ public static class PvZReanimParser
         return null;
     }
 
-    // ============================================================
-    // FLOAT
-    // ============================================================
-
     private static bool TryObtenerFloat(
         XmlNode nodo,
         string nombre,
@@ -709,41 +512,12 @@ public static class PvZReanimParser
             return false;
         }
 
-        texto =
-            texto.Trim();
-
-        // --------------------------------------------------------
-        // Cultura invariante.
-        // --------------------------------------------------------
-
-        if (float.TryParse(
-            texto,
+        return float.TryParse(
+            texto.Trim(),
             NumberStyles.Float,
             CultureInfo.InvariantCulture,
-            out resultado))
-        {
-            return true;
-        }
-
-        // --------------------------------------------------------
-        // Cultura actual.
-        // --------------------------------------------------------
-
-        if (float.TryParse(
-            texto,
-            NumberStyles.Float,
-            CultureInfo.CurrentCulture,
-            out resultado))
-        {
-            return true;
-        }
-
-        return false;
+            out resultado);
     }
-
-    // ============================================================
-    // ATRIBUTO
-    // ============================================================
 
     private static string ObtenerAtributo(
         XmlNode nodo,
@@ -755,33 +529,21 @@ public static class PvZReanimParser
             return null;
         }
 
-        XmlAttribute atributo =
-            nodo.Attributes[nombre];
-
-        if (atributo != null)
-        {
-            return atributo.Value;
-        }
-
         foreach (
-            XmlAttribute attr
+            XmlAttribute atributo
             in nodo.Attributes)
         {
             if (string.Equals(
-                attr.Name,
+                atributo.Name,
                 nombre,
                 StringComparison.OrdinalIgnoreCase))
             {
-                return attr.Value;
+                return atributo.Value;
             }
         }
 
         return null;
     }
-
-    // ============================================================
-    // LIMPIAR TEXTO
-    // ============================================================
 
     private static string LimpiarTexto(
         string texto)
@@ -791,19 +553,11 @@ public static class PvZReanimParser
             return string.Empty;
         }
 
-        // BOM UTF-8.
-        texto =
-            texto.TrimStart(
-                '\uFEFF',
-                '\u200B',
-                '\u0000');
-
-        return texto.Trim();
+        return texto.TrimStart(
+            '\uFEFF',
+            '\u200B',
+            '\u0000').Trim();
     }
-
-    // ============================================================
-    // DECODIFICACIÓN
-    // ============================================================
 
     private static string Decodificar(
         byte[] datos)
@@ -813,10 +567,6 @@ public static class PvZReanimParser
         {
             return string.Empty;
         }
-
-        // --------------------------------------------------------
-        // Detectar BOM UTF-8.
-        // --------------------------------------------------------
 
         if (datos.Length >= 3 &&
             datos[0] == 0xEF &&
@@ -829,10 +579,6 @@ public static class PvZReanimParser
                 datos.Length - 3);
         }
 
-        // --------------------------------------------------------
-        // UTF-16 LE BOM.
-        // --------------------------------------------------------
-
         if (datos.Length >= 2 &&
             datos[0] == 0xFF &&
             datos[1] == 0xFE)
@@ -842,10 +588,6 @@ public static class PvZReanimParser
                 2,
                 datos.Length - 2);
         }
-
-        // --------------------------------------------------------
-        // UTF-16 BE BOM.
-        // --------------------------------------------------------
 
         if (datos.Length >= 2 &&
             datos[0] == 0xFE &&
@@ -857,10 +599,6 @@ public static class PvZReanimParser
                 datos.Length - 2);
         }
 
-        // --------------------------------------------------------
-        // UTF-8 normal.
-        // --------------------------------------------------------
-
         string utf8 =
             Encoding.UTF8.GetString(datos);
 
@@ -869,38 +607,22 @@ public static class PvZReanimParser
             return utf8;
         }
 
-        // --------------------------------------------------------
-        // UTF-16 LE.
-        // --------------------------------------------------------
+        string unicode =
+            Encoding.Unicode.GetString(datos);
 
-        if (datos.Length >= 2)
+        if (unicode.IndexOf('<') >= 0)
         {
-            string unicode =
-                Encoding.Unicode.GetString(datos);
-
-            if (unicode.IndexOf('<') >= 0)
-            {
-                return unicode;
-            }
-
-            // ----------------------------------------------------
-            // UTF-16 BE.
-            // ----------------------------------------------------
-
-            string bigEndian =
-                Encoding.BigEndianUnicode.GetString(datos);
-
-            if (bigEndian.IndexOf('<') >= 0)
-            {
-                return bigEndian;
-            }
+            return unicode;
         }
 
-        // --------------------------------------------------------
-        // ASCII.
-        // --------------------------------------------------------
+        string bigEndian =
+            Encoding.BigEndianUnicode.GetString(datos);
 
-        return Encoding.ASCII.GetString(
-            datos);
+        if (bigEndian.IndexOf('<') >= 0)
+        {
+            return bigEndian;
+        }
+
+        return Encoding.ASCII.GetString(datos);
     }
 }
