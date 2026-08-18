@@ -4,8 +4,7 @@ namespace PvZReanim
 {
     [RequireComponent(typeof(MeshFilter))]
     [RequireComponent(typeof(MeshRenderer))]
-    public class PvZReanimMeshRenderer :
-        MonoBehaviour
+    public class PvZReanimMeshRenderer : MonoBehaviour
     {
         private MeshFilter meshFilter;
 
@@ -23,13 +22,22 @@ namespace PvZReanim
 
         private Material material;
 
+        private bool initialized;
+
         private void Awake()
         {
             Initialize();
         }
 
+        // =========================================================
+        // INITIALIZATION
+        // =========================================================
+
         private void Initialize()
         {
+            if (initialized)
+                return;
+
             meshFilter =
                 GetComponent<MeshFilter>();
 
@@ -59,29 +67,32 @@ namespace PvZReanim
                     0, 1, 2,
                     2, 3, 0
                 };
+
+            initialized = true;
         }
+
+        // =========================================================
+        // APPLY
+        // =========================================================
 
         public void Apply(
             Sprite sprite,
-            PvZReanimTransform transform,
+            PvZReanimTransform transformData,
             PvZReanimTrackInstance instance)
         {
             if (sprite == null ||
-                transform == null ||
+                transformData == null ||
                 instance == null)
             {
                 Hide();
                 return;
             }
 
-            if (mesh == null)
-            {
-                Initialize();
-            }
+            Initialize();
 
             BuildMesh(
                 sprite,
-                transform
+                transformData
             );
 
             UpdateMaterial(
@@ -89,7 +100,7 @@ namespace PvZReanim
             );
 
             UpdateColor(
-                transform,
+                transformData,
                 instance
             );
 
@@ -98,10 +109,17 @@ namespace PvZReanim
                 PvZReanimRenderGroup.Hidden;
         }
 
+        // =========================================================
+        // BUILD MESH
+        // =========================================================
+
         private void BuildMesh(
             Sprite sprite,
-            PvZReanimTransform transform)
+            PvZReanimTransform transformData)
         {
+            if (sprite == null)
+                return;
+
             float pixelsPerUnit =
                 sprite.pixelsPerUnit;
 
@@ -171,7 +189,7 @@ namespace PvZReanim
 
             PvZReanimMatrix matrix =
                 PvZReanimMatrix.FromTransform(
-                    transform
+                    transformData
                 );
 
             for (int i = 0;
@@ -182,6 +200,37 @@ namespace PvZReanim
                     matrix.MultiplyPoint(
                         vertices[i]
                     );
+            }
+
+            BuildUVs(
+                sprite
+            );
+
+            mesh.Clear();
+
+            mesh.vertices =
+                vertices;
+
+            mesh.uv =
+                uvs;
+
+            mesh.triangles =
+                triangles;
+
+            mesh.RecalculateBounds();
+        }
+
+        // =========================================================
+        // UV
+        // =========================================================
+
+        private void BuildUVs(
+            Sprite sprite)
+        {
+            if (sprite == null ||
+                sprite.texture == null)
+            {
+                return;
             }
 
             Rect textureRect =
@@ -238,20 +287,11 @@ namespace PvZReanim
                     uMin,
                     vMax
                 );
-
-            mesh.Clear();
-
-            mesh.vertices =
-                vertices;
-
-            mesh.uv =
-                uvs;
-
-            mesh.triangles =
-                triangles;
-
-            mesh.RecalculateBounds();
         }
+
+        // =========================================================
+        // MATERIAL
+        // =========================================================
 
         private void UpdateMaterial(
             Texture2D texture)
@@ -273,6 +313,8 @@ namespace PvZReanim
                 Destroy(
                     material
                 );
+
+                material = null;
             }
 
             Shader shader =
@@ -306,8 +348,12 @@ namespace PvZReanim
                 material;
         }
 
+        // =========================================================
+        // COLOR
+        // =========================================================
+
         private void UpdateColor(
-            PvZReanimTransform transform,
+            PvZReanimTransform transformData,
             PvZReanimTrackInstance instance)
         {
             if (material == null)
@@ -317,10 +363,7 @@ namespace PvZReanim
                 instance.trackColor;
 
             float alpha =
-                transform.alpha ==
-                PvZReanimConstants.MissingValue
-                    ? 1f
-                    : transform.alpha;
+                transformData.GetAlpha();
 
             color.a *=
                 Mathf.Clamp01(
@@ -331,15 +374,18 @@ namespace PvZReanim
                 color;
         }
 
+        // =========================================================
+        // SORTING
+        // =========================================================
+
         public void SetSorting(
             int sortingLayerID,
             int sortingOrder)
         {
+            Initialize();
+
             if (meshRenderer == null)
-            {
-                meshRenderer =
-                    GetComponent<MeshRenderer>();
-            }
+                return;
 
             meshRenderer.sortingLayerID =
                 sortingLayerID;
@@ -348,8 +394,18 @@ namespace PvZReanim
                 sortingOrder;
         }
 
+        // =========================================================
+        // VISIBILITY
+        // =========================================================
+
         public void Hide()
         {
+            if (meshRenderer == null)
+            {
+                meshRenderer =
+                    GetComponent<MeshRenderer>();
+            }
+
             if (meshRenderer == null)
                 return;
 
@@ -360,11 +416,21 @@ namespace PvZReanim
         public void Show()
         {
             if (meshRenderer == null)
+            {
+                meshRenderer =
+                    GetComponent<MeshRenderer>();
+            }
+
+            if (meshRenderer == null)
                 return;
 
             meshRenderer.enabled =
                 true;
         }
+
+        // =========================================================
+        // CLEANUP
+        // =========================================================
 
         private void OnDestroy()
         {
@@ -373,6 +439,8 @@ namespace PvZReanim
                 Destroy(
                     mesh
                 );
+
+                mesh = null;
             }
 
             if (material != null)
@@ -380,6 +448,8 @@ namespace PvZReanim
                 Destroy(
                     material
                 );
+
+                material = null;
             }
         }
     }
