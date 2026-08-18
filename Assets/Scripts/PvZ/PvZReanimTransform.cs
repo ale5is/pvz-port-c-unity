@@ -15,6 +15,12 @@ namespace PvZReanim
         public Sprite image;
 
         // =========================================================
+        // FONT
+        // =========================================================
+
+        public string fontName;
+
+        // =========================================================
         // POSITION
         // =========================================================
 
@@ -79,6 +85,9 @@ namespace PvZReanim
             copy.image =
                 image;
 
+            copy.fontName =
+                fontName;
+
             copy.x =
                 x;
 
@@ -119,6 +128,9 @@ namespace PvZReanim
                 null;
 
             image =
+                null;
+
+            fontName =
                 null;
 
             x =
@@ -171,7 +183,7 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // VALIDATION
+        // IMAGE VALIDATION
         // =========================================================
 
         public bool HasImageName =>
@@ -182,40 +194,34 @@ namespace PvZReanim
         public bool HasImage =>
             image != null;
 
+        // =========================================================
+        // FONT
+        // =========================================================
+
+        public bool HasFont =>
+            !string.IsNullOrEmpty(
+                fontName
+            );
+
+        public string GetFont(
+            string fallback = null)
+        {
+            return string.IsNullOrEmpty(
+                fontName
+            )
+                ? fallback
+                : fontName;
+        }
+
+        // =========================================================
+        // POSITION
+        // =========================================================
+
         public bool HasPosition =>
             x !=
                 PvZReanimConstants.MissingValue ||
             y !=
                 PvZReanimConstants.MissingValue;
-
-        public bool HasSkew =>
-            skewX !=
-                PvZReanimConstants.MissingValue ||
-            skewY !=
-                PvZReanimConstants.MissingValue;
-
-        public bool HasScale =>
-            scaleX !=
-                PvZReanimConstants.MissingValue ||
-            scaleY !=
-                PvZReanimConstants.MissingValue;
-
-        public bool HasFrame =>
-            frame !=
-            PvZReanimConstants.MissingValue;
-
-        public bool HasAlpha =>
-            alpha !=
-            PvZReanimConstants.MissingValue;
-
-        public bool HasText =>
-            !string.IsNullOrEmpty(
-                text
-            );
-
-        // =========================================================
-        // POSITION
-        // =========================================================
 
         public float GetX(
             float fallback = 0f)
@@ -239,6 +245,12 @@ namespace PvZReanim
         // SKEW
         // =========================================================
 
+        public bool HasSkew =>
+            skewX !=
+                PvZReanimConstants.MissingValue ||
+            skewY !=
+                PvZReanimConstants.MissingValue;
+
         public float GetSkewX(
             float fallback = 0f)
         {
@@ -260,6 +272,12 @@ namespace PvZReanim
         // =========================================================
         // SCALE
         // =========================================================
+
+        public bool HasScale =>
+            scaleX !=
+                PvZReanimConstants.MissingValue ||
+            scaleY !=
+                PvZReanimConstants.MissingValue;
 
         public float GetScaleX(
             float fallback = 1f)
@@ -283,6 +301,10 @@ namespace PvZReanim
         // FRAME
         // =========================================================
 
+        public bool HasFrame =>
+            frame !=
+            PvZReanimConstants.MissingValue;
+
         public float GetFrame(
             float fallback = 0f)
         {
@@ -295,6 +317,10 @@ namespace PvZReanim
         // =========================================================
         // ALPHA
         // =========================================================
+
+        public bool HasAlpha =>
+            alpha !=
+            PvZReanimConstants.MissingValue;
 
         public float GetAlpha(
             float fallback = 1f)
@@ -309,10 +335,17 @@ namespace PvZReanim
         // TEXT
         // =========================================================
 
+        public bool HasText =>
+            !string.IsNullOrEmpty(
+                text
+            );
+
         public string GetText(
             string fallback = null)
         {
-            return string.IsNullOrEmpty(text)
+            return string.IsNullOrEmpty(
+                text
+            )
                 ? fallback
                 : text;
         }
