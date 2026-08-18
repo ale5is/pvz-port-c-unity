@@ -2,82 +2,170 @@ using UnityEngine;
 
 namespace PvZReanim
 {
-    [RequireComponent(typeof(SpriteRenderer))]
     public class PvZReanimTrackRenderer : MonoBehaviour
     {
-        private SpriteRenderer spriteRenderer;
+        private PvZReanimMeshRenderer meshRenderer;
+
+        private PvZReanimAtlas atlas;
+
+        private SpriteRenderer legacySpriteRenderer;
 
         private void Awake()
         {
-            spriteRenderer = GetComponent<SpriteRenderer>();
+            InitializeRenderer();
         }
+
+        private void InitializeRenderer()
+        {
+            meshRenderer =
+                GetComponent<PvZReanimMeshRenderer>();
+
+            if (meshRenderer == null)
+            {
+                meshRenderer =
+                    gameObject.AddComponent<
+                        PvZReanimMeshRenderer
+                    >();
+            }
+        }
+
+        public void SetAtlas(
+            PvZReanimAtlas newAtlas)
+        {
+            atlas =
+                newAtlas;
+        }
+
+        public PvZReanimAtlas Atlas =>
+            atlas;
 
         public void Apply(
             PvZReanimTransform reanimTransform,
             PvZReanimTrackInstance instance)
         {
-            if (reanimTransform == null || instance == null)
+            if (reanimTransform == null ||
+                instance == null)
+            {
+                Hide();
                 return;
+            }
+
+            if (meshRenderer == null)
+            {
+                InitializeRenderer();
+            }
 
             Sprite sprite =
-                instance.imageOverride != null
-                    ? instance.imageOverride
-                    : reanimTransform.image;
-
-            spriteRenderer.sprite = sprite;
-
-            float x =
-                reanimTransform.x ==
-                PvZReanimConstants.MissingValue
-                    ? 0f
-                    : reanimTransform.x;
-
-            float y =
-                reanimTransform.y ==
-                PvZReanimConstants.MissingValue
-                    ? 0f
-                    : reanimTransform.y;
-
-            // Transform de Unity.
-            base.transform.localPosition =
-                new Vector3(x, y, 0f);
-
-            float scaleX =
-                reanimTransform.scaleX ==
-                PvZReanimConstants.MissingValue
-                    ? 1f
-                    : reanimTransform.scaleX;
-
-            float scaleY =
-                reanimTransform.scaleY ==
-                PvZReanimConstants.MissingValue
-                    ? 1f
-                    : reanimTransform.scaleY;
-
-            base.transform.localScale =
-                new Vector3(
-                    scaleX,
-                    scaleY,
-                    1f
+                ResolveSprite(
+                    reanimTransform,
+                    instance
                 );
 
-            Color color =
-                instance.trackColor;
+            if (sprite == null)
+            {
+                Hide();
+                return;
+            }
 
-            float alpha =
-                reanimTransform.alpha ==
-                PvZReanimConstants.MissingValue
-                    ? 1f
-                    : reanimTransform.alpha;
+            meshRenderer.Apply(
+                sprite,
+                reanimTransform,
+                instance
+            );
+        }
 
-            color.a *= alpha;
+        private Sprite ResolveSprite(
+            PvZReanimTransform reanimTransform,
+            PvZReanimTrackInstance instance)
+        {
+            /*
+             * Prioridad:
+             *
+             * 1. Override manual
+             * 2. Sprite almacenado directamente
+             * 3. Sprite obtenido del atlas
+             */
 
-            spriteRenderer.color = color;
+            if (instance.imageOverride != null)
+            {
+                return instance.imageOverride;
+            }
 
-            spriteRenderer.enabled =
-                sprite != null &&
-                instance.renderGroup !=
-                PvZReanimRenderGroup.Hidden;
+            if (reanimTransform.image != null)
+            {
+                return reanimTransform.image;
+            }
+
+            if (atlas != null &&
+                !string.IsNullOrEmpty(
+                    reanimTransform.imageName))
+            {
+                Sprite sprite =
+                    atlas.GetSprite(
+                        reanimTransform.imageName
+                    );
+
+                if (sprite != null)
+                {
+                    return sprite;
+                }
+            }
+
+            return null;
+        }
+
+        private void Hide()
+        {
+            if (meshRenderer == null)
+                return;
+
+            /*
+             * Aplicamos un estado oculto.
+             *
+             * El renderer del mesh controla
+             * posteriormente su visibilidad.
+             */
+
+            MeshRenderer renderer =
+                GetComponent<MeshRenderer>();
+
+            if (renderer != null)
+            {
+                renderer.enabled = false;
+            }
+        }
+
+        public void SetSorting(
+            int sortingLayerID,
+            int sortingOrder)
+        {
+            if (meshRenderer == null)
+            {
+                InitializeRenderer();
+            }
+
+            meshRenderer.SetSorting(
+                sortingLayerID,
+                sortingOrder
+            );
+        }
+
+        /*
+         * Compatibilidad con código anterior.
+         *
+         * Si alguna parte del proyecto todavía
+         * intenta acceder al SpriteRenderer,
+         * no rompemos inmediatamente el sistema.
+         */
+        public SpriteRenderer GetLegacySpriteRenderer()
+        {
+            if (legacySpriteRenderer == null)
+            {
+                legacySpriteRenderer =
+                    GetComponent<SpriteRenderer>();
+            }
+
+            return legacySpriteRenderer;
         }
     }
 }

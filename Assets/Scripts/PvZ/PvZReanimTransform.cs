@@ -11,16 +11,20 @@ namespace PvZReanim
         public float skewX;
         public float skewY;
 
-        public float scaleX = 1f;
-        public float scaleY = 1f;
+        public float scaleX;
+        public float scaleY;
 
         public float frame;
 
-        public float alpha = 1f;
+        public float alpha;
 
+        // Sprite resuelto por el Atlas.
         public Sprite image;
 
-        public string text = "";
+        // Nombre/referencia original de la imagen.
+        public string imageName;
+
+        public string text;
 
         public bool HasX =>
             x != PvZReanimConstants.MissingValue;
@@ -46,21 +50,40 @@ namespace PvZReanim
         public bool HasAlpha =>
             alpha != PvZReanimConstants.MissingValue;
 
+        public bool HasImage =>
+            !string.IsNullOrEmpty(imageName) ||
+            image != null;
+
         public PvZReanimTransform()
         {
-            x = PvZReanimConstants.MissingValue;
-            y = PvZReanimConstants.MissingValue;
+            x =
+                PvZReanimConstants.MissingValue;
 
-            skewX = PvZReanimConstants.MissingValue;
-            skewY = PvZReanimConstants.MissingValue;
+            y =
+                PvZReanimConstants.MissingValue;
 
-            scaleX = PvZReanimConstants.MissingValue;
-            scaleY = PvZReanimConstants.MissingValue;
+            skewX =
+                PvZReanimConstants.MissingValue;
 
-            frame = PvZReanimConstants.MissingValue;
-            alpha = PvZReanimConstants.MissingValue;
+            skewY =
+                PvZReanimConstants.MissingValue;
+
+            scaleX =
+                PvZReanimConstants.MissingValue;
+
+            scaleY =
+                PvZReanimConstants.MissingValue;
+
+            frame =
+                PvZReanimConstants.MissingValue;
+
+            alpha =
+                PvZReanimConstants.MissingValue;
 
             image = null;
+
+            imageName = null;
+
             text = "";
         }
 
@@ -70,13 +93,21 @@ namespace PvZReanim
             {
                 x = x,
                 y = y,
+
                 skewX = skewX,
                 skewY = skewY,
+
                 scaleX = scaleX,
                 scaleY = scaleY,
+
                 frame = frame,
+
                 alpha = alpha,
+
                 image = image,
+
+                imageName = imageName,
+
                 text = text
             };
         }
