@@ -13,7 +13,9 @@ public class PvZReanimAnimator : MonoBehaviour
     [SerializeField]
     private string animacionActual;
 
+    [SerializeField]
     private bool recursoCargado;
+
     private bool inicializado;
 
     private void Awake()
@@ -63,6 +65,11 @@ public class PvZReanimAnimator : MonoBehaviour
         if (string.IsNullOrWhiteSpace(
                 reanimNombre))
         {
+            Debug.LogWarning(
+                "[PvZ Reanim] Falta reanimNombre en " +
+                gameObject.name
+            );
+
             yield break;
         }
 
@@ -74,10 +81,22 @@ public class PvZReanimAnimator : MonoBehaviour
         recursoCargado = false;
 
         if (PvZResourceManager.Instancia == null)
+        {
+            Debug.LogWarning(
+                "[PvZ Reanim] No existe PvZResourceManager."
+            );
+
             return false;
+        }
 
         if (!PvZResourceManager.Instancia.EstaListo)
+        {
+            Debug.LogWarning(
+                "[PvZ Reanim] ResourceManager todavía no está listo."
+            );
+
             return false;
+        }
 
         if (string.IsNullOrWhiteSpace(
                 reanimNombre))
@@ -97,7 +116,7 @@ public class PvZReanimAnimator : MonoBehaviour
             archivo == null)
         {
             Debug.LogWarning(
-                "[PvZ Reanim] No se encontró: " +
+                "[PvZ Reanim] No se encontró REANIM: " +
                 reanimNombre
             );
 
@@ -107,7 +126,7 @@ public class PvZReanimAnimator : MonoBehaviour
         recursoCargado = true;
 
         Debug.Log(
-            "[PvZ Reanim] Cargado: " +
+            "[PvZ Reanim] REANIM encontrado: " +
             archivo.Name
         );
 
@@ -121,7 +140,11 @@ public class PvZReanimAnimator : MonoBehaviour
 
         recursoCargado = false;
 
-        CargarReanim();
+        if (PvZResourceManager.Instancia != null &&
+            PvZResourceManager.Instancia.EstaListo)
+        {
+            CargarReanim();
+        }
     }
 
     public void Reproducir(
@@ -192,5 +215,15 @@ public class PvZReanimAnimator : MonoBehaviour
     public string ObtenerAnimacionActual()
     {
         return animacionActual;
+    }
+
+    public string ObtenerReanim()
+    {
+        return reanimNombre;
+    }
+
+    public Animator ObtenerAnimator()
+    {
+        return animator;
     }
 }
