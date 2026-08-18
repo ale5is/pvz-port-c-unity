@@ -50,28 +50,14 @@ public class PvZReanimAnimator : MonoBehaviour
 
         inicializado = true;
 
-        while (
-            PvZResourceManager.Instancia == null)
-        {
+        while (PvZResourceManager.Instancia == null)
             yield return null;
-        }
 
-        while (
-            !PvZResourceManager.Instancia.EstaListo)
-        {
+        while (!PvZResourceManager.Instancia.EstaListo)
             yield return null;
-        }
 
-        if (string.IsNullOrWhiteSpace(
-            reanimNombre))
-        {
-            Debug.LogWarning(
-                "[PvZ Reanim] Falta reanimNombre en " +
-                gameObject.name
-            );
-
+        if (string.IsNullOrWhiteSpace(reanimNombre))
             yield break;
-        }
 
         CargarReanim();
     }
@@ -80,15 +66,12 @@ public class PvZReanimAnimator : MonoBehaviour
     {
         recursoCargado = false;
 
-        if (PvZResourceManager.Instancia == null)
+        if (PvZResourceManager.Instancia == null ||
+            !PvZResourceManager.Instancia.EstaListo ||
+            string.IsNullOrWhiteSpace(reanimNombre))
+        {
             return false;
-
-        if (!PvZResourceManager.Instancia.EstaListo)
-            return false;
-
-        if (string.IsNullOrWhiteSpace(
-            reanimNombre))
-            return false;
+        }
 
         BuscarRenderer();
 
@@ -120,39 +103,29 @@ public class PvZReanimAnimator : MonoBehaviour
         return true;
     }
 
-    public void ConfigurarReanim(
-        string nombre)
+    public void ConfigurarReanim(string nombre)
     {
         reanimNombre = nombre;
-
         recursoCargado = false;
 
         BuscarRenderer();
 
         if (rendererReanim != null)
-        {
             rendererReanim.enabled = true;
-        }
 
-        if (
-            PvZResourceManager.Instancia != null &&
+        if (PvZResourceManager.Instancia != null &&
             PvZResourceManager.Instancia.EstaListo)
         {
             CargarReanim();
         }
     }
 
-    public void Reproducir(
-        string nombreAnimacion)
+    public void Reproducir(string nombreAnimacion)
     {
-        if (string.IsNullOrWhiteSpace(
-            nombreAnimacion))
-        {
+        if (string.IsNullOrWhiteSpace(nombreAnimacion))
             return;
-        }
 
-        animacionActual =
-            nombreAnimacion;
+        animacionActual = nombreAnimacion;
 
         BuscarRenderer();
 
@@ -162,38 +135,32 @@ public class PvZReanimAnimator : MonoBehaviour
         rendererReanim.Reproducir();
     }
 
-    public void Idle(
-        string nombre)
+    public void Idle(string nombre)
     {
         Reproducir(nombre);
     }
 
-    public void Caminar(
-        string nombre)
+    public void Caminar(string nombre)
     {
         Reproducir(nombre);
     }
 
-    public void Atacar(
-        string nombre)
+    public void Atacar(string nombre)
     {
         Reproducir(nombre);
     }
 
-    public void Comer(
-        string nombre)
+    public void Comer(string nombre)
     {
         Reproducir(nombre);
     }
 
-    public void Morir(
-        string nombre)
+    public void Morir(string nombre)
     {
         Reproducir(nombre);
     }
 
-    public void Especial(
-        string nombre)
+    public void Especial(string nombre)
     {
         Reproducir(nombre);
     }
@@ -237,8 +204,7 @@ public class PvZReanimAnimator : MonoBehaviour
         return reanimNombre;
     }
 
-    public PvZReanimRenderer
-        ObtenerRenderer()
+    public PvZReanimRenderer ObtenerRenderer()
     {
         return rendererReanim;
     }
