@@ -7,13 +7,11 @@ namespace PvZReanim
     /// <summary>
     /// Proveedor de imágenes utilizado por el sistema Reanim.
     ///
-    /// Orden de búsqueda:
+    /// Orden:
     /// 1. Sprites registrados en runtime.
-    /// 2. PvZReanimAtlas.
-    /// 3. Resources de Unity, si está habilitado.
-    ///
-    /// El lector de recursos de PvZ podrá registrar sprites mediante
-    /// RegisterSprite() sin necesidad de modificar el sistema Reanim.
+    /// 2. main.pak.
+    /// 3. PvZReanimAtlas.
+    /// 4. Resources.
     /// </summary>
     public class PvZReanimImageProvider : MonoBehaviour
     {
@@ -32,6 +30,17 @@ namespace PvZReanim
         [Header("Resources")]
         [SerializeField]
         private bool searchResources = false;
+
+        // =========================================================
+        // PAK
+        // =========================================================
+
+        [Header("PAK")]
+        [SerializeField]
+        private bool searchPak = true;
+
+        [SerializeField]
+        private PvZPakImageProvider pakProvider;
 
         // =========================================================
         // RUNTIME SPRITES
@@ -58,8 +67,33 @@ namespace PvZReanim
             set => searchResources = value;
         }
 
+        public bool SearchPak
+        {
+            get => searchPak;
+            set => searchPak = value;
+        }
+
+        public PvZPakImageProvider PakProvider
+        {
+            get => pakProvider;
+            set => pakProvider = value;
+        }
+
         public int RegisteredSpriteCount =>
             runtimeSprites.Count;
+
+        // =========================================================
+        // UNITY
+        // =========================================================
+
+        private void Awake()
+        {
+            if (pakProvider == null)
+            {
+                pakProvider =
+                    PvZPakImageProvider.Instance;
+            }
+        }
 
         // =========================================================
         // RESOLVE
@@ -90,7 +124,77 @@ namespace PvZReanim
             }
 
             // -----------------------------------------------------
-            // 2. ATLAS
+            // 2. PAK
+            // -----------------------------------------------------
+
+            if (searchPak)
+            {
+                if (pakProvider == null)
+                {
+                    pakProvider =
+                        PvZPakImageProvider.Instance;
+                }
+
+                if (pakProvider != null &&
+                    pakProvider.IsReady)
+                {
+                    sprite =
+                        pakProvider.LoadSprite(
+                            normalized
+                        );
+
+                    if (sprite != null)
+                    {
+                        RegisterSprite(
+                            normalized,
+                            sprite
+                        );
+
+                        Debug.Log(
+                            "[PvZReanimImageProvider] " +
+                            "Sprite resuelto desde PAK: " +
+                            normalized,
+                            this
+                        );
+
+                        return sprite;
+                    }
+
+                    // Intentar también con el nombre
+                    // original por si conserva
+                    // mayúsculas o ruta.
+                    if (!string.Equals(
+                            imageName,
+                            normalized,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        sprite =
+                            pakProvider.LoadSprite(
+                                imageName
+                            );
+
+                        if (sprite != null)
+                        {
+                            RegisterSprite(
+                                normalized,
+                                sprite
+                            );
+
+                            Debug.Log(
+                                "[PvZReanimImageProvider] " +
+                                "Sprite resuelto desde PAK: " +
+                                imageName,
+                                this
+                            );
+
+                            return sprite;
+                        }
+                    }
+                }
+            }
+
+            // -----------------------------------------------------
+            // 3. ATLAS
             // -----------------------------------------------------
 
             if (atlas != null)
@@ -119,7 +223,7 @@ namespace PvZReanim
             }
 
             // -----------------------------------------------------
-            // 3. UNITY RESOURCES
+            // 4. UNITY RESOURCES
             // -----------------------------------------------------
 
             if (searchResources)
@@ -173,15 +277,9 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // REGISTER SPRITE
+        // REGISTER
         // =========================================================
 
-        /// <summary>
-        /// Registra un Sprite obtenido desde otro sistema de recursos.
-        ///
-        /// El lector del PAK podrá utilizar este método para entregar
-        /// las imágenes al sistema Reanim.
-        /// </summary>
         public void RegisterSprite(
             string imageName,
             Sprite sprite)
@@ -223,7 +321,7 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // CHECK REGISTERED
+        // CHECK
         // =========================================================
 
         public bool HasRegisteredSprite(
