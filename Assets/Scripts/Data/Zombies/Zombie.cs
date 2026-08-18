@@ -31,20 +31,30 @@ public class Zombie : GameObject
     private float temporizadorAtaque;
     private float temporizadorEstado;
 
+    private PvZReanimAnimator reanimAnimator;
+
     public bool Muerto => muerto;
 
     protected override void Start()
     {
         base.Start();
 
-        if (datos != null && vidaMaxima <= 0)
+        ConfigurarAnimacion();
+
+        if (datos != null &&
+            vidaMaxima <= 0)
+        {
             InicializarVida();
+        }
     }
 
     protected override void Update()
     {
-        if (!activo || muerto)
+        if (!activo ||
+            muerto)
+        {
             return;
+        }
 
         ActualizarEstados();
 
@@ -54,9 +64,32 @@ public class Zombie : GameObject
         BuscarPlanta();
 
         if (plantaObjetivo != null)
+        {
             AtacarPlanta();
+        }
         else
+        {
             Caminar();
+        }
+    }
+
+    private void ConfigurarAnimacion()
+    {
+        reanimAnimator =
+            GetComponent<PvZReanimAnimator>();
+
+        if (reanimAnimator == null)
+        {
+            reanimAnimator =
+                gameObject.AddComponent<PvZReanimAnimator>();
+        }
+
+        if (datos != null)
+        {
+            reanimAnimator.ConfigurarReanim(
+                datos.reanimNombre
+            );
+        }
     }
 
     public void Inicializar(
@@ -84,6 +117,10 @@ public class Zombie : GameObject
             datos != null
                 ? datos.velocidad
                 : 0.2f;
+
+        ConfigurarAnimacion();
+
+        ReproducirIdle();
 
         if (Board.Instancia != null)
         {
@@ -137,8 +174,11 @@ public class Zombie : GameObject
 
     private void Caminar()
     {
-        if (congelado || aturdido)
+        if (congelado ||
+            aturdido)
+        {
             return;
+        }
 
         float velocidad =
             velocidadActual;
@@ -152,6 +192,8 @@ public class Zombie : GameObject
             Time.deltaTime;
 
         ActualizarColumna();
+
+        ReproducirCaminar();
     }
 
     private void ActualizarColumna()
@@ -159,12 +201,12 @@ public class Zombie : GameObject
         if (Board.Instancia == null)
             return;
 
+        if (Board.Instancia.anchoCelda <= 0f)
+            return;
+
         float distancia =
             transform.position.x -
             Board.Instancia.origen.x;
-
-        if (Board.Instancia.anchoCelda <= 0f)
-            return;
 
         columna =
             Mathf.FloorToInt(
@@ -197,7 +239,9 @@ public class Zombie : GameObject
         float distanciaMinima =
             float.MaxValue;
 
-        foreach (Plant planta in plantas)
+        foreach (
+            Plant planta
+            in plantas)
         {
             if (planta == null ||
                 planta.muerto ||
@@ -219,10 +263,14 @@ public class Zombie : GameObject
                 continue;
             }
 
-            if (distancia < distanciaMinima)
+            if (distancia <
+                distanciaMinima)
             {
-                distanciaMinima = distancia;
-                plantaObjetivo = planta;
+                distanciaMinima =
+                    distancia;
+
+                plantaObjetivo =
+                    planta;
             }
         }
     }
@@ -250,8 +298,13 @@ public class Zombie : GameObject
             return;
         }
 
-        if (congelado || aturdido)
+        if (congelado ||
+            aturdido)
+        {
             return;
+        }
+
+        ReproducirAtaque();
 
         temporizadorAtaque -=
             Time.deltaTime;
@@ -280,7 +333,8 @@ public class Zombie : GameObject
                 : 1f;
     }
 
-    public void RecibirDaño(int daño)
+    public void RecibirDaño(
+        int daño)
     {
         if (daño <= 0 ||
             muerto ||
@@ -289,9 +343,9 @@ public class Zombie : GameObject
             return;
         }
 
-        int dañoRestante = daño;
+        int dañoRestante =
+            daño;
 
-        // Primero recibe el escudo.
         if (vidaEscudo > 0)
         {
             int dañoEscudo =
@@ -308,9 +362,11 @@ public class Zombie : GameObject
         }
 
         if (dañoRestante <= 0)
+        {
+            ReproducirDaño();
             return;
+        }
 
-        // Después la armadura.
         if (vidaArmadura > 0)
         {
             int dañoArmadura =
@@ -327,11 +383,15 @@ public class Zombie : GameObject
         }
 
         if (dañoRestante <= 0)
+        {
+            ReproducirDaño();
             return;
+        }
 
-        // Finalmente la vida.
         vida -=
             dañoRestante;
+
+        ReproducirDaño();
 
         if (vida <= 0)
         {
@@ -409,6 +469,60 @@ public class Zombie : GameObject
         aturdido = false;
     }
 
+    private void ReproducirIdle()
+    {
+        if (reanimAnimator == null ||
+            datos == null)
+        {
+            return;
+        }
+
+        reanimAnimator.Idle(
+            datos.animacionIdle
+        );
+    }
+
+    private void ReproducirCaminar()
+    {
+        if (reanimAnimator == null ||
+            datos == null)
+        {
+            return;
+        }
+
+        reanimAnimator.Caminar(
+            datos.animacionCaminar
+        );
+    }
+
+    private void ReproducirAtaque()
+    {
+        if (reanimAnimator == null ||
+            datos == null)
+        {
+            return;
+        }
+
+        reanimAnimator.Atacar(
+            datos.animacionAtaque
+        );
+    }
+
+    private void ReproducirDaño()
+    {
+        if (reanimAnimator == null ||
+            datos == null)
+        {
+            return;
+        }
+
+        /*
+         * PvZ no tiene necesariamente una
+         * animación "damage" separada.
+         * Por eso no forzamos ninguna aquí.
+         */
+    }
+
     private void Morir()
     {
         if (muerto)
@@ -419,6 +533,14 @@ public class Zombie : GameObject
 
         plantaObjetivo = null;
 
+        if (reanimAnimator != null &&
+            datos != null)
+        {
+            reanimAnimator.Morir(
+                datos.animacionMuerte
+            );
+        }
+
         if (ZombieManager.Instancia != null)
         {
             ZombieManager.Instancia.NotificarMuerte(
@@ -426,7 +548,10 @@ public class Zombie : GameObject
             );
         }
 
-        Destroy(gameObject);
+        Destroy(
+            gameObject,
+            0.5f
+        );
     }
 
     public override void Kill()
