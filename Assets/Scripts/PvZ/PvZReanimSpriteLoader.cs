@@ -6,11 +6,17 @@ using UnityEngine;
 namespace PvZReanim
 {
     /// <summary>
-    /// Carga sprites desde archivos de imagen y los registra
-    /// en PvZReanimImageProvider.
+    /// Carga imágenes externas y las convierte en Sprites
+    /// para el sistema PvZ Reanim.
     ///
-    /// Esta clase NO interpreta PAK todavía.
-    /// Sirve como capa de entrada de imágenes para Reanim.
+    /// Las imágenes se buscan en:
+    /// Assets/[Image Folder]
+    ///
+    /// También registra alias basados en:
+    /// - nombre del archivo
+    /// - ruta relativa
+    /// - ruta relativa sin extensión
+    /// - ruta con / y \
     /// </summary>
     public class PvZReanimSpriteLoader : MonoBehaviour
     {
@@ -24,10 +30,16 @@ namespace PvZReanim
 
         [Header("Options")]
         [SerializeField]
-        private bool loadOnStart = false;
+        private bool loadOnStart = true;
 
         [SerializeField]
         private bool recursiveSearch = true;
+
+        [SerializeField]
+        private bool pointFilter = true;
+
+        [SerializeField]
+        private bool logLoadedSprites = true;
 
         private readonly Dictionary<string, Sprite> loadedSprites =
             new Dictionary<string, Sprite>(
@@ -99,10 +111,7 @@ namespace PvZReanim
 
         public int LoadAll()
         {
-            if (provider == null)
-            {
-                FindProvider();
-            }
+            FindProvider();
 
             if (provider == null)
             {
@@ -122,7 +131,7 @@ namespace PvZReanim
             {
                 Debug.LogWarning(
                     "PvZReanimSpriteLoader: " +
-                    "No existe la carpeta de imágenes: " +
+                    "No existe la carpeta de imágenes:\n" +
                     folder,
                     this
                 );
@@ -130,14 +139,12 @@ namespace PvZReanim
                 return 0;
             }
 
-            string[] files;
-
             SearchOption searchOption =
                 recursiveSearch
                     ? SearchOption.AllDirectories
                     : SearchOption.TopDirectoryOnly;
 
-            files =
+            string[] files =
                 Directory.GetFiles(
                     folder,
                     "*.*",
@@ -150,14 +157,13 @@ namespace PvZReanim
                  i < files.Length;
                  i++)
             {
-                if (!IsSupportedImage(
-                        files[i]))
-                {
-                    continue;
-                }
+                string file =
+                    files[i];
 
-                if (LoadFile(
-                        files[i]))
+                if (!IsSupportedImage(file))
+                    continue;
+
+                if (LoadFile(file))
                 {
                     loaded++;
                 }
@@ -180,10 +186,7 @@ namespace PvZReanim
         public bool LoadFile(
             string path)
         {
-            if (provider == null)
-            {
-                FindProvider();
-            }
+            FindProvider();
 
             if (provider == null)
             {
@@ -200,7 +203,7 @@ namespace PvZReanim
             {
                 Debug.LogWarning(
                     "PvZReanimSpriteLoader: " +
-                    "No existe el archivo: " +
+                    "No existe el archivo:\n" +
                     path,
                     this
                 );
@@ -221,7 +224,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "PvZReanimSpriteLoader: " +
-                    "No se pudo leer: " +
+                    "No se pudo leer:\n" +
                     path +
                     "\n" +
                     exception.Message,
@@ -254,13 +257,13 @@ namespace PvZReanim
 
             if (!decoded)
             {
-                DestroyTexture(
+                DestroyObject(
                     texture
                 );
 
                 Debug.LogWarning(
                     "PvZReanimSpriteLoader: " +
-                    "No se pudo decodificar: " +
+                    "No se pudo decodificar:\n" +
                     path,
                     this
                 );
@@ -268,16 +271,27 @@ namespace PvZReanim
                 return false;
             }
 
-            texture.name =
+            string fileName =
                 Path.GetFileNameWithoutExtension(
                     path
                 );
 
-            texture.filterMode =
-                FilterMode.Point;
+            string relativePath =
+                GetRelativeImagePath(
+                    path
+                );
+
+            if (pointFilter)
+            {
+                texture.filterMode =
+                    FilterMode.Point;
+            }
 
             texture.wrapMode =
                 TextureWrapMode.Clamp;
+
+            texture.name =
+                fileName;
 
             Sprite sprite =
                 Sprite.Create(
@@ -296,21 +310,82 @@ namespace PvZReanim
                 );
 
             sprite.name =
-                Path.GetFileNameWithoutExtension(
-                    path
-                );
+                fileName;
 
-            string imageName =
-                Path.GetFileNameWithoutExtension(
-                    path
+            RegisterSpriteAliases(
+                sprite,
+                fileName,
+                relativePath
+            );
+
+            if (logLoadedSprites)
+            {
+                Debug.Log(
+                    "[PvZReanim] Sprite cargado: " +
+                    fileName +
+                    " | " +
+                    texture.width +
+                    "x" +
+                    texture.height,
+                    this
                 );
+            }
+
+            return true;
+        }
+
+        // =========================================================
+        // REGISTER ALIASES
+        // =========================================================
+
+        private void RegisterSpriteAliases(
+            Sprite sprite,
+            string fileName,
+            string relativePath)
+        {
+            if (sprite == null)
+                return;
 
             Register(
-                imageName,
+                fileName,
                 sprite
             );
 
-            return true;
+            if (!string.IsNullOrEmpty(relativePath))
+            {
+                Register(
+                    relativePath,
+                    sprite
+                );
+
+                string noExtension =
+                    RemoveExtension(
+                        relativePath
+                    );
+
+                Register(
+                    noExtension,
+                    sprite
+                );
+
+                string slashPath =
+                    relativePath.Replace(
+                        '\\',
+                        '/'
+                    );
+
+                Register(
+                    slashPath,
+                    sprite
+                );
+
+                Register(
+                    RemoveExtension(
+                        slashPath
+                    ),
+                    sprite
+                );
+            }
         }
 
         // =========================================================
@@ -321,19 +396,25 @@ namespace PvZReanim
             string imageName,
             Sprite sprite)
         {
-            if (string.IsNullOrEmpty(imageName))
+            if (string.IsNullOrWhiteSpace(
+                    imageName))
+            {
                 return;
+            }
 
             if (sprite == null)
                 return;
 
             string normalized =
-                PvZReanimImageResolver.NormalizeName(
+                NormalizeKey(
                     imageName
                 );
 
-            if (string.IsNullOrEmpty(normalized))
+            if (string.IsNullOrEmpty(
+                    normalized))
+            {
                 return;
+            }
 
             Sprite previous;
 
@@ -344,9 +425,7 @@ namespace PvZReanim
                 if (previous != null &&
                     previous != sprite)
                 {
-                    DestroySprite(
-                        previous
-                    );
+                    return;
                 }
             }
 
@@ -367,17 +446,22 @@ namespace PvZReanim
         public Sprite Get(
             string imageName)
         {
-            if (string.IsNullOrEmpty(imageName))
+            if (string.IsNullOrWhiteSpace(
+                    imageName))
+            {
                 return null;
+            }
 
             string normalized =
-                PvZReanimImageResolver.NormalizeName(
+                NormalizeKey(
                     imageName
                 );
 
+            Sprite sprite;
+
             if (loadedSprites.TryGetValue(
                     normalized,
-                    out Sprite sprite))
+                    out sprite))
             {
                 return sprite;
             }
@@ -386,25 +470,147 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // FOLDER
+        // CONTAINS
+        // =========================================================
+
+        public bool Contains(
+            string imageName)
+        {
+            return Get(
+                imageName
+            ) != null;
+        }
+
+        // =========================================================
+        // PATH
         // =========================================================
 
         private string GetImageFolderPath()
         {
-            string projectPath =
-                Application.dataPath;
+            return Path.Combine(
+                Application.dataPath,
+                imageFolder
+            );
+        }
 
+        private string GetRelativeImagePath(
+            string fullPath)
+        {
             string folder =
-                Path.Combine(
-                    projectPath,
-                    imageFolder
+                GetImageFolderPath();
+
+            string normalizedFolder =
+                folder.Replace(
+                    '\\',
+                    '/'
                 );
 
-            return folder;
+            string normalizedPath =
+                fullPath.Replace(
+                    '\\',
+                    '/'
+                );
+
+            if (!normalizedFolder.EndsWith(
+                    "/"))
+            {
+                normalizedFolder += "/";
+            }
+
+            if (normalizedPath.StartsWith(
+                    normalizedFolder,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return normalizedPath.Substring(
+                    normalizedFolder.Length
+                );
+            }
+
+            return Path.GetFileName(
+                fullPath
+            );
         }
 
         // =========================================================
-        // SUPPORTED FILES
+        // NORMALIZATION
+        // =========================================================
+
+        private string NormalizeKey(
+            string value)
+        {
+            if (string.IsNullOrWhiteSpace(
+                    value))
+            {
+                return string.Empty;
+            }
+
+            string result =
+                value.Trim();
+
+            result =
+                result.Replace(
+                    '\\',
+                    '/'
+                );
+
+            while (result.Contains("//"))
+            {
+                result =
+                    result.Replace(
+                        "//",
+                        "/"
+                    );
+            }
+
+            while (result.StartsWith("/"))
+            {
+                result =
+                    result.Substring(1);
+            }
+
+            while (result.EndsWith("/"))
+            {
+                result =
+                    result.Substring(
+                        0,
+                        result.Length - 1
+                    );
+            }
+
+            result =
+                RemoveExtension(
+                    result
+                );
+
+            return result.Trim();
+        }
+
+        private string RemoveExtension(
+            string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return value;
+
+            string extension =
+                Path.GetExtension(
+                    value
+                );
+
+            if (string.IsNullOrEmpty(
+                    extension))
+            {
+                return value;
+            }
+
+            return value.Substring(
+                0,
+                value.Length -
+                extension.Length
+            );
+        }
+
+        // =========================================================
+        // SUPPORTED IMAGE
         // =========================================================
 
         private bool IsSupportedImage(
@@ -415,8 +621,11 @@ namespace PvZReanim
                     path
                 );
 
-            if (string.IsNullOrEmpty(extension))
+            if (string.IsNullOrEmpty(
+                    extension))
+            {
                 return false;
+            }
 
             extension =
                 extension.ToLowerInvariant();
@@ -442,7 +651,7 @@ namespace PvZReanim
             {
                 if (pair.Value != null)
                 {
-                    DestroySprite(
+                    DestroyObject(
                         pair.Value
                     );
                 }
@@ -469,59 +678,22 @@ namespace PvZReanim
         // DESTROY
         // =========================================================
 
-        private void DestroySprite(
-            Sprite sprite)
+        private void DestroyObject(
+            UnityEngine.Object obj)
         {
-            if (sprite == null)
-                return;
-
-            Texture2D texture =
-                sprite.texture;
-
-            if (Application.isPlaying)
-            {
-                Destroy(
-                    sprite
-                );
-
-                if (texture != null)
-                {
-                    Destroy(
-                        texture
-                    );
-                }
-            }
-            else
-            {
-                DestroyImmediate(
-                    sprite
-                );
-
-                if (texture != null)
-                {
-                    DestroyImmediate(
-                        texture
-                    );
-                }
-            }
-        }
-
-        private void DestroyTexture(
-            Texture2D texture)
-        {
-            if (texture == null)
+            if (obj == null)
                 return;
 
             if (Application.isPlaying)
             {
                 Destroy(
-                    texture
+                    obj
                 );
             }
             else
             {
                 DestroyImmediate(
-                    texture
+                    obj
                 );
             }
         }
