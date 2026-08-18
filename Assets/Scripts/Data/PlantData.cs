@@ -1,14 +1,21 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "PlantData", menuName = "PvZ/Plant")]
+[CreateAssetMenu(
+    fileName = "PlantData",
+    menuName = "PvZ/Plant Data"
+)]
 public class PlantData : ScriptableObject
 {
-    [Header("General")]
-    public PlantType tipo;
-    public string nombre;
+    [Header("Identificación")]
+    public string nombre = "Planta";
 
-    [Header("Economía")]
+    [Header("Prefab")]
+    public Plant prefab;
+
+    [Header("Coste")]
     public int costo = 100;
+
+    [Header("Recarga")]
     public float recarga = 7.5f;
 
     [Header("Vida")]
@@ -16,11 +23,10 @@ public class PlantData : ScriptableObject
 
     [Header("Combate")]
     public int daño = 20;
-    public float velocidadAtaque = 1.5f;
+    public float intervaloAtaque = 1.5f;
+    public float rangoAtaque = 10f;
 
-    [Header("Prefab")]
-    public Plant prefab;
-
-    [Header("Icono")]
-    public Sprite icono;
+    [Header("Producción")]
+    public int produccionSol = 25;
+    public float intervaloProduccion = 24f;
 }

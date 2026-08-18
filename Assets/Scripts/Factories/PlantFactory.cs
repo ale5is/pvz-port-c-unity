@@ -1,37 +1,75 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 public class PlantFactory : MonoBehaviour
 {
-    public static PlantFactory Instancia;
-
-    public List<PlantData> plantas;
-
-    private Dictionary<PlantType, PlantData> diccionario;
+    public static PlantFactory Instancia { get; private set; }
 
     private void Awake()
     {
+        if (Instancia != null && Instancia != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         Instancia = this;
-
-        diccionario = new Dictionary<PlantType, PlantData>();
-
-        foreach (PlantData planta in plantas)
-            diccionario.Add(planta.tipo, planta);
     }
 
-    public Plant CrearPlanta(PlantType tipo, Cell celda)
+    public Plant CrearPlanta(
+        PlantData datos,
+        int fila,
+        int columna)
     {
-        if (!diccionario.TryGetValue(tipo, out PlantData datos))
+        if (datos == null)
+        {
+            Debug.LogError("[PvZ] PlantData es null.");
+            return null;
+        }
+
+        if (datos.prefab == null)
+        {
+            Debug.LogError(
+                "[PvZ] El PlantData '" +
+                datos.nombre +
+                "' no tiene prefab."
+            );
+
+            return null;
+        }
+
+        if (Board.Instancia == null)
+        {
+            Debug.LogError("[PvZ] No existe Board.");
+            return null;
+        }
+
+        Cell cell =
+            Board.Instancia.ObtenerCelda(
+                fila,
+                columna
+            );
+
+        if (cell == null)
             return null;
 
-        Plant planta = Instantiate(datos.prefab, celda.posicion, Quaternion.identity);
+        if (!cell.PuedePlantar())
+            return null;
 
-        planta.datos = datos;
-        planta.fila = celda.fila;
-        planta.columna = celda.columna;
+        Plant planta =
+            Instantiate(datos.prefab);
 
-        celda.planta = planta;
+        planta.Inicializar(
+            fila,
+            columna,
+            datos
+        );
 
         return planta;
+    }
+
+    private void OnDestroy()
+    {
+        if (Instancia == this)
+            Instancia = null;
     }
 }
