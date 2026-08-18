@@ -10,19 +10,6 @@ namespace PvZReanim
         private string relativePath =
             "Reanim/test.reanim";
 
-        [Header("Test Sprite")]
-        [SerializeField]
-        private bool createTestSprite = true;
-
-        [SerializeField]
-        private int textureSize = 64;
-
-        [SerializeField]
-        private Color testColor = Color.green;
-
-        [SerializeField]
-        private float pixelsPerUnit = 64f;
-
         [Header("Image System")]
         [SerializeField]
         private PvZReanimImageProvider imageProvider;
@@ -45,14 +32,7 @@ namespace PvZReanim
         [SerializeField]
         private bool logInformation = true;
 
-        [SerializeField]
-        private bool logImageTest = true;
-
         private PvZReanimation reanimation;
-
-        private Sprite testSprite;
-
-        private Texture2D testTexture;
 
         public PvZReanimation Reanimation =>
             reanimation;
@@ -219,193 +199,8 @@ namespace PvZReanim
                 return;
             }
 
-            CreateTestSpriteIfNeeded();
-
-            RegisterTestSprite();
-
-            TestImageResolution();
-
             CreateReanimation(
                 definition
-            );
-        }
-
-        // =========================================================
-        // TEST SPRITE
-        // =========================================================
-
-        private void CreateTestSpriteIfNeeded()
-        {
-            if (!createTestSprite)
-                return;
-
-            if (testSprite != null)
-                return;
-
-            int size =
-                Mathf.Max(
-                    8,
-                    textureSize
-                );
-
-            testTexture =
-                new Texture2D(
-                    size,
-                    size,
-                    TextureFormat.RGBA32,
-                    false
-                );
-
-            testTexture.name =
-                "PvZ_Reanim_Runtime_Test_Texture";
-
-            Color[] pixels =
-                new Color[
-                    size * size
-                ];
-
-            Vector2 center =
-                new Vector2(
-                    (size - 1) * 0.5f,
-                    (size - 1) * 0.5f
-                );
-
-            float radius =
-                size * 0.42f;
-
-            for (int y = 0;
-                 y < size;
-                 y++)
-            {
-                for (int x = 0;
-                     x < size;
-                     x++)
-                {
-                    float distance =
-                        Vector2.Distance(
-                            new Vector2(
-                                x,
-                                y
-                            ),
-                            center
-                        );
-
-                    int index =
-                        y * size + x;
-
-                    if (distance <= radius)
-                    {
-                        pixels[index] =
-                            testColor;
-                    }
-                    else
-                    {
-                        pixels[index] =
-                            Color.clear;
-                    }
-                }
-            }
-
-            testTexture.SetPixels(
-                pixels
-            );
-
-            testTexture.Apply();
-
-            testSprite =
-                Sprite.Create(
-                    testTexture,
-                    new Rect(
-                        0f,
-                        0f,
-                        size,
-                        size
-                    ),
-                    new Vector2(
-                        0.5f,
-                        0.5f
-                    ),
-                    pixelsPerUnit
-                );
-
-            testSprite.name =
-                "test";
-        }
-
-        // =========================================================
-        // REGISTER TEST SPRITE
-        // =========================================================
-
-        private void RegisterTestSprite()
-        {
-            if (!createTestSprite ||
-                testSprite == null)
-            {
-                return;
-            }
-
-            if (imageProvider == null)
-            {
-                Debug.LogError(
-                    "PvZReanimRuntimeLoader: " +
-                    "No existe PvZReanimImageProvider."
-                );
-
-                return;
-            }
-
-            imageProvider.RegisterSprite(
-                "test",
-                testSprite
-            );
-
-            if (logImageTest)
-            {
-                Debug.Log(
-                    "[PvZReanim] " +
-                    "Sprite de prueba registrado: test"
-                );
-            }
-        }
-
-        // =========================================================
-        // TEST RESOLUTION
-        // =========================================================
-
-        private void TestImageResolution()
-        {
-            if (!logImageTest)
-                return;
-
-            if (imageResolver == null)
-            {
-                Debug.LogError(
-                    "[PvZReanim] " +
-                    "No existe PvZReanimImageResolver."
-                );
-
-                return;
-            }
-
-            Sprite resolved =
-                imageResolver.Resolve(
-                    "test"
-                );
-
-            if (resolved == null)
-            {
-                Debug.LogError(
-                    "[PvZReanim] " +
-                    "ERROR: el Resolver NO pudo encontrar test."
-                );
-
-                return;
-            }
-
-            Debug.Log(
-                "[PvZReanim] " +
-                "OK: test resuelto correctamente -> " +
-                resolved.name
             );
         }
 
@@ -420,8 +215,12 @@ namespace PvZReanim
 
             GameObject obj =
                 new GameObject(
-                    definition.name +
-                    "_Reanimation"
+                    string.IsNullOrEmpty(
+                        definition.name
+                    )
+                        ? "Reanimation"
+                        : definition.name +
+                          "_Reanimation"
                 );
 
             obj.transform.SetParent(
@@ -506,46 +305,24 @@ namespace PvZReanim
             if (reanimation == null)
                 return;
 
+            GameObject obj =
+                reanimation.gameObject;
+
+            reanimation = null;
+
             if (Application.isPlaying)
             {
-                Destroy(
-                    reanimation.gameObject
-                );
+                Destroy(obj);
             }
             else
             {
-                DestroyImmediate(
-                    reanimation.gameObject
-                );
+                DestroyImmediate(obj);
             }
-
-            reanimation = null;
         }
 
         private void OnDestroy()
         {
-            if (reanimation != null)
-            {
-                DestroyReanimation();
-            }
-
-            if (testSprite != null)
-            {
-                Destroy(
-                    testSprite
-                );
-
-                testSprite = null;
-            }
-
-            if (testTexture != null)
-            {
-                Destroy(
-                    testTexture
-                );
-
-                testTexture = null;
-            }
+            DestroyReanimation();
         }
     }
 }
