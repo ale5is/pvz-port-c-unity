@@ -2,47 +2,44 @@ using UnityEngine;
 
 namespace PvZReanim
 {
-    public class PvZReanimTrackRenderer :
-        MonoBehaviour
+    [RequireComponent(typeof(SpriteRenderer))]
+    public class PvZReanimTrackRenderer : MonoBehaviour
     {
-        private PvZReanimMeshRenderer meshRenderer;
+        private SpriteRenderer spriteRenderer;
 
         private PvZReanimImageResolver imageResolver;
 
+        private string currentImageName;
+
+        private Sprite currentSprite;
+
+        // =========================================================
+        // UNITY
+        // =========================================================
+
         private void Awake()
         {
-            InitializeRenderer();
+            spriteRenderer =
+                GetComponent<SpriteRenderer>();
         }
 
-        private void InitializeRenderer()
-        {
-            meshRenderer =
-                GetComponent<PvZReanimMeshRenderer>();
-
-            if (meshRenderer == null)
-            {
-                meshRenderer =
-                    gameObject.AddComponent<
-                        PvZReanimMeshRenderer
-                    >();
-            }
-
-            imageResolver =
-                GetComponent<
-                    PvZReanimImageResolver
-                >();
-        }
+        // =========================================================
+        // CONFIGURATION
+        // =========================================================
 
         public void SetImageResolver(
             PvZReanimImageResolver resolver)
         {
             imageResolver =
                 resolver;
+
+            currentImageName = null;
+            currentSprite = null;
         }
 
-        public PvZReanimImageResolver
-            ImageResolver =>
-            imageResolver;
+        // =========================================================
+        // APPLY
+        // =========================================================
 
         public void Apply(
             PvZReanimTransform reanimTransform,
@@ -55,106 +52,245 @@ namespace PvZReanim
                 return;
             }
 
-            if (meshRenderer == null)
+            if (spriteRenderer == null)
             {
-                InitializeRenderer();
+                spriteRenderer =
+                    GetComponent<SpriteRenderer>();
             }
 
+            // =====================================================
+            // SPRITE
+            // =====================================================
+
             Sprite sprite =
-                ResolveSprite(
-                    reanimTransform,
-                    instance
-                );
+                instance.imageOverride;
 
             if (sprite == null)
             {
-                Hide();
-                return;
+                sprite =
+                    ResolveImage(
+                        reanimTransform.imageName
+                    );
             }
 
-            meshRenderer.Apply(
-                sprite,
-                reanimTransform,
-                instance
+            currentSprite =
+                sprite;
+
+            // =====================================================
+            // POSITION
+            // =====================================================
+
+            float x =
+                GetValue(
+                    reanimTransform.x,
+                    0f
+                );
+
+            float y =
+                GetValue(
+                    reanimTransform.y,
+                    0f
+                );
+
+            transform.localPosition =
+                new Vector3(
+                    x,
+                    y,
+                    0f
+                );
+
+            // =====================================================
+            // SCALE
+            // =====================================================
+
+            float scaleX =
+                GetValue(
+                    reanimTransform.scaleX,
+                    1f
+                );
+
+            float scaleY =
+                GetValue(
+                    reanimTransform.scaleY,
+                    1f
+                );
+
+            transform.localScale =
+                new Vector3(
+                    scaleX,
+                    scaleY,
+                    1f
+                );
+
+            // =====================================================
+            // COLOR / ALPHA
+            // =====================================================
+
+            Color color =
+                instance.trackColor;
+
+            float alpha =
+                GetValue(
+                    reanimTransform.alpha,
+                    1f
+                );
+
+            color.a *= alpha;
+
+            spriteRenderer.color =
+                color;
+
+            // =====================================================
+            // SPRITE
+            // =====================================================
+
+            spriteRenderer.sprite =
+                sprite;
+
+            // =====================================================
+            // VISIBILITY
+            // =====================================================
+
+            bool visible =
+                sprite != null &&
+                instance.renderGroup !=
+                PvZReanimRenderGroup.Hidden;
+
+            spriteRenderer.enabled =
+                visible;
+        }
+
+        // =========================================================
+        // IMAGE RESOLUTION
+        // =========================================================
+
+        private Sprite ResolveImage(
+            string imageName)
+        {
+            if (string.IsNullOrWhiteSpace(
+                imageName))
+            {
+                return null;
+            }
+
+            if (imageResolver == null)
+            {
+                return null;
+            }
+
+            string normalized =
+                PvZReanimImageResolver
+                    .NormalizeName(
+                        imageName
+                    );
+
+            if (string.Equals(
+                currentImageName,
+                normalized,
+                System.StringComparison.OrdinalIgnoreCase))
+            {
+                return currentSprite;
+            }
+
+            currentImageName =
+                normalized;
+
+            return imageResolver.Resolve(
+                imageName
             );
         }
 
-        private Sprite ResolveSprite(
-            PvZReanimTransform transform,
-            PvZReanimTrackInstance instance)
+        // =========================================================
+        // VALUE
+        // =========================================================
+
+        private static float GetValue(
+            float value,
+            float defaultValue)
         {
-            /*
-             * PRIORIDAD 1
-             *
-             * Override manual.
-             */
-
-            if (instance.imageOverride != null)
-            {
-                return instance.imageOverride;
-            }
-
-            /*
-             * PRIORIDAD 2
-             *
-             * Sprite que ya haya sido asignado
-             * directamente al transform.
-             */
-
-            if (transform.image != null)
-            {
-                return transform.image;
-            }
-
-            /*
-             * PRIORIDAD 3
-             *
-             * Resolver externo.
-             */
-
-            if (imageResolver != null &&
-                !string.IsNullOrEmpty(
-                    transform.imageName))
-            {
-                return imageResolver.Resolve(
-                    transform.imageName
-                );
-            }
-
-            return null;
+            return value ==
+                   PvZReanimConstants.MissingValue
+                ? defaultValue
+                : value;
         }
 
-        private void Hide()
+        // =========================================================
+        // VISIBILITY
+        // =========================================================
+
+        public void Hide()
         {
-            if (meshRenderer == null)
+            if (spriteRenderer == null)
                 return;
 
-            meshRenderer.Hide();
+            spriteRenderer.enabled =
+                false;
         }
 
         public void Show()
         {
-            if (meshRenderer == null)
-            {
-                InitializeRenderer();
-            }
+            if (spriteRenderer == null)
+                return;
 
-            meshRenderer.Show();
+            spriteRenderer.enabled =
+                currentSprite != null;
         }
 
+        // =========================================================
+        // CURRENT IMAGE
+        // =========================================================
+
+        public Sprite CurrentSprite =>
+            currentSprite;
+
+        public string CurrentImageName =>
+            currentImageName;
+
+        // =========================================================
+        // SORTING
+        // =========================================================
+
         public void SetSorting(
-            int sortingLayerID,
-            int sortingOrder)
+            int sortingLayerId,
+            int order)
         {
-            if (meshRenderer == null)
+            if (spriteRenderer == null)
             {
-                InitializeRenderer();
+                spriteRenderer =
+                    GetComponent<SpriteRenderer>();
             }
 
-            meshRenderer.SetSorting(
-                sortingLayerID,
-                sortingOrder
-            );
+            spriteRenderer.sortingLayerID =
+                sortingLayerId;
+
+            spriteRenderer.sortingOrder =
+                order;
+        }
+
+        public void SetSortingLayer(
+            string sortingLayer)
+        {
+            if (spriteRenderer == null)
+            {
+                spriteRenderer =
+                    GetComponent<SpriteRenderer>();
+            }
+
+            spriteRenderer.sortingLayerName =
+                sortingLayer;
+        }
+
+        public void SetSortingOrder(
+            int order)
+        {
+            if (spriteRenderer == null)
+            {
+                spriteRenderer =
+                    GetComponent<SpriteRenderer>();
+            }
+
+            spriteRenderer.sortingOrder =
+                order;
         }
     }
 }
