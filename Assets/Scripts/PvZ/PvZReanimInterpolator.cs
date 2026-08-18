@@ -4,117 +4,186 @@ namespace PvZReanim
 {
     public static class PvZReanimInterpolator
     {
+        // =========================================================
+        // MAIN
+        // =========================================================
+
         public static PvZReanimTransform Interpolate(
             PvZReanimTransform a,
             PvZReanimTransform b,
             float factor)
         {
+            if (a == null && b == null)
+                return null;
+
             if (a == null)
-                return b?.Clone();
+                return b.Clone();
 
             if (b == null)
                 return a.Clone();
 
-            factor = Mathf.Clamp01(factor);
+            factor =
+                Mathf.Clamp01(
+                    factor
+                );
 
             PvZReanimTransform result =
-                new PvZReanimTransform();
+                a.Clone();
+
+            // =====================================================
+            // POSITION
+            // =====================================================
 
             result.x =
                 InterpolateValue(
                     a.x,
                     b.x,
-                    factor
+                    factor,
+                    0f
                 );
 
             result.y =
                 InterpolateValue(
                     a.y,
                     b.y,
-                    factor
+                    factor,
+                    0f
                 );
 
-            result.skewX =
-                InterpolateValue(
-                    a.skewX,
-                    b.skewX,
-                    factor
-                );
-
-            result.skewY =
-                InterpolateValue(
-                    a.skewY,
-                    b.skewY,
-                    factor
-                );
+            // =====================================================
+            // SCALE
+            // =====================================================
 
             result.scaleX =
                 InterpolateValue(
                     a.scaleX,
                     b.scaleX,
-                    factor
+                    factor,
+                    1f
                 );
 
             result.scaleY =
                 InterpolateValue(
                     a.scaleY,
                     b.scaleY,
-                    factor
+                    factor,
+                    1f
                 );
 
-            result.frame =
-                InterpolateValue(
-                    a.frame,
-                    b.frame,
-                    factor
-                );
+            // =====================================================
+            // ALPHA
+            // =====================================================
 
             result.alpha =
                 InterpolateValue(
                     a.alpha,
                     b.alpha,
-                    factor
+                    factor,
+                    1f
                 );
 
-            // Los sprites no se mezclan.
-            result.image =
-                factor < 0.5f
-                    ? a.image
-                    : b.image;
+            // =====================================================
+            // IMAGE
+            // =====================================================
 
-            result.text =
-                factor < 0.5f
-                    ? a.text
-                    : b.text;
+            result.imageName =
+                ResolveImageName(
+                    a.imageName,
+                    b.imageName,
+                    factor
+                );
 
             return result;
         }
 
+        // =========================================================
+        // FLOAT
+        // =========================================================
+
         private static float InterpolateValue(
             float a,
             float b,
-            float factor)
+            float factor,
+            float defaultValue)
         {
             bool aMissing =
-                a == PvZReanimConstants.MissingValue;
+                a ==
+                PvZReanimConstants.MissingValue;
 
             bool bMissing =
-                b == PvZReanimConstants.MissingValue;
+                b ==
+                PvZReanimConstants.MissingValue;
+
+            // -----------------------------------------------------
+            // Ambos faltan
+            // -----------------------------------------------------
 
             if (aMissing && bMissing)
-                return PvZReanimConstants.MissingValue;
+                return defaultValue;
+
+            // -----------------------------------------------------
+            // Solo A falta
+            // -----------------------------------------------------
 
             if (aMissing)
-                return b;
+                a = defaultValue;
+
+            // -----------------------------------------------------
+            // Solo B falta
+            // -----------------------------------------------------
 
             if (bMissing)
-                return a;
+                b = defaultValue;
+
+            // -----------------------------------------------------
+            // Interpolación lineal
+            // -----------------------------------------------------
 
             return Mathf.LerpUnclamped(
                 a,
                 b,
                 factor
             );
+        }
+
+        // =========================================================
+        // IMAGE NAME
+        // =========================================================
+
+        private static string ResolveImageName(
+            string a,
+            string b,
+            float factor)
+        {
+            bool aValid =
+                !string.IsNullOrEmpty(
+                    a
+                );
+
+            bool bValid =
+                !string.IsNullOrEmpty(
+                    b
+                );
+
+            if (!aValid && !bValid)
+                return null;
+
+            if (!aValid)
+                return b;
+
+            if (!bValid)
+                return a;
+
+            /*
+             * Los nombres de imagen no se interpolan.
+             *
+             * El cambio ocurre cuando el frame pasa
+             * el punto medio entre ambos keyframes.
+             */
+
+            return factor < 0.5f
+                ? a
+                : b;
         }
     }
 }
