@@ -115,18 +115,38 @@ namespace PvZReanim
 
         public void SetDefaults()
         {
-            x = 0f;
-            y = 0f;
+            imageName =
+                null;
 
-            skewX = 0f;
-            skewY = 0f;
+            image =
+                null;
 
-            scaleX = 1f;
-            scaleY = 1f;
+            x =
+                0f;
 
-            frame = 0f;
+            y =
+                0f;
 
-            alpha = 1f;
+            skewX =
+                0f;
+
+            skewY =
+                0f;
+
+            scaleX =
+                1f;
+
+            scaleY =
+                1f;
+
+            frame =
+                0f;
+
+            alpha =
+                1f;
+
+            text =
+                null;
         }
 
         // =========================================================
@@ -164,21 +184,21 @@ namespace PvZReanim
 
         public bool HasPosition =>
             x !=
-            PvZReanimConstants.MissingValue ||
+                PvZReanimConstants.MissingValue ||
             y !=
-            PvZReanimConstants.MissingValue;
+                PvZReanimConstants.MissingValue;
 
         public bool HasSkew =>
             skewX !=
-            PvZReanimConstants.MissingValue ||
+                PvZReanimConstants.MissingValue ||
             skewY !=
-            PvZReanimConstants.MissingValue;
+                PvZReanimConstants.MissingValue;
 
         public bool HasScale =>
             scaleX !=
-            PvZReanimConstants.MissingValue ||
+                PvZReanimConstants.MissingValue ||
             scaleY !=
-            PvZReanimConstants.MissingValue;
+                PvZReanimConstants.MissingValue;
 
         public bool HasFrame =>
             frame !=
@@ -194,14 +214,14 @@ namespace PvZReanim
             );
 
         // =========================================================
-        // RESOLVED POSITION
+        // POSITION
         // =========================================================
 
         public float GetX(
             float fallback = 0f)
         {
             return x ==
-                   PvZReanimConstants.MissingValue
+                PvZReanimConstants.MissingValue
                 ? fallback
                 : x;
         }
@@ -210,20 +230,20 @@ namespace PvZReanim
             float fallback = 0f)
         {
             return y ==
-                   PvZReanimConstants.MissingValue
+                PvZReanimConstants.MissingValue
                 ? fallback
                 : y;
         }
 
         // =========================================================
-        // RESOLVED SKEW
+        // SKEW
         // =========================================================
 
         public float GetSkewX(
             float fallback = 0f)
         {
             return skewX ==
-                   PvZReanimConstants.MissingValue
+                PvZReanimConstants.MissingValue
                 ? fallback
                 : skewX;
         }
@@ -232,20 +252,20 @@ namespace PvZReanim
             float fallback = 0f)
         {
             return skewY ==
-                   PvZReanimConstants.MissingValue
+                PvZReanimConstants.MissingValue
                 ? fallback
                 : skewY;
         }
 
         // =========================================================
-        // RESOLVED SCALE
+        // SCALE
         // =========================================================
 
         public float GetScaleX(
             float fallback = 1f)
         {
             return scaleX ==
-                   PvZReanimConstants.MissingValue
+                PvZReanimConstants.MissingValue
                 ? fallback
                 : scaleX;
         }
@@ -254,35 +274,47 @@ namespace PvZReanim
             float fallback = 1f)
         {
             return scaleY ==
-                   PvZReanimConstants.MissingValue
+                PvZReanimConstants.MissingValue
                 ? fallback
                 : scaleY;
         }
 
         // =========================================================
-        // RESOLVED FRAME
+        // FRAME
         // =========================================================
 
         public float GetFrame(
             float fallback = 0f)
         {
             return frame ==
-                   PvZReanimConstants.MissingValue
+                PvZReanimConstants.MissingValue
                 ? fallback
                 : frame;
         }
 
         // =========================================================
-        // RESOLVED ALPHA
+        // ALPHA
         // =========================================================
 
         public float GetAlpha(
             float fallback = 1f)
         {
             return alpha ==
-                   PvZReanimConstants.MissingValue
+                PvZReanimConstants.MissingValue
                 ? fallback
                 : alpha;
+        }
+
+        // =========================================================
+        // TEXT
+        // =========================================================
+
+        public string GetText(
+            string fallback = null)
+        {
+            return string.IsNullOrEmpty(text)
+                ? fallback
+                : text;
         }
     }
 }
