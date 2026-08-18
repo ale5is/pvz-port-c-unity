@@ -1,12 +1,17 @@
+// Assets/Scripts/PvZ/PvZReanimAnimator.cs
+
 using System.Collections;
 using UnityEngine;
 
 public class PvZReanimAnimator : MonoBehaviour
 {
+    [Header("REANIM")]
     public string reanimNombre;
 
-    public PvZReanimRenderer rendererReanim;
+    [Header("Animator")]
+    public Animator animator;
 
+    [Header("Estado")]
     [SerializeField]
     private string animacionActual;
 
@@ -17,7 +22,7 @@ public class PvZReanimAnimator : MonoBehaviour
 
     private void Awake()
     {
-        BuscarRenderer();
+        BuscarAnimator();
     }
 
     private IEnumerator Start()
@@ -25,19 +30,15 @@ public class PvZReanimAnimator : MonoBehaviour
         yield return Inicializar();
     }
 
-    private void BuscarRenderer()
+    private void BuscarAnimator()
     {
-        if (rendererReanim != null)
+        if (animator != null)
             return;
 
-        rendererReanim =
-            GetComponent<PvZReanimRenderer>();
+        animator = GetComponent<Animator>();
 
-        if (rendererReanim == null)
-        {
-            rendererReanim =
-                GetComponentInChildren<PvZReanimRenderer>();
-        }
+        if (animator == null)
+            animator = GetComponentInChildren<Animator>();
     }
 
     public IEnumerator Inicializar()
@@ -56,50 +57,33 @@ public class PvZReanimAnimator : MonoBehaviour
         if (string.IsNullOrWhiteSpace(reanimNombre))
             yield break;
 
-        ConfigurarRenderer();
-    }
-
-    private void ConfigurarRenderer()
-    {
-        BuscarRenderer();
-
-        if (rendererReanim == null)
-            return;
-
-        rendererReanim.enabled = true;
+        CargarReanim();
     }
 
     public bool CargarReanim()
     {
         recursoCargado = false;
 
-        if (PvZResourceManager.Instancia == null ||
-            !PvZResourceManager.Instancia.EstaListo ||
-            string.IsNullOrWhiteSpace(reanimNombre))
-        {
+        if (PvZResourceManager.Instancia == null)
             return false;
-        }
+
+        if (!PvZResourceManager.Instancia.EstaListo)
+            return false;
+
+        if (string.IsNullOrWhiteSpace(reanimNombre))
+            return false;
 
         if (!PvZResourceManager.Instancia.Existe(reanimNombre))
             return false;
 
-        ConfigurarRenderer();
-
         recursoCargado = true;
-
         return true;
     }
 
     public void ConfigurarReanim(string nombre)
     {
-        if (string.IsNullOrWhiteSpace(nombre))
-            return;
-
         reanimNombre = nombre;
-
         recursoCargado = false;
-
-        ConfigurarRenderer();
 
         if (PvZResourceManager.Instancia != null &&
             PvZResourceManager.Instancia.EstaListo)
@@ -115,12 +99,16 @@ public class PvZReanimAnimator : MonoBehaviour
 
         animacionActual = nombreAnimacion;
 
-        BuscarRenderer();
+        BuscarAnimator();
 
-        if (rendererReanim == null)
+        if (animator == null)
             return;
 
-        rendererReanim.Reproducir();
+        animator.Play(
+            nombreAnimacion,
+            0,
+            0f
+        );
     }
 
     public void Idle(string nombre)
@@ -153,30 +141,6 @@ public class PvZReanimAnimator : MonoBehaviour
         Reproducir(nombre);
     }
 
-    public void Pausar()
-    {
-        BuscarRenderer();
-
-        if (rendererReanim != null)
-            rendererReanim.Pausar();
-    }
-
-    public void Continuar()
-    {
-        BuscarRenderer();
-
-        if (rendererReanim != null)
-            rendererReanim.Reproducir();
-    }
-
-    public void Reiniciar()
-    {
-        BuscarRenderer();
-
-        if (rendererReanim != null)
-            rendererReanim.Reiniciar();
-    }
-
     public bool EstaCargado()
     {
         return recursoCargado;
@@ -192,8 +156,8 @@ public class PvZReanimAnimator : MonoBehaviour
         return reanimNombre;
     }
 
-    public PvZReanimRenderer ObtenerRenderer()
+    public Animator ObtenerAnimator()
     {
-        return rendererReanim;
+        return animator;
     }
 }
