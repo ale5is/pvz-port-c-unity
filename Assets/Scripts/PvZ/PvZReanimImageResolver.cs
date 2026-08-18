@@ -1,29 +1,33 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace PvZReanim
 {
     /// <summary>
-    /// Resuelve los nombres de imágenes utilizados por Reanim
-    /// hasta obtener un Sprite de Unity.
+    /// Resuelve nombres de imÃ¡genes Reanim.
     ///
-    /// Orden de búsqueda:
+    /// Flujo:
     ///
-    /// 1. Cache interno
-    /// 2. Atlas
-    /// 3. Resources
+    /// imageName
+    ///     â†“
+    /// cache
+    ///     â†“
+    /// provider
+    ///     â†“
+    /// atlas
+    ///     â†“
+    /// Resources (fallback)
     ///
-    /// El sistema está preparado para que posteriormente
-    /// el proveedor de imágenes pueda ser reemplazado
-    /// por el sistema de recursos/PAK de PvZ.
+    /// El resolver no conoce cÃ³mo se almacenan
+    /// internamente los recursos.
     /// </summary>
     public class PvZReanimImageResolver :
         MonoBehaviour
     {
-        [Header("Atlas")]
+        [Header("Provider")]
         [SerializeField]
-        private PvZReanimAtlas atlas;
+        private PvZReanimImageProvider provider;
 
         [Header("Resources")]
         [SerializeField]
@@ -35,13 +39,14 @@ namespace PvZReanim
 
         private Dictionary<string, Sprite> cache;
 
-        public PvZReanimAtlas Atlas
+        public PvZReanimImageProvider Provider
         {
-            get => atlas;
+            get => provider;
 
             set
             {
-                atlas = value;
+                provider =
+                    value;
 
                 ClearCache();
             }
@@ -67,7 +72,41 @@ namespace PvZReanim
 
         private void Awake()
         {
+            FindProvider();
+
             BuildCache();
+        }
+
+        // =========================================================
+        // PROVIDER
+        // =========================================================
+
+        private void FindProvider()
+        {
+            if (provider != null)
+                return;
+
+            provider =
+                GetComponent<
+                    PvZReanimImageProvider
+                >();
+
+            if (provider == null)
+            {
+                provider =
+                    GetComponentInParent<
+                        PvZReanimImageProvider
+                    >();
+            }
+        }
+
+        public void SetProvider(
+            PvZReanimImageProvider newProvider)
+        {
+            provider =
+                newProvider;
+
+            ClearCache();
         }
 
         // =========================================================
@@ -123,7 +162,7 @@ namespace PvZReanim
             }
 
             // -----------------------------------------------------
-            // 1. CACHE
+            // CACHE
             // -----------------------------------------------------
 
             Sprite cachedSprite;
@@ -136,11 +175,11 @@ namespace PvZReanim
             }
 
             // -----------------------------------------------------
-            // 2. ATLAS
+            // PROVIDER
             // -----------------------------------------------------
 
             Sprite sprite =
-                ResolveFromAtlas(
+                ResolveFromProvider(
                     imageName,
                     normalizedName
                 );
@@ -157,7 +196,7 @@ namespace PvZReanim
             }
 
             // -----------------------------------------------------
-            // 3. RESOURCES
+            // RESOURCES
             // -----------------------------------------------------
 
             if (searchResourcesIfMissing)
@@ -198,27 +237,23 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // ATLAS
+        // PROVIDER RESOLUTION
         // =========================================================
 
-        private Sprite ResolveFromAtlas(
+        private Sprite ResolveFromProvider(
             string originalName,
             string normalizedName)
         {
-            if (atlas == null)
+            if (provider == null)
                 return null;
 
-            // Primero intentamos el nombre original.
-
             Sprite sprite =
-                atlas.GetSprite(
+                provider.Resolve(
                     originalName
                 );
 
             if (sprite != null)
                 return sprite;
-
-            // Después el nombre normalizado.
 
             if (!string.Equals(
                 originalName,
@@ -226,7 +261,7 @@ namespace PvZReanim
                 StringComparison.OrdinalIgnoreCase))
             {
                 sprite =
-                    atlas.GetSprite(
+                    provider.Resolve(
                         normalizedName
                     );
 
@@ -329,10 +364,6 @@ namespace PvZReanim
             string result =
                 imageName.Trim();
 
-            // -----------------------------------------------------
-            // Comillas
-            // -----------------------------------------------------
-
             if (result.Length >= 2 &&
                 result[0] == '"' &&
                 result[result.Length - 1] == '"')
@@ -344,19 +375,11 @@ namespace PvZReanim
                     );
             }
 
-            // -----------------------------------------------------
-            // Separadores
-            // -----------------------------------------------------
-
             result =
                 result.Replace(
                     '\\',
                     '/'
                 );
-
-            // -----------------------------------------------------
-            // Quitar ruta
-            // -----------------------------------------------------
 
             int slash =
                 result.LastIndexOf('/');
@@ -369,10 +392,6 @@ namespace PvZReanim
                         slash + 1
                     );
             }
-
-            // -----------------------------------------------------
-            // Quitar extensión
-            // -----------------------------------------------------
 
             result =
                 RemoveExtension(
