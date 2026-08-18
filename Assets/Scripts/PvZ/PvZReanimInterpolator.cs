@@ -51,6 +51,26 @@ namespace PvZReanim
                 );
 
             // =====================================================
+            // SKEW
+            // =====================================================
+
+            result.skewX =
+                InterpolateValue(
+                    a.skewX,
+                    b.skewX,
+                    factor,
+                    0f
+                );
+
+            result.skewY =
+                InterpolateValue(
+                    a.skewY,
+                    b.skewY,
+                    factor,
+                    0f
+                );
+
+            // =====================================================
             // SCALE
             // =====================================================
 
@@ -68,6 +88,18 @@ namespace PvZReanim
                     b.scaleY,
                     factor,
                     1f
+                );
+
+            // =====================================================
+            // FRAME
+            // =====================================================
+
+            result.frame =
+                InterpolateValue(
+                    a.frame,
+                    b.frame,
+                    factor,
+                    0f
                 );
 
             // =====================================================
@@ -93,6 +125,28 @@ namespace PvZReanim
                     factor
                 );
 
+            // =====================================================
+            // TEXT
+            // =====================================================
+
+            result.text =
+                ResolveText(
+                    a.text,
+                    b.text,
+                    factor
+                );
+
+            // =====================================================
+            // SPRITE
+            // =====================================================
+
+            result.image =
+                ResolveSprite(
+                    a.image,
+                    b.image,
+                    factor
+                );
+
             return result;
         }
 
@@ -115,28 +169,28 @@ namespace PvZReanim
                 PvZReanimConstants.MissingValue;
 
             // -----------------------------------------------------
-            // Ambos faltan
+            // Ambos inexistentes
             // -----------------------------------------------------
 
             if (aMissing && bMissing)
                 return defaultValue;
 
             // -----------------------------------------------------
-            // Solo A falta
+            // A inexistente
             // -----------------------------------------------------
 
             if (aMissing)
                 a = defaultValue;
 
             // -----------------------------------------------------
-            // Solo B falta
+            // B inexistente
             // -----------------------------------------------------
 
             if (bMissing)
                 b = defaultValue;
 
             // -----------------------------------------------------
-            // Interpolación lineal
+            // Linear interpolation
             // -----------------------------------------------------
 
             return Mathf.LerpUnclamped(
@@ -175,11 +229,66 @@ namespace PvZReanim
                 return a;
 
             /*
-             * Los nombres de imagen no se interpolan.
+             * imageName es un valor discreto.
              *
-             * El cambio ocurre cuando el frame pasa
-             * el punto medio entre ambos keyframes.
+             * No se interpola como float.
              */
+
+            return factor < 0.5f
+                ? a
+                : b;
+        }
+
+        // =========================================================
+        // TEXT
+        // =========================================================
+
+        private static string ResolveText(
+            string a,
+            string b,
+            float factor)
+        {
+            bool aValid =
+                !string.IsNullOrEmpty(
+                    a
+                );
+
+            bool bValid =
+                !string.IsNullOrEmpty(
+                    b
+                );
+
+            if (!aValid && !bValid)
+                return null;
+
+            if (!aValid)
+                return b;
+
+            if (!bValid)
+                return a;
+
+            return factor < 0.5f
+                ? a
+                : b;
+        }
+
+        // =========================================================
+        // SPRITE
+        // =========================================================
+
+        private static Sprite ResolveSprite(
+            Sprite a,
+            Sprite b,
+            float factor)
+        {
+            if (a == null && b == null)
+                return null;
+
+            if (a == null)
+                return b;
+
+            if (b == null)
+                return a;
 
             return factor < 0.5f
                 ? a
