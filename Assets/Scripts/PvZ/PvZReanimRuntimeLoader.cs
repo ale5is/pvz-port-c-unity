@@ -431,7 +431,7 @@ namespace PvZReanim
             if (reanimation == null)
                 return;
 
-            reanimation.ReanimationDie();
+            reanimation.Die();
         }
 
         public void Restart()
