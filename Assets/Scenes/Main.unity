@@ -569,7 +569,7 @@ MonoBehaviour:
   imageResolver: {fileID: 0}
   spriteLoader: {fileID: 0}
   loopType: 1
-  animRate: 0.05
+  animRate: 1
   logInformation: 1
 --- !u!4 &1036647279
 Transform:
@@ -818,6 +818,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   pakFileName: main.pak
   logLoads: 1
+  logSearches: 1
+  debugPeashooterFiles: 1
 --- !u!4 &1172118327
 Transform:
   m_ObjectHideFlags: 0
