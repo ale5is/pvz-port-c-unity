@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 namespace PvZReanim
 {
@@ -38,12 +38,12 @@ namespace PvZReanim
         private PvZReanimTrackRenderer[] trackRenderers;
 
         /*
-         * Último transform válido de cada track.
+         * ï¿½ltimo transform vï¿½lido de cada track.
          *
          * Esto es importante para reproducir el comportamiento
          * de Reanimator:
          *
-         * Si una animación no modifica una pieza, la pieza
+         * Si una animaciï¿½n no modifica una pieza, la pieza
          * anterior NO desaparece.
          */
         private PvZReanimTransform[] lastValidTransforms;
@@ -392,8 +392,8 @@ namespace PvZReanim
             /*
              * NO limpiamos lastValidTransforms.
              *
-             * Al cambiar de animación, las piezas que no
-             * estén animadas deben conservar su pose.
+             * Al cambiar de animaciï¿½n, las piezas que no
+             * estï¿½n animadas deben conservar su pose.
              */
             UpdateTracks();
         }
@@ -466,7 +466,7 @@ namespace PvZReanim
             {
                 Debug.LogWarning(
                     "[PvZReanim] " +
-                    "No se encontró el rango de animación: " +
+                    "No se encontrï¿½ el rango de animaciï¿½n: " +
                     trackName,
                     this
                 );
@@ -519,7 +519,7 @@ namespace PvZReanim
              *
              * lastValidTransforms = null
              *
-             * porque las piezas estáticas de PeaShooter
+             * porque las piezas estï¿½ticas de PeaShooter
              * deben permanecer.
              */
 
@@ -608,16 +608,67 @@ namespace PvZReanim
 
             /*
              * El nombre del track funciona como marcador
-             * de la sección de frames.
+             * de la seccion de frames.
              *
-             * NO usamos el campo "frame" como índice de
-             * animación. Ese campo es el frame de imagen.
+             * En el reanim original, cada track marcador
+             * tiene su propio campo "frame" (-1 = fuera de
+             * esta sub-animacion, >= 0 = dentro de ella).
+             * Hay que escanear ese campo para encontrar el
+             * rango real, igual que hace
+             * Reanimation::GetFramesForLayer en el motor
+             * original (Reanimator.cpp). Si no lo hacemos,
+             * siempre devolvemos la linea de tiempo COMPLETA
+             * (todas las sub-animaciones concatenadas), que
+             * es lo que causa que aparezcan piezas de otras
+             * animaciones (p.ej. del Repetidor) antes de que
+             * arranque la correcta.
              */
 
             resultFrameStart = 0;
 
-            resultFrameCount =
-                animationTrack.TransformCount;
+            resultFrameCount = 1;
+
+            bool foundStart = false;
+
+            for (int i = 0;
+                 i < animationTrack.TransformCount;
+                 i++)
+            {
+                PvZReanimTransform t =
+                    animationTrack.transforms[i];
+
+                if (t != null &&
+                    t.HasFrame &&
+                    t.GetFrame() >= 0f)
+                {
+                    resultFrameStart = i;
+                    foundStart = true;
+                    break;
+                }
+            }
+
+            if (!foundStart)
+            {
+                // Sin marcadores validos: comportamiento
+                // igual al original (frameStart 0, count 1).
+                return true;
+            }
+
+            for (int j = resultFrameStart;
+                 j < animationTrack.TransformCount;
+                 j++)
+            {
+                PvZReanimTransform t =
+                    animationTrack.transforms[j];
+
+                if (t != null &&
+                    t.HasFrame &&
+                    t.GetFrame() >= 0f)
+                {
+                    resultFrameCount =
+                        j - resultFrameStart + 1;
+                }
+            }
 
             return resultFrameCount > 0;
         }
@@ -875,12 +926,12 @@ namespace PvZReanim
 
                 /*
                  * =================================================
-                 * TRACK SIN DATOS EN ESTA ANIMACIÓN
+                 * TRACK SIN DATOS EN ESTA ANIMACIï¿½N
                  * =================================================
                  *
                  * Esto NO significa que la pieza desaparezca.
                  *
-                 * Conservamos la última pose válida.
+                 * Conservamos la ï¿½ltima pose vï¿½lida.
                  */
                 if (current == null)
                 {
@@ -899,10 +950,10 @@ namespace PvZReanim
 
                 /*
                  * =================================================
-                 * FRAME NEGATIVO EXPLÍCITO
+                 * FRAME NEGATIVO EXPLï¿½CITO
                  * =================================================
                  *
-                 * Esto sí significa que PvZ quiere ocultar
+                 * Esto sï¿½ significa que PvZ quiere ocultar
                  * esta pieza.
                  */
                 if (current.HasFrame &&
@@ -1015,7 +1066,7 @@ namespace PvZReanim
              * el frame global sea mayor que la cantidad del
              * track.
              *
-             * El último transform conocido permanece.
+             * El ï¿½ltimo transform conocido permanece.
              */
 
             int before =
@@ -1031,8 +1082,8 @@ namespace PvZReanim
                 after = 0;
 
             /*
-             * Si el frame global está fuera del track,
-             * utilizamos el último transform del track.
+             * Si el frame global estï¿½ fuera del track,
+             * utilizamos el ï¿½ltimo transform del track.
              */
             if (before >= track.TransformCount)
             {
@@ -1057,8 +1108,8 @@ namespace PvZReanim
                 );
 
             /*
-             * Si el parser dejó un hueco real, intentamos
-             * recuperar el último transform válido del track.
+             * Si el parser dejï¿½ un hueco real, intentamos
+             * recuperar el ï¿½ltimo transform vï¿½lido del track.
              */
             if (a == null)
             {
@@ -1093,7 +1144,7 @@ namespace PvZReanim
 
             /*
              * Si el track termina justo cuando empieza
-             * una desaparición explícita, respetamos
+             * una desapariciï¿½n explï¿½cita, respetamos
              * truncateDisappearingFrames.
              */
             if (instance != null &&
@@ -1316,7 +1367,7 @@ namespace PvZReanim
 
                 /*
                  * Si el frame actual no tiene datos,
-                 * usamos la última pose válida.
+                 * usamos la ï¿½ltima pose vï¿½lida.
                  */
                 if (current == null &&
                     lastValidTransforms != null &&

@@ -1,4 +1,4 @@
-using System.IO;
+ï»¿using System.IO;
 using UnityEngine;
 
 namespace PvZReanim
@@ -8,7 +8,25 @@ namespace PvZReanim
         [Header("Reanim")]
         [SerializeField]
         private string relativePath =
-            "reanim/PeaShooter.reanim";
+            "";
+
+        /*
+         * OJO: antes este campo tenÃ­a por defecto
+         * "reanim/PeaShooter.reanim" (el archivo del
+         * REPETIDOR, doble guisante) como valor de C#.
+         * Cualquier instancia/prefab donde te olvidaras
+         * de pisar ese valor en el Inspector terminaba
+         * cargando el modelo del Repetidor sin que se
+         * notara en el cÃ³digo.
+         *
+         * Ahora arranca vacÃ­o a propÃ³sito: si algo
+         * spawnea sin asignar la ruta, Load() tira error
+         * en vez de cargar silenciosamente el reanim
+         * equivocado. AsignÃ¡ la ruta con SetReanimPath()
+         * (por ejemplo desde tu factory de plantas usando
+         * PvZPlantReanimTable.GetReanimPath(seedName)) o
+         * seteando el campo en el Inspector del prefab.
+         */
 
         [Header("Image System")]
         [SerializeField]
@@ -36,6 +54,34 @@ namespace PvZReanim
 
         public PvZReanimation Reanimation =>
             reanimation;
+
+        public string RelativePath =>
+            relativePath;
+
+        // =========================================================
+        // RUTA DEL REANIM
+        // =========================================================
+
+        /*
+         * AsignÃ¡ SIEMPRE la ruta desde acÃ¡ (por ejemplo
+         * desde tu factory de plantas, usando
+         * PvZPlantReanimTable.GetReanimPath(seedName))
+         * en vez de dejar que dos prefabs distintos
+         * compartan el mismo valor por copy-paste.
+         */
+        public void SetReanimPath(
+            string newRelativePath,
+            bool reloadNow = true)
+        {
+            relativePath =
+                newRelativePath;
+
+            if (reloadNow &&
+                Application.isPlaying)
+            {
+                Load();
+            }
+        }
 
         private void Start()
         {
@@ -147,7 +193,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "PvZReanimRuntimeLoader: " +
-                    "La ruta del Reanim está vacía."
+                    "La ruta del Reanim estï¿½ vacï¿½a."
                 );
 
                 return;
@@ -175,7 +221,7 @@ namespace PvZReanim
 
             Debug.Log(
                 "[PvZReanimRuntimeLoader] " +
-                "Definición obtenida | " +
+                "Definiciï¿½n obtenida | " +
                 "Nombre: " +
                 definition.name +
                 " | Tracks: " +
@@ -191,7 +237,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "PvZReanimRuntimeLoader: " +
-                    "La definición cargada no es válida."
+                    "La definiciï¿½n cargada no es vï¿½lida."
                 );
 
                 return;
@@ -219,7 +265,7 @@ namespace PvZReanim
             {
                 Debug.LogWarning(
                     "PvZReanimRuntimeLoader: " +
-                    "No se encontró main.pak:\n" +
+                    "No se encontrï¿½ main.pak:\n" +
                     pakPath
                 );
 
@@ -264,7 +310,7 @@ namespace PvZReanim
             {
                 Debug.LogWarning(
                     "[PvZReanimRuntimeLoader] " +
-                    "No se encontró el Reanim original:\n" +
+                    "No se encontrï¿½ el Reanim original:\n" +
                     normalizedPath
                 );
 
@@ -321,7 +367,7 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // FALLBACK: ARCHIVO FÍSICO
+        // FALLBACK: ARCHIVO Fï¿½SICO
         // =========================================================
 
         private PvZReanimDefinition LoadFromFile()
@@ -336,7 +382,7 @@ namespace PvZReanim
             {
                 Debug.LogWarning(
                     "PvZReanimRuntimeLoader: " +
-                    "No existe archivo físico:\n" +
+                    "No existe archivo fï¿½sico:\n" +
                     path
                 );
 
@@ -345,7 +391,7 @@ namespace PvZReanim
 
             Debug.Log(
                 "[PvZReanimRuntimeLoader] " +
-                "Cargando Reanim físico:\n" +
+                "Cargando Reanim fï¿½sico:\n" +
                 path
             );
 
