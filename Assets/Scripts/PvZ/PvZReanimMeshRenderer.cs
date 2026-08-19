@@ -7,15 +7,15 @@ namespace PvZReanim
     public class PvZReanimMeshRenderer : MonoBehaviour
     {
         // =========================================================
-        // CONFIG
+        // REANIM
         // =========================================================
 
         /*
-         * PvZ/Reanim trabaja en píxeles.
+         * PvZ trabaja en píxeles.
          *
-         * Usamos:
+         * El proyecto utiliza:
          *
-         * 100 píxeles = 1 unidad de Unity
+         * 100 píxeles = 1 unidad de Unity.
          */
         private const float REANIM_PIXELS_PER_UNIT = 100f;
 
@@ -33,7 +33,7 @@ namespace PvZReanim
         private Mesh mesh;
 
         // =========================================================
-        // MESH DATA
+        // MESH
         // =========================================================
 
         private readonly Vector3[] vertices =
@@ -52,9 +52,9 @@ namespace PvZReanim
         // MATERIAL
         // =========================================================
 
-        private Texture2D currentTexture;
-
         private Material material;
+
+        private Texture2D currentTexture;
 
         private bool initialized;
 
@@ -86,7 +86,7 @@ namespace PvZReanim
                 new Mesh();
 
             mesh.name =
-                "PvZ Reanim Track Mesh";
+                "PvZ Reanim Mesh";
 
             mesh.MarkDynamic();
 
@@ -116,35 +116,19 @@ namespace PvZReanim
 
             Initialize();
 
-            // -----------------------------------------------------
-            // MESH
-            // -----------------------------------------------------
-
             BuildMesh(
                 sprite,
                 transformData
             );
 
-            // -----------------------------------------------------
-            // MATERIAL
-            // -----------------------------------------------------
-
             UpdateMaterial(
                 sprite.texture
             );
-
-            // -----------------------------------------------------
-            // COLOR
-            // -----------------------------------------------------
 
             UpdateColor(
                 transformData,
                 instance
             );
-
-            // -----------------------------------------------------
-            // VISIBILITY
-            // -----------------------------------------------------
 
             meshRenderer.enabled =
                 instance.renderGroup !=
@@ -168,10 +152,6 @@ namespace PvZReanim
             Rect rect =
                 sprite.rect;
 
-            // -----------------------------------------------------
-            // IMAGE SIZE
-            // -----------------------------------------------------
-
             float width =
                 rect.width *
                 REANIM_PIXEL_TO_UNIT;
@@ -180,34 +160,43 @@ namespace PvZReanim
                 rect.height *
                 REANIM_PIXEL_TO_UNIT;
 
-            // -----------------------------------------------------
-            // PIVOT
-            //
-            // Reanim coloca la imagen alrededor de su centro.
-            // -----------------------------------------------------
+            /*
+             * =====================================================
+             * IMPORTANTE
+             * =====================================================
+             *
+             * El Reanim original NO usa Sprite.pivot.
+             *
+             * En el código original:
+             *
+             *   celWidth  = image.GetCelWidth();
+             *   celHeight = image.GetCelHeight();
+             *
+             *   Matrix.CreateTranslation(
+             *       celWidth * 0.5f,
+             *       celHeight * 0.5f,
+             *       0
+             *   );
+             *
+             * Después:
+             *
+             *   MatrixFromTransform(...)
+             *
+             * y ambas matrices se multiplican.
+             *
+             * Por eso tenemos que construir el quad
+             * desde 0,0 hasta width,height.
+             */
 
-            Vector2 pivot =
-                sprite.pivot;
+            float halfWidth =
+                width * 0.5f;
 
-            float left =
-                -pivot.x *
-                REANIM_PIXEL_TO_UNIT;
+            float halfHeight =
+                height * 0.5f;
 
-            float bottom =
-                -pivot.y *
-                REANIM_PIXEL_TO_UNIT;
-
-            float right =
-                left +
-                width;
-
-            float top =
-                bottom +
-                height;
-
-            // -----------------------------------------------------
-            // VALORES REANIM
-            // -----------------------------------------------------
+            // =====================================================
+            // REANIM TRANSFORM
+            // =====================================================
 
             float x =
                 transformData.GetX();
@@ -227,52 +216,50 @@ namespace PvZReanim
             float scaleY =
                 transformData.GetScaleY();
 
-            // -----------------------------------------------------
-            // MATRIZ REANIM ORIGINAL
-            //
-            // Esta es la misma estructura utilizada por
-            // PlantsVsZombies.NET / Reanim original:
-            //
-            // M11 = cos(skewX) * scaleX
-            // M12 = -sin(skewX) * scaleX
-            // M21 = sin(skewY) * scaleY
-            // M22 = cos(skewY) * scaleY
-            //
-            // IMPORTANTE:
-            // skewX y skewY NO se pueden intercambiar.
-            // -----------------------------------------------------
+            // =====================================================
+            // MATRIX FROM TRANSFORM
+            // =====================================================
 
-            float skewXRadians =
+            /*
+             * Esta matriz corresponde a MatrixFromTransform()
+             * del Reanim original.
+             *
+             * Original:
+             *
+             * M11 = cos(-skewX) * scaleX
+             * M12 = -sin(-skewX) * scaleX
+             *
+             * M21 = sin(-skewY) * scaleY
+             * M22 = cos(-skewY) * scaleY
+             */
+
+            float radiansX =
                 -skewX *
                 Mathf.Deg2Rad;
 
-            float skewYRadians =
+            float radiansY =
                 -skewY *
                 Mathf.Deg2Rad;
 
             float cosX =
                 Mathf.Cos(
-                    skewXRadians
+                    radiansX
                 );
 
             float sinX =
                 Mathf.Sin(
-                    skewXRadians
+                    radiansX
                 );
 
             float cosY =
                 Mathf.Cos(
-                    skewYRadians
+                    radiansY
                 );
 
             float sinY =
                 Mathf.Sin(
-                    skewYRadians
+                    radiansY
                 );
-
-            // -----------------------------------------------------
-            // MATRIZ CORRECTA DE REANIM
-            // -----------------------------------------------------
 
             float m00 =
                 cosX *
@@ -290,92 +277,160 @@ namespace PvZReanim
                 cosY *
                 scaleY;
 
-            // -----------------------------------------------------
-            // TRANSLACIÓN
-            // -----------------------------------------------------
+            // =====================================================
+            // PIXEL -> UNITY
+            // =====================================================
 
             float translationX =
                 x *
                 REANIM_PIXEL_TO_UNIT;
 
+            /*
+             * Reanim usa Y hacia abajo.
+             *
+             * Unity usa Y hacia arriba.
+             *
+             * Por eso invertimos Y.
+             */
             float translationY =
-                y *
+                -y *
                 REANIM_PIXEL_TO_UNIT;
 
-            // -----------------------------------------------------
-            // VERTICES BASE
-            //
-            // El quad está centrado usando el pivot real del Sprite.
-            // -----------------------------------------------------
+            // =====================================================
+            // QUAD ORIGINAL
+            // =====================================================
 
-            vertices[0] =
-                new Vector3(
-                    left,
-                    bottom,
-                    0f
+            /*
+             * La imagen original empieza en:
+             *
+             * 0,0
+             *
+             * y termina en:
+             *
+             * celWidth, celHeight
+             *
+             * El centro de la celda se introduce mediante:
+             *
+             * celWidth  * 0.5
+             * celHeight * 0.5
+             *
+             * antes de la matriz.
+             *
+             * En Unity representamos eso usando un quad centrado,
+             * pero aplicamos explícitamente el desplazamiento
+             * transformado por la matriz.
+             */
+
+            Vector2 p0 =
+                new Vector2(
+                    -halfWidth,
+                    -halfHeight
                 );
 
-            vertices[1] =
-                new Vector3(
-                    right,
-                    bottom,
-                    0f
+            Vector2 p1 =
+                new Vector2(
+                    halfWidth,
+                    -halfHeight
                 );
 
-            vertices[2] =
-                new Vector3(
-                    right,
-                    top,
-                    0f
+            Vector2 p2 =
+                new Vector2(
+                    halfWidth,
+                    halfHeight
                 );
 
-            vertices[3] =
-                new Vector3(
-                    left,
-                    top,
-                    0f
+            Vector2 p3 =
+                new Vector2(
+                    -halfWidth,
+                    halfHeight
                 );
 
-            // -----------------------------------------------------
-            // APLICAR MATRIZ
-            // -----------------------------------------------------
+            /*
+             * El desplazamiento de la mitad de la celda forma
+             * parte de la transformación original de Reanim.
+             *
+             * Lo calculamos explícitamente.
+             */
 
-            for (int i = 0;
-                 i < vertices.Length;
-                 i++)
-            {
-                Vector3 vertex =
-                    vertices[i];
+            float centerX =
+                m00 * halfWidth +
+                m01 * halfHeight;
 
-                float transformedX =
-                    m00 * vertex.x +
-                    m01 * vertex.y +
-                    translationX;
+            float centerY =
+                m10 * halfWidth +
+                m11 * halfHeight;
 
-                float transformedY =
-                    m10 * vertex.x +
-                    m11 * vertex.y +
-                    translationY;
+            /*
+             * El quad centrado representa el área alrededor
+             * del centro visual de la imagen.
+             *
+             * Sumamos el centro transformado exactamente como
+             * hace GetTrackMatrix()/DrawTrack() en PvZ.
+             */
 
-                vertices[i] =
-                    new Vector3(
-                        transformedX,
-                        transformedY,
-                        0f
-                    );
-            }
+            SetVertex(
+                0,
+                p0,
+                m00,
+                m01,
+                m10,
+                m11,
+                translationX +
+                centerX,
+                translationY -
+                centerY
+            );
 
-            // -----------------------------------------------------
+            SetVertex(
+                1,
+                p1,
+                m00,
+                m01,
+                m10,
+                m11,
+                translationX +
+                centerX,
+                translationY -
+                centerY
+            );
+
+            SetVertex(
+                2,
+                p2,
+                m00,
+                m01,
+                m10,
+                m11,
+                translationX +
+                centerX,
+                translationY -
+                centerY
+            );
+
+            SetVertex(
+                3,
+                p3,
+                m00,
+                m01,
+                m10,
+                m11,
+                translationX +
+                centerX,
+                translationY -
+                centerY
+            );
+
+            // =====================================================
             // UV
-            // -----------------------------------------------------
+            // =====================================================
 
             BuildUVs(
                 sprite
             );
 
-            // -----------------------------------------------------
-            // ACTUALIZAR MESH
-            // -----------------------------------------------------
+            // =====================================================
+            // APPLY MESH
+            // =====================================================
 
             mesh.Clear();
 
@@ -389,6 +444,38 @@ namespace PvZReanim
                 triangles;
 
             mesh.RecalculateBounds();
+        }
+
+        // =========================================================
+        // SET VERTEX
+        // =========================================================
+
+        private void SetVertex(
+            int index,
+            Vector2 point,
+            float m00,
+            float m01,
+            float m10,
+            float m11,
+            float translationX,
+            float translationY)
+        {
+            float transformedX =
+                m00 * point.x +
+                m01 * point.y +
+                translationX;
+
+            float transformedY =
+                m10 * point.x +
+                m11 * point.y +
+                translationY;
+
+            vertices[index] =
+                new Vector3(
+                    transformedX,
+                    transformedY,
+                    0f
+                );
         }
 
         // =========================================================
@@ -435,6 +522,13 @@ namespace PvZReanim
                 textureRect.yMax /
                 textureHeight;
 
+            /*
+             * Unity:
+             *
+             * abajo = vMin
+             * arriba = vMax
+             */
+
             uvs[0] =
                 new Vector2(
                     uMin,
@@ -479,10 +573,6 @@ namespace PvZReanim
             currentTexture =
                 texture;
 
-            // -----------------------------------------------------
-            // MATERIAL ANTERIOR
-            // -----------------------------------------------------
-
             if (material != null)
             {
                 Destroy(
@@ -492,10 +582,6 @@ namespace PvZReanim
                 material =
                     null;
             }
-
-            // -----------------------------------------------------
-            // SHADER
-            // -----------------------------------------------------
 
             Shader shader =
                 Shader.Find(
@@ -514,17 +600,12 @@ namespace PvZReanim
             {
                 Debug.LogWarning(
                     "[PvZReanimMeshRenderer] " +
-                    "No se encontró shader para renderizar " +
-                    "la imagen Reanim.",
+                    "No se encontró shader.",
                     this
                 );
 
                 return;
             }
-
-            // -----------------------------------------------------
-            // CREAR MATERIAL
-            // -----------------------------------------------------
 
             material =
                 new Material(
