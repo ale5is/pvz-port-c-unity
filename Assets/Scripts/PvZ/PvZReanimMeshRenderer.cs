@@ -6,23 +6,65 @@ namespace PvZReanim
     [RequireComponent(typeof(MeshRenderer))]
     public class PvZReanimMeshRenderer : MonoBehaviour
     {
+        // =========================================================
+        // CONFIG
+        // =========================================================
+
+        /*
+         * Reanim trabaja principalmente en píxeles.
+         *
+         * En Unity queremos:
+         *
+         * 100 píxeles = 1 unidad
+         *
+         * Por eso:
+         *
+         * 1 píxel = 0.01 unidades
+         */
+        private const float REANIM_PIXELS_PER_UNIT = 100f;
+
+        private const float REANIM_PIXEL_TO_UNIT =
+            1f / REANIM_PIXELS_PER_UNIT;
+
+        // =========================================================
+        // COMPONENTS
+        // =========================================================
+
         private MeshFilter meshFilter;
 
         private MeshRenderer meshRenderer;
 
         private Mesh mesh;
 
-        private Vector3[] vertices;
+        // =========================================================
+        // MESH DATA
+        // =========================================================
 
-        private Vector2[] uvs;
+        private readonly Vector3[] vertices =
+            new Vector3[4];
 
-        private int[] triangles;
+        private readonly Vector2[] uvs =
+            new Vector2[4];
+
+        private readonly int[] triangles =
+        {
+            0, 1, 2,
+            2, 3, 0
+        };
+
+        // =========================================================
+        // MATERIAL
+        // =========================================================
 
         private Texture2D currentTexture;
 
         private Material material;
 
         private bool initialized;
+
+        // =========================================================
+        // UNITY
+        // =========================================================
 
         private void Awake()
         {
@@ -55,20 +97,8 @@ namespace PvZReanim
             meshFilter.sharedMesh =
                 mesh;
 
-            vertices =
-                new Vector3[4];
-
-            uvs =
-                new Vector2[4];
-
-            triangles =
-                new int[]
-                {
-                    0, 1, 2,
-                    2, 3, 0
-                };
-
-            initialized = true;
+            initialized =
+                true;
         }
 
         // =========================================================
@@ -90,19 +120,35 @@ namespace PvZReanim
 
             Initialize();
 
+            // -----------------------------------------------------
+            // CONSTRUIR MESH
+            // -----------------------------------------------------
+
             BuildMesh(
                 sprite,
                 transformData
             );
 
+            // -----------------------------------------------------
+            // MATERIAL
+            // -----------------------------------------------------
+
             UpdateMaterial(
                 sprite.texture
             );
+
+            // -----------------------------------------------------
+            // COLOR
+            // -----------------------------------------------------
 
             UpdateColor(
                 transformData,
                 instance
             );
+
+            // -----------------------------------------------------
+            // VISIBILIDAD
+            // -----------------------------------------------------
 
             meshRenderer.enabled =
                 instance.renderGroup !=
@@ -117,39 +163,51 @@ namespace PvZReanim
             Sprite sprite,
             PvZReanimTransform transformData)
         {
-            if (sprite == null)
-                return;
-
-            float pixelsPerUnit =
-                sprite.pixelsPerUnit;
-
-            if (pixelsPerUnit <= 0f)
+            if (sprite == null ||
+                transformData == null)
             {
-                pixelsPerUnit =
-                    100f;
+                return;
             }
 
             Rect rect =
                 sprite.rect;
 
+            /*
+             * IMPORTANTE:
+             *
+             * NO usamos sprite.pixelsPerUnit.
+             *
+             * El Sprite puede venir del PAK con PPU = 1,
+             * 100, etc.
+             *
+             * Reanim está trabajando en píxeles, así que
+             * nosotros hacemos siempre:
+             *
+             * píxeles / 100 = unidades Unity.
+             */
+
             float width =
-                rect.width /
-                pixelsPerUnit;
+                rect.width *
+                REANIM_PIXEL_TO_UNIT;
 
             float height =
-                rect.height /
-                pixelsPerUnit;
+                rect.height *
+                REANIM_PIXEL_TO_UNIT;
+
+            // -----------------------------------------------------
+            // PIVOT
+            // -----------------------------------------------------
 
             Vector2 pivot =
                 sprite.pivot;
 
             float left =
-                -pivot.x /
-                pixelsPerUnit;
+                -pivot.x *
+                REANIM_PIXEL_TO_UNIT;
 
             float bottom =
-                -pivot.y /
-                pixelsPerUnit;
+                -pivot.y *
+                REANIM_PIXEL_TO_UNIT;
 
             float right =
                 left +
@@ -158,6 +216,10 @@ namespace PvZReanim
             float top =
                 bottom +
                 height;
+
+            // -----------------------------------------------------
+            // VERTICES
+            // -----------------------------------------------------
 
             vertices[0] =
                 new Vector3(
@@ -187,24 +249,131 @@ namespace PvZReanim
                     0f
                 );
 
-            PvZReanimMatrix matrix =
-                PvZReanimMatrix.FromTransform(
-                    transformData
-                );
+            // -----------------------------------------------------
+            // REANIM MATRIX
+            // -----------------------------------------------------
+
+            float x =
+                transformData.GetX();
+
+            float y =
+                transformData.GetY();
+
+            float skewX =
+                transformData.GetSkewX();
+
+            float skewY =
+                transformData.GetSkewY();
+
+            float scaleX =
+                transformData.GetScaleX();
+
+            float scaleY =
+                transformData.GetScaleY();
+
+            /*
+             * Construimos la matriz aquí en lugar de usar
+             * directamente PvZReanimMatrix.FromTransform().
+             *
+             * La diferencia importante es que x/y son píxeles.
+             *
+             * Ejemplo:
+             *
+             * Reanim:
+             *     x = 50
+             *
+             * Unity:
+             *     x = 0.50
+             */
+
+            float radiansX =
+                -skewX *
+                Mathf.Deg2Rad;
+
+            float radiansY =
+                -skewY *
+                Mathf.Deg2Rad;
+
+            float cosX =
+                Mathf.Cos(radiansX);
+
+            float sinX =
+                Mathf.Sin(radiansX);
+
+            float cosY =
+                Mathf.Cos(radiansY);
+
+            float sinY =
+                Mathf.Sin(radiansY);
+
+            float m00 =
+                cosX *
+                scaleX;
+
+            float m01 =
+                sinY *
+                scaleY;
+
+            float m10 =
+                -sinX *
+                scaleX;
+
+            float m11 =
+                cosY *
+                scaleY;
+
+            /*
+             * x/y convertidos de píxeles a unidades Unity.
+             */
+
+            float translationX =
+                x *
+                REANIM_PIXEL_TO_UNIT;
+
+            float translationY =
+                y *
+                REANIM_PIXEL_TO_UNIT;
+
+            // -----------------------------------------------------
+            // APLICAR MATRIZ A CADA VERTEX
+            // -----------------------------------------------------
 
             for (int i = 0;
                  i < vertices.Length;
                  i++)
             {
+                Vector3 vertex =
+                    vertices[i];
+
+                float transformedX =
+                    m00 * vertex.x +
+                    m01 * vertex.y +
+                    translationX;
+
+                float transformedY =
+                    m10 * vertex.x +
+                    m11 * vertex.y +
+                    translationY;
+
                 vertices[i] =
-                    matrix.MultiplyPoint(
-                        vertices[i]
+                    new Vector3(
+                        transformedX,
+                        transformedY,
+                        0f
                     );
             }
+
+            // -----------------------------------------------------
+            // UV
+            // -----------------------------------------------------
 
             BuildUVs(
                 sprite
             );
+
+            // -----------------------------------------------------
+            // ACTUALIZAR MESH
+            // -----------------------------------------------------
 
             mesh.Clear();
 
@@ -299,6 +468,10 @@ namespace PvZReanim
             if (texture == null)
                 return;
 
+            // -----------------------------------------------------
+            // YA TENEMOS EL MATERIAL CORRECTO
+            // -----------------------------------------------------
+
             if (material != null &&
                 currentTexture == texture)
             {
@@ -308,14 +481,23 @@ namespace PvZReanim
             currentTexture =
                 texture;
 
+            // -----------------------------------------------------
+            // DESTRUIR MATERIAL ANTERIOR
+            // -----------------------------------------------------
+
             if (material != null)
             {
                 Destroy(
                     material
                 );
 
-                material = null;
+                material =
+                    null;
             }
+
+            // -----------------------------------------------------
+            // SHADER
+            // -----------------------------------------------------
 
             Shader shader =
                 Shader.Find(
@@ -331,7 +513,20 @@ namespace PvZReanim
             }
 
             if (shader == null)
+            {
+                Debug.LogWarning(
+                    "[PvZReanimMeshRenderer] " +
+                    "No se encontró shader para renderizar " +
+                    "la imagen Reanim.",
+                    this
+                );
+
                 return;
+            }
+
+            // -----------------------------------------------------
+            // CREAR MATERIAL
+            // -----------------------------------------------------
 
             material =
                 new Material(
@@ -413,6 +608,10 @@ namespace PvZReanim
                 false;
         }
 
+        // =========================================================
+        // SHOW
+        // =========================================================
+
         public void Show()
         {
             if (meshRenderer == null)
@@ -440,7 +639,8 @@ namespace PvZReanim
                     mesh
                 );
 
-                mesh = null;
+                mesh =
+                    null;
             }
 
             if (material != null)
@@ -449,8 +649,15 @@ namespace PvZReanim
                     material
                 );
 
-                material = null;
+                material =
+                    null;
             }
+
+            currentTexture =
+                null;
+
+            initialized =
+                false;
         }
     }
 }
