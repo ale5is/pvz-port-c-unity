@@ -37,6 +37,11 @@ namespace PvZReanim
 
         private PvZReanimTrackRenderer[] trackRenderers;
 
+        // Guarda el último transform válido de cada track.
+        // Esto evita que una pieza desaparezca cuando un frame
+        // concreto no contiene todos sus datos.
+        private PvZReanimTransform[] lastValidTransforms;
+
         public PvZReanimDefinition Definition =>
             definition;
 
@@ -62,6 +67,10 @@ namespace PvZReanim
             definition != null
                 ? definition.TrackCount
                 : 0;
+
+        // =========================================================
+        // UNITY
+        // =========================================================
 
         private void Awake()
         {
@@ -111,6 +120,11 @@ namespace PvZReanim
                     definition.TrackCount
                 ];
 
+            lastValidTransforms =
+                new PvZReanimTransform[
+                    definition.TrackCount
+                ];
+
             for (int i = 0;
                  i < trackInstances.Length;
                  i++)
@@ -123,6 +137,9 @@ namespace PvZReanim
 
                 trackInstances[i].trackColor =
                     Color.white;
+
+                lastValidTransforms[i] =
+                    null;
             }
 
             frameStart = 0;
@@ -153,6 +170,14 @@ namespace PvZReanim
             {
                 imageResolver =
                     GetComponentInParent<
+                        PvZReanimImageResolver
+                    >();
+            }
+
+            if (imageResolver == null)
+            {
+                imageResolver =
+                    FindFirstObjectByType<
                         PvZReanimImageResolver
                     >();
             }
@@ -316,6 +341,11 @@ namespace PvZReanim
 
             dead = false;
 
+            // Al comenzar una nueva animación NO borramos
+            // los transforms anteriores inmediatamente.
+            // Esto permite que las piezas continúen visibles
+            // hasta que el nuevo frame proporcione sus datos.
+
             UpdateTracks();
         }
 
@@ -470,17 +500,43 @@ namespace PvZReanim
                 if (renderer == null)
                     continue;
 
+                PvZReanimTrackInstance instance =
+                    trackInstances[i];
+
                 PvZReanimTransform current =
                     GetTransformAtTime(
                         i,
                         frameTime
                     );
 
-                if (current == null)
-                    continue;
+                // -------------------------------------------------
+                // SI EL FRAME NO TIENE TRANSFORM:
+                // usar el último transform válido.
+                // -------------------------------------------------
 
-                PvZReanimTrackInstance instance =
-                    trackInstances[i];
+                if (current == null)
+                {
+                    current =
+                        lastValidTransforms[i];
+
+                    if (current == null)
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    // -------------------------------------------------
+                    // GUARDAR TRANSFORM VÁLIDO
+                    // -------------------------------------------------
+
+                    lastValidTransforms[i] =
+                        current.Clone();
+                }
+
+                // -------------------------------------------------
+                // BLENDING
+                // -------------------------------------------------
 
                 PvZReanimTransform renderTransform =
                     current;
@@ -505,7 +561,20 @@ namespace PvZReanim
                         );
 
                     instance.blendCounter--;
+
+                    if (instance.blendCounter <= 0)
+                    {
+                        instance.blendTransform =
+                            null;
+
+                        instance.blendTime =
+                            0;
+                    }
                 }
+
+                // -------------------------------------------------
+                // RENDER
+                // -------------------------------------------------
 
                 renderer.Apply(
                     renderTransform,
