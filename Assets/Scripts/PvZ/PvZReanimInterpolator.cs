@@ -4,10 +4,6 @@ namespace PvZReanim
 {
     public static class PvZReanimInterpolator
     {
-        // =========================================================
-        // INTERPOLAR
-        // =========================================================
-
         public static PvZReanimTransform Interpolate(
             PvZReanimTransform a,
             PvZReanimTransform b,
@@ -23,9 +19,7 @@ namespace PvZReanim
                 return a.Clone();
 
             factor =
-                Mathf.Clamp01(
-                    factor
-                );
+                Mathf.Clamp01(factor);
 
             PvZReanimTransform result =
                 a.Clone();
@@ -84,62 +78,54 @@ namespace PvZReanim
 
             // =====================================================
             // SKEW
-            //
-            // Resodded evita saltos de 360 grados.
             // =====================================================
 
-            float skewX2 =
-                ResolveMissingValue(
-                    b.skewX,
-                    a.skewX,
-                    0f
-                );
-
-            float skewY2 =
-                ResolveMissingValue(
-                    b.skewY,
-                    a.skewY,
-                    0f
-                );
-
             float skewX1 =
-                ResolveMissingValue(
+                ResolveMissing(
                     a.skewX,
                     0f
                 );
 
             float skewY1 =
-                ResolveMissingValue(
+                ResolveMissing(
                     a.skewY,
                     0f
+                );
+
+            float skewX2 =
+                ResolveMissing(
+                    b.skewX,
+                    skewX1
+                );
+
+            float skewY2 =
+                ResolveMissing(
+                    b.skewY,
+                    skewY1
                 );
 
             while (skewX2 >
                    skewX1 + 180f)
             {
-                skewX2 =
-                    skewX1;
+                skewX2 -= 360f;
             }
 
             while (skewX2 <
                    skewX1 - 180f)
             {
-                skewX2 =
-                    skewX1;
+                skewX2 += 360f;
             }
 
             while (skewY2 >
                    skewY1 + 180f)
             {
-                skewY2 =
-                    skewY1;
+                skewY2 -= 360f;
             }
 
             while (skewY2 <
                    skewY1 - 180f)
             {
-                skewY2 =
-                    skewY1;
+                skewY2 += 360f;
             }
 
             result.skewX =
@@ -158,49 +144,69 @@ namespace PvZReanim
 
             // =====================================================
             // FRAME
-            //
-            // MUY IMPORTANTE:
-            //
-            // Resodded NO interpola el frame.
-            // Utiliza el frame anterior.
             // =====================================================
 
+            /*
+             * El frame es discreto.
+             *
+             * Mientras estamos entre dos transformaciones,
+             * utilizamos el frame de la transformación anterior.
+             */
             result.frame =
-                a.frame;
+                !IsMissing(a.frame)
+                    ? a.frame
+                    : b.frame;
 
             // =====================================================
             // IMAGE
-            //
-            // También es un valor discreto.
-            // Se conserva el valor del frame anterior.
             // =====================================================
 
-            result.imageName =
-                a.imageName;
+            /*
+             * MUY IMPORTANTE:
+             *
+             * Si el frame anterior tiene imagen, se conserva.
+             * Si no tiene imagen, usamos la del siguiente.
+             *
+             * Esto evita que la pieza desaparezca al cambiar
+             * de frame solamente porque imageName sea MissingValue.
+             */
+            if (!string.IsNullOrEmpty(a.imageName))
+            {
+                result.imageName =
+                    a.imageName;
 
-            result.image =
-                a.image;
+                result.image =
+                    a.image;
+            }
+            else
+            {
+                result.imageName =
+                    b.imageName;
+
+                result.image =
+                    b.image;
+            }
 
             // =====================================================
             // FONT
             // =====================================================
 
             result.fontName =
-                a.fontName;
+                !string.IsNullOrEmpty(a.fontName)
+                    ? a.fontName
+                    : b.fontName;
 
             // =====================================================
             // TEXT
             // =====================================================
 
             result.text =
-                a.text;
+                !string.IsNullOrEmpty(a.text)
+                    ? a.text
+                    : b.text;
 
             return result;
         }
-
-        // =========================================================
-        // FLOAT
-        // =========================================================
 
         private static float InterpolateValue(
             float a,
@@ -209,28 +215,19 @@ namespace PvZReanim
             float defaultValue)
         {
             bool aMissing =
-                IsMissingValue(a);
+                IsMissing(a);
 
             bool bMissing =
-                IsMissingValue(b);
+                IsMissing(b);
 
-            if (aMissing &&
-                bMissing)
-            {
+            if (aMissing && bMissing)
                 return defaultValue;
-            }
 
             if (aMissing)
-            {
-                a =
-                    defaultValue;
-            }
+                a = b;
 
             if (bMissing)
-            {
-                b =
-                    a;
-            }
+                b = a;
 
             return Mathf.LerpUnclamped(
                 a,
@@ -239,38 +236,16 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // RESOLVER VALUE
-        // =========================================================
-
-        private static float ResolveMissingValue(
+        private static float ResolveMissing(
             float value,
             float fallback)
         {
-            return IsMissingValue(value)
+            return IsMissing(value)
                 ? fallback
                 : value;
         }
 
-        private static float ResolveMissingValue(
-            float value,
-            float fallback1,
-            float fallback2)
-        {
-            if (!IsMissingValue(value))
-                return value;
-
-            if (!IsMissingValue(fallback1))
-                return fallback1;
-
-            return fallback2;
-        }
-
-        // =========================================================
-        // MISSING
-        // =========================================================
-
-        private static bool IsMissingValue(
+        private static bool IsMissing(
             float value)
         {
             return value ==
