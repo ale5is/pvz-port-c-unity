@@ -338,98 +338,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2012008854}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &804392410
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 804392412}
-  - component: {fileID: 804392411}
-  m_Layer: 0
-  m_Name: PvZReanimRuntimeTest
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!114 &804392411
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 804392410}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9887f6a4415210148b716dfab8b4cb0e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  createTestSprite: 1
-  textureSize: 64
-  testColor: {r: 0, g: 1, b: 0, a: 1}
-  pixelsPerUnit: 64
---- !u!4 &804392412
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 804392410}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &868310010
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 868310012}
-  - component: {fileID: 868310011}
-  m_Layer: 0
-  m_Name: PvZPakTest
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 0
---- !u!114 &868310011
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 868310010}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e6b35b137aca1c346b2074384b5a8aa6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!4 &868310012
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 868310010}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 134.18608, y: 17.631872, z: -0.7041398}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &890353424
 GameObject:
   m_ObjectHideFlags: 0
@@ -540,13 +448,12 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1036647279}
-  - component: {fileID: 1036647278}
-  - component: {fileID: 1036647281}
-  - component: {fileID: 1036647280}
   - component: {fileID: 1036647282}
+  - component: {fileID: 1036647278}
+  - component: {fileID: 1036647284}
   - component: {fileID: 1036647283}
   m_Layer: 0
-  m_Name: ReanimLoaderTest
+  m_Name: Peashooter
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -564,9 +471,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9540a5a2c4abaa2469900c8fad3445ec, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  relativePath: reanim/PeaShooter.reanim
-  imageProvider: {fileID: 0}
-  imageResolver: {fileID: 0}
+  relativePath: reanim/PeaShooterSingle.reanim
+  imageProvider: {fileID: 1172118328}
+  imageResolver: {fileID: 1036647282}
   spriteLoader: {fileID: 0}
   loopType: 1
   animRate: 1
@@ -586,40 +493,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1036647280
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1036647277}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 93948fa9b094b8743864901897e653bb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  provider: {fileID: 0}
-  imageFolder: PvZImages
-  loadOnStart: 1
-  recursiveSearch: 1
-  pointFilter: 1
-  logLoadedSprites: 1
---- !u!114 &1036647281
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1036647277}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d37270694ba76fd4b87cded0d57295d7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  atlas: {fileID: 0}
-  searchResources: 0
-  searchPak: 1
-  pakProvider: {fileID: 1172118326}
 --- !u!114 &1036647282
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -632,7 +505,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 697a6336a182c0c47be7542ac6a5e99b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  provider: {fileID: 1036647281}
+  provider: {fileID: 1172118328}
   spriteLoader: {fileID: 0}
   searchResourcesIfMissing: 0
   logMissingImages: 1
@@ -688,6 +561,25 @@ SpriteRenderer:
   m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &1036647284
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1036647277}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d46a7b847d0bb54e8845b5d134664d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  definition: {fileID: 0}
+  imageResolver: {fileID: 1036647282}
+  animTime: 0
+  animRate: 1
+  loopType: 1
+  frameStart: 0
+  frameCount: -1
 --- !u!1 &1044561496
 GameObject:
   m_ObjectHideFlags: 0
@@ -719,74 +611,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2012008854}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1060947923
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1060947925}
-  - component: {fileID: 1060947927}
-  - component: {fileID: 1060947926}
-  m_Layer: 0
-  m_Name: archivo
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1060947925
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1060947923}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1060947926
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1060947923}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 697a6336a182c0c47be7542ac6a5e99b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  provider: {fileID: 0}
-  spriteLoader: {fileID: 0}
-  searchResourcesIfMissing: 0
-  logMissingImages: 0
---- !u!114 &1060947927
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1060947923}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4d46a7b847d0bb54e8845b5d134664d0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  definition: {fileID: 0}
-  imageResolver: {fileID: 0}
-  animTime: 0
-  animRate: 1
-  loopType: 1
-  frameStart: 0
-  frameCount: -1
 --- !u!1 &1172118325
 GameObject:
   m_ObjectHideFlags: 0
@@ -797,8 +621,9 @@ GameObject:
   m_Component:
   - component: {fileID: 1172118327}
   - component: {fileID: 1172118326}
+  - component: {fileID: 1172118328}
   m_Layer: 0
-  m_Name: PvZPakImageProvider
+  m_Name: GameManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -817,9 +642,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   pakFileName: main.pak
-  logLoads: 1
-  logSearches: 1
-  debugPeashooterFiles: 1
+  logLoads: 0
+  logSearches: 0
+  debugPeashooterFiles: 0
 --- !u!4 &1172118327
 Transform:
   m_ObjectHideFlags: 0
@@ -835,6 +660,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1172118328
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1172118325}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d37270694ba76fd4b87cded0d57295d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  atlas: {fileID: 0}
+  searchResources: 0
+  searchPak: 1
+  pakProvider: {fileID: 1172118326}
 --- !u!1 &1653028544
 GameObject:
   m_ObjectHideFlags: 0
@@ -1043,8 +884,5 @@ SceneRoots:
   - {fileID: 1945150268}
   - {fileID: 2012008854}
   - {fileID: 103352794}
-  - {fileID: 1060947925}
-  - {fileID: 804392412}
   - {fileID: 1036647279}
-  - {fileID: 868310012}
   - {fileID: 1172118327}

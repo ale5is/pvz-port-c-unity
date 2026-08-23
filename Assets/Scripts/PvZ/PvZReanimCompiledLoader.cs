@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
@@ -30,7 +30,7 @@ namespace PvZReanim
         private const int HEADER_SIZE = 8;
 
         /*
-         * Tamaños de las estructuras nativas x86
+         * Tamaï¿½os de las estructuras nativas x86
          * usadas por ReanimatorDefinition.
          *
          * ReanimatorDefinition:
@@ -89,7 +89,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "[PvZReanimCompiledLoader] " +
-                    "Datos vacíos."
+                    "Datos vacï¿½os."
                 );
 
                 return null;
@@ -115,7 +115,7 @@ namespace PvZReanim
 
                 Debug.Log(
                     "[PvZReanimCompiledLoader] " +
-                    "Descompresión OK | Bytes: " +
+                    "Descompresiï¿½n OK | Bytes: " +
                     uncompressed.Length
                 );
 
@@ -128,7 +128,7 @@ namespace PvZReanim
                 {
                     Debug.LogError(
                         "[PvZReanimCompiledLoader] " +
-                        "No se pudo reconstruir la definición."
+                        "No se pudo reconstruir la definiciï¿½n."
                     );
 
                     return null;
@@ -136,7 +136,7 @@ namespace PvZReanim
 
                 Debug.Log(
                     "[PvZReanimCompiledLoader] " +
-                    "Definición reconstruida | " +
+                    "Definiciï¿½n reconstruida | " +
                     "Tracks: " +
                     definition.TrackCount +
                     " | Frames: " +
@@ -160,7 +160,7 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // DESCOMPRESIÓN DEL COMPILED ORIGINAL
+        // DESCOMPRESIï¿½N DEL COMPILED ORIGINAL
         // =========================================================
 
         private static byte[] DecompressCompiled(
@@ -170,7 +170,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "[PvZReanimCompiledLoader] " +
-                    "Compiled demasiado pequeño."
+                    "Compiled demasiado pequeï¿½o."
                 );
 
                 return null;
@@ -201,7 +201,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "[PvZReanimCompiledLoader] " +
-                    "Magic inválido: 0x" +
+                    "Magic invï¿½lido: 0x" +
                     cookie.ToString("X8") +
                     " | Esperado: 0x" +
                     COMPILED_LEGACY_DEFINITION_MAGIC.ToString("X8")
@@ -214,7 +214,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "[PvZReanimCompiledLoader] " +
-                    "Tamaño descomprimido inválido."
+                    "Tamaï¿½o descomprimido invï¿½lido."
                 );
 
                 return null;
@@ -266,7 +266,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "[PvZReanimCompiledLoader] " +
-                    "Bloque zlib demasiado pequeño."
+                    "Bloque zlib demasiado pequeï¿½o."
                 );
 
                 return null;
@@ -282,7 +282,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "[PvZReanimCompiledLoader] " +
-                    "DEFLATE vacío."
+                    "DEFLATE vacï¿½o."
                 );
 
                 return null;
@@ -333,7 +333,7 @@ namespace PvZReanim
                 {
                     Debug.LogWarning(
                         "[PvZReanimCompiledLoader] " +
-                        "Tamaño descomprimido diferente | " +
+                        "Tamaï¿½o descomprimido diferente | " +
                         "Esperado: " +
                         uncompressedSize +
                         " | Real: " +
@@ -377,7 +377,7 @@ namespace PvZReanim
                  *
                  * uint32 schemaHash
                  *
-                 * Después:
+                 * Despuï¿½s:
                  *
                  * ReanimatorDefinition
                  */
@@ -439,7 +439,7 @@ namespace PvZReanim
                 {
                     Debug.LogError(
                         "[PvZReanimCompiledLoader] " +
-                        "TrackCount inválido: " +
+                        "TrackCount invï¿½lido: " +
                         trackCount
                     );
 
@@ -463,7 +463,7 @@ namespace PvZReanim
                  * DefReadFromCacheArray
                  * -------------------------------------------------
                  *
-                 * Después de la estructura viene:
+                 * Despuï¿½s de la estructura viene:
                  *
                  * int aDefSize
                  *
@@ -485,7 +485,7 @@ namespace PvZReanim
                 {
                     Debug.LogError(
                         "[PvZReanimCompiledLoader] " +
-                        "Tamaño de ReanimatorTrack " +
+                        "Tamaï¿½o de ReanimatorTrack " +
                         "inesperado: " +
                         trackDefinitionSize +
                         " | Esperado: " +
@@ -502,7 +502,7 @@ namespace PvZReanim
                  *
                  * Primero vienen todos los structs.
                  *
-                 * Después se reparan sus punteros leyendo
+                 * Despuï¿½s se reparan sus punteros leyendo
                  * los campos definidos por DefMap.
                  */
 
@@ -585,7 +585,7 @@ namespace PvZReanim
                     {
                         Debug.LogError(
                             "[PvZReanimCompiledLoader] " +
-                            "Tamaño de ReanimatorTransform " +
+                            "Tamaï¿½o de ReanimatorTransform " +
                             "inesperado: " +
                             transformDefinitionSize +
                             " | Esperado: " +
@@ -684,7 +684,7 @@ namespace PvZReanim
                         /*
                          * DT_FONT
                          *
-                         * No necesitamos cargar fonts todavía,
+                         * No necesitamos cargar fonts todavï¿½a,
                          * pero debemos consumirlos del stream.
                          */
 
@@ -725,6 +725,33 @@ namespace PvZReanim
                         track.TransformCount
                     );
                 }
+
+                /*
+                 * =================================================
+                 * FILL FORWARD (ReanimationFillInMissingData)
+                 * =================================================
+                 *
+                 * El .reanim.compiled guarda datos DISPERSOS:
+                 * cada campo solo trae un valor real cuando
+                 * cambia respecto al frame anterior; el resto
+                 * queda en el sentinel MissingValue.
+                 *
+                 * El motor original corre este relleno SIEMPRE
+                 * despuï¿½s de cargar (ver ReanimationLoadDefinition
+                 * en Reanimator.cpp), tanto si el origen fue XML
+                 * como si fue el cachï¿½ binario. Si nos salteamos
+                 * este paso acï¿½, cualquier pieza que no vuelva a
+                 * redefinir su posiciï¿½n/imagen/frame en el tramo
+                 * de la animaciï¿½n activa queda con el sentinel
+                 * sin resolver y el renderer la trata como
+                 * explï¿½citamente oculta (frame < 0) -> partes NO
+                 * animadas que desaparecen al cambiar de
+                 * animaciï¿½n.
+                 */
+
+                PvZReanimDataFiller.FillDefinition(
+                    definition
+                );
 
                 Debug.Log(
                     "[PvZReanimCompiledLoader] " +
@@ -771,7 +798,7 @@ namespace PvZReanim
                 track.transformCount > 100000)
             {
                 throw new InvalidDataException(
-                    "TransformCount inválido: " +
+                    "TransformCount invï¿½lido: " +
                     track.transformCount
                 );
             }
@@ -855,7 +882,7 @@ namespace PvZReanim
                 length > 100000)
             {
                 throw new InvalidDataException(
-                    "Longitud de string inválida: " +
+                    "Longitud de string invï¿½lida: " +
                     length
                 );
             }
@@ -897,7 +924,7 @@ namespace PvZReanim
                 length > 100000)
             {
                 throw new InvalidDataException(
-                    "Longitud de imagen/font inválida: " +
+                    "Longitud de imagen/font invï¿½lida: " +
                     length
                 );
             }
@@ -948,7 +975,7 @@ namespace PvZReanim
                 );
 
             /*
-             * Resodded resuelve imágenes usando:
+             * Resodded resuelve imï¿½genes usando:
              *
              * IMAGE_REANIM_
              * +

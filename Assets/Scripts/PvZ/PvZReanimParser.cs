@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -19,7 +19,7 @@ namespace PvZReanim
             if (string.IsNullOrWhiteSpace(path))
             {
                 throw new ArgumentException(
-                    "La ruta del archivo .reanim está vacía.",
+                    "La ruta del archivo .reanim estï¿½ vacï¿½a.",
                     nameof(path)
                 );
             }
@@ -27,7 +27,7 @@ namespace PvZReanim
             if (!File.Exists(path))
             {
                 throw new FileNotFoundException(
-                    "No se encontró el archivo .reanim.",
+                    "No se encontrï¿½ el archivo .reanim.",
                     path
                 );
             }
@@ -46,7 +46,7 @@ namespace PvZReanim
             if (data == null || data.Length == 0)
             {
                 throw new ArgumentException(
-                    "Los datos del .reanim están vacíos.",
+                    "Los datos del .reanim estï¿½n vacï¿½os.",
                     nameof(data)
                 );
             }
@@ -112,7 +112,7 @@ namespace PvZReanim
             if (string.IsNullOrWhiteSpace(text))
             {
                 throw new ArgumentException(
-                    "El contenido del .reanim está vacío.",
+                    "El contenido del .reanim estï¿½ vacï¿½o.",
                     nameof(text)
                 );
             }
@@ -160,10 +160,10 @@ namespace PvZReanim
              * <track>...</track>
              * <track>...</track>
              *
-             * o dentro de un elemento raíz.
+             * o dentro de un elemento raï¿½z.
              *
              * Envolvemos todo en un <root> artificial para
-             * permitir múltiples elementos raíz.
+             * permitir mï¿½ltiples elementos raï¿½z.
              */
 
             text =
@@ -319,9 +319,9 @@ namespace PvZReanim
                      *
                      * NUNCA descartamos un <t>.
                      *
-                     * Un <t> vacío es válido en PvZ.
+                     * Un <t> vacï¿½o es vï¿½lido en PvZ.
                      *
-                     * Resodded conserva ese frame y después
+                     * Resodded conserva ese frame y despuï¿½s
                      * rellena sus valores con los del frame
                      * anterior.
                      */
@@ -382,10 +382,10 @@ namespace PvZReanim
              * Resodded rellena los valores inexistentes
              * usando el valor anterior.
              *
-             * También conserva el frame vacío.
+             * Tambiï¿½n conserva el frame vacï¿½o.
              */
 
-            FillMissingData(
+            PvZReanimDataFiller.FillTrack(
                 track
             );
 
@@ -415,7 +415,7 @@ namespace PvZReanim
                 new PvZReanimTransform();
 
             // =====================================================
-            // POSICIÓN
+            // POSICIï¿½N
             // =====================================================
 
             transform.x =
@@ -637,198 +637,14 @@ namespace PvZReanim
             /*
              * IMPORTANTE:
              *
-             * Aunque no tenga ningún valor, el transform
-             * sigue siendo válido.
+             * Aunque no tenga ningï¿½n valor, el transform
+             * sigue siendo vï¿½lido.
              *
              * Esto reproduce el comportamiento de
              * ReanimatorTransformConstructor de Resodded.
              */
 
             return transform;
-        }
-
-        // =========================================================
-        // RELLENAR DATOS FALTANTES
-        // =========================================================
-
-        private static void FillMissingData(
-            PvZReanimTrack track)
-        {
-            if (track == null ||
-                track.transforms == null)
-            {
-                return;
-            }
-
-            float previousX = 0f;
-            float previousY = 0f;
-
-            float previousSkewX = 0f;
-            float previousSkewY = 0f;
-
-            float previousScaleX = 1f;
-            float previousScaleY = 1f;
-
-            float previousFrame = 0f;
-            float previousAlpha = 1f;
-
-            string previousImage = null;
-            string previousFont = null;
-            string previousText = "";
-
-            for (int i = 0;
-                 i < track.transforms.Count;
-                 i++)
-            {
-                PvZReanimTransform transform =
-                    track.transforms[i];
-
-                if (transform == null)
-                {
-                    transform =
-                        new PvZReanimTransform();
-
-                    track.transforms[i] =
-                        transform;
-                }
-
-                // -------------------------------------------------
-                // X
-                // -------------------------------------------------
-
-                FillFloat(
-                    ref previousX,
-                    ref transform.x
-                );
-
-                // -------------------------------------------------
-                // Y
-                // -------------------------------------------------
-
-                FillFloat(
-                    ref previousY,
-                    ref transform.y
-                );
-
-                // -------------------------------------------------
-                // SKEW
-                // -------------------------------------------------
-
-                FillFloat(
-                    ref previousSkewX,
-                    ref transform.skewX
-                );
-
-                FillFloat(
-                    ref previousSkewY,
-                    ref transform.skewY
-                );
-
-                // -------------------------------------------------
-                // SCALE
-                // -------------------------------------------------
-
-                FillFloat(
-                    ref previousScaleX,
-                    ref transform.scaleX
-                );
-
-                FillFloat(
-                    ref previousScaleY,
-                    ref transform.scaleY
-                );
-
-                // -------------------------------------------------
-                // FRAME
-                // -------------------------------------------------
-
-                FillFloat(
-                    ref previousFrame,
-                    ref transform.frame
-                );
-
-                // -------------------------------------------------
-                // ALPHA
-                // -------------------------------------------------
-
-                FillFloat(
-                    ref previousAlpha,
-                    ref transform.alpha
-                );
-
-                // -------------------------------------------------
-                // IMAGE
-                // -------------------------------------------------
-
-                if (string.IsNullOrEmpty(
-                        transform.imageName
-                    ))
-                {
-                    transform.imageName =
-                        previousImage;
-                }
-                else
-                {
-                    previousImage =
-                        transform.imageName;
-                }
-
-                // -------------------------------------------------
-                // FONT
-                // -------------------------------------------------
-
-                if (string.IsNullOrEmpty(
-                        transform.fontName
-                    ))
-                {
-                    transform.fontName =
-                        previousFont;
-                }
-                else
-                {
-                    previousFont =
-                        transform.fontName;
-                }
-
-                // -------------------------------------------------
-                // TEXT
-                // -------------------------------------------------
-
-                if (string.IsNullOrEmpty(
-                        transform.text
-                    ))
-                {
-                    transform.text =
-                        previousText;
-                }
-                else
-                {
-                    previousText =
-                        transform.text;
-                }
-            }
-        }
-
-        // =========================================================
-        // FILL FLOAT
-        // =========================================================
-
-        private static void FillFloat(
-            ref float previous,
-            ref float value)
-        {
-            if (IsMissingValue(
-                    value
-                ))
-            {
-                value =
-                    previous;
-            }
-            else
-            {
-                previous =
-                    value;
-            }
         }
 
         // =========================================================
@@ -1102,7 +918,7 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // VALIDACIÓN
+        // VALIDACIï¿½N
         // =========================================================
 
         private static void ValidateTrackFrameCounts(
