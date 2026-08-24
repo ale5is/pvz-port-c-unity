@@ -3,24 +3,25 @@
 namespace PvZReanim
 {
     /*
-     * Attachment equivalente a:
+     * =============================================================
+     * PVZ REANIM ATTACHMENT
+     * =============================================================
      *
-     * Reanimation::AttachToAnotherReanimation
+     * La cabeza NO debe recibir directamente:
      *
-     * + GetAttachmentOverlayMatrix
+     *     current.x
+     *     current.y
      *
-     * del PvZ original.
+     * del anim_stem.
      *
-     * IMPORTANTE:
-     *
-     * Ya NO copiamos x/y del anim_stem directamente.
-     *
-     * El source calcula:
+     * El Body calcula primero:
      *
      *     inverse(basePose) * currentPose
      *
-     * y ese resultado se aplica al root del Reanimation
-     * de la cabeza.
+     * mediante GetAttachmentOverlayMatrix().
+     *
+     * Este componente solamente aplica esa matriz relativa
+     * al ROOT de la Reanimation de la cabeza.
      */
     [DefaultExecutionOrder(100)]
     public class PvZReanimAttachment : MonoBehaviour
@@ -32,6 +33,20 @@ namespace PvZReanim
         [SerializeField]
         private string sourceTrackName =
             "anim_stem";
+
+        [Header("Seguimiento")]
+        [SerializeField]
+        private bool followPosition = true;
+
+        [SerializeField]
+        private bool followRotation = true;
+
+        [SerializeField]
+        private bool followScale = true;
+
+        [Header("Corrección")]
+        [SerializeField]
+        private bool useOverlayMatrix = true;
 
         private int cachedTrackIndex = -1;
 
@@ -49,33 +64,31 @@ namespace PvZReanim
                 newSource;
 
             sourceTrackName =
-                string.IsNullOrWhiteSpace(
-                    newTrackName)
+                string.IsNullOrEmpty(
+                    newTrackName
+                )
                     ? "anim_stem"
                     : newTrackName;
 
             cachedTrackIndex = -1;
+
             cachedTrackName = null;
 
-            /*
-             * Igual que el original:
-             *
-             * if (mFrameBasePose == -1)
-             *     mFrameBasePose = mFrameStart;
-             *
-             * La pose base pertenece al BODY/source.
-             */
-            if (source != null &&
-                source.FrameBasePose < 0)
-            {
-                source.SetFrameBasePose(
-                    source.FrameStart
-                );
-            }
+            ResetTransform();
+        }
+
+        public PvZReanimation GetSource()
+        {
+            return source;
+        }
+
+        public string GetSourceTrackName()
+        {
+            return sourceTrackName;
         }
 
         // =========================================================
-        // UPDATE
+        // UNITY
         // =========================================================
 
         private void LateUpdate()
@@ -83,27 +96,40 @@ namespace PvZReanim
             if (source == null)
                 return;
 
-            CacheTrack();
+            ResolveTrack();
 
             if (cachedTrackIndex < 0)
                 return;
 
             /*
-             * Esta es la parte importante.
+             * =====================================================
+             * OBTENER MATRIZ RELATIVA
+             * =====================================================
              *
-             * NO:
+             * NO usamos:
              *
-             *     x -> position.x
-             *     y -> position.y
+             *     transform.localPosition =
+             *         current.GetX/Y();
              *
-             * Sino:
+             * porque eso toma la posición absoluta del anim_stem.
              *
-             *     base^-1 * current
+             * El Reanimation ya calcula la transformación relativa
+             * correcta mediante GetAttachmentOverlayMatrix().
              */
-            PvZReanimMatrix matrix =
-                source.GetAttachmentOverlayMatrix(
-                    cachedTrackIndex
-                );
+            PvZReanimMatrix matrix;
+
+            if (useOverlayMatrix)
+            {
+                matrix =
+                    source.GetAttachmentOverlayMatrix(
+                        cachedTrackIndex
+                    );
+            }
+            else
+            {
+                matrix =
+                    PvZReanimMatrix.Identity;
+            }
 
             ApplyMatrix(
                 matrix
@@ -111,13 +137,14 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // CACHE
+        // FIND TRACK
         // =========================================================
 
-        private void CacheTrack()
+        private void ResolveTrack()
         {
             if (cachedTrackIndex >= 0 &&
-                cachedTrackName == sourceTrackName)
+                cachedTrackName ==
+                sourceTrackName)
             {
                 return;
             }
@@ -136,8 +163,9 @@ namespace PvZReanim
                     "[PvZReanimAttachment] " +
                     "No se encontró el track '" +
                     sourceTrackName +
-                    "' en " +
-                    source.name,
+                    "' en '" +
+                    source.name +
+                    "'.",
                     this
                 );
             }
@@ -151,84 +179,130 @@ namespace PvZReanim
             PvZReanimMatrix matrix)
         {
             /*
-             * Translation
+             * =====================================================
+             * POSITION
+             * =====================================================
              */
-            transform.localPosition =
-                new Vector3(
-                    matrix.m02,
-                    matrix.m12,
-                    0f
-                );
+
+            if (followPosition)
+            {
+                transform.localPosition =
+                    new Vector3(
+                        matrix.m02,
+                        matrix.m12,
+                        0f
+                    );
+            }
 
             /*
-             * Extraemos los vectores de la matriz.
+             * =====================================================
+             * SCALE
+             * =====================================================
              *
-             * Column 0:
+             * La matriz puede contener skew.
              *
-             *     m00
-             *     m10
-             *
-             * Column 1:
-             *
-             *     m01
-             *     m11
+             * Unity Transform no soporta shear directamente,
+             * por lo que extraemos la escala de los ejes.
              */
 
             float scaleX =
                 Mathf.Sqrt(
-                    matrix.m00 * matrix.m00 +
-                    matrix.m10 * matrix.m10
+                    matrix.m00 *
+                    matrix.m00 +
+                    matrix.m10 *
+                    matrix.m10
                 );
 
             float scaleY =
                 Mathf.Sqrt(
-                    matrix.m01 * matrix.m01 +
-                    matrix.m11 * matrix.m11
+                    matrix.m01 *
+                    matrix.m01 +
+                    matrix.m11 *
+                    matrix.m11
                 );
 
-            if (scaleX < 0.000001f)
+            if (scaleX < 0.000001f ||
+                float.IsNaN(scaleX) ||
+                float.IsInfinity(scaleX))
+            {
                 scaleX = 1f;
+            }
 
-            if (scaleY < 0.000001f)
+            if (scaleY < 0.000001f ||
+                float.IsNaN(scaleY) ||
+                float.IsInfinity(scaleY))
+            {
                 scaleY = 1f;
+            }
 
             /*
-             * Rotation.
+             * =====================================================
+             * ROTATION
+             * =====================================================
              *
-             * La matriz de Reanim usa:
+             * El eje X de la matriz contiene la orientación.
              *
-             *     m00 = cos(...)
-             *     m10 = -sin(...)
-             *
-             * Por eso recuperamos el ángulo con atan2.
+             * No usamos directamente skewY.
              */
-            float angle =
-                Mathf.Atan2(
-                    matrix.m10,
-                    matrix.m00
-                ) *
-                Mathf.Rad2Deg;
 
-            transform.localRotation =
-                Quaternion.Euler(
-                    0f,
-                    0f,
-                    angle
-                );
+            if (followRotation)
+            {
+                float rotation =
+                    Mathf.Atan2(
+                        matrix.m10,
+                        matrix.m00
+                    ) *
+                    Mathf.Rad2Deg;
 
-            transform.localScale =
-                new Vector3(
-                    scaleX,
-                    scaleY,
-                    1f
-                );
+                transform.localRotation =
+                    Quaternion.Euler(
+                        0f,
+                        0f,
+                        rotation
+                    );
+            }
+
+            /*
+             * =====================================================
+             * SCALE
+             * =====================================================
+             */
+
+            if (followScale)
+            {
+                /*
+                 * Detectar reflexión.
+                 *
+                 * Determinante negativo significa que uno de los
+                 * ejes está invertido.
+                 */
+
+                float determinant =
+                    matrix.m00 *
+                    matrix.m11 -
+                    matrix.m01 *
+                    matrix.m10;
+
+                if (determinant < 0f)
+                {
+                    scaleY =
+                        -scaleY;
+                }
+
+                transform.localScale =
+                    new Vector3(
+                        scaleX,
+                        scaleY,
+                        1f
+                    );
+            }
         }
 
         // =========================================================
         // RESET
         // =========================================================
 
-        public void ResetAttachment()
+        private void ResetTransform()
         {
             transform.localPosition =
                 Vector3.zero;
@@ -238,6 +312,40 @@ namespace PvZReanim
 
             transform.localScale =
                 Vector3.one;
+        }
+
+        // =========================================================
+        // PUBLIC
+        // =========================================================
+
+        public void Refresh()
+        {
+            cachedTrackIndex = -1;
+
+            cachedTrackName = null;
+
+            if (source == null)
+            {
+                ResetTransform();
+                return;
+            }
+
+            ResolveTrack();
+
+            if (cachedTrackIndex < 0)
+            {
+                ResetTransform();
+                return;
+            }
+
+            PvZReanimMatrix matrix =
+                source.GetAttachmentOverlayMatrix(
+                    cachedTrackIndex
+                );
+
+            ApplyMatrix(
+                matrix
+            );
         }
     }
 }
