@@ -6,73 +6,29 @@ namespace PvZReanim
     [Serializable]
     public class PvZReanimTransform
     {
-        // =========================================================
-        // IMAGE
-        // =========================================================
-
         public string imageName;
 
         public Sprite image;
 
-        // =========================================================
-        // FONT
-        // =========================================================
-
         public string fontName;
 
-        // =========================================================
-        // POSITION
-        // =========================================================
+        public float x =  PvZReanimConstants.MissingValue;
 
-        public float x =
-            PvZReanimConstants.MissingValue;
+        public float y = PvZReanimConstants.MissingValue;
 
-        public float y =
-            PvZReanimConstants.MissingValue;
+        public float skewX = PvZReanimConstants.MissingValue;
 
-        // =========================================================
-        // SKEW
-        // =========================================================
+        public float skewY = PvZReanimConstants.MissingValue;
 
-        public float skewX =
-            PvZReanimConstants.MissingValue;
+        public float scaleX = PvZReanimConstants.MissingValue;
 
-        public float skewY =
-            PvZReanimConstants.MissingValue;
+        public float scaleY = PvZReanimConstants.MissingValue;
 
-        // =========================================================
-        // SCALE
-        // =========================================================
+        public float frame = PvZReanimConstants.MissingValue;
 
-        public float scaleX =
-            PvZReanimConstants.MissingValue;
-
-        public float scaleY =
-            PvZReanimConstants.MissingValue;
-
-        // =========================================================
-        // FRAME
-        // =========================================================
-
-        public float frame =
-            PvZReanimConstants.MissingValue;
-
-        // =========================================================
-        // ALPHA
-        // =========================================================
-
-        public float alpha =
-            PvZReanimConstants.MissingValue;
-
-        // =========================================================
-        // TEXT
-        // =========================================================
+        public float alpha = PvZReanimConstants.MissingValue;
 
         public string text;
-
-        // =========================================================
-        // CLONE
-        // =========================================================
 
         public PvZReanimTransform Clone()
         {
@@ -118,10 +74,6 @@ namespace PvZReanim
             return copy;
         }
 
-        // =========================================================
-        // DEFAULTS
-        // =========================================================
-
         public void SetDefaults()
         {
             imageName =
@@ -161,10 +113,6 @@ namespace PvZReanim
                 null;
         }
 
-        // =========================================================
-        // IMAGE
-        // =========================================================
-
         public void SetImage(
             string name)
         {
@@ -182,10 +130,6 @@ namespace PvZReanim
                 sprite;
         }
 
-        // =========================================================
-        // IMAGE VALIDATION
-        // =========================================================
-
         public bool HasImageName =>
             !string.IsNullOrEmpty(
                 imageName
@@ -193,10 +137,6 @@ namespace PvZReanim
 
         public bool HasImage =>
             image != null;
-
-        // =========================================================
-        // FONT
-        // =========================================================
 
         public bool HasFont =>
             !string.IsNullOrEmpty(
@@ -212,10 +152,6 @@ namespace PvZReanim
                 ? fallback
                 : fontName;
         }
-
-        // =========================================================
-        // POSITION
-        // =========================================================
 
         public bool HasPosition =>
             x !=
@@ -241,10 +177,6 @@ namespace PvZReanim
                 : y;
         }
 
-        // =========================================================
-        // SKEW
-        // =========================================================
-
         public bool HasSkew =>
             skewX !=
                 PvZReanimConstants.MissingValue ||
@@ -268,10 +200,6 @@ namespace PvZReanim
                 ? fallback
                 : skewY;
         }
-
-        // =========================================================
-        // SCALE
-        // =========================================================
 
         public bool HasScale =>
             scaleX !=
@@ -297,10 +225,6 @@ namespace PvZReanim
                 : scaleY;
         }
 
-        // =========================================================
-        // FRAME
-        // =========================================================
-
         public bool HasFrame =>
             frame !=
             PvZReanimConstants.MissingValue;
@@ -314,10 +238,6 @@ namespace PvZReanim
                 : frame;
         }
 
-        // =========================================================
-        // ALPHA
-        // =========================================================
-
         public bool HasAlpha =>
             alpha !=
             PvZReanimConstants.MissingValue;
@@ -330,10 +250,6 @@ namespace PvZReanim
                 ? fallback
                 : alpha;
         }
-
-        // =========================================================
-        // TEXT
-        // =========================================================
 
         public bool HasText =>
             !string.IsNullOrEmpty(

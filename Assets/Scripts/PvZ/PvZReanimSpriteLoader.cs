@@ -5,19 +5,6 @@ using UnityEngine;
 
 namespace PvZReanim
 {
-    /// <summary>
-    /// Carga imágenes externas y las convierte en Sprites
-    /// para el sistema PvZ Reanim.
-    ///
-    /// Las imágenes se buscan en:
-    /// Assets/[Image Folder]
-    ///
-    /// También registra alias basados en:
-    /// - nombre del archivo
-    /// - ruta relativa
-    /// - ruta relativa sin extensión
-    /// - ruta con / y \
-    /// </summary>
     public class PvZReanimSpriteLoader : MonoBehaviour
     {
         [Header("Provider")]
@@ -46,18 +33,11 @@ namespace PvZReanim
                 StringComparer.OrdinalIgnoreCase
             );
 
-        public PvZReanimImageProvider Provider =>
-            provider;
+        public PvZReanimImageProvider Provider => provider;
 
-        public string ImageFolder =>
-            imageFolder;
+        public string ImageFolder => imageFolder;
 
-        public int LoadedSpriteCount =>
-            loadedSprites.Count;
-
-        // =========================================================
-        // UNITY
-        // =========================================================
+        public int LoadedSpriteCount => loadedSprites.Count;
 
         private void Awake()
         {
@@ -68,10 +48,6 @@ namespace PvZReanim
                 LoadAll();
             }
         }
-
-        // =========================================================
-        // PROVIDER
-        // =========================================================
 
         private void FindProvider()
         {
@@ -104,11 +80,6 @@ namespace PvZReanim
             provider =
                 newProvider;
         }
-
-        // =========================================================
-        // LOAD ALL
-        // =========================================================
-
         public int LoadAll()
         {
             FindProvider();
@@ -178,11 +149,6 @@ namespace PvZReanim
 
             return loaded;
         }
-
-        // =========================================================
-        // LOAD FILE
-        // =========================================================
-
         public bool LoadFile(
             string path)
         {
@@ -334,10 +300,6 @@ namespace PvZReanim
             return true;
         }
 
-        // =========================================================
-        // REGISTER ALIASES
-        // =========================================================
-
         private void RegisterSpriteAliases(
             Sprite sprite,
             string fileName,
@@ -388,10 +350,6 @@ namespace PvZReanim
             }
         }
 
-        // =========================================================
-        // REGISTER
-        // =========================================================
-
         public void Register(
             string imageName,
             Sprite sprite)
@@ -438,11 +396,6 @@ namespace PvZReanim
                 sprite
             );
         }
-
-        // =========================================================
-        // GET
-        // =========================================================
-
         public Sprite Get(
             string imageName)
         {
@@ -469,10 +422,6 @@ namespace PvZReanim
             return null;
         }
 
-        // =========================================================
-        // CONTAINS
-        // =========================================================
-
         public bool Contains(
             string imageName)
         {
@@ -480,10 +429,6 @@ namespace PvZReanim
                 imageName
             ) != null;
         }
-
-        // =========================================================
-        // PATH
-        // =========================================================
 
         private string GetImageFolderPath()
         {
@@ -530,10 +475,6 @@ namespace PvZReanim
                 fullPath
             );
         }
-
-        // =========================================================
-        // NORMALIZATION
-        // =========================================================
 
         private string NormalizeKey(
             string value)
@@ -609,10 +550,6 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // SUPPORTED IMAGE
-        // =========================================================
-
         private bool IsSupportedImage(
             string path)
         {
@@ -635,10 +572,6 @@ namespace PvZReanim
                 extension == ".jpg" ||
                 extension == ".jpeg";
         }
-
-        // =========================================================
-        // CLEAR
-        // =========================================================
 
         public void Clear()
         {
@@ -665,20 +598,11 @@ namespace PvZReanim
             }
         }
 
-        // =========================================================
-        // CLEANUP
-        // =========================================================
-
         private void OnDestroy()
         {
             Clear();
         }
-
-        // =========================================================
-        // DESTROY
-        // =========================================================
-
-        private void DestroyObject(
+        private new void DestroyObject(
             UnityEngine.Object obj)
         {
             if (obj == null)

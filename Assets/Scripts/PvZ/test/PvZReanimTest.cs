@@ -61,8 +61,6 @@ namespace PvZReanim
                     PvZReanimation
                 >();
 
-            // Inicializamos directamente
-            // la definición.
             reanimation.Initialize(
                 definition
             );

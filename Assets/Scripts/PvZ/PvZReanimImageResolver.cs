@@ -4,18 +4,6 @@ using UnityEngine;
 
 namespace PvZReanim
 {
-    /// <summary>
-    /// Resuelve nombres de imágenes Reanim.
-    ///
-    /// Orden:
-    /// 1. Cache
-    /// 2. PvZReanimImageProvider
-    /// 3. PvZReanimSpriteLoader
-    /// 4. Resources
-    ///
-    /// El resolver puede funcionar aunque los sprites
-    /// hayan sido registrados después de su Awake().
-    /// </summary>
     public class PvZReanimImageResolver : MonoBehaviour
     {
         [Header("Provider")]
@@ -76,10 +64,6 @@ namespace PvZReanim
             FindSpriteLoader();
             BuildCache();
         }
-
-        // =========================================================
-        // FIND COMPONENTS
-        // =========================================================
 
         private void FindProvider()
         {
@@ -145,10 +129,6 @@ namespace PvZReanim
             ClearCache();
         }
 
-        // =========================================================
-        // CACHE
-        // =========================================================
-
         public void BuildCache()
         {
             cache =
@@ -168,10 +148,6 @@ namespace PvZReanim
             cache.Clear();
         }
 
-        // =========================================================
-        // RESOLVE
-        // =========================================================
-
         public Sprite Resolve(
             string imageName)
         {
@@ -187,10 +163,6 @@ namespace PvZReanim
             if (string.IsNullOrEmpty(normalizedName))
                 return null;
 
-            // -----------------------------------------------------
-            // CACHE
-            // -----------------------------------------------------
-
             if (cache.TryGetValue(
                     normalizedName,
                     out Sprite cachedSprite))
@@ -200,10 +172,6 @@ namespace PvZReanim
 
                 cache.Remove(normalizedName);
             }
-
-            // -----------------------------------------------------
-            // PROVIDER
-            // -----------------------------------------------------
 
             FindProvider();
 
@@ -224,10 +192,6 @@ namespace PvZReanim
                 return sprite;
             }
 
-            // -----------------------------------------------------
-            // SPRITE LOADER
-            // -----------------------------------------------------
-
             FindSpriteLoader();
 
             sprite =
@@ -246,10 +210,6 @@ namespace PvZReanim
 
                 return sprite;
             }
-
-            // -----------------------------------------------------
-            // RESOURCES
-            // -----------------------------------------------------
 
             if (searchResourcesIfMissing)
             {
@@ -271,10 +231,6 @@ namespace PvZReanim
                 }
             }
 
-            // -----------------------------------------------------
-            // MISSING
-            // -----------------------------------------------------
-
             if (logMissingImages)
             {
                 Debug.LogWarning(
@@ -287,10 +243,6 @@ namespace PvZReanim
 
             return null;
         }
-
-        // =========================================================
-        // PROVIDER
-        // =========================================================
 
         private Sprite ResolveFromProvider(
             string originalName,
@@ -324,10 +276,6 @@ namespace PvZReanim
             return null;
         }
 
-        // =========================================================
-        // SPRITE LOADER
-        // =========================================================
-
         private Sprite ResolveFromSpriteLoader(
             string originalName,
             string normalizedName)
@@ -359,10 +307,6 @@ namespace PvZReanim
 
             return null;
         }
-
-        // =========================================================
-        // RESOURCES
-        // =========================================================
 
         private Sprite ResolveFromResources(
             string originalName,
@@ -400,11 +344,6 @@ namespace PvZReanim
 
             return null;
         }
-
-        // =========================================================
-        // CACHE INSERT
-        // =========================================================
-
         private void AddToCache(
             string originalName,
             string normalizedName,
@@ -430,13 +369,7 @@ namespace PvZReanim
                 ] = sprite;
             }
         }
-
-        // =========================================================
-        // NORMALIZATION
-        // =========================================================
-
-        public static string NormalizeName(
-            string imageName)
+        public static string NormalizeName(string imageName)
         {
             if (string.IsNullOrWhiteSpace(imageName))
                 return string.Empty;
@@ -570,10 +503,6 @@ namespace PvZReanim
 
             return result;
         }
-
-        // =========================================================
-        // QUERY
-        // =========================================================
 
         public bool HasImage(
             string imageName)

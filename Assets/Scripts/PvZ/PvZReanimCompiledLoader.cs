@@ -8,78 +8,15 @@ namespace PvZReanim
 {
     public static class PvZReanimCompiledLoader
     {
-        // =========================================================
-        // FORMATO ORIGINAL DE PVZ / RESODDED
-        // =========================================================
-
-        private const uint COMPILED_LEGACY_DEFINITION_MAGIC =
-            0xDEADFED4;
-
-        /*
-         * En Resodded:
-         *
-         * struct CompressedDefinitionHeader
-         * {
-         *     unsigned int  mCookie;
-         *     unsigned long mUncompressedSize;
-         * };
-         *
-         * En el build x86 original son 8 bytes.
-         */
+        private const uint COMPILED_LEGACY_DEFINITION_MAGIC = 0xDEADFED4;
 
         private const int HEADER_SIZE = 8;
 
-        /*
-         * Tama�os de las estructuras nativas x86
-         * usadas por ReanimatorDefinition.
-         *
-         * ReanimatorDefinition:
-         *
-         * ReanimatorTrack* mTracks;      4
-         * int              mTrackCount;  4
-         * float            mFPS;         4
-         * ReanimAtlas*     mReanimAtlas; 4
-         *
-         * TOTAL = 16 bytes
-         */
-
         private const int NATIVE_DEFINITION_SIZE = 16;
-
-        /*
-         * ReanimatorTrack:
-         *
-         * const char*          mName;            4
-         * ReanimatorTransform* mTransforms;      4
-         * int                  mTransformCount;  4
-         *
-         * TOTAL = 12 bytes
-         */
 
         private const int NATIVE_TRACK_SIZE = 12;
 
-        /*
-         * ReanimatorTransform:
-         *
-         * float x       4
-         * float y       4
-         * float kx      4
-         * float ky      4
-         * float sx      4
-         * float sy      4
-         * float f       4
-         * float a       4
-         * Image*        4
-         * Font*         4
-         * const char*   4
-         *
-         * TOTAL = 44 bytes
-         */
-
         private const int NATIVE_TRANSFORM_SIZE = 44;
-
-        // =========================================================
-        // PUBLIC
-        // =========================================================
 
         public static PvZReanimDefinition LoadBytes(
             byte[] data)
@@ -158,10 +95,6 @@ namespace PvZReanim
                 return null;
             }
         }
-
-        // =========================================================
-        // DESCOMPRESI�N DEL COMPILED ORIGINAL
-        // =========================================================
 
         private static byte[] DecompressCompiled(
             byte[] data)
@@ -250,18 +183,6 @@ namespace PvZReanim
                 compressedSize
             );
 
-            /*
-             * Resodded utiliza:
-             *
-             * zlib::uncompress()
-             *
-             * Por lo tanto el bloque contiene
-             * zlib completo.
-             *
-             * .NET DeflateStream necesita solamente
-             * el stream DEFLATE.
-             */
-
             if (compressed.Length < 6)
             {
                 Debug.LogError(
@@ -345,10 +266,6 @@ namespace PvZReanim
             }
         }
 
-        // =========================================================
-        // CACHE ORIGINAL
-        // =========================================================
-
         private static PvZReanimDefinition ParseOriginalCache(
             byte[] data)
         {
@@ -370,18 +287,6 @@ namespace PvZReanim
                     )
             )
             {
-                /*
-                 * Resodded:
-                 *
-                 * Primero:
-                 *
-                 * uint32 schemaHash
-                 *
-                 * Despu�s:
-                 *
-                 * ReanimatorDefinition
-                 */
-
                 uint schemaHash =
                     reader.ReadUInt32();
 
@@ -403,17 +308,6 @@ namespace PvZReanim
 
                     return null;
                 }
-
-                /*
-                 * Leemos la estructura nativa.
-                 *
-                 * x86:
-                 *
-                 * offset 0 = mTracks
-                 * offset 4 = mTrackCount
-                 * offset 8 = mFPS
-                 * offset 12 = mReanimAtlas
-                 */
 
                 reader.ReadUInt32();
 
@@ -458,19 +352,6 @@ namespace PvZReanim
 
                 definition.tracks.Clear();
 
-                /*
-                 * -------------------------------------------------
-                 * DefReadFromCacheArray
-                 * -------------------------------------------------
-                 *
-                 * Despu�s de la estructura viene:
-                 *
-                 * int aDefSize
-                 *
-                 * Debe ser sizeof(ReanimatorTrack)
-                 * = 12 en x86.
-                 */
-
                 int trackDefinitionSize =
                     reader.ReadInt32();
 
@@ -495,16 +376,6 @@ namespace PvZReanim
                     return null;
                 }
 
-                /*
-                 * -------------------------------------------------
-                 * RAW TRACK ARRAY
-                 * -------------------------------------------------
-                 *
-                 * Primero vienen todos los structs.
-                 *
-                 * Despu�s se reparan sus punteros leyendo
-                 * los campos definidos por DefMap.
-                 */
 
                 NativeTrack[] nativeTracks =
                     new NativeTrack[
@@ -521,11 +392,6 @@ namespace PvZReanim
                         );
                 }
 
-                /*
-                 * -------------------------------------------------
-                 * RECONSTRUIR TRACKS
-                 * -------------------------------------------------
-                 */
 
                 for (int i = 0;
                      i < trackCount;
@@ -535,13 +401,6 @@ namespace PvZReanim
                         new PvZReanimTrack(
                             string.Empty
                         );
-
-                    /*
-                     * DefMap:
-                     *
-                     * name -> DT_STRING
-                     * t    -> DT_ARRAY
-                     */
 
                     track.name =
                         ReadString(
@@ -558,12 +417,6 @@ namespace PvZReanim
                     int transformCount =
                         nativeTracks[i]
                             .transformCount;
-
-                    /*
-                     * DefReadFromCacheArray:
-                     *
-                     * int aDefSize
-                     */
 
                     int transformDefinitionSize =
                         reader.ReadInt32();
@@ -595,10 +448,6 @@ namespace PvZReanim
                         return null;
                     }
 
-                    /*
-                     * RAW TRANSFORMS
-                     */
-
                     NativeTransform[] nativeTransforms =
                         new NativeTransform[
                             transformCount
@@ -614,23 +463,6 @@ namespace PvZReanim
                             );
                     }
 
-                    /*
-                     * Campos reparados del transform.
-                     *
-                     * DefMap:
-                     *
-                     * x
-                     * y
-                     * kx
-                     * ky
-                     * sx
-                     * sy
-                     * f
-                     * a
-                     * i
-                     * font
-                     * text
-                     */
 
                     for (int frame = 0;
                          frame < transformCount;
@@ -663,9 +495,6 @@ namespace PvZReanim
                         transform.alpha =
                             nativeTransforms[frame].a;
 
-                        /*
-                         * DT_IMAGE
-                         */
 
                         string imageName =
                             ReadImageString(
@@ -681,20 +510,10 @@ namespace PvZReanim
                                 );
                         }
 
-                        /*
-                         * DT_FONT
-                         *
-                         * No necesitamos cargar fonts todav�a,
-                         * pero debemos consumirlos del stream.
-                         */
-
                         ReadImageString(
                             reader
                         );
 
-                        /*
-                         * DT_STRING
-                         */
 
                         string text =
                             ReadString(
@@ -726,29 +545,6 @@ namespace PvZReanim
                     );
                 }
 
-                /*
-                 * =================================================
-                 * FILL FORWARD (ReanimationFillInMissingData)
-                 * =================================================
-                 *
-                 * El .reanim.compiled guarda datos DISPERSOS:
-                 * cada campo solo trae un valor real cuando
-                 * cambia respecto al frame anterior; el resto
-                 * queda en el sentinel MissingValue.
-                 *
-                 * El motor original corre este relleno SIEMPRE
-                 * despu�s de cargar (ver ReanimationLoadDefinition
-                 * en Reanimator.cpp), tanto si el origen fue XML
-                 * como si fue el cach� binario. Si nos salteamos
-                 * este paso ac�, cualquier pieza que no vuelva a
-                 * redefinir su posici�n/imagen/frame en el tramo
-                 * de la animaci�n activa queda con el sentinel
-                 * sin resolver y el renderer la trata como
-                 * expl�citamente oculta (frame < 0) -> partes NO
-                 * animadas que desaparecen al cambiar de
-                 * animaci�n.
-                 */
-
                 PvZReanimDataFiller.FillDefinition(
                     definition
                 );
@@ -767,10 +563,6 @@ namespace PvZReanim
                 return definition;
             }
         }
-
-        // =========================================================
-        // NATIVE TRACK
-        // =========================================================
 
         private struct NativeTrack
         {
@@ -805,10 +597,6 @@ namespace PvZReanim
 
             return track;
         }
-
-        // =========================================================
-        // NATIVE TRANSFORM
-        // =========================================================
 
         private struct NativeTransform
         {
@@ -868,10 +656,6 @@ namespace PvZReanim
             return transform;
         }
 
-        // =========================================================
-        // STRING ORIGINAL
-        // =========================================================
-
         private static string ReadString(
             BinaryReader reader)
         {
@@ -909,10 +693,6 @@ namespace PvZReanim
                 bytes
             );
         }
-
-        // =========================================================
-        // IMAGE / FONT ORIGINAL
-        // =========================================================
 
         private static string ReadImageString(
             BinaryReader reader)
@@ -952,10 +732,6 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // NORMALIZAR IMAGEN
-        // =========================================================
-
         private static string NormalizeImageName(
             string imageName)
         {
@@ -973,16 +749,6 @@ namespace PvZReanim
                     '\\',
                     '/'
                 );
-
-            /*
-             * Resodded resuelve im�genes usando:
-             *
-             * IMAGE_REANIM_
-             * +
-             * reanim/
-             *
-             * por eso dejamos el nombre limpio.
-             */
 
             if (imageName.StartsWith(
                     "IMAGE_REANIM_",

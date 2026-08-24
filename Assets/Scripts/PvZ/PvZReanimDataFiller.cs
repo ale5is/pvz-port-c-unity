@@ -1,36 +1,5 @@
 ﻿namespace PvZReanim
 {
-    /*
-     * Equivalente a ReanimationFillInMissingData /
-     * ReanimationLoadDefinition en Reanimator.cpp del
-     * motor original.
-     *
-     * En PvZ, un .reanim (tanto en XML como en su forma
-     * compilada .compiled) NO guarda un valor para cada
-     * campo en cada frame. Solo graba un valor cuando ese
-     * campo cambia respecto al frame anterior. El resto
-     * de las entradas quedan con el sentinel
-     * PvZReanimConstants.MissingValue (-10000, igual que
-     * DEFAULT_FIELD_PLACEHOLDER en el original).
-     *
-     * El motor original SIEMPRE corre este relleno
-     * "hacia adelante" (carry-forward) inmediatamente
-     * despu�s de cargar la definici�n, sin importar si
-     * la carga fue desde XML o desde el cach� binario
-     * (ReanimationLoadDefinition llama a
-     * ReanimationFillInMissingData luego de
-     * DefinitionLoadXML, y esa misma funci�n se usa
-     * tanto al compilar como al leer el cach�).
-     *
-     * Si nunca corr�s este paso despu�s de leer el
-     * .reanim.compiled, cualquier pieza que no vuelva a
-     * redefinir su posici�n/imagen/frame en el tramo de
-     * la animaci�n que est�s reproduciendo queda con el
-     * sentinel sin resolver (frame = -10000, que es
-     * < 0), y el renderer la trata como "expl�citamente
-     * oculta" -> es la causa exacta de que partes NO
-     * animadas desaparezcan al cambiar de animaci�n.
-     */
     public static class PvZReanimDataFiller
     {
         public static void FillDefinition(

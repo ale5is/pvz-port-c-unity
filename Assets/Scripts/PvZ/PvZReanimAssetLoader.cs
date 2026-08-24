@@ -6,10 +6,6 @@ namespace PvZReanim
 {
     public static class PvZReanimAssetLoader
     {
-        // =========================================================
-        // LOAD REANIM FROM FILE
-        // =========================================================
-
         public static PvZReanimDefinition LoadReanim(
             string path)
         {
@@ -72,10 +68,6 @@ namespace PvZReanim
             }
         }
 
-        // =========================================================
-        // LOAD FROM TEXT
-        // =========================================================
-
         public static PvZReanimDefinition LoadReanimText(
             string text,
             string assetName = "Reanim")
@@ -123,10 +115,6 @@ namespace PvZReanim
             }
         }
 
-        // =========================================================
-        // LOAD TEXT ASSET
-        // =========================================================
-
         public static PvZReanimDefinition LoadTextAsset(
             TextAsset asset)
         {
@@ -145,10 +133,6 @@ namespace PvZReanim
                 asset.name
             );
         }
-
-        // =========================================================
-        // LOAD FROM RESOURCES
-        // =========================================================
 
         public static PvZReanimDefinition LoadResource(
             string resourcePath)
@@ -185,10 +169,6 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // LOAD FROM STREAMING ASSETS
-        // =========================================================
-
         public static PvZReanimDefinition LoadStreamingAsset(
             string relativePath)
         {
@@ -213,10 +193,6 @@ namespace PvZReanim
                 path
             );
         }
-
-        // =========================================================
-        // VALIDATION
-        // =========================================================
 
         public static bool IsValidDefinition(
             PvZReanimDefinition definition)
@@ -243,10 +219,6 @@ namespace PvZReanim
 
             return true;
         }
-
-        // =========================================================
-        // DEBUG INFORMATION
-        // =========================================================
 
         public static void LogDefinitionInfo(
             PvZReanimDefinition definition)

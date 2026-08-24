@@ -37,10 +37,6 @@ namespace PvZReanim
         public string PakPath =>
             pakPath;
 
-        // =========================================================
-        // LOAD
-        // =========================================================
-
         public bool Load(string path)
         {
             entries.Clear();
@@ -82,17 +78,13 @@ namespace PvZReanim
 
                 DecodeXor(data);
 
-                using MemoryStream stream =
-                    new MemoryStream(data);
+                using MemoryStream stream = new MemoryStream(data);
 
-                using BinaryReader reader =
-                    new BinaryReader(stream);
+                using BinaryReader reader = new BinaryReader(stream);
 
-                uint magic =
-                    reader.ReadUInt32();
+                uint magic = reader.ReadUInt32();
 
-                uint version =
-                    reader.ReadUInt32();
+                uint version = reader.ReadUInt32();
 
                 if (magic != Magic)
                 {
@@ -182,11 +174,6 @@ namespace PvZReanim
                 return false;
             }
         }
-
-        // =========================================================
-        // DIRECTORY
-        // =========================================================
-
         private List<PakEntry> ReadDirectory(
             BinaryReader reader)
         {
@@ -232,7 +219,6 @@ namespace PvZReanim
                 uint size =
                     reader.ReadUInt32();
 
-                // FILETIME.
                 reader.ReadInt64();
 
                 if (size > int.MaxValue)
@@ -260,10 +246,6 @@ namespace PvZReanim
             return result;
         }
 
-        // =========================================================
-        // XOR
-        // =========================================================
-
         private static void DecodeXor(
             byte[] data)
         {
@@ -275,10 +257,6 @@ namespace PvZReanim
                     XorKey;
             }
         }
-
-        // =========================================================
-        // FIND
-        // =========================================================
 
         public bool Contains(
             string path)
@@ -348,8 +326,6 @@ namespace PvZReanim
                         read;
                 }
 
-                // Los datos del PAK también están
-                // almacenados con XOR 0xF7.
                 for (int i = 0;
                      i < data.Length;
                      i++)
@@ -374,10 +350,6 @@ namespace PvZReanim
             }
         }
 
-        // =========================================================
-        // STRING
-        // =========================================================
-
         public bool TryGetFileText(
             string path,
             out string text)
@@ -398,10 +370,6 @@ namespace PvZReanim
 
             return true;
         }
-
-        // =========================================================
-        // NORMALIZATION
-        // =========================================================
 
         private static string NormalizePath(
             string path)
@@ -427,10 +395,6 @@ namespace PvZReanim
                 '/'
             );
         }
-
-        // =========================================================
-        // SEARCH
-        // =========================================================
 
         public List<string> Find(
             string query)

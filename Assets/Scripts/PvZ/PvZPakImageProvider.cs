@@ -40,10 +40,6 @@ namespace PvZReanim
                 StringComparer.OrdinalIgnoreCase
             );
 
-        // =========================================================
-        // UNITY
-        // =========================================================
-
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -58,10 +54,6 @@ namespace PvZReanim
 
             LoadPak();
         }
-
-        // =========================================================
-        // LOAD PAK
-        // =========================================================
 
         private void LoadPak()
         {
@@ -138,10 +130,6 @@ namespace PvZReanim
             }
         }
 
-        // =========================================================
-        // READY
-        // =========================================================
-
         public bool IsReady
         {
             get
@@ -158,10 +146,6 @@ namespace PvZReanim
                 return pakReader;
             }
         }
-
-        // =========================================================
-        // LOAD TEXTURE
-        // =========================================================
 
         public Texture2D LoadTexture(string imageName)
         {
@@ -307,10 +291,6 @@ namespace PvZReanim
             return texture;
         }
 
-        // =========================================================
-        // LOAD SPRITE
-        // =========================================================
-
         public Sprite LoadSprite(string imageName)
         {
             if (!IsReady)
@@ -342,26 +322,6 @@ namespace PvZReanim
             if (texture == null)
                 return null;
 
-            // =====================================================
-            // IMPORTANTE
-            //
-            // Las imágenes originales de PvZ están expresadas
-            // esencialmente en píxeles para Reanim.
-            //
-            // Con 100 PPU:
-            //
-            // 100 píxeles = 1 unidad Unity
-            //
-            // Eso hace que cada pieza quede diminuta.
-            //
-            // Con 1 PPU:
-            //
-            // 1 píxel = 1 unidad
-            //
-            // El MeshRenderer usa este PPU para construir el
-            // tamaño real del quad.
-            // =====================================================
-
             Sprite sprite =
                 Sprite.Create(
                     texture,
@@ -388,10 +348,6 @@ namespace PvZReanim
             return sprite;
         }
 
-        // =========================================================
-        // RESOLVE IMAGE PATH
-        // =========================================================
-
         private string ResolveImagePath(
             string imageName)
         {
@@ -405,10 +361,6 @@ namespace PvZReanim
 
             if (string.IsNullOrEmpty(normalized))
                 return null;
-
-            // =====================================================
-            // RUTA REAL COMPLETA
-            // =====================================================
 
             string originalPath =
                 NormalizePakPath(
@@ -433,20 +385,6 @@ namespace PvZReanim
                     return originalPath;
                 }
             }
-
-            // =====================================================
-            // NOMBRE REANIM
-            //
-            // IMAGE_REANIM_PEASHOOTER_BLINK1
-            //
-            // ->
-            //
-            // PEASHOOTER_BLINK1
-            //
-            // ->
-            //
-            // reanim/PeaShooter_blink1.png
-            // =====================================================
 
             string reanimName =
                 ExtractReanimImageName(
@@ -480,10 +418,6 @@ namespace PvZReanim
                 }
             }
 
-            // =====================================================
-            // EXTENSIONES
-            // =====================================================
-
             string[] extensions =
             {
                 ".tga",
@@ -500,10 +434,6 @@ namespace PvZReanim
                 "images/",
                 ""
             };
-
-            // =====================================================
-            // BUSQUEDA DIRECTA
-            // =====================================================
 
             for (int f = 0;
                  f < folders.Length;
@@ -536,10 +466,6 @@ namespace PvZReanim
                 }
             }
 
-            // =====================================================
-            // BUSQUEDA REAL
-            // =====================================================
-
             List<string> matches =
                 pakReader.Find(
                     normalized
@@ -560,10 +486,6 @@ namespace PvZReanim
 
                 return null;
             }
-
-            // =====================================================
-            // NOMBRE EXACTO
-            // =====================================================
 
             for (int i = 0;
                  i < matches.Count;
@@ -601,10 +523,6 @@ namespace PvZReanim
                 }
             }
 
-            // =====================================================
-            // PRIORIDAD TGA
-            // =====================================================
-
             for (int i = 0;
                  i < matches.Count;
                  i++)
@@ -637,10 +555,6 @@ namespace PvZReanim
                 return match;
             }
 
-            // =====================================================
-            // PRIORIDAD REANIM
-            // =====================================================
-
             for (int i = 0;
                  i < matches.Count;
                  i++)
@@ -671,10 +585,6 @@ namespace PvZReanim
                 }
             }
 
-            // =====================================================
-            // FALLBACK
-            // =====================================================
-
             for (int i = 0;
                  i < matches.Count;
                  i++)
@@ -702,10 +612,6 @@ namespace PvZReanim
 
             return null;
         }
-
-        // =========================================================
-        // EXTRACT REANIM IMAGE NAME
-        // =========================================================
 
         private static string ExtractReanimImageName(
             string imageName)
@@ -776,10 +682,6 @@ namespace PvZReanim
             return string.Empty;
         }
 
-        // =========================================================
-        // FIND IMAGE BY NAME
-        // =========================================================
-
         private string FindImageByName(
             string imageName,
             bool preferReanim)
@@ -800,10 +702,6 @@ namespace PvZReanim
             {
                 return null;
             }
-
-            // =====================================================
-            // NOMBRE EXACTO
-            // =====================================================
 
             for (int i = 0;
                  i < matches.Count;
@@ -851,10 +749,6 @@ namespace PvZReanim
                 return match;
             }
 
-            // =====================================================
-            // REANIM CONTIENE EL NOMBRE
-            // =====================================================
-
             if (preferReanim)
             {
                 for (int i = 0;
@@ -900,10 +794,6 @@ namespace PvZReanim
                 }
             }
 
-            // =====================================================
-            // CUALQUIER COINCIDENCIA
-            // =====================================================
-
             for (int i = 0;
                  i < matches.Count;
                  i++)
@@ -941,10 +831,6 @@ namespace PvZReanim
 
             return null;
         }
-
-        // =========================================================
-        // DECODE IMAGE
-        // =========================================================
 
         private Texture2D DecodeImage(
             string path,
@@ -988,10 +874,6 @@ namespace PvZReanim
 
             return texture;
         }
-
-        // =========================================================
-        // TGA DECODER
-        // =========================================================
 
         private Texture2D DecodeTGA(
             byte[] data)
@@ -1132,10 +1014,6 @@ namespace PvZReanim
                     );
                 };
 
-            // =====================================================
-            // SIN COMPRESIÓN
-            // =====================================================
-
             if (imageType == 2)
             {
                 for (int sourceIndex = 0;
@@ -1173,10 +1051,6 @@ namespace PvZReanim
                     }
                 }
             }
-
-            // =====================================================
-            // RLE
-            // =====================================================
 
             else
             {
@@ -1268,10 +1142,6 @@ namespace PvZReanim
             return texture;
         }
 
-        // =========================================================
-        // WRITE TGA PIXEL
-        // =========================================================
-
         private static void WriteTGAPixel(
             Color32[] pixels,
             int sourceIndex,
@@ -1308,10 +1178,6 @@ namespace PvZReanim
                 ] = color;
             }
         }
-
-        // =========================================================
-        // NORMALIZE IMAGE NAME
-        // =========================================================
 
         private static string NormalizeImageName(
             string value)
@@ -1370,10 +1236,6 @@ namespace PvZReanim
             return result.Trim();
         }
 
-        // =========================================================
-        // NORMALIZE PAK PATH
-        // =========================================================
-
         private static string NormalizePakPath(
             string value)
         {
@@ -1399,10 +1261,6 @@ namespace PvZReanim
 
             return result.TrimStart('/');
         }
-
-        // =========================================================
-        // REMOVE EXTENSION
-        // =========================================================
 
         private static string RemoveImageExtension(
             string value)
@@ -1442,10 +1300,6 @@ namespace PvZReanim
             return value;
         }
 
-        // =========================================================
-        // IS IMAGE
-        // =========================================================
-
         private static bool IsImageFile(
             string path)
         {
@@ -1479,10 +1333,6 @@ namespace PvZReanim
                 );
         }
 
-        // =========================================================
-        // CLEAR CACHE
-        // =========================================================
-
         public void ClearCache()
         {
             spriteCache.Clear();
@@ -1506,10 +1356,6 @@ namespace PvZReanim
 
             textureCache.Clear();
         }
-
-        // =========================================================
-        // CLEANUP
-        // =========================================================
 
         private void OnDestroy()
         {
