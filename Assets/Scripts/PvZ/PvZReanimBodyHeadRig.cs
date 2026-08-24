@@ -58,10 +58,6 @@ namespace PvZReanim
         public PvZReanimAttachment HeadAttachment =>
             headAttachment;
 
-        // =========================================================
-        // UNITY
-        // =========================================================
-
         private void Awake()
         {
             ResolveImageComponentsFallback();

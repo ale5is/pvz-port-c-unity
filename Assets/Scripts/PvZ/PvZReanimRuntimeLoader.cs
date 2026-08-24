@@ -7,26 +7,7 @@ namespace PvZReanim
     {
         [Header("Reanim")]
         [SerializeField]
-        private string relativePath =
-            "";
-
-        /*
-         * OJO: antes este campo tenía por defecto
-         * "reanim/PeaShooter.reanim" (el archivo del
-         * REPETIDOR, doble guisante) como valor de C#.
-         * Cualquier instancia/prefab donde te olvidaras
-         * de pisar ese valor en el Inspector terminaba
-         * cargando el modelo del Repetidor sin que se
-         * notara en el código.
-         *
-         * Ahora arranca vacío a propósito: si algo
-         * spawnea sin asignar la ruta, Load() tira error
-         * en vez de cargar silenciosamente el reanim
-         * equivocado. Asigná la ruta con SetReanimPath()
-         * (por ejemplo desde tu factory de plantas usando
-         * PvZPlantReanimTable.GetReanimPath(seedName)) o
-         * seteando el campo en el Inspector del prefab.
-         */
+        private string relativePath = "";
 
         [Header("Image System")]
         [SerializeField]
@@ -46,28 +27,6 @@ namespace PvZReanim
         [SerializeField]
         private float animRate = 1f;
 
-        /*
-         * Nombre del track marcador (ej. "anim_idle") de la
-         * sub-animaci�n a reproducir por defecto al cargar.
-         *
-         * OJO: un archivo .reanim de PvZ casi siempre
-         * contiene VARIAS sub-animaciones concatenadas en
-         * una sola l�nea de tiempo (anim_idle, anim_shooting,
-         * anim_full_idle, etc.), cada una due�a de un tramo
-         * distinto de frames. Si dej�s este campo vac�o,
-         * CreateReanimation() reproduce el archivo ENTERO en
-         * loop -> el cabezal de reproducci�n barre los 4
-         * tramos uno atr�s del otro, y cada pieza se oculta
-         * apenas el cabezal sale del tramo que la declara
-         * visible. Eso se ve como "solo se ve la parte que
-         * se est� animando en este instante, el resto
-         * desaparece" -> no es un bug de datos, es que nunca
-         * se acot� la reproducci�n a UNA sola sub-animaci�n.
-         *
-         * Asign� ac� el nombre exacto del track marcador
-         * (mir� el log de "Track [N]: nombre" al cargar para
-         * ver los nombres disponibles de ESTE archivo).
-         */
         [SerializeField]
         private string defaultAnimName =
             "";
@@ -84,10 +43,6 @@ namespace PvZReanim
         public string RelativePath =>
             relativePath;
 
-        // =========================================================
-        // NOMBRE DE SUB-ANIMACI�N
-        // =========================================================
-
         public void SetDefaultAnimName(
             string newAnimName)
         {
@@ -95,18 +50,6 @@ namespace PvZReanim
                 newAnimName;
         }
 
-        // =========================================================
-        // CONFIGURACI�N POR C�DIGO
-        // =========================================================
-
-        /*
-         * Permite configurar el resolver/provider de
-         * im�genes antes de Load(), para casos donde el
-         * loader se crea din�micamente por c�digo (en vez
-         * de arrastrarlo en el Inspector de un prefab), como
-         * hace PvZReanimBodyHeadRig con sus dos instancias
-         * (body/head).
-         */
         public void SetImageComponents(
             PvZReanimImageProvider newImageProvider,
             PvZReanimImageResolver newImageResolver,
@@ -136,17 +79,7 @@ namespace PvZReanim
                 newAnimRate;
         }
 
-        // =========================================================
-        // RUTA DEL REANIM
-        // =========================================================
 
-        /*
-         * Asigná SIEMPRE la ruta desde acá (por ejemplo
-         * desde tu factory de plantas, usando
-         * PvZPlantReanimTable.GetReanimPath(seedName))
-         * en vez de dejar que dos prefabs distintos
-         * compartan el mismo valor por copy-paste.
-         */
         public void SetReanimPath(
             string newRelativePath,
             bool reloadNow = true)
@@ -161,12 +94,6 @@ namespace PvZReanim
             }
         }
 
-        /*
-         * Fuerza una recarga real, ignorando el guard de
-         * hasLoaded. �til cuando un objeto pooled cambia de
-         * tipo de planta y necesita re-parsear un .reanim
-         * distinto.
-         */
         public void ForceReload()
         {
             hasLoaded = false;
@@ -178,10 +105,6 @@ namespace PvZReanim
             FindImageComponents();
             Load();
         }
-
-        // =========================================================
-        // COMPONENTES
-        // =========================================================
 
         private void FindImageComponents()
         {
@@ -273,28 +196,10 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // LOAD
-        // =========================================================
-
         private bool hasLoaded;
 
         public void Load()
         {
-            /*
-             * Guard: si algo (como PvZReanimBodyHeadRig)
-             * ya llam� Load() manualmente antes de que
-             * corra el Start() autom�tico de este
-             * componente, no volvemos a cargar. Cargar dos
-             * veces destruir�a y recrear�a la Reanimation
-             * (ver DestroyReanimation() en
-             * CreateReanimation()), lo que puede invalidar
-             * referencias externas ya tomadas (como el
-             * PvZReanimAttachment apuntando al body).
-             *
-             * Usar ForceReload() si realmente quer�s
-             * recargar a prop�sito.
-             */
             if (hasLoaded)
                 return;
 
@@ -358,10 +263,6 @@ namespace PvZReanim
                 definition
             );
         }
-
-        // =========================================================
-        // CARGAR DESDE MAIN.PAK
-        // =========================================================
 
         private PvZReanimDefinition LoadFromPak()
         {
@@ -477,10 +378,6 @@ namespace PvZReanim
             return definition;
         }
 
-        // =========================================================
-        // FALLBACK: ARCHIVO F�SICO
-        // =========================================================
-
         private PvZReanimDefinition LoadFromFile()
         {
             string path =
@@ -521,10 +418,6 @@ namespace PvZReanim
 
             return definition;
         }
-
-        // =========================================================
-        // CREAR REANIMATION
-        // =========================================================
 
         private void CreateReanimation(
             PvZReanimDefinition definition)
