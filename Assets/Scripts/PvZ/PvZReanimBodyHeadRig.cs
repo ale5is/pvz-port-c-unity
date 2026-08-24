@@ -40,6 +40,7 @@ namespace PvZReanim
 
         private PvZReanimRuntimeLoader bodyLoader;
         private PvZReanimRuntimeLoader headLoader;
+
         private PvZReanimAttachment headAttachment;
 
         public PvZReanimation Body =>
@@ -55,10 +56,6 @@ namespace PvZReanim
         public PvZReanimAttachment HeadAttachment =>
             headAttachment;
 
-        // =========================================================
-        // UNITY
-        // =========================================================
-
         private void Awake()
         {
             ResolveImageComponentsFallback();
@@ -72,9 +69,29 @@ namespace PvZReanim
             ConnectAttachment();
         }
 
-        // =========================================================
-        // IMAGE
-        // =========================================================
+        /*
+         * IMPORTANTE:
+         *
+         * El Recompiled recalcula el attachment durante
+         * la actualización de la Reanimation.
+         *
+         * Nosotros hacemos exactamente lo mismo:
+         *
+         * 1. El cuerpo avanza.
+         * 2. Se obtiene anim_stem.
+         * 3. Se recalcula el overlay.
+         * 4. Se actualiza la cabeza.
+         */
+        private void LateUpdate()
+        {
+            if (headAttachment == null)
+                return;
+
+            if (Body == null || Head == null)
+                return;
+
+            headAttachment.Refresh();
+        }
 
         private void ResolveImageComponentsFallback()
         {
@@ -92,10 +109,6 @@ namespace PvZReanim
                         PvZReanimImageResolver>();
             }
         }
-
-        // =========================================================
-        // BODY
-        // =========================================================
 
         private void BuildBody()
         {
@@ -128,10 +141,6 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // HEAD
-        // =========================================================
-
         private void BuildHead()
         {
             GameObject headObj =
@@ -142,12 +151,6 @@ namespace PvZReanim
                 false
             );
 
-            /*
-             * La cabeza empieza en identidad.
-             * NO intentamos colocarla aquí usando anim_stem.
-             * El attachment original de PvZ hace eso mediante
-             * mOverlayMatrix sobre la Reanimation de la cabeza.
-             */
             headObj.transform.localPosition =
                 Vector3.zero;
 
@@ -173,10 +176,6 @@ namespace PvZReanim
                 headLoopType
             );
         }
-
-        // =========================================================
-        // LOADER
-        // =========================================================
 
         private void ConfigureLoader(
             PvZReanimRuntimeLoader loader,
@@ -208,26 +207,18 @@ namespace PvZReanim
             loader.Load();
         }
 
-        // =========================================================
-        // ATTACH
-        // =========================================================
-
         private void ConnectAttachment()
         {
             if (headAttachment == null)
                 return;
 
-            PvZReanimation body =
-                Body;
-
-            PvZReanimation head =
-                Head;
+            PvZReanimation body = Body;
+            PvZReanimation head = Head;
 
             if (body == null)
             {
                 Debug.LogWarning(
-                    "[PvZReanimBodyHeadRig] " +
-                    "Body no existe.",
+                    "[PvZReanimBodyHeadRig] Body no existe.",
                     this
                 );
 
@@ -237,8 +228,7 @@ namespace PvZReanim
             if (head == null)
             {
                 Debug.LogWarning(
-                    "[PvZReanimBodyHeadRig] " +
-                    "Head no existe.",
+                    "[PvZReanimBodyHeadRig] Head no existe.",
                     this
                 );
 
@@ -246,34 +236,18 @@ namespace PvZReanim
             }
 
             /*
-             * =====================================================
-             * EQUIVALENTE REAL AL PVZ ORIGINAL:
+             * Igual que:
              *
-             * if (body->mFrameBasePose == -1)
-             *     body->mFrameBasePose = body->mFrameStart;
-             *
-             * head->AttachToAnotherReanimation(
-             *     body,
-             *     "anim_stem"
-             * );
-             * =====================================================
+             * if (mFrameBasePose == -1)
+             *     mFrameBasePose = mFrameStart;
              */
             body.SetFrameBasePose(
                 body.FrameStart
             );
 
-            /*
-             * El Attachment obtiene la matriz:
-             *
-             * current(anim_stem) * inverse(base(anim_stem))
-             *
-             * y la coloca en:
-             *
-             * head.overlayMatrix
-             *
-             * NO mueve el GameObject Head.
-             */
-            headAttachment.SetTarget(head);
+            headAttachment.SetTarget(
+                head
+            );
 
             headAttachment.SetSource(
                 body,
@@ -281,8 +255,7 @@ namespace PvZReanim
             );
 
             /*
-             * Aplicar inmediatamente la pose inicial para evitar
-             * un frame donde la cabeza aparezca sin attachment.
+             * Primera actualización inmediata.
              */
             headAttachment.Refresh();
         }
