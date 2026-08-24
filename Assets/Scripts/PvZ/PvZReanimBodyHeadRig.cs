@@ -82,16 +82,14 @@ namespace PvZReanim
             {
                 imageProvider =
                     FindFirstObjectByType<
-                        PvZReanimImageProvider
-                    >();
+                        PvZReanimImageProvider>();
             }
 
             if (imageResolver == null)
             {
                 imageResolver =
                     FindFirstObjectByType<
-                        PvZReanimImageResolver
-                    >();
+                        PvZReanimImageResolver>();
             }
         }
 
@@ -144,6 +142,12 @@ namespace PvZReanim
                 false
             );
 
+            /*
+             * La cabeza empieza en identidad.
+             * NO intentamos colocarla aquí usando anim_stem.
+             * El attachment original de PvZ hace eso mediante
+             * mOverlayMatrix sobre la Reanimation de la cabeza.
+             */
             headObj.transform.localPosition =
                 Vector3.zero;
 
@@ -216,6 +220,9 @@ namespace PvZReanim
             PvZReanimation body =
                 Body;
 
+            PvZReanimation head =
+                Head;
+
             if (body == null)
             {
                 Debug.LogWarning(
@@ -227,25 +234,46 @@ namespace PvZReanim
                 return;
             }
 
+            if (head == null)
+            {
+                Debug.LogWarning(
+                    "[PvZReanimBodyHeadRig] " +
+                    "Head no existe.",
+                    this
+                );
+
+                return;
+            }
+
             /*
              * =====================================================
-             * EQUIVALENTE A:
+             * EQUIVALENTE REAL AL PVZ ORIGINAL:
              *
-             * head.AttachToAnotherReanimation(
+             * if (body->mFrameBasePose == -1)
+             *     body->mFrameBasePose = body->mFrameStart;
+             *
+             * head->AttachToAnotherReanimation(
              *     body,
              *     "anim_stem"
              * );
-             *
-             * EN EL ORIGINAL:
-             *
-             * if (body.mFrameBasePose == -1)
-             *     body.mFrameBasePose = body.mFrameStart;
              * =====================================================
              */
-
             body.SetFrameBasePose(
                 body.FrameStart
             );
+
+            /*
+             * El Attachment obtiene la matriz:
+             *
+             * current(anim_stem) * inverse(base(anim_stem))
+             *
+             * y la coloca en:
+             *
+             * head.overlayMatrix
+             *
+             * NO mueve el GameObject Head.
+             */
+            headAttachment.SetTarget(head);
 
             headAttachment.SetSource(
                 body,
@@ -253,88 +281,10 @@ namespace PvZReanim
             );
 
             /*
-             * Aplicar inmediatamente la pose inicial.
+             * Aplicar inmediatamente la pose inicial para evitar
+             * un frame donde la cabeza aparezca sin attachment.
              */
             headAttachment.Refresh();
-        }
-
-        // =========================================================
-        // PATH
-        // =========================================================
-
-        public void SetReanimPath(
-            string newRelativePath)
-        {
-            relativePath =
-                newRelativePath;
-        }
-
-        // =========================================================
-        // HEAD ANIMATION
-        // =========================================================
-
-        public void PlayHeadAnim(
-            string animName,
-            PvZReanimLoopType loop =
-                PvZReanimLoopType.Loop,
-            int blendTime = 0,
-            float rate = -1f)
-        {
-            if (Head == null)
-                return;
-
-            Head.PlayReanim(
-                animName,
-                loop,
-                blendTime,
-                rate >= 0f
-                    ? rate
-                    : animRate
-            );
-        }
-
-        // =========================================================
-        // BODY ANIMATION
-        // =========================================================
-
-        public void PlayBodyAnim(
-            string animName,
-            PvZReanimLoopType loop =
-                PvZReanimLoopType.Loop,
-            int blendTime = 0,
-            float rate = -1f)
-        {
-            if (Body == null)
-                return;
-
-            Body.PlayReanim(
-                animName,
-                loop,
-                blendTime,
-                rate >= 0f
-                    ? rate
-                    : animRate
-            );
-        }
-
-        // =========================================================
-        // RECONNECT
-        // =========================================================
-
-        public void ReconnectHead()
-        {
-            ConnectAttachment();
-        }
-
-        // =========================================================
-        // GETTERS
-        // =========================================================
-
-        public Transform GetHeadTransform()
-        {
-            return headAttachment != null
-                ? headAttachment.transform
-                : null;
         }
     }
 }

@@ -89,6 +89,30 @@ namespace PvZReanim
             overlayMatrix;
 
         // =========================================================
+        // ATTACHMENT OVERLAY
+        // =========================================================
+
+        /// <summary>
+        /// Aplica directamente la matriz de attachment a esta
+        /// Reanimation. Esto equivale a que el Reanim original
+        /// reciba su mOverlayMatrix desde AttachReanim().
+        /// </summary>
+        public void SetOverlayMatrix(
+            PvZReanimMatrix matrix)
+        {
+            overlayMatrix = matrix;
+        }
+
+        /// <summary>
+        /// Quita el attachment y vuelve la overlay a identidad.
+        /// </summary>
+        public void ResetOverlayMatrix()
+        {
+            overlayMatrix =
+                PvZReanimMatrix.Identity;
+        }
+
+        // =========================================================
         // UNITY
         // =========================================================
 

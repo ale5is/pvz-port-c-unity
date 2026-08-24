@@ -12,6 +12,10 @@ namespace PvZReanim
         [SerializeField]
         private string sourceTrackName = "anim_stem";
 
+        [Header("Destino")]
+        [SerializeField]
+        private PvZReanimation target;
+
         [Header("Seguimiento")]
         [SerializeField]
         private bool followPosition = true;
@@ -26,82 +30,73 @@ namespace PvZReanim
         private string cachedTrackName;
 
         // =========================================================
-        // POSE BASE DEL OBJETO
-        // =========================================================
-
-        private Vector3 baseLocalPosition;
-        private Quaternion baseLocalRotation;
-        private Vector3 baseLocalScale;
-
-        private bool basePoseCaptured;
-
-        // =========================================================
         // UNITY
         // =========================================================
 
         private void Awake()
         {
-            CaptureBasePose();
+            ResolveTarget();
         }
 
         private void Start()
         {
-            CaptureBasePose();
+            ResolveTarget();
             Refresh();
         }
 
         private void LateUpdate()
         {
-            if (source == null)
-                return;
-
-            if (!basePoseCaptured)
-                CaptureBasePose();
-
-            ResolveTrack();
-
-            if (cachedTrackIndex < 0)
-                return;
-
-            PvZReanimMatrix matrix =
-                source.GetAttachmentOverlayMatrix(
-                    cachedTrackIndex
-                );
-
-            ApplyMatrix(matrix);
+            Refresh();
         }
 
         // =========================================================
-        // BASE POSE
+        // TARGET
         // =========================================================
 
-        public void CaptureBasePose()
+        private void ResolveTarget()
         {
-            baseLocalPosition =
-                transform.localPosition;
+            if (target != null)
+                return;
 
-            baseLocalRotation =
-                transform.localRotation;
+            /*
+             * El RuntimeLoader vive en el mismo GameObject que
+             * este Attachment y crea el PvZReanimation como hijo.
+             * Por eso buscamos primero el loader.
+             */
+            PvZReanimRuntimeLoader loader =
+                GetComponent<PvZReanimRuntimeLoader>();
 
-            baseLocalScale =
-                transform.localScale;
+            if (loader != null &&
+                loader.Reanimation != null)
+            {
+                target = loader.Reanimation;
+                return;
+            }
 
-            basePoseCaptured = true;
+            /*
+             * Fallback por si el componente se usa manualmente
+             * sobre un objeto que ya tiene una Reanimation.
+             */
+            target =
+                GetComponentInChildren<PvZReanimation>();
         }
 
-        public void ResetToBasePose()
+        public void SetTarget(
+            PvZReanimation newTarget)
         {
-            if (!basePoseCaptured)
-                CaptureBasePose();
+            target = newTarget;
 
-            transform.localPosition =
-                baseLocalPosition;
+            if (target != null)
+            {
+                target.ResetOverlayMatrix();
+            }
 
-            transform.localRotation =
-                baseLocalRotation;
+            Refresh();
+        }
 
-            transform.localScale =
-                baseLocalScale;
+        public PvZReanimation GetTarget()
+        {
+            return target;
         }
 
         // =========================================================
@@ -122,14 +117,7 @@ namespace PvZReanim
             cachedTrackIndex = -1;
             cachedTrackName = null;
 
-            /*
-             * IMPORTANTE:
-             *
-             * La posición actual del Head es su pose base.
-             * No debemos ponerla en Vector3.zero.
-             */
-            CaptureBasePose();
-
+            ResolveTarget();
             Refresh();
         }
 
@@ -181,102 +169,57 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // APPLY MATRIX
+        // APPLY
         // =========================================================
 
         private void ApplyMatrix(
             PvZReanimMatrix matrix)
         {
+            if (target == null)
+                return;
+
             /*
-             * matrix NO es una posición absoluta.
+             * IMPORTANTE:
              *
-             * Es:
+             * NO movemos transform.localPosition del objeto Head.
              *
-             *      basePose^-1 * currentPose
+             * El PvZ original NO hace eso.
+             * AttachToAnotherReanimation() hace que la Reanimation
+             * hija reciba esta matriz como mOverlayMatrix.
              *
-             * Por lo tanto:
+             * Después el renderer de cada pieza hace:
              *
-             * m02/m12 = desplazamiento relativo
+             *     transformDeLaPieza * overlayMatrix
              *
-             * Ese desplazamiento se aplica sobre la
-             * posición original del Head.
+             * De esta forma TODAS las piezas de la cabeza reciben
+             * el movimiento del anim_stem, incluso aunque sus
+             * Transform de Unity sean distintos.
              */
 
-            Vector3 relativePosition =
-                new Vector3(
-                    matrix.m02,
-                    matrix.m12,
-                    0f
-                );
+            PvZReanimMatrix result = matrix;
 
-            // =====================================================
+            // -----------------------------------------------------
             // POSITION
-            // =====================================================
+            // -----------------------------------------------------
 
-            if (followPosition)
+            if (!followPosition)
             {
-                /*
-                 * El desplazamiento está en el espacio local
-                 * del attachment.
-                 *
-                 * Lo convertimos usando la rotación/escala
-                 * de la pose base.
-                 */
-                Vector3 scaledRelative =
-                    Vector3.Scale(
-                        relativePosition,
-                        baseLocalScale
-                    );
-
-                Vector3 rotatedRelative =
-                    baseLocalRotation *
-                    scaledRelative;
-
-                transform.localPosition =
-                    baseLocalPosition +
-                    rotatedRelative;
-            }
-            else
-            {
-                transform.localPosition =
-                    baseLocalPosition;
+                result.m02 = 0f;
+                result.m12 = 0f;
             }
 
-            // =====================================================
-            // ROTATION
-            // =====================================================
+            // -----------------------------------------------------
+            // ROTATION + SCALE
+            // -----------------------------------------------------
 
-            if (followRotation)
+            if (!followRotation && !followScale)
             {
-                float angle =
-                    Mathf.Atan2(
-                        matrix.m10,
-                        matrix.m00
-                    ) *
-                    Mathf.Rad2Deg;
-
-                Quaternion relativeRotation =
-                    Quaternion.Euler(
-                        0f,
-                        0f,
-                        angle
-                    );
-
-                transform.localRotation =
-                    baseLocalRotation *
-                    relativeRotation;
+                result.m00 = 1f;
+                result.m01 = 0f;
+                result.m10 = 0f;
+                result.m11 = 1f;
             }
-            else
-            {
-                transform.localRotation =
-                    baseLocalRotation;
-            }
-
-            // =====================================================
-            // SCALE
-            // =====================================================
-
-            if (followScale)
+            else if (!followRotation)
             {
                 float scaleX =
                     Mathf.Sqrt(
@@ -290,16 +233,16 @@ namespace PvZReanim
                         matrix.m11 * matrix.m11
                     );
 
-                if (float.IsNaN(scaleX) ||
-                    float.IsInfinity(scaleX) ||
-                    scaleX < 0.000001f)
+                if (scaleX < 0.000001f ||
+                    float.IsNaN(scaleX) ||
+                    float.IsInfinity(scaleX))
                 {
                     scaleX = 1f;
                 }
 
-                if (float.IsNaN(scaleY) ||
-                    float.IsInfinity(scaleY) ||
-                    scaleY < 0.000001f)
+                if (scaleY < 0.000001f ||
+                    float.IsNaN(scaleY) ||
+                    float.IsInfinity(scaleY))
                 {
                     scaleY = 1f;
                 }
@@ -311,18 +254,29 @@ namespace PvZReanim
                 if (determinant < 0f)
                     scaleY = -scaleY;
 
-                transform.localScale =
-                    new Vector3(
-                        baseLocalScale.x * scaleX,
-                        baseLocalScale.y * scaleY,
-                        baseLocalScale.z
-                    );
+                result.m00 = scaleX;
+                result.m01 = 0f;
+                result.m10 = 0f;
+                result.m11 = scaleY;
             }
-            else
+            else if (!followScale)
             {
-                transform.localScale =
-                    baseLocalScale;
+                float angle =
+                    Mathf.Atan2(
+                        matrix.m10,
+                        matrix.m00
+                    );
+
+                float cos = Mathf.Cos(angle);
+                float sin = Mathf.Sin(angle);
+
+                result.m00 = cos;
+                result.m01 = -sin;
+                result.m10 = sin;
+                result.m11 = cos;
             }
+
+            target.SetOverlayMatrix(result);
         }
 
         // =========================================================
@@ -331,28 +285,31 @@ namespace PvZReanim
 
         public void Refresh()
         {
+            ResolveTarget();
+
+            if (target == null)
+                return;
+
             if (source == null)
             {
-                ResetToBasePose();
+                target.ResetOverlayMatrix();
                 return;
             }
-
-            if (!basePoseCaptured)
-                CaptureBasePose();
 
             ResolveTrack();
 
             if (cachedTrackIndex < 0)
             {
-                ResetToBasePose();
+                target.ResetOverlayMatrix();
                 return;
             }
 
-            ApplyMatrix(
+            PvZReanimMatrix matrix =
                 source.GetAttachmentOverlayMatrix(
                     cachedTrackIndex
-                )
-            );
+                );
+
+            ApplyMatrix(matrix);
         }
 
         // =========================================================
@@ -361,7 +318,10 @@ namespace PvZReanim
 
         public void ResetTransform()
         {
-            ResetToBasePose();
+            if (target != null)
+            {
+                target.ResetOverlayMatrix();
+            }
         }
     }
 }
