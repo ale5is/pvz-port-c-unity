@@ -10,10 +10,6 @@ namespace PvZReanim
 {
     public static class PvZReanimParser
     {
-        // =========================================================
-        // CARGAR ARCHIVO
-        // =========================================================
-
         public static PvZReanimDefinition LoadFile(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
@@ -37,10 +33,6 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // CARGAR BYTES
-        // =========================================================
-
         public static PvZReanimDefinition LoadBytes(byte[] data)
         {
             if (data == null || data.Length == 0)
@@ -56,11 +48,6 @@ namespace PvZReanim
 
             return Parse(text);
         }
-
-        // =========================================================
-        // DECODIFICAR
-        // =========================================================
-
         private static string DecodeText(byte[] data)
         {
             // UTF-8 BOM
@@ -103,10 +90,6 @@ namespace PvZReanim
             return Encoding.UTF8.GetString(data);
         }
 
-        // =========================================================
-        // PARSER PRINCIPAL
-        // =========================================================
-
         public static PvZReanimDefinition Parse(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
@@ -138,10 +121,6 @@ namespace PvZReanim
             return definition;
         }
 
-        // =========================================================
-        // PARSER PVZ REANIM
-        // =========================================================
-
         private static PvZReanimDefinition ParsePvZReanimText(
             string text)
         {
@@ -154,17 +133,6 @@ namespace PvZReanim
             text =
                 NormalizeText(text);
 
-            /*
-             * Los .reanim originales de PvZ pueden venir:
-             *
-             * <track>...</track>
-             * <track>...</track>
-             *
-             * o dentro de un elemento ra�z.
-             *
-             * Envolvemos todo en un <root> artificial para
-             * permitir m�ltiples elementos ra�z.
-             */
 
             text =
                 RemoveXmlDeclaration(text);
@@ -193,10 +161,6 @@ namespace PvZReanim
                 return definition;
             }
 
-            // =====================================================
-            // FPS
-            // =====================================================
-
             XmlNode fpsNode =
                 document.SelectSingleNode(
                     "//fps"
@@ -216,10 +180,6 @@ namespace PvZReanim
                         fps;
                 }
             }
-
-            // =====================================================
-            // TRACKS
-            // =====================================================
 
             XmlNodeList trackNodes =
                 document.SelectNodes(
@@ -254,10 +214,6 @@ namespace PvZReanim
 
             return definition;
         }
-
-        // =========================================================
-        // TRACK
-        // =========================================================
 
         private static PvZReanimTrack ParseTrackNode(
             XmlNode trackNode,
@@ -299,10 +255,6 @@ namespace PvZReanim
                     trackName
                 );
 
-            // =====================================================
-            // TRANSFORMS OFICIALES
-            // =====================================================
-
             XmlNodeList transformNodes =
                 trackNode.SelectNodes(
                     "./t"
@@ -314,17 +266,6 @@ namespace PvZReanim
                      i < transformNodes.Count;
                      i++)
                 {
-                    /*
-                     * IMPORTANTE:
-                     *
-                     * NUNCA descartamos un <t>.
-                     *
-                     * Un <t> vac�o es v�lido en PvZ.
-                     *
-                     * Resodded conserva ese frame y despu�s
-                     * rellena sus valores con los del frame
-                     * anterior.
-                     */
 
                     PvZReanimTransform transform =
                         ParseTransformNode(
@@ -342,10 +283,6 @@ namespace PvZReanim
                     );
                 }
             }
-
-            // =====================================================
-            // COMPATIBILIDAD <transform>
-            // =====================================================
 
             if (track.TransformCount == 0)
             {
@@ -378,13 +315,6 @@ namespace PvZReanim
                 }
             }
 
-            /*
-             * Resodded rellena los valores inexistentes
-             * usando el valor anterior.
-             *
-             * Tambi�n conserva el frame vac�o.
-             */
-
             PvZReanimDataFiller.FillTrack(
                 track
             );
@@ -399,10 +329,6 @@ namespace PvZReanim
             return track;
         }
 
-        // =========================================================
-        // TRANSFORM
-        // =========================================================
-
         private static PvZReanimTransform ParseTransformNode(
             XmlNode node)
         {
@@ -413,10 +339,6 @@ namespace PvZReanim
 
             PvZReanimTransform transform =
                 new PvZReanimTransform();
-
-            // =====================================================
-            // POSICI�N
-            // =====================================================
 
             transform.x =
                 ReadValue(
@@ -430,10 +352,6 @@ namespace PvZReanim
                     "y"
                 );
 
-            // =====================================================
-            // SKEW
-            // =====================================================
-
             transform.skewX =
                 ReadValue(
                     node,
@@ -446,7 +364,6 @@ namespace PvZReanim
                     "ky"
                 );
 
-            // Compatibilidad
             if (IsMissingValue(
                     transform.skewX
                 ))
@@ -468,10 +385,6 @@ namespace PvZReanim
                         "skewY"
                     );
             }
-
-            // =====================================================
-            // SCALE
-            // =====================================================
 
             transform.scaleX =
                 ReadValue(
@@ -507,10 +420,6 @@ namespace PvZReanim
                     );
             }
 
-            // =====================================================
-            // FRAME
-            // =====================================================
-
             transform.frame =
                 ReadValue(
                     node,
@@ -528,10 +437,6 @@ namespace PvZReanim
                     );
             }
 
-            // =====================================================
-            // ALPHA
-            // =====================================================
-
             transform.alpha =
                 ReadValue(
                     node,
@@ -548,10 +453,6 @@ namespace PvZReanim
                         "alpha"
                     );
             }
-
-            // =====================================================
-            // IMAGE
-            // =====================================================
 
             string imageName =
                 GetChildText(
@@ -594,10 +495,6 @@ namespace PvZReanim
                     );
             }
 
-            // =====================================================
-            // FONT
-            // =====================================================
-
             string fontName =
                 GetChildText(
                     node,
@@ -613,10 +510,6 @@ namespace PvZReanim
                         fontName
                     );
             }
-
-            // =====================================================
-            // TEXT
-            // =====================================================
 
             string text =
                 GetChildText(
@@ -634,23 +527,8 @@ namespace PvZReanim
                     );
             }
 
-            /*
-             * IMPORTANTE:
-             *
-             * Aunque no tenga ning�n valor, el transform
-             * sigue siendo v�lido.
-             *
-             * Esto reproduce el comportamiento de
-             * ReanimatorTransformConstructor de Resodded.
-             */
-
             return transform;
         }
-
-        // =========================================================
-        // XML HELPERS
-        // =========================================================
-
         private static string GetChildText(
             XmlNode node,
             string name)
@@ -744,10 +622,6 @@ namespace PvZReanim
                 out result
             );
         }
-
-        // =========================================================
-        // TEXTO
-        // =========================================================
 
         private static string NormalizeText(
             string text)
@@ -851,11 +725,6 @@ namespace PvZReanim
 
             return value;
         }
-
-        // =========================================================
-        // IMAGE
-        // =========================================================
-
         private static string NormalizeImageName(
             string imageName)
         {
@@ -879,10 +748,6 @@ namespace PvZReanim
 
             return imageName;
         }
-
-        // =========================================================
-        // MISSING
-        // =========================================================
 
         private static bool IsMissingToken(
             string value)
@@ -916,10 +781,6 @@ namespace PvZReanim
             return value ==
                    PvZReanimConstants.MissingValue;
         }
-
-        // =========================================================
-        // VALIDACI�N
-        // =========================================================
 
         private static void ValidateTrackFrameCounts(
             PvZReanimDefinition definition)

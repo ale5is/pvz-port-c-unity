@@ -92,14 +92,6 @@ namespace PvZReanim
                 return sprite;
             }
 
-            /*
-             * Algunos nombres de Reanim pueden
-             * llegar con extensiones o rutas.
-             *
-             * Intentamos también comparar
-             * únicamente el nombre final.
-             */
-
             string normalized =
                 NormalizeName(
                     imageName

@@ -4,36 +4,16 @@ using UnityEngine;
 
 namespace PvZReanim
 {
-    /// <summary>
-    /// Proveedor central de imágenes para Reanim.
-    ///
-    /// Prioridad:
-    /// 1. main.pak
-    /// 2. Sprites registrados en runtime
-    /// 3. PvZReanimAtlas
-    /// 4. Resources
-    /// </summary>
     public class PvZReanimImageProvider : MonoBehaviour
     {
-        // =========================================================
-        // ATLAS
-        // =========================================================
 
         [Header("Atlas")]
         [SerializeField]
         private PvZReanimAtlas atlas;
 
-        // =========================================================
-        // RESOURCES
-        // =========================================================
-
         [Header("Resources")]
         [SerializeField]
         private bool searchResources = false;
-
-        // =========================================================
-        // PAK
-        // =========================================================
 
         [Header("PAK")]
         [SerializeField]
@@ -42,18 +22,10 @@ namespace PvZReanim
         [SerializeField]
         private PvZPakImageProvider pakProvider;
 
-        // =========================================================
-        // RUNTIME
-        // =========================================================
-
         private readonly Dictionary<string, Sprite> runtimeSprites =
             new Dictionary<string, Sprite>(
                 StringComparer.OrdinalIgnoreCase
             );
-
-        // =========================================================
-        // PROPERTIES
-        // =========================================================
 
         public PvZReanimAtlas Atlas
         {
@@ -115,18 +87,10 @@ namespace PvZReanim
             }
         }
 
-        // =========================================================
-        // UNITY
-        // =========================================================
-
         private void Awake()
         {
             FindPakProvider();
         }
-
-        // =========================================================
-        // FIND PAK PROVIDER
-        // =========================================================
 
         private void FindPakProvider()
         {
@@ -144,10 +108,6 @@ namespace PvZReanim
                     PvZPakImageProvider
                 >();
         }
-
-        // =========================================================
-        // RESOLVE
-        // =========================================================
 
         public virtual Sprite Resolve(
             string imageName)
@@ -170,10 +130,6 @@ namespace PvZReanim
             }
 
             Sprite sprite;
-
-            // =====================================================
-            // 1. PAK
-            // =====================================================
 
             if (searchPak)
             {
@@ -201,10 +157,6 @@ namespace PvZReanim
                 }
             }
 
-            // =====================================================
-            // 2. RUNTIME
-            // =====================================================
-
             if (runtimeSprites.TryGetValue(
                     normalized,
                     out sprite))
@@ -216,10 +168,6 @@ namespace PvZReanim
                     normalized
                 );
             }
-
-            // =====================================================
-            // 3. ATLAS
-            // =====================================================
 
             if (atlas != null)
             {
@@ -246,10 +194,6 @@ namespace PvZReanim
                 }
             }
 
-            // =====================================================
-            // 4. RESOURCES
-            // =====================================================
-
             if (searchResources)
             {
                 sprite =
@@ -272,10 +216,6 @@ namespace PvZReanim
             return null;
         }
 
-        // =========================================================
-        // TRY RESOLVE
-        // =========================================================
-
         public virtual bool TryResolve(
             string imageName,
             out Sprite sprite)
@@ -288,10 +228,6 @@ namespace PvZReanim
             return sprite != null;
         }
 
-        // =========================================================
-        // CONTAINS
-        // =========================================================
-
         public virtual bool Contains(
             string imageName)
         {
@@ -299,10 +235,6 @@ namespace PvZReanim
                 imageName
             ) != null;
         }
-
-        // =========================================================
-        // REGISTER
-        // =========================================================
 
         public void RegisterSprite(
             string imageName,
@@ -333,10 +265,6 @@ namespace PvZReanim
             ] = sprite;
         }
 
-        // =========================================================
-        // UNREGISTER
-        // =========================================================
-
         public bool UnregisterSprite(
             string imageName)
         {
@@ -361,10 +289,6 @@ namespace PvZReanim
                 normalized
             );
         }
-
-        // =========================================================
-        // CHECK REGISTERED
-        // =========================================================
 
         public bool HasRegisteredSprite(
             string imageName)
@@ -423,10 +347,6 @@ namespace PvZReanim
             return atlas;
         }
 
-        // =========================================================
-        // PAK
-        // =========================================================
-
         public void SetPakProvider(
             PvZPakImageProvider newProvider)
         {
@@ -440,10 +360,6 @@ namespace PvZReanim
 
             return pakProvider;
         }
-
-        // =========================================================
-        // CLEAR
-        // =========================================================
 
         public virtual void Clear()
         {
