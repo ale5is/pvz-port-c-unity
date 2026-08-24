@@ -45,6 +45,34 @@ namespace PvZReanim
         private PvZReanimMatrix overlayMatrix =
             PvZReanimMatrix.Identity;
 
+        // =========================================================
+        // SORTING
+        // =========================================================
+
+        /*
+         * En el Reanim original, un attachment (por ejemplo la
+         * cabeza sobre el cuerpo) NO se dibuja como un bloque
+         * aparte: se intercala exactamente en el punto del loop
+         * donde se encuentra el track anfitrión (DrawRenderGroup,
+         * Reanimator.cpp linea 860).
+         *
+         * Para reproducir eso con sortingOrder de Unity, cada
+         * track no usa +1, sino saltos de
+         * TRACK_SORTING_STEP. Asi queda "espacio" de sortingOrder
+         * libre entre un track y el siguiente para poder insertar
+         * ahi los tracks de una Reanimation adjunta
+         * (ver PvZReanimAttachment).
+         */
+        private const int TRACK_SORTING_STEP = 1000;
+
+        [SerializeField]
+        private int sortingLayerId;
+
+        private int sortingOrderBase;
+
+        public int SortingOrderBase =>
+            sortingOrderBase;
+
         public PvZReanimDefinition Definition =>
             definition;
 
@@ -295,12 +323,69 @@ namespace PvZReanim
                 );
 
                 renderer.SetSorting(
-                    0,
-                    i
+                    sortingLayerId,
+                    sortingOrderBase +
+                    i * TRACK_SORTING_STEP
                 );
 
                 trackRenderers[i] = renderer;
             }
+        }
+
+        // =========================================================
+        // SORTING (PUBLIC)
+        // =========================================================
+
+        /// <summary>
+        /// Cambia el sortingLayer y/o el "piso" de sortingOrder de
+        /// TODOS los tracks de esta Reanimation, manteniendo el
+        /// orden relativo entre ellos (track i sigue yendo
+        /// delante del track i-1).
+        ///
+        /// Lo usa PvZReanimAttachment para ubicar una Reanimation
+        /// adjunta (ej: la cabeza) exactamente en el hueco de
+        /// sortingOrder que le corresponde segun el track del
+        /// padre al que esta pegada, replicando el intercalado
+        /// del DrawRenderGroup original.
+        /// </summary>
+        public void SetSortingOrderBase(
+            int newSortingOrderBase,
+            int newSortingLayerId = -1)
+        {
+            if (newSortingLayerId >= 0)
+                sortingLayerId = newSortingLayerId;
+
+            sortingOrderBase =
+                newSortingOrderBase;
+
+            if (trackRenderers == null)
+                return;
+
+            for (int i = 0;
+                 i < trackRenderers.Length;
+                 i++)
+            {
+                if (trackRenderers[i] == null)
+                    continue;
+
+                trackRenderers[i].SetSorting(
+                    sortingLayerId,
+                    sortingOrderBase +
+                    i * TRACK_SORTING_STEP
+                );
+            }
+        }
+
+        /// <summary>
+        /// sortingOrder que le corresponde al track "trackIndex"
+        /// de esta Reanimation. Sirve para calcular en que hueco
+        /// hay que insertar una Reanimation adjunta.
+        /// </summary>
+        public int GetSortingOrderForTrack(
+            int trackIndex)
+        {
+            return sortingOrderBase +
+                   trackIndex * TRACK_SORTING_STEP;
         }
 
         // =========================================================
