@@ -45,24 +45,6 @@ namespace PvZReanim
         private PvZReanimMatrix overlayMatrix =
             PvZReanimMatrix.Identity;
 
-        // =========================================================
-        // SORTING
-        // =========================================================
-
-        /*
-         * En el Reanim original, un attachment (por ejemplo la
-         * cabeza sobre el cuerpo) NO se dibuja como un bloque
-         * aparte: se intercala exactamente en el punto del loop
-         * donde se encuentra el track anfitrión (DrawRenderGroup,
-         * Reanimator.cpp linea 860).
-         *
-         * Para reproducir eso con sortingOrder de Unity, cada
-         * track no usa +1, sino saltos de
-         * TRACK_SORTING_STEP. Asi queda "espacio" de sortingOrder
-         * libre entre un track y el siguiente para poder insertar
-         * ahi los tracks de una Reanimation adjunta
-         * (ver PvZReanimAttachment).
-         */
         private const int TRACK_SORTING_STEP = 1000;
 
         [SerializeField]
@@ -115,34 +97,16 @@ namespace PvZReanim
 
         public PvZReanimMatrix OverlayMatrix =>
             overlayMatrix;
-
-        // =========================================================
-        // ATTACHMENT OVERLAY
-        // =========================================================
-
-        /// <summary>
-        /// Aplica directamente la matriz de attachment a esta
-        /// Reanimation. Esto equivale a que el Reanim original
-        /// reciba su mOverlayMatrix desde AttachReanim().
-        /// </summary>
         public void SetOverlayMatrix(
             PvZReanimMatrix matrix)
         {
             overlayMatrix = matrix;
         }
-
-        /// <summary>
-        /// Quita el attachment y vuelve la overlay a identidad.
-        /// </summary>
         public void ResetOverlayMatrix()
         {
             overlayMatrix =
                 PvZReanimMatrix.Identity;
         }
-
-        // =========================================================
-        // UNITY
-        // =========================================================
 
         private void Awake()
         {
@@ -158,10 +122,6 @@ namespace PvZReanim
             AdvanceTime(Time.deltaTime);
             UpdateTracks();
         }
-
-        // =========================================================
-        // INITIALIZATION
-        // =========================================================
 
         public void Initialize(
             PvZReanimDefinition newDefinition)
@@ -331,23 +291,6 @@ namespace PvZReanim
                 trackRenderers[i] = renderer;
             }
         }
-
-        // =========================================================
-        // SORTING (PUBLIC)
-        // =========================================================
-
-        /// <summary>
-        /// Cambia el sortingLayer y/o el "piso" de sortingOrder de
-        /// TODOS los tracks de esta Reanimation, manteniendo el
-        /// orden relativo entre ellos (track i sigue yendo
-        /// delante del track i-1).
-        ///
-        /// Lo usa PvZReanimAttachment para ubicar una Reanimation
-        /// adjunta (ej: la cabeza) exactamente en el hueco de
-        /// sortingOrder que le corresponde segun el track del
-        /// padre al que esta pegada, replicando el intercalado
-        /// del DrawRenderGroup original.
-        /// </summary>
         public void SetSortingOrderBase(
             int newSortingOrderBase,
             int newSortingLayerId = -1)
@@ -375,22 +318,12 @@ namespace PvZReanim
                 );
             }
         }
-
-        /// <summary>
-        /// sortingOrder que le corresponde al track "trackIndex"
-        /// de esta Reanimation. Sirve para calcular en que hueco
-        /// hay que insertar una Reanimation adjunta.
-        /// </summary>
         public int GetSortingOrderForTrack(
             int trackIndex)
         {
             return sortingOrderBase +
                    trackIndex * TRACK_SORTING_STEP;
         }
-
-        // =========================================================
-        // DEFINITION
-        // =========================================================
 
         public void SetDefinition(
             PvZReanimDefinition newDefinition)
@@ -421,10 +354,6 @@ namespace PvZReanim
 
             UpdateTracks();
         }
-
-        // =========================================================
-        // BASE POSE
-        // =========================================================
 
         public void SetFrameBasePose(
             int frame)
@@ -466,13 +395,6 @@ namespace PvZReanim
                 return PvZReanimMatrix.Identity;
             }
 
-            /*
-             * Igual que el original:
-             *
-             * mFrameBasePose == -1
-             *     ? mFrameStart
-             *     : mFrameBasePose
-             */
             int baseFrame =
                 frameBasePose >= 0
                     ? frameBasePose
@@ -515,10 +437,6 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // ATTACHMENT OVERLAY
-        // =========================================================
-
         public PvZReanimMatrix
             GetAttachmentOverlayMatrix(
                 int trackIndex)
@@ -531,24 +449,6 @@ namespace PvZReanim
             {
                 return PvZReanimMatrix.Identity;
             }
-
-            /*
-             * ORIGINAL PVZ:
-             *
-             * GetCurrentTransform()
-             * MatrixFromTransform()
-             *
-             * aTransformMatrix *= mOverlayMatrix
-             *
-             * aBasePoseMatrix = GetTrackBasePoseMatrix()
-             * aBasePoseMatrixInv = inverse(base)
-             *
-             * result =
-             *     aTransformMatrix *
-             *     aBasePoseMatrixInv
-             *
-             * ESTE ORDEN ES MUY IMPORTANTE.
-             */
 
             PvZReanimTransform current =
                 GetCurrentTransform(
@@ -563,9 +463,6 @@ namespace PvZReanim
                     current
                 );
 
-            /*
-             * Primero se aplica el overlay de la reanimation.
-             */
             currentMatrix =
                 PvZReanimMatrix.Multiply(
                     currentMatrix,
@@ -582,15 +479,6 @@ namespace PvZReanim
                     baseMatrix
                 );
 
-            /*
-             * CORRECTO:
-             *
-             * current * overlay * inverseBase
-             *
-             * NO:
-             *
-             * inverseBase * current
-             */
             return PvZReanimMatrix.Multiply(
                 currentMatrix,
                 inverseBase
@@ -653,10 +541,6 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // PLAY
-        // =========================================================
-
         public void Play(
             PvZReanimLoopType newLoopType,
             float newAnimRate = 1f,
@@ -710,11 +594,6 @@ namespace PvZReanim
             loopCount = 0;
             dead = false;
 
-            /*
-             * Al comenzar una animación normal,
-             * si no existe una base pose explícita,
-             * la base vuelve a ser el frame inicial.
-             */
             if (frameBasePose < 0)
                 frameBasePose = frameStart;
 
@@ -722,10 +601,6 @@ namespace PvZReanim
 
             UpdateTracks();
         }
-
-        // =========================================================
-        // PLAY REANIM
-        // =========================================================
 
         public void PlayReanim(
             string trackName,
@@ -790,13 +665,6 @@ namespace PvZReanim
                     newFrameCount
                 );
 
-            /*
-             * ESTE ES IMPORTANTE.
-             *
-             * El original, al adjuntar una reanimation,
-             * usa mFrameStart como base si todavía no existe
-             * mFrameBasePose.
-             */
             if (frameBasePose < 0)
                 frameBasePose = frameStart;
 
@@ -811,10 +679,6 @@ namespace PvZReanim
 
             UpdateTracks();
         }
-
-        // =========================================================
-        // FRAMES FOR LAYER
-        // =========================================================
 
         public bool GetFramesForLayer(
             string animationName,
@@ -879,15 +743,6 @@ namespace PvZReanim
                 return false;
             }
 
-            /*
-             * Igual que PvZ original:
-             *
-             * frameStart = primer transform cuyo frame >= 0
-             *
-             * frameCount =
-             * desde ese índice hasta el último transform
-             * cuyo frame >= 0
-             */
             int first = -1;
             int last = -1;
 
@@ -935,10 +790,6 @@ namespace PvZReanim
             return true;
         }
 
-        // =========================================================
-        // TIME
-        // =========================================================
-
         private void AdvanceTime(
             float deltaTime)
         {
@@ -957,16 +808,6 @@ namespace PvZReanim
             if (fps <= 0f)
                 fps = 12f;
 
-            /*
-             * PvZ usa:
-             *
-             * animPosition =
-             * frameStart +
-             * animTime * frameCount
-             *
-             * excepto los loops normales,
-             * donde la última frame se usa como límite.
-             */
             float frameSpan;
 
             switch (loopType)
@@ -1073,10 +914,6 @@ namespace PvZReanim
             frameTimeDirty = true;
         }
 
-        // =========================================================
-        // FRAME TIME
-        // =========================================================
-
         public PvZReanimFrameTime GetFrameTime()
         {
             if (definition == null)
@@ -1115,16 +952,6 @@ namespace PvZReanim
                     maxFrame
                 );
 
-            /*
-             * PvZ original:
-             *
-             * animPosition =
-             * frameStart +
-             * animTime * (frameCount - 1)
-             *
-             * Para el último frame,
-             * before y after son el mismo.
-             */
             float frame =
                 start +
                 Mathf.Clamp01(animTime) *
@@ -1183,10 +1010,6 @@ namespace PvZReanim
             return cachedFrameTime;
         }
 
-        // =========================================================
-        // OVERLAY
-        // =========================================================
-
         private PvZReanimTransform ApplyOverlayToTransform(
             PvZReanimTransform original)
         {
@@ -1195,14 +1018,6 @@ namespace PvZReanim
 
             if (overlayMatrix.Equals(PvZReanimMatrix.Identity))
                 return original;
-
-            // En Reanim el attachment no mueve el GameObject padre.
-            // La matriz se aplica a CADA track de la reanimation destino.
-            //
-            // transformDeLaPieza * overlayMatrix
-            //
-            // Esto es lo que faltaba: antes SetOverlayMatrix() guardaba
-            // la matriz, pero UpdateTracks() nunca la aplicaba al render.
             PvZReanimMatrix pieceMatrix =
                 PvZReanimMatrix.FromTransform(original);
 
@@ -1255,10 +1070,6 @@ namespace PvZReanim
 
             return result;
         }
-
-        // =========================================================
-        // UPDATE TRACKS
-        // =========================================================
 
         private void UpdateTracks()
         {
@@ -1341,10 +1152,6 @@ namespace PvZReanim
                 PvZReanimTransform renderTransform =
                     current;
 
-                /*
-                 * Mantener el blending compatible con el
-                 * comportamiento del Reanimator original.
-                 */
                 if (instance != null &&
                     instance.blendCounter > 0 &&
                     instance.blendTransform != null &&
@@ -1359,15 +1166,6 @@ namespace PvZReanim
                             factor
                         );
 
-                    /*
-                     * Original:
-                     *
-                     * BlendTransform(
-                     *     current,
-                     *     blendTransform,
-                     *     counter / time
-                     * )
-                     */
                     renderTransform =
                         PvZReanimInterpolator.Interpolate(
                             current,
@@ -1384,10 +1182,6 @@ namespace PvZReanim
                         instance.blendTransform = null;
                     }
                 }
-
-                // Aplicar el attachment DESPUÉS de obtener la animación
-                // propia de esta pieza. Así la cabeza conserva su animación
-                // y además sigue al anim_stem del cuerpo.
                 renderTransform =
                     ApplyOverlayToTransform(renderTransform);
 
@@ -1405,10 +1199,6 @@ namespace PvZReanim
                 );
             }
         }
-
-        // =========================================================
-        // TRANSFORM
-        // =========================================================
 
         public PvZReanimTransform GetTransformAtTime(
             int trackIndex,
@@ -1430,12 +1220,6 @@ namespace PvZReanim
                 return null;
             }
 
-            /*
-             * IMPORTANTE:
-             *
-             * Los índices de transform corresponden a los
-             * frames reales del reanimation, igual que en PvZ.
-             */
             int before =
                 Mathf.Clamp(
                     frameTime.frameBefore,
@@ -1545,10 +1329,6 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // TRACK SEARCH
-        // =========================================================
-
         public int FindTrackIndex(
             string trackName)
         {
@@ -1592,10 +1372,6 @@ namespace PvZReanim
         {
             return FindTrackIndex(trackName) >= 0;
         }
-
-        // =========================================================
-        // VELOCITY
-        // =========================================================
 
         public float GetTrackVelocity(
             string trackName)
@@ -1662,10 +1438,6 @@ namespace PvZReanim
                 animRate;
         }
 
-        // =========================================================
-        // BLENDING
-        // =========================================================
-
         public void StartBlend(
             int blendTime)
         {
@@ -1708,9 +1480,6 @@ namespace PvZReanim
                 instance.blendTransform =
                     current.Clone();
 
-                /*
-                 * El original utiliza directamente blendTime.
-                 */
                 instance.blendCounter =
                     Mathf.Max(
                         1,
@@ -1728,10 +1497,6 @@ namespace PvZReanim
             frameTimeDirty = true;
         }
 
-        // =========================================================
-        // POSITION / SCALE
-        // =========================================================
-
         public void SetPosition(
             float x,
             float y)
@@ -1747,10 +1512,6 @@ namespace PvZReanim
             overlayMatrix.m00 = x;
             overlayMatrix.m11 = y;
         }
-
-        // =========================================================
-        // RENDER GROUP
-        // =========================================================
 
         public void ShowOnlyTrack(
             string trackName)
@@ -1873,10 +1634,6 @@ namespace PvZReanim
             return true;
         }
 
-        // =========================================================
-        // TRUNCATE
-        // =========================================================
-
         public void SetTruncateDisappearingFrames(
             string trackName,
             bool value)
@@ -1908,10 +1665,6 @@ namespace PvZReanim
                 .truncateDisappearingFrames =
                 value;
         }
-
-        // =========================================================
-        // IMAGE
-        // =========================================================
 
         public void SetImageOverride(
             string trackName,
@@ -2001,10 +1754,6 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // RESET
-        // =========================================================
-
         public void ResetReanimation()
         {
             animTime = 0f;
@@ -2055,10 +1804,6 @@ namespace PvZReanim
 
             UpdateTracks();
         }
-
-        // =========================================================
-        // DIE
-        // =========================================================
 
         public void Stop()
         {
