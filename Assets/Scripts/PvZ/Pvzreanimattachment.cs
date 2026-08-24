@@ -3,41 +3,29 @@
 namespace PvZReanim
 {
     /*
-     * Equivalente simplificado a
-     * Reanimation::AttachToAnotherReanimation del motor
-     * original (Reanimator.cpp:902).
+     * Attachment equivalente a:
      *
-     * En PvZ real, una planta como el Lanzaguisantes NO es
-     * un solo objeto Reanimation: son DOS (o m�s) objetos
-     * separados, cada uno con su propio frameStart/frameCount,
-     * reproduciendo sub-animaciones distintas al mismo
-     * tiempo:
+     * Reanimation::AttachToAnotherReanimation
      *
-     *   - "body" reproduce "anim_idle" en loop, siempre.
-     *   - "head" reproduce lo que corresponda seg�n el
-     *     estado (anim_head_idle, anim_shooting, etc.) y
-     *     se posiciona siguiendo el track "anim_stem" del
-     *     body (Plant.cpp l�nea ~208-214).
+     * + GetAttachmentOverlayMatrix
      *
-     * Este componente hace ese seguimiento: cada frame, lee
-     * la pose actual del track indicado en la Reanimation
-     * "source" y la aplica como posici�n/rotaci�n/escala
-     * local de este GameObject (que deber�a ser el padre/ra�z
-     * de la Reanimation "head").
+     * del PvZ original.
      *
-     * OJO: esto es una aproximaci�n. El original compone una
-     * matriz completa con skew (cizalladura) real
-     * (MatrixFromTransform, Reanimator.cpp:561), que Unity no
-     * soporta nativamente en un Transform normal. Ac�
-     * aproximamos el skew con una rotaci�n en Z, que para el
-     * balanceo lateral de un tallo da un resultado visualmente
-     * muy cercano sin tener que armar una matriz de shear
-     * manual por SpriteRenderer.
+     * IMPORTANTE:
+     *
+     * Ya NO copiamos x/y del anim_stem directamente.
+     *
+     * El source calcula:
+     *
+     *     inverse(basePose) * currentPose
+     *
+     * y ese resultado se aplica al root del Reanimation
+     * de la cabeza.
      */
     [DefaultExecutionOrder(100)]
     public class PvZReanimAttachment : MonoBehaviour
     {
-        [Header("Fuente a seguir")]
+        [Header("Fuente")]
         [SerializeField]
         private PvZReanimation source;
 
@@ -45,19 +33,13 @@ namespace PvZReanim
         private string sourceTrackName =
             "anim_stem";
 
-        [Header("Opciones")]
-        [SerializeField]
-        private bool followPosition = true;
-
-        [SerializeField]
-        private bool followRotation = true;
-
-        [SerializeField]
-        private bool followScale = false;
-
         private int cachedTrackIndex = -1;
 
         private string cachedTrackName;
+
+        // =========================================================
+        // SOURCE
+        // =========================================================
 
         public void SetSource(
             PvZReanimation newSource,
@@ -67,93 +49,195 @@ namespace PvZReanim
                 newSource;
 
             sourceTrackName =
-                newTrackName;
+                string.IsNullOrWhiteSpace(
+                    newTrackName)
+                    ? "anim_stem"
+                    : newTrackName;
 
             cachedTrackIndex = -1;
             cachedTrackName = null;
+
+            /*
+             * Igual que el original:
+             *
+             * if (mFrameBasePose == -1)
+             *     mFrameBasePose = mFrameStart;
+             *
+             * La pose base pertenece al BODY/source.
+             */
+            if (source != null &&
+                source.FrameBasePose < 0)
+            {
+                source.SetFrameBasePose(
+                    source.FrameStart
+                );
+            }
         }
 
-        /*
-         * LateUpdate: corre DESPU�S de que source.Update()
-         * ya calcul� la pose de este frame (PvZReanimation
-         * actualiza en Update()). As� siempre leemos la
-         * posici�n ya al d�a, nunca la del frame anterior.
-         */
+        // =========================================================
+        // UPDATE
+        // =========================================================
+
         private void LateUpdate()
         {
             if (source == null)
                 return;
 
-            if (cachedTrackIndex < 0 ||
-                cachedTrackName != sourceTrackName)
-            {
-                cachedTrackIndex =
-                    source.FindTrackIndex(
-                        sourceTrackName
-                    );
-
-                cachedTrackName =
-                    sourceTrackName;
-
-                if (cachedTrackIndex < 0)
-                {
-                    Debug.LogWarning(
-                        "[PvZReanimAttachment] No se " +
-                        "encontr� el track '" +
-                        sourceTrackName +
-                        "' en " +
-                        source.name +
-                        ". No se puede seguir su posici�n."
-                    );
-                }
-            }
+            CacheTrack();
 
             if (cachedTrackIndex < 0)
                 return;
 
-            PvZReanimTransform current =
-                source.GetCurrentTransform(
+            /*
+             * Esta es la parte importante.
+             *
+             * NO:
+             *
+             *     x -> position.x
+             *     y -> position.y
+             *
+             * Sino:
+             *
+             *     base^-1 * current
+             */
+            PvZReanimMatrix matrix =
+                source.GetAttachmentOverlayMatrix(
                     cachedTrackIndex
                 );
 
-            if (current == null)
+            ApplyMatrix(
+                matrix
+            );
+        }
+
+        // =========================================================
+        // CACHE
+        // =========================================================
+
+        private void CacheTrack()
+        {
+            if (cachedTrackIndex >= 0 &&
+                cachedTrackName == sourceTrackName)
+            {
                 return;
-
-            if (followPosition)
-            {
-                transform.localPosition =
-                    new Vector3(
-                        current.GetX(),
-                        current.GetY(),
-                        0f
-                    );
             }
 
-            if (followRotation)
-            {
-                /*
-                 * Aproximaci�n del skew con rotaci�n en Z.
-                 * skewY suele ser el que gobierna el
-                 * balanceo lateral del tallo en los reanim
-                 * de PvZ.
-                 */
-                transform.localRotation =
-                    Quaternion.Euler(
-                        0f,
-                        0f,
-                        -current.GetSkewY()
-                    );
-            }
+            cachedTrackIndex =
+                source.FindTrackIndex(
+                    sourceTrackName
+                );
 
-            if (followScale)
+            cachedTrackName =
+                sourceTrackName;
+
+            if (cachedTrackIndex < 0)
             {
-                transform.localScale =
-                    new Vector3(
-                        current.GetScaleX(),
-                        current.GetScaleY(),
-                        1f
-                    );
+                Debug.LogWarning(
+                    "[PvZReanimAttachment] " +
+                    "No se encontró el track '" +
+                    sourceTrackName +
+                    "' en " +
+                    source.name,
+                    this
+                );
             }
+        }
+
+        // =========================================================
+        // APPLY MATRIX
+        // =========================================================
+
+        private void ApplyMatrix(
+            PvZReanimMatrix matrix)
+        {
+            /*
+             * Translation
+             */
+            transform.localPosition =
+                new Vector3(
+                    matrix.m02,
+                    matrix.m12,
+                    0f
+                );
+
+            /*
+             * Extraemos los vectores de la matriz.
+             *
+             * Column 0:
+             *
+             *     m00
+             *     m10
+             *
+             * Column 1:
+             *
+             *     m01
+             *     m11
+             */
+
+            float scaleX =
+                Mathf.Sqrt(
+                    matrix.m00 * matrix.m00 +
+                    matrix.m10 * matrix.m10
+                );
+
+            float scaleY =
+                Mathf.Sqrt(
+                    matrix.m01 * matrix.m01 +
+                    matrix.m11 * matrix.m11
+                );
+
+            if (scaleX < 0.000001f)
+                scaleX = 1f;
+
+            if (scaleY < 0.000001f)
+                scaleY = 1f;
+
+            /*
+             * Rotation.
+             *
+             * La matriz de Reanim usa:
+             *
+             *     m00 = cos(...)
+             *     m10 = -sin(...)
+             *
+             * Por eso recuperamos el ángulo con atan2.
+             */
+            float angle =
+                Mathf.Atan2(
+                    matrix.m10,
+                    matrix.m00
+                ) *
+                Mathf.Rad2Deg;
+
+            transform.localRotation =
+                Quaternion.Euler(
+                    0f,
+                    0f,
+                    angle
+                );
+
+            transform.localScale =
+                new Vector3(
+                    scaleX,
+                    scaleY,
+                    1f
+                );
+        }
+
+        // =========================================================
+        // RESET
+        // =========================================================
+
+        public void ResetAttachment()
+        {
+            transform.localPosition =
+                Vector3.zero;
+
+            transform.localRotation =
+                Quaternion.identity;
+
+            transform.localScale =
+                Vector3.one;
         }
     }
 }

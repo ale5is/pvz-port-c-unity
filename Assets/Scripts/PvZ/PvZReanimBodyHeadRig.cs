@@ -3,35 +3,29 @@
 namespace PvZReanim
 {
     /*
-     * Replica el patr�n que usa el motor original para
-     * plantas tipo lanzaguisantes (Plant.cpp, case
-     * SEED_PEASHOOTER / SEED_REPEATER / SEED_GATLINGPEA /
-     * SEED_SNOWPEA):
+     * =============================================================
+     * BODY + HEAD
+     * =============================================================
      *
-     *   aBodyReanim->SetFramesForLayer("anim_idle");
-     *   ...
-     *   aHeadReanim->SetFramesForLayer("anim_head_idle");
-     *   aHeadReanim->AttachToAnotherReanimation(
-     *       aBodyReanim, "anim_stem");
+     * Estructura:
      *
-     * Es decir: DOS objetos Reanimation separados, no uno.
-     * El body queda siempre en su propio loop (normalmente
-     * "anim_idle") y el head cambia de sub-animaci�n seg�n
-     * el estado del juego (idle, disparo, etc.) sin afectar
-     * al body, seguido en posici�n por PvZReanimAttachment.
+     * Plant
+     * ├── Body
+     * │   └── Reanimation
+     * │
+     * └── Head
+     *     └── Reanimation
      *
-     * Uso t�pico:
+     * Body y Head son Reanimations independientes.
      *
-     *   rig.PlayHeadAnim("anim_shooting", PvZReanimLoopType.Once);
-     *   // ... el body sigue en anim_idle sin cortarse ...
-     *   rig.PlayHeadAnim("anim_head_idle", PvZReanimLoopType.Loop);
+     * El Head sigue el track "anim_stem" del Body mediante
+     * una matriz de attachment equivalente al motor original.
      */
     public class PvZReanimBodyHeadRig : MonoBehaviour
     {
         [Header("Reanim")]
         [SerializeField]
-        private string relativePath =
-            "";
+        private string relativePath = "";
 
         [Header("Sub-animaciones")]
         [SerializeField]
@@ -42,11 +36,7 @@ namespace PvZReanim
         private string headAnimName =
             "anim_head_idle";
 
-        /*
-         * Track del body que el head sigue en posici�n.
-         * En el original: "anim_stem" si existe, si no
-         * "anim_idle" como fallback (Plant.cpp l�nea 213).
-         */
+        [Header("Attachment")]
         [SerializeField]
         private string attachTrackName =
             "anim_stem";
@@ -86,41 +76,52 @@ namespace PvZReanim
                 ? headLoader.Reanimation
                 : null;
 
+        public PvZReanimAttachment HeadAttachment =>
+            headAttachment;
+
+        // =========================================================
+        // UNITY
+        // =========================================================
+
         private void Awake()
         {
             ResolveImageComponentsFallback();
+
             BuildBody();
+
             BuildHead();
         }
 
-        /*
-         * BuildBody()/BuildHead() llaman a loader.Load()
-         * de forma S�NCRONA ac� en Awake() (no esperan al
-         * Start() autom�tico del loader), as� que si
-         * imageProvider/imageResolver no est�n asignados en
-         * el Inspector del rig, hay que resolverlos ANTES,
-         * si no la primera carga no va a poder resolver
-         * ning�n sprite.
-         */
+        private void Start()
+        {
+            ConnectAttachment();
+        }
+
+        // =========================================================
+        // IMAGE
+        // =========================================================
+
         private void ResolveImageComponentsFallback()
         {
             if (imageProvider == null)
             {
                 imageProvider =
                     FindFirstObjectByType<
-                        PvZReanimImageProvider>();
+                        PvZReanimImageProvider
+                    >();
             }
 
             if (imageResolver == null)
             {
                 imageResolver =
                     FindFirstObjectByType<
-                        PvZReanimImageResolver>();
+                        PvZReanimImageResolver
+                    >();
             }
         }
 
         // =========================================================
-        // BUILD
+        // BODY
         // =========================================================
 
         private void BuildBody()
@@ -135,9 +136,19 @@ namespace PvZReanim
                 false
             );
 
+            bodyObj.transform.localPosition =
+                Vector3.zero;
+
+            bodyObj.transform.localRotation =
+                Quaternion.identity;
+
+            bodyObj.transform.localScale =
+                Vector3.one;
+
             bodyLoader =
                 bodyObj.AddComponent<
-                    PvZReanimRuntimeLoader>();
+                    PvZReanimRuntimeLoader
+                >();
 
             ConfigureLoader(
                 bodyLoader,
@@ -146,28 +157,20 @@ namespace PvZReanim
             );
         }
 
+        // =========================================================
+        // HEAD
+        // =========================================================
+
         private void BuildHead()
         {
-            GameObject headAnchor =
-                new GameObject(
-                    "HeadAnchor"
-                );
-
-            headAnchor.transform.SetParent(
-                transform,
-                false
-            );
-
             /*
-             * El anchor sigue al track "anim_stem" del
-             * body. El head cuelga de este anchor, as� que
-             * se mueve autom�ticamente con el balanceo del
-             * tallo sin que el head necesite saber nada del
-             * body.
+             * IMPORTANTE:
+             *
+             * No existe HeadAnchor.
+             *
+             * En el PvZ original el Head Reanimation es un objeto
+             * independiente y el attachment modifica su matriz.
              */
-            headAttachment =
-                headAnchor.AddComponent<
-                    PvZReanimAttachment>();
 
             GameObject headObj =
                 new GameObject(
@@ -175,13 +178,34 @@ namespace PvZReanim
                 );
 
             headObj.transform.SetParent(
-                headAnchor.transform,
+                transform,
                 false
             );
 
+            headObj.transform.localPosition =
+                Vector3.zero;
+
+            headObj.transform.localRotation =
+                Quaternion.identity;
+
+            headObj.transform.localScale =
+                Vector3.one;
+
+            /*
+             * Attachment en el ROOT del Head.
+             */
+            headAttachment =
+                headObj.AddComponent<
+                    PvZReanimAttachment
+                >();
+
+            /*
+             * Reanimation independiente.
+             */
             headLoader =
                 headObj.AddComponent<
-                    PvZReanimRuntimeLoader>();
+                    PvZReanimRuntimeLoader
+                >();
 
             ConfigureLoader(
                 headLoader,
@@ -190,11 +214,18 @@ namespace PvZReanim
             );
         }
 
+        // =========================================================
+        // LOADER
+        // =========================================================
+
         private void ConfigureLoader(
             PvZReanimRuntimeLoader loader,
             string animName,
             PvZReanimLoopType loop)
         {
+            if (loader == null)
+                return;
+
             loader.SetReanimPath(
                 relativePath,
                 false
@@ -217,27 +248,48 @@ namespace PvZReanim
             loader.Load();
         }
 
-        private void Start()
+        // =========================================================
+        // ATTACH
+        // =========================================================
+
+        private void ConnectAttachment()
         {
-            /*
-             * El attachment necesita al body ya cargado
-             * (con su PvZReanimation creada) antes de poder
-             * buscar el track "anim_stem" -> se conecta en
-             * Start(), despu�s de que Awake() de ambos
-             * loaders ya corri� Load().
-             */
-            if (headAttachment != null &&
-                Body != null)
+            if (headAttachment == null)
+                return;
+
+            PvZReanimation body =
+                Body;
+
+            if (body == null)
             {
-                headAttachment.SetSource(
-                    Body,
-                    attachTrackName
+                Debug.LogWarning(
+                    "[PvZReanimBodyHeadRig] " +
+                    "No se pudo conectar Head: Body no existe.",
+                    this
                 );
+
+                return;
             }
+
+            /*
+             * El body es quien contiene anim_stem.
+             *
+             * PvZ original:
+             *
+             * head->AttachToAnotherReanimation(
+             *     body,
+             *     "anim_stem"
+             * );
+             */
+
+            headAttachment.SetSource(
+                body,
+                attachTrackName
+            );
         }
 
         // =========================================================
-        // API P�BLICA
+        // PATH
         // =========================================================
 
         public void SetReanimPath(
@@ -246,6 +298,10 @@ namespace PvZReanim
             relativePath =
                 newRelativePath;
         }
+
+        // =========================================================
+        // HEAD ANIMATION
+        // =========================================================
 
         public void PlayHeadAnim(
             string animName,
@@ -267,6 +323,10 @@ namespace PvZReanim
             );
         }
 
+        // =========================================================
+        // BODY ANIMATION
+        // =========================================================
+
         public void PlayBodyAnim(
             string animName,
             PvZReanimLoopType loop =
@@ -285,6 +345,26 @@ namespace PvZReanim
                     ? rate
                     : animRate
             );
+        }
+
+        // =========================================================
+        // RECONNECT
+        // =========================================================
+
+        public void ReconnectHead()
+        {
+            ConnectAttachment();
+        }
+
+        // =========================================================
+        // GETTERS
+        // =========================================================
+
+        public Transform GetHeadTransform()
+        {
+            return headAttachment != null
+                ? headAttachment.transform
+                : null;
         }
     }
 }
