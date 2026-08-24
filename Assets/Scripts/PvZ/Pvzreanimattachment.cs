@@ -22,8 +22,26 @@ namespace PvZReanim
         [SerializeField]
         private bool followScale = true;
 
+        /*
+         * IMPORTANTE
+         *
+         * El Reanimation original de PvZ no convierte la matriz
+         * del attachment directamente a localPosition/localRotation.
+         *
+         * La matriz calculada por GetAttachmentOverlayMatrix()
+         * se utiliza como mOverlayMatrix del Reanimation adjunto.
+         *
+         * En Unity no podemos asignar una matriz affine completa
+         * a Transform, pero podemos reconstruirla correctamente
+         * mediante posición + rotación + escala.
+         */
+
         private int cachedTrackIndex = -1;
         private string cachedTrackName;
+
+        private Vector3 baseLocalPosition;
+        private Quaternion baseLocalRotation;
+        private Vector3 baseLocalScale;
 
         // =========================================================
         // SOURCE
@@ -43,7 +61,8 @@ namespace PvZReanim
             cachedTrackIndex = -1;
             cachedTrackName = null;
 
-            ResetTransform();
+            SaveBaseTransform();
+            Refresh();
         }
 
         public PvZReanimation GetSource()
@@ -60,6 +79,17 @@ namespace PvZReanim
         // UNITY
         // =========================================================
 
+        private void Awake()
+        {
+            SaveBaseTransform();
+        }
+
+        private void Start()
+        {
+            ResolveTrack();
+            Refresh();
+        }
+
         private void LateUpdate()
         {
             if (source == null)
@@ -70,24 +100,11 @@ namespace PvZReanim
             if (cachedTrackIndex < 0)
                 return;
 
-            /*
-             * IMPORTANTE:
-             *
-             * El PvZ original NO copia x/y directamente.
-             *
-             * AttachToAnotherReanimation() utiliza:
-             *
-             *     GetAttachmentOverlayMatrix()
-             *
-             * y esa matriz representa el movimiento RELATIVO
-             * del track respecto de su pose base.
-             */
-            PvZReanimMatrix matrix =
+            ApplyAttachmentMatrix(
                 source.GetAttachmentOverlayMatrix(
                     cachedTrackIndex
-                );
-
-            ApplyMatrix(matrix);
+                )
+            );
         }
 
         // =========================================================
@@ -96,6 +113,9 @@ namespace PvZReanim
 
         private void ResolveTrack()
         {
+            if (source == null)
+                return;
+
             if (cachedTrackIndex >= 0 &&
                 cachedTrackName == sourceTrackName)
             {
@@ -125,19 +145,41 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // APPLY
+        // APPLY MATRIX
         // =========================================================
 
-        private void ApplyMatrix(
+        private void ApplyAttachmentMatrix(
             PvZReanimMatrix matrix)
         {
             /*
-             * El attachment original contiene una matriz completa.
+             * La matriz PvZ tiene esta forma:
              *
-             * Unity Transform no puede representar shear/skew
-             * completamente, pero posición + rotación + escala
-             * permiten reproducir correctamente la parte principal.
+             * | m00 m01 m02 |
+             * | m10 m11 m12 |
+             * |  0   0   1  |
+             *
+             * m02/m12 = posición
+             *
+             * La parte 2x2 contiene:
+             *
+             * escala + rotación + skew.
+             *
+             * No usamos simplemente:
+             *
+             * atan2(m10,m00)
+             *
+             * porque eso da resultados incorrectos cuando existe
+             * skew, que es habitual en los .reanim de PvZ.
              */
+
+            float a = matrix.m00;
+            float b = matrix.m01;
+            float c = matrix.m10;
+            float d = matrix.m11;
+
+            // -----------------------------------------------------
+            // POSITION
+            // -----------------------------------------------------
 
             if (followPosition)
             {
@@ -145,16 +187,86 @@ namespace PvZReanim
                     new Vector3(
                         matrix.m02,
                         matrix.m12,
-                        0f
+                        baseLocalPosition.z
                     );
             }
+
+            // -----------------------------------------------------
+            // DECOMPOSICIÓN 2D
+            // -----------------------------------------------------
+
+            float scaleX =
+                Mathf.Sqrt(
+                    a * a +
+                    c * c
+                );
+
+            if (scaleX < 0.000001f ||
+                float.IsNaN(scaleX) ||
+                float.IsInfinity(scaleX))
+            {
+                scaleX = 1f;
+            }
+
+            /*
+             * Normalizamos la primera columna.
+             */
+            float r00 = a / scaleX;
+            float r10 = c / scaleX;
+
+            /*
+             * Proyección de la segunda columna sobre la primera.
+             *
+             * Esto elimina la parte de shear antes de obtener
+             * la rotación.
+             */
+            float shear =
+                r00 * b +
+                r10 * d;
+
+            float orthogonalX =
+                b -
+                r00 * shear;
+
+            float orthogonalY =
+                d -
+                r10 * shear;
+
+            float scaleY =
+                Mathf.Sqrt(
+                    orthogonalX * orthogonalX +
+                    orthogonalY * orthogonalY
+                );
+
+            if (scaleY < 0.000001f ||
+                float.IsNaN(scaleY) ||
+                float.IsInfinity(scaleY))
+            {
+                scaleY = 1f;
+            }
+
+            /*
+             * Detectamos inversión.
+             */
+            float determinant =
+                a * d -
+                b * c;
+
+            if (determinant < 0f)
+            {
+                scaleY = -scaleY;
+            }
+
+            // -----------------------------------------------------
+            // ROTACIÓN
+            // -----------------------------------------------------
 
             if (followRotation)
             {
                 float angle =
                     Mathf.Atan2(
-                        matrix.m10,
-                        matrix.m00
+                        r10,
+                        r00
                     ) *
                     Mathf.Rad2Deg;
 
@@ -166,64 +278,47 @@ namespace PvZReanim
                     );
             }
 
+            // -----------------------------------------------------
+            // SCALE
+            // -----------------------------------------------------
+
             if (followScale)
             {
-                float scaleX =
-                    Mathf.Sqrt(
-                        matrix.m00 * matrix.m00 +
-                        matrix.m10 * matrix.m10
-                    );
-
-                float scaleY =
-                    Mathf.Sqrt(
-                        matrix.m01 * matrix.m01 +
-                        matrix.m11 * matrix.m11
-                    );
-
-                if (float.IsNaN(scaleX) ||
-                    float.IsInfinity(scaleX) ||
-                    scaleX < 0.000001f)
-                {
-                    scaleX = 1f;
-                }
-
-                if (float.IsNaN(scaleY) ||
-                    float.IsInfinity(scaleY) ||
-                    scaleY < 0.000001f)
-                {
-                    scaleY = 1f;
-                }
-
-                float determinant =
-                    matrix.m00 * matrix.m11 -
-                    matrix.m01 * matrix.m10;
-
-                if (determinant < 0f)
-                    scaleY = -scaleY;
-
                 transform.localScale =
                     new Vector3(
                         scaleX,
                         scaleY,
-                        1f
+                        baseLocalScale.z
                     );
             }
         }
 
         // =========================================================
-        // RESET
+        // RESET / BASE
         // =========================================================
+
+        private void SaveBaseTransform()
+        {
+            baseLocalPosition =
+                transform.localPosition;
+
+            baseLocalRotation =
+                transform.localRotation;
+
+            baseLocalScale =
+                transform.localScale;
+        }
 
         private void ResetTransform()
         {
             transform.localPosition =
-                Vector3.zero;
+                baseLocalPosition;
 
             transform.localRotation =
-                Quaternion.identity;
+                baseLocalRotation;
 
             transform.localScale =
-                Vector3.one;
+                baseLocalScale;
         }
 
         // =========================================================
@@ -246,11 +341,66 @@ namespace PvZReanim
                 return;
             }
 
-            ApplyMatrix(
+            ApplyAttachmentMatrix(
                 source.GetAttachmentOverlayMatrix(
                     cachedTrackIndex
                 )
             );
+        }
+
+        // =========================================================
+        // FORCE TRACK
+        // =========================================================
+
+        public void SetTrack(
+            string trackName)
+        {
+            sourceTrackName =
+                string.IsNullOrEmpty(trackName)
+                    ? "anim_stem"
+                    : trackName;
+
+            cachedTrackIndex = -1;
+            cachedTrackName = null;
+
+            ResolveTrack();
+            Refresh();
+        }
+
+        // =========================================================
+        // ENABLE / DISABLE FOLLOW
+        // =========================================================
+
+        public void SetFollowPosition(
+            bool value)
+        {
+            followPosition = value;
+        }
+
+        public void SetFollowRotation(
+            bool value)
+        {
+            followRotation = value;
+        }
+
+        public void SetFollowScale(
+            bool value)
+        {
+            followScale = value;
+        }
+
+        // =========================================================
+        // SOURCE REFRESH
+        // =========================================================
+
+        public void ClearSource()
+        {
+            source = null;
+
+            cachedTrackIndex = -1;
+            cachedTrackName = null;
+
+            ResetTransform();
         }
     }
 }
