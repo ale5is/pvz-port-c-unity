@@ -536,7 +536,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 64519bff6584cfb4a95969c7e863d366, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  relativePath: reanim/Cactus.reanim
+  relativePath: reanim/PeaShooterSingle.reanim
   bodyAnimName: anim_idle
   headAnimName: anim_head_idle
   attachTrackName: anim_stem
