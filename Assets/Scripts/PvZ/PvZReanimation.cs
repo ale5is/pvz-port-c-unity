@@ -40,22 +40,8 @@ namespace PvZReanim
         private PvZReanimFrameTime cachedFrameTime;
         private bool frameTimeDirty = true;
 
-        /*
-         * PvZ original:
-         *
-         * mFrameBasePose
-         *
-         * Es la pose base utilizada para calcular el overlay
-         * de un attachment.
-         */
         private int frameBasePose = -1;
 
-        /*
-         * Overlay propio de esta Reanimation.
-         *
-         * Se mantiene para que la estructura pueda crecer hacia
-         * el sistema completo de Attachments de PvZ.
-         */
         private PvZReanimMatrix overlayMatrix =
             PvZReanimMatrix.Identity;
 
@@ -101,6 +87,10 @@ namespace PvZReanim
 
         public PvZReanimMatrix OverlayMatrix =>
             overlayMatrix;
+
+        // =========================================================
+        // UNITY
+        // =========================================================
 
         private void Awake()
         {
@@ -195,9 +185,7 @@ namespace PvZReanim
                 return;
 
             imageResolver =
-                GetComponent<
-                    PvZReanimImageResolver
-                >();
+                GetComponent<PvZReanimImageResolver>();
 
             if (imageResolver == null)
             {
@@ -287,8 +275,7 @@ namespace PvZReanim
                     i
                 );
 
-                trackRenderers[i] =
-                    renderer;
+                trackRenderers[i] = renderer;
             }
         }
 
@@ -327,7 +314,7 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // BASE POSE / ATTACHMENT
+        // BASE POSE
         // =========================================================
 
         public void SetFrameBasePose(
@@ -370,6 +357,13 @@ namespace PvZReanim
                 return PvZReanimMatrix.Identity;
             }
 
+            /*
+             * Igual que el original:
+             *
+             * mFrameBasePose == -1
+             *     ? mFrameStart
+             *     : mFrameBasePose
+             */
             int baseFrame =
                 frameBasePose >= 0
                     ? frameBasePose
@@ -412,6 +406,10 @@ namespace PvZReanim
             );
         }
 
+        // =========================================================
+        // ATTACHMENT OVERLAY
+        // =========================================================
+
         public PvZReanimMatrix
             GetAttachmentOverlayMatrix(
                 int trackIndex)
@@ -424,6 +422,24 @@ namespace PvZReanim
             {
                 return PvZReanimMatrix.Identity;
             }
+
+            /*
+             * ORIGINAL PVZ:
+             *
+             * GetCurrentTransform()
+             * MatrixFromTransform()
+             *
+             * aTransformMatrix *= mOverlayMatrix
+             *
+             * aBasePoseMatrix = GetTrackBasePoseMatrix()
+             * aBasePoseMatrixInv = inverse(base)
+             *
+             * result =
+             *     aTransformMatrix *
+             *     aBasePoseMatrixInv
+             *
+             * ESTE ORDEN ES MUY IMPORTANTE.
+             */
 
             PvZReanimTransform current =
                 GetCurrentTransform(
@@ -438,6 +454,15 @@ namespace PvZReanim
                     current
                 );
 
+            /*
+             * Primero se aplica el overlay de la reanimation.
+             */
+            currentMatrix =
+                PvZReanimMatrix.Multiply(
+                    currentMatrix,
+                    overlayMatrix
+                );
+
             PvZReanimMatrix baseMatrix =
                 GetTrackBasePoseMatrix(
                     trackIndex
@@ -449,31 +474,18 @@ namespace PvZReanim
                 );
 
             /*
-             * PvZ original:
+             * CORRECTO:
              *
-             * basePose^-1
-             * +
-             * current transform
+             * current * overlay * inverseBase
              *
-             * El resultado es la transformación relativa
-             * que debe recibir el Reanimation adjunto.
+             * NO:
+             *
+             * inverseBase * current
              */
-            PvZReanimMatrix result =
-                PvZReanimMatrix.Multiply(
-                    inverseBase,
-                    currentMatrix
-                );
-
-            /*
-             * Igual que el mOverlayMatrix del original.
-             */
-            result =
-                PvZReanimMatrix.Multiply(
-                    result,
-                    overlayMatrix
-                );
-
-            return result;
+            return PvZReanimMatrix.Multiply(
+                currentMatrix,
+                inverseBase
+            );
         }
 
         private static PvZReanimMatrix
@@ -588,6 +600,15 @@ namespace PvZReanim
 
             loopCount = 0;
             dead = false;
+
+            /*
+             * Al comenzar una animación normal,
+             * si no existe una base pose explícita,
+             * la base vuelve a ser el frame inicial.
+             */
+            if (frameBasePose < 0)
+                frameBasePose = frameStart;
+
             frameTimeDirty = true;
 
             UpdateTracks();
@@ -660,6 +681,16 @@ namespace PvZReanim
                     newFrameCount
                 );
 
+            /*
+             * ESTE ES IMPORTANTE.
+             *
+             * El original, al adjuntar una reanimation,
+             * usa mFrameStart como base si todavía no existe
+             * mFrameBasePose.
+             */
+            if (frameBasePose < 0)
+                frameBasePose = frameStart;
+
             animTime =
                 animRate >= 0f
                     ? 0f
@@ -673,7 +704,7 @@ namespace PvZReanim
         }
 
         // =========================================================
-        // GET FRAMES FOR LAYER
+        // FRAMES FOR LAYER
         // =========================================================
 
         public bool GetFramesForLayer(
@@ -699,7 +730,9 @@ namespace PvZReanim
             if (animationTrack == null)
             {
                 int index =
-                    definition.FindTrackIndex(wanted);
+                    definition.FindTrackIndex(
+                        wanted
+                    );
 
                 if (index >= 0)
                     animationTrack =
@@ -737,6 +770,15 @@ namespace PvZReanim
                 return false;
             }
 
+            /*
+             * Igual que PvZ original:
+             *
+             * frameStart = primer transform cuyo frame >= 0
+             *
+             * frameCount =
+             * desde ese índice hasta el último transform
+             * cuyo frame >= 0
+             */
             int first = -1;
             int last = -1;
 
@@ -800,32 +842,72 @@ namespace PvZReanim
                 return;
             }
 
-            float framesPerSecond =
+            float fps =
                 definition.fps;
 
-            if (framesPerSecond <= 0f)
-                framesPerSecond = 12f;
+            if (fps <= 0f)
+                fps = 12f;
 
-            float duration =
-                frameCount /
-                framesPerSecond;
+            /*
+             * PvZ usa:
+             *
+             * animPosition =
+             * frameStart +
+             * animTime * frameCount
+             *
+             * excepto los loops normales,
+             * donde la última frame se usa como límite.
+             */
+            float frameSpan;
 
-            if (duration <= 0f)
-                duration = 1f;
+            switch (loopType)
+            {
+                case PvZReanimLoopType.Once:
+                    frameSpan =
+                        Mathf.Max(
+                            1,
+                            frameCount - 1
+                        );
+                    break;
 
-            float deltaNormalized =
-                deltaTime / duration;
+                case PvZReanimLoopType.Loop:
+                    frameSpan =
+                        Mathf.Max(
+                            1,
+                            frameCount - 1
+                        );
+                    break;
 
-            float direction =
-                Mathf.Sign(animRate);
+                case PvZReanimLoopType.PingPong:
+                    frameSpan =
+                        Mathf.Max(
+                            1,
+                            frameCount - 1
+                        );
+                    break;
 
-            float speed =
+                default:
+                    frameSpan =
+                        Mathf.Max(
+                            1,
+                            frameCount - 1
+                        );
+                    break;
+            }
+
+            float deltaFrames =
+                deltaTime *
+                fps *
                 Mathf.Abs(animRate);
 
-            animTime +=
-                deltaNormalized *
-                speed *
-                direction;
+            float normalizedDelta =
+                deltaFrames /
+                frameSpan;
+
+            if (animRate >= 0f)
+                animTime += normalizedDelta;
+            else
+                animTime -= normalizedDelta;
 
             switch (loopType)
             {
@@ -924,29 +1006,47 @@ namespace PvZReanim
                     maxFrame
                 );
 
-            float normalized =
-                Mathf.Clamp01(animTime);
-
-            float frame;
-
-            if (last <= start)
-                frame = start;
-            else
-                frame =
-                    Mathf.Lerp(
-                        start,
-                        last,
-                        normalized
-                    );
+            /*
+             * PvZ original:
+             *
+             * animPosition =
+             * frameStart +
+             * animTime * (frameCount - 1)
+             *
+             * Para el último frame,
+             * before y after son el mismo.
+             */
+            float frame =
+                start +
+                Mathf.Clamp01(animTime) *
+                Mathf.Max(
+                    0,
+                    last - start
+                );
 
             int before =
                 Mathf.FloorToInt(frame);
 
+            float fraction =
+                frame - before;
+
             int after =
                 before + 1;
 
-            float fraction =
-                frame - before;
+            if (before >= last)
+            {
+                before = last;
+                after = last;
+                fraction = 0f;
+            }
+            else
+            {
+                after =
+                    Mathf.Min(
+                        after,
+                        last
+                    );
+            }
 
             before =
                 Mathf.Clamp(
@@ -1059,25 +1159,37 @@ namespace PvZReanim
                 PvZReanimTransform renderTransform =
                     current;
 
+                /*
+                 * Mantener el blending compatible con el
+                 * comportamiento del Reanimator original.
+                 */
                 if (instance != null &&
                     instance.blendCounter > 0 &&
                     instance.blendTransform != null &&
                     instance.blendTime > 0)
                 {
                     float factor =
-                        1f -
-                        (
-                            (float)instance.blendCounter /
-                            instance.blendTime
-                        );
+                        (float)instance.blendCounter /
+                        instance.blendTime;
 
                     factor =
-                        Mathf.Clamp01(factor);
+                        Mathf.Clamp01(
+                            factor
+                        );
 
+                    /*
+                     * Original:
+                     *
+                     * BlendTransform(
+                     *     current,
+                     *     blendTransform,
+                     *     counter / time
+                     * )
+                     */
                     renderTransform =
                         PvZReanimInterpolator.Interpolate(
-                            instance.blendTransform,
                             current,
+                            instance.blendTransform,
                             factor
                         );
 
@@ -1130,6 +1242,12 @@ namespace PvZReanim
                 return null;
             }
 
+            /*
+             * IMPORTANTE:
+             *
+             * Los índices de transform corresponden a los
+             * frames reales del reanimation, igual que en PvZ.
+             */
             int before =
                 Mathf.Clamp(
                     frameTime.frameBefore,
@@ -1192,7 +1310,9 @@ namespace PvZReanim
                 return null;
             }
 
-            return lastValidTransforms[trackIndex];
+            return lastValidTransforms[
+                trackIndex
+            ];
         }
 
         private PvZReanimTransform
@@ -1400,19 +1520,17 @@ namespace PvZReanim
                 instance.blendTransform =
                     current.Clone();
 
-                int realBlend =
+                /*
+                 * El original utiliza directamente blendTime.
+                 */
+                instance.blendCounter =
                     Mathf.Max(
                         1,
-                        Mathf.RoundToInt(
-                            blendTime / 3f
-                        )
+                        blendTime
                     );
 
-                instance.blendCounter =
-                    realBlend;
-
                 instance.blendTime =
-                    realBlend;
+                    instance.blendCounter;
 
                 instance.blendTransform.image = null;
                 instance.blendTransform.fontName = null;
@@ -1430,24 +1548,16 @@ namespace PvZReanim
             float x,
             float y)
         {
-            transform.position =
-                new Vector3(
-                    x,
-                    y,
-                    transform.position.z
-                );
+            overlayMatrix.m02 = x;
+            overlayMatrix.m12 = y;
         }
 
         public void OverrideScale(
             float x,
             float y)
         {
-            transform.localScale =
-                new Vector3(
-                    x,
-                    y,
-                    1f
-                );
+            overlayMatrix.m00 = x;
+            overlayMatrix.m11 = y;
         }
 
         // =========================================================
