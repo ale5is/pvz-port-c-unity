@@ -1099,6 +1099,79 @@ namespace PvZReanim
         }
 
         // =========================================================
+        // OVERLAY
+        // =========================================================
+
+        private PvZReanimTransform ApplyOverlayToTransform(
+            PvZReanimTransform original)
+        {
+            if (original == null)
+                return null;
+
+            if (overlayMatrix.Equals(PvZReanimMatrix.Identity))
+                return original;
+
+            // En Reanim el attachment no mueve el GameObject padre.
+            // La matriz se aplica a CADA track de la reanimation destino.
+            //
+            // transformDeLaPieza * overlayMatrix
+            //
+            // Esto es lo que faltaba: antes SetOverlayMatrix() guardaba
+            // la matriz, pero UpdateTracks() nunca la aplicaba al render.
+            PvZReanimMatrix pieceMatrix =
+                PvZReanimMatrix.FromTransform(original);
+
+            PvZReanimMatrix combined =
+                PvZReanimMatrix.Multiply(
+                    pieceMatrix,
+                    overlayMatrix
+                );
+
+            PvZReanimTransform result =
+                original.Clone();
+
+            result.x = combined.m02;
+            result.y = combined.m12;
+
+            float scaleX =
+                Mathf.Sqrt(
+                    combined.m00 * combined.m00 +
+                    combined.m10 * combined.m10
+                );
+
+            float scaleY =
+                Mathf.Sqrt(
+                    combined.m01 * combined.m01 +
+                    combined.m11 * combined.m11
+                );
+
+            if (scaleX < 0.000001f)
+                scaleX = 1f;
+
+            if (scaleY < 0.000001f)
+                scaleY = 1f;
+
+            float angleX =
+                Mathf.Atan2(
+                    -combined.m10,
+                    combined.m00
+                ) * Mathf.Rad2Deg;
+
+            float angleY =
+                Mathf.Atan2(
+                    combined.m01,
+                    combined.m11
+                ) * Mathf.Rad2Deg;
+
+            result.scaleX = scaleX;
+            result.scaleY = scaleY;
+            result.skewX = -angleX;
+            result.skewY = -angleY;
+
+            return result;
+        }
+
+        // =========================================================
         // UPDATE TRACKS
         // =========================================================
 
@@ -1226,6 +1299,12 @@ namespace PvZReanim
                         instance.blendTransform = null;
                     }
                 }
+
+                // Aplicar el attachment DESPUÉS de obtener la animación
+                // propia de esta pieza. Así la cabeza conserva su animación
+                // y además sigue al anim_stem del cuerpo.
+                renderTransform =
+                    ApplyOverlayToTransform(renderTransform);
 
                 if (lastValidTransforms != null &&
                     i < lastValidTransforms.Length &&
