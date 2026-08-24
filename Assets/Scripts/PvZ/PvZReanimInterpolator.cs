@@ -22,178 +22,179 @@ namespace PvZReanim
             if (b == null)
                 return a.Clone();
 
-            factor =
-                Mathf.Clamp01(
-                    factor
-                );
+            factor = Mathf.Clamp01(factor);
 
-            PvZReanimTransform result =
-                a.Clone();
+            PvZReanimTransform result = a.Clone();
 
             // =====================================================
             // POSITION
             // =====================================================
 
-            result.x =
-                InterpolateValue(
-                    a.x,
-                    b.x,
-                    factor,
-                    0f
-                );
+            result.x = InterpolateValue(
+                a.x,
+                b.x,
+                factor,
+                0f
+            );
 
-            result.y =
-                InterpolateValue(
-                    a.y,
-                    b.y,
-                    factor,
-                    0f
-                );
+            result.y = InterpolateValue(
+                a.y,
+                b.y,
+                factor,
+                0f
+            );
 
             // =====================================================
             // SCALE
             // =====================================================
 
-            result.scaleX =
-                InterpolateValue(
-                    a.scaleX,
-                    b.scaleX,
-                    factor,
-                    1f
-                );
+            result.scaleX = InterpolateValue(
+                a.scaleX,
+                b.scaleX,
+                factor,
+                1f
+            );
 
-            result.scaleY =
-                InterpolateValue(
-                    a.scaleY,
-                    b.scaleY,
-                    factor,
-                    1f
-                );
+            result.scaleY = InterpolateValue(
+                a.scaleY,
+                b.scaleY,
+                factor,
+                1f
+            );
 
             // =====================================================
             // ALPHA
             // =====================================================
 
-            result.alpha =
-                InterpolateValue(
-                    a.alpha,
-                    b.alpha,
-                    factor,
-                    1f
-                );
+            result.alpha = InterpolateValue(
+                a.alpha,
+                b.alpha,
+                factor,
+                1f
+            );
 
             // =====================================================
             // SKEW
-            //
-            // Resodded evita saltos de 360 grados.
             // =====================================================
 
-            float skewX2 =
-                ResolveMissingValue(
-                    b.skewX,
-                    a.skewX,
-                    0f
-                );
+            float skewX1 = ResolveMissingValue(
+                a.skewX,
+                0f
+            );
 
-            float skewY2 =
-                ResolveMissingValue(
-                    b.skewY,
-                    a.skewY,
-                    0f
-                );
+            float skewY1 = ResolveMissingValue(
+                a.skewY,
+                0f
+            );
 
-            float skewX1 =
-                ResolveMissingValue(
-                    a.skewX,
-                    0f
-                );
+            float skewX2 = ResolveMissingValue(
+                b.skewX,
+                skewX1,
+                0f
+            );
 
-            float skewY1 =
-                ResolveMissingValue(
-                    a.skewY,
-                    0f
-                );
+            float skewY2 = ResolveMissingValue(
+                b.skewY,
+                skewY1,
+                0f
+            );
 
-            while (skewX2 >
-                   skewX1 + 180f)
+            while (skewX2 > skewX1 + 180f)
             {
-                skewX2 =
-                    skewX1;
+                skewX2 -= 360f;
             }
 
-            while (skewX2 <
-                   skewX1 - 180f)
+            while (skewX2 < skewX1 - 180f)
             {
-                skewX2 =
-                    skewX1;
+                skewX2 += 360f;
             }
 
-            while (skewY2 >
-                   skewY1 + 180f)
+            while (skewY2 > skewY1 + 180f)
             {
-                skewY2 =
-                    skewY1;
+                skewY2 -= 360f;
             }
 
-            while (skewY2 <
-                   skewY1 - 180f)
+            while (skewY2 < skewY1 - 180f)
             {
-                skewY2 =
-                    skewY1;
+                skewY2 += 360f;
             }
 
-            result.skewX =
-                Mathf.LerpUnclamped(
-                    skewX1,
-                    skewX2,
-                    factor
-                );
+            result.skewX = Mathf.LerpUnclamped(
+                skewX1,
+                skewX2,
+                factor
+            );
 
-            result.skewY =
-                Mathf.LerpUnclamped(
-                    skewY1,
-                    skewY2,
-                    factor
-                );
+            result.skewY = Mathf.LerpUnclamped(
+                skewY1,
+                skewY2,
+                factor
+            );
 
             // =====================================================
             // FRAME
-            //
-            // MUY IMPORTANTE:
-            //
-            // Resodded NO interpola el frame.
-            // Utiliza el frame anterior.
             // =====================================================
+            //
+            // El frame es discreto.
+            // Nunca se interpola.
+            //
 
-            result.frame =
-                a.frame;
+            result.frame = a.frame;
 
             // =====================================================
             // IMAGE
-            //
-            // También es un valor discreto.
-            // Se conserva el valor del frame anterior.
             // =====================================================
+            //
+            // MUY IMPORTANTE:
+            //
+            // La imagen NO se debe borrar solamente porque
+            // el frame actual no tenga imageName.
+            //
+            // Primero intentamos mantener la imagen de "a".
+            // Si "a" no tiene imagen, usamos "b".
+            //
 
-            result.imageName =
-                a.imageName;
-
-            result.image =
-                a.image;
+            if (!string.IsNullOrEmpty(a.imageName))
+            {
+                result.imageName = a.imageName;
+                result.image = a.image;
+            }
+            else if (!string.IsNullOrEmpty(b.imageName))
+            {
+                result.imageName = b.imageName;
+                result.image = b.image;
+            }
+            else
+            {
+                result.imageName = null;
+                result.image = null;
+            }
 
             // =====================================================
             // FONT
             // =====================================================
 
-            result.fontName =
-                a.fontName;
+            if (!string.IsNullOrEmpty(a.fontName))
+            {
+                result.fontName = a.fontName;
+            }
+            else
+            {
+                result.fontName = b.fontName;
+            }
 
             // =====================================================
             // TEXT
             // =====================================================
 
-            result.text =
-                a.text;
+            if (!string.IsNullOrEmpty(a.text))
+            {
+                result.text = a.text;
+            }
+            else
+            {
+                result.text = b.text;
+            }
 
             return result;
         }
@@ -208,29 +209,17 @@ namespace PvZReanim
             float factor,
             float defaultValue)
         {
-            bool aMissing =
-                IsMissingValue(a);
+            bool aMissing = IsMissingValue(a);
+            bool bMissing = IsMissingValue(b);
 
-            bool bMissing =
-                IsMissingValue(b);
-
-            if (aMissing &&
-                bMissing)
-            {
+            if (aMissing && bMissing)
                 return defaultValue;
-            }
 
             if (aMissing)
-            {
-                a =
-                    defaultValue;
-            }
+                a = defaultValue;
 
             if (bMissing)
-            {
-                b =
-                    a;
-            }
+                b = a;
 
             return Mathf.LerpUnclamped(
                 a,

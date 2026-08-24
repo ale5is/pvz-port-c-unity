@@ -46,6 +46,32 @@ namespace PvZReanim
         [SerializeField]
         private float animRate = 1f;
 
+        /*
+         * Nombre del track marcador (ej. "anim_idle") de la
+         * sub-animaci�n a reproducir por defecto al cargar.
+         *
+         * OJO: un archivo .reanim de PvZ casi siempre
+         * contiene VARIAS sub-animaciones concatenadas en
+         * una sola l�nea de tiempo (anim_idle, anim_shooting,
+         * anim_full_idle, etc.), cada una due�a de un tramo
+         * distinto de frames. Si dej�s este campo vac�o,
+         * CreateReanimation() reproduce el archivo ENTERO en
+         * loop -> el cabezal de reproducci�n barre los 4
+         * tramos uno atr�s del otro, y cada pieza se oculta
+         * apenas el cabezal sale del tramo que la declara
+         * visible. Eso se ve como "solo se ve la parte que
+         * se est� animando en este instante, el resto
+         * desaparece" -> no es un bug de datos, es que nunca
+         * se acot� la reproducci�n a UNA sola sub-animaci�n.
+         *
+         * Asign� ac� el nombre exacto del track marcador
+         * (mir� el log de "Track [N]: nombre" al cargar para
+         * ver los nombres disponibles de ESTE archivo).
+         */
+        [SerializeField]
+        private string defaultAnimName =
+            "";
+
         [Header("Debug")]
         [SerializeField]
         private bool logInformation = true;
@@ -57,6 +83,58 @@ namespace PvZReanim
 
         public string RelativePath =>
             relativePath;
+
+        // =========================================================
+        // NOMBRE DE SUB-ANIMACI�N
+        // =========================================================
+
+        public void SetDefaultAnimName(
+            string newAnimName)
+        {
+            defaultAnimName =
+                newAnimName;
+        }
+
+        // =========================================================
+        // CONFIGURACI�N POR C�DIGO
+        // =========================================================
+
+        /*
+         * Permite configurar el resolver/provider de
+         * im�genes antes de Load(), para casos donde el
+         * loader se crea din�micamente por c�digo (en vez
+         * de arrastrarlo en el Inspector de un prefab), como
+         * hace PvZReanimBodyHeadRig con sus dos instancias
+         * (body/head).
+         */
+        public void SetImageComponents(
+            PvZReanimImageProvider newImageProvider,
+            PvZReanimImageResolver newImageResolver,
+            PvZReanimSpriteLoader newSpriteLoader = null)
+        {
+            imageProvider =
+                newImageProvider;
+
+            imageResolver =
+                newImageResolver;
+
+            if (newSpriteLoader != null)
+            {
+                spriteLoader =
+                    newSpriteLoader;
+            }
+        }
+
+        public void SetPlaybackDefaults(
+            PvZReanimLoopType newLoopType,
+            float newAnimRate)
+        {
+            loopType =
+                newLoopType;
+
+            animRate =
+                newAnimRate;
+        }
 
         // =========================================================
         // RUTA DEL REANIM
@@ -79,8 +157,20 @@ namespace PvZReanim
             if (reloadNow &&
                 Application.isPlaying)
             {
-                Load();
+                ForceReload();
             }
+        }
+
+        /*
+         * Fuerza una recarga real, ignorando el guard de
+         * hasLoaded. �til cuando un objeto pooled cambia de
+         * tipo de planta y necesita re-parsear un .reanim
+         * distinto.
+         */
+        public void ForceReload()
+        {
+            hasLoaded = false;
+            Load();
         }
 
         private void Start()
@@ -187,8 +277,27 @@ namespace PvZReanim
         // LOAD
         // =========================================================
 
+        private bool hasLoaded;
+
         public void Load()
         {
+            /*
+             * Guard: si algo (como PvZReanimBodyHeadRig)
+             * ya llam� Load() manualmente antes de que
+             * corra el Start() autom�tico de este
+             * componente, no volvemos a cargar. Cargar dos
+             * veces destruir�a y recrear�a la Reanimation
+             * (ver DestroyReanimation() en
+             * CreateReanimation()), lo que puede invalidar
+             * referencias externas ya tomadas (como el
+             * PvZReanimAttachment apuntando al body).
+             *
+             * Usar ForceReload() si realmente quer�s
+             * recargar a prop�sito.
+             */
+            if (hasLoaded)
+                return;
+
             if (string.IsNullOrWhiteSpace(relativePath))
             {
                 Debug.LogError(
@@ -198,6 +307,8 @@ namespace PvZReanim
 
                 return;
             }
+
+            hasLoaded = true;
 
             PvZReanimDefinition definition =
                 LoadFromPak();
@@ -449,10 +560,34 @@ namespace PvZReanim
                 definition
             );
 
-            reanimation.Play(
-                loopType,
-                animRate
-            );
+            if (string.IsNullOrWhiteSpace(
+                    defaultAnimName))
+            {
+                Debug.LogWarning(
+                    "[PvZReanimRuntimeLoader] " +
+                    "defaultAnimName vac�o: se va a " +
+                    "reproducir el .reanim COMPLETO " +
+                    "(todas las sub-animaciones " +
+                    "concatenadas) en vez de una sola. " +
+                    "Asign� defaultAnimName (ej. " +
+                    "\"anim_idle\") en el Inspector o " +
+                    "con SetDefaultAnimName()."
+                );
+
+                reanimation.Play(
+                    loopType,
+                    animRate
+                );
+            }
+            else
+            {
+                reanimation.PlayReanim(
+                    defaultAnimName,
+                    loopType,
+                    0,
+                    animRate
+                );
+            }
 
             if (logInformation)
             {
@@ -485,10 +620,23 @@ namespace PvZReanim
             if (reanimation == null)
                 return;
 
-            reanimation.Play(
-                loopType,
-                animRate
-            );
+            if (string.IsNullOrWhiteSpace(
+                    defaultAnimName))
+            {
+                reanimation.Play(
+                    loopType,
+                    animRate
+                );
+            }
+            else
+            {
+                reanimation.PlayReanim(
+                    defaultAnimName,
+                    loopType,
+                    0,
+                    animRate
+                );
+            }
         }
 
         public void SetAnimRate(
