@@ -2,25 +2,6 @@
 
 namespace PvZReanim
 {
-    /*
-     * =============================================================
-     * BODY + HEAD
-     * =============================================================
-     *
-     * Estructura:
-     *
-     * Plant
-     * ├── Body
-     * │   └── Reanimation
-     * │
-     * └── Head
-     *     └── Reanimation
-     *
-     * Body y Head son Reanimations independientes.
-     *
-     * El Head sigue el track "anim_stem" del Body mediante
-     * una matriz de attachment equivalente al motor original.
-     */
     public class PvZReanimBodyHeadRig : MonoBehaviour
     {
         [Header("Reanim")]
@@ -29,17 +10,14 @@ namespace PvZReanim
 
         [Header("Sub-animaciones")]
         [SerializeField]
-        private string bodyAnimName =
-            "anim_idle";
+        private string bodyAnimName = "anim_idle";
 
         [SerializeField]
-        private string headAnimName =
-            "anim_head_idle";
+        private string headAnimName = "anim_head_idle";
 
         [Header("Attachment")]
         [SerializeField]
-        private string attachTrackName =
-            "anim_stem";
+        private string attachTrackName = "anim_stem";
 
         [Header("Image System")]
         [SerializeField]
@@ -61,9 +39,7 @@ namespace PvZReanim
         private float animRate = 1f;
 
         private PvZReanimRuntimeLoader bodyLoader;
-
         private PvZReanimRuntimeLoader headLoader;
-
         private PvZReanimAttachment headAttachment;
 
         public PvZReanimation Body =>
@@ -88,7 +64,6 @@ namespace PvZReanim
             ResolveImageComponentsFallback();
 
             BuildBody();
-
             BuildHead();
         }
 
@@ -127,9 +102,7 @@ namespace PvZReanim
         private void BuildBody()
         {
             GameObject bodyObj =
-                new GameObject(
-                    "Body"
-                );
+                new GameObject("Body");
 
             bodyObj.transform.SetParent(
                 transform,
@@ -163,19 +136,8 @@ namespace PvZReanim
 
         private void BuildHead()
         {
-            /*
-             * IMPORTANTE:
-             *
-             * No existe HeadAnchor.
-             *
-             * En el PvZ original el Head Reanimation es un objeto
-             * independiente y el attachment modifica su matriz.
-             */
-
             GameObject headObj =
-                new GameObject(
-                    "Head"
-                );
+                new GameObject("Head");
 
             headObj.transform.SetParent(
                 transform,
@@ -191,17 +153,11 @@ namespace PvZReanim
             headObj.transform.localScale =
                 Vector3.one;
 
-            /*
-             * Attachment en el ROOT del Head.
-             */
             headAttachment =
                 headObj.AddComponent<
                     PvZReanimAttachment
                 >();
 
-            /*
-             * Reanimation independiente.
-             */
             headLoader =
                 headObj.AddComponent<
                     PvZReanimRuntimeLoader
@@ -264,7 +220,7 @@ namespace PvZReanim
             {
                 Debug.LogWarning(
                     "[PvZReanimBodyHeadRig] " +
-                    "No se pudo conectar Head: Body no existe.",
+                    "Body no existe.",
                     this
                 );
 
@@ -272,20 +228,34 @@ namespace PvZReanim
             }
 
             /*
-             * El body es quien contiene anim_stem.
+             * =====================================================
+             * EQUIVALENTE A:
              *
-             * PvZ original:
-             *
-             * head->AttachToAnotherReanimation(
+             * head.AttachToAnotherReanimation(
              *     body,
              *     "anim_stem"
              * );
+             *
+             * EN EL ORIGINAL:
+             *
+             * if (body.mFrameBasePose == -1)
+             *     body.mFrameBasePose = body.mFrameStart;
+             * =====================================================
              */
+
+            body.SetFrameBasePose(
+                body.FrameStart
+            );
 
             headAttachment.SetSource(
                 body,
                 attachTrackName
             );
+
+            /*
+             * Aplicar inmediatamente la pose inicial.
+             */
+            headAttachment.Refresh();
         }
 
         // =========================================================
