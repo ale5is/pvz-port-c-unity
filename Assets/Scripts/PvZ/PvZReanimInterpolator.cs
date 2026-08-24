@@ -4,10 +4,6 @@ namespace PvZReanim
 {
     public static class PvZReanimInterpolator
     {
-        // =========================================================
-        // INTERPOLAR
-        // =========================================================
-
         public static PvZReanimTransform Interpolate(
             PvZReanimTransform a,
             PvZReanimTransform b,
@@ -26,9 +22,6 @@ namespace PvZReanim
 
             PvZReanimTransform result = a.Clone();
 
-            // =====================================================
-            // POSITION
-            // =====================================================
 
             result.x = InterpolateValue(
                 a.x,
@@ -44,10 +37,6 @@ namespace PvZReanim
                 0f
             );
 
-            // =====================================================
-            // SCALE
-            // =====================================================
-
             result.scaleX = InterpolateValue(
                 a.scaleX,
                 b.scaleX,
@@ -62,10 +51,6 @@ namespace PvZReanim
                 1f
             );
 
-            // =====================================================
-            // ALPHA
-            // =====================================================
-
             result.alpha = InterpolateValue(
                 a.alpha,
                 b.alpha,
@@ -73,10 +58,7 @@ namespace PvZReanim
                 1f
             );
 
-            // =====================================================
-            // SKEW
-            // =====================================================
-
+     
             float skewX1 = ResolveMissingValue(
                 a.skewX,
                 0f
@@ -131,28 +113,8 @@ namespace PvZReanim
                 factor
             );
 
-            // =====================================================
-            // FRAME
-            // =====================================================
-            //
-            // El frame es discreto.
-            // Nunca se interpola.
-            //
-
             result.frame = a.frame;
 
-            // =====================================================
-            // IMAGE
-            // =====================================================
-            //
-            // MUY IMPORTANTE:
-            //
-            // La imagen NO se debe borrar solamente porque
-            // el frame actual no tenga imageName.
-            //
-            // Primero intentamos mantener la imagen de "a".
-            // Si "a" no tiene imagen, usamos "b".
-            //
 
             if (!string.IsNullOrEmpty(a.imageName))
             {
@@ -170,10 +132,7 @@ namespace PvZReanim
                 result.image = null;
             }
 
-            // =====================================================
-            // FONT
-            // =====================================================
-
+     
             if (!string.IsNullOrEmpty(a.fontName))
             {
                 result.fontName = a.fontName;
@@ -183,10 +142,7 @@ namespace PvZReanim
                 result.fontName = b.fontName;
             }
 
-            // =====================================================
-            // TEXT
-            // =====================================================
-
+  
             if (!string.IsNullOrEmpty(a.text))
             {
                 result.text = a.text;
@@ -198,10 +154,6 @@ namespace PvZReanim
 
             return result;
         }
-
-        // =========================================================
-        // FLOAT
-        // =========================================================
 
         private static float InterpolateValue(
             float a,
@@ -228,10 +180,6 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // RESOLVER VALUE
-        // =========================================================
-
         private static float ResolveMissingValue(
             float value,
             float fallback)
@@ -254,10 +202,6 @@ namespace PvZReanim
 
             return fallback2;
         }
-
-        // =========================================================
-        // MISSING
-        // =========================================================
 
         private static bool IsMissingValue(
             float value)

@@ -89,23 +89,9 @@ namespace PvZReanim
             if (headAttachment == null)
                 return;
 
-            /*
-             * IMPORTANTE:
-             *
-             * Body y Head ya avanzaron durante Update().
-             *
-             * Aquí solamente actualizamos el attachment.
-             *
-             * No volvemos a reproducir animaciones.
-             * No modificamos animTime.
-             * No usamos anim_idle como pose de la cabeza.
-             */
+           
             headAttachment.Refresh();
         }
-
-        // =========================================================
-        // IMAGE
-        // =========================================================
 
         private void ResolveImageComponentsFallback()
         {
@@ -124,9 +110,6 @@ namespace PvZReanim
             }
         }
 
-        // =========================================================
-        // BODY
-        // =========================================================
 
         private void BuildBody()
         {
@@ -158,10 +141,6 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // HEAD
-        // =========================================================
-
         private void BuildHead()
         {
             GameObject headObj =
@@ -181,10 +160,7 @@ namespace PvZReanim
             headObj.transform.localScale =
                 Vector3.one;
 
-            /*
-             * El attachment vive en el mismo objeto
-             * que contiene la reanimation de la cabeza.
-             */
+      
             headAttachment =
                 headObj.AddComponent<
                     PvZReanimAttachment>();
@@ -200,10 +176,7 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // LOADER
-        // =========================================================
-
+  
         private void ConfigureLoader(
             PvZReanimRuntimeLoader loader,
             string animName,
@@ -234,9 +207,6 @@ namespace PvZReanim
             loader.Load();
         }
 
-        // =========================================================
-        // ATTACHMENT
-        // =========================================================
 
         private void ConnectAttachment()
         {
@@ -266,15 +236,7 @@ namespace PvZReanim
                 return;
             }
 
-            /*
-             * =====================================================
-             * BODY
-             * =====================================================
-             *
-             * El BODY utiliza exclusivamente anim_idle.
-             *
-             * Esta es la animación completa del cuerpo.
-             */
+   
             body.PlayReanim(
                 bodyAnimName,
                 bodyLoopType,
@@ -282,15 +244,7 @@ namespace PvZReanim
                 animRate
             );
 
-            /*
-             * =====================================================
-             * HEAD
-             * =====================================================
-             *
-             * La HEAD utiliza exclusivamente anim_head_idle.
-             *
-             * NO se le asigna anim_idle.
-             */
+       
             head.PlayReanim(
                 headAnimName,
                 headLoopType,
@@ -298,17 +252,7 @@ namespace PvZReanim
                 animRate
             );
 
-            /*
-             * =====================================================
-             * BASE POSE
-             * =====================================================
-             *
-             * La base pose de cada Reanimation es su propio
-             * frame inicial.
-             *
-             * No utilizamos la animación idle del body como
-             * base de la cabeza.
-             */
+      
             body.SetFrameBasePose(
                 body.FrameStart
             );
@@ -317,18 +261,7 @@ namespace PvZReanim
                 head.FrameStart
             );
 
-            /*
-             * =====================================================
-             * ATTACHMENT
-             * =====================================================
-             *
-             * HEAD = destino
-             *
-             * BODY = fuente
-             *
-             * anim_stem = track del BODY utilizado para obtener
-             * la transformación del attachment.
-             */
+          
             headAttachment.SetTarget(
                 head
             );
@@ -340,16 +273,10 @@ namespace PvZReanim
 
             connected = true;
 
-            /*
-             * Calcular inmediatamente la posición inicial.
-             */
             headAttachment.Refresh();
         }
 
-        // =========================================================
-        // PUBLIC
-        // =========================================================
-
+     
         public void Reconnect()
         {
             connected = false;

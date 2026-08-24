@@ -2,18 +2,7 @@ using UnityEngine;
 
 namespace PvZReanim
 {
-    /// <summary>
-    /// Matriz 2D utilizada por Reanim.
-    ///
-    /// Equivalente a:
-    ///
-    /// m00 = cos(-skewX) * scaleX
-    /// m10 = -sin(-skewX) * scaleX
-    /// m01 = sin(-skewY) * scaleY
-    /// m11 = cos(-skewY) * scaleY
-    ///
-    /// siguiendo MatrixFromTransform() de Resodded.
-    /// </summary>
+
     [System.Serializable]
     public struct PvZReanimMatrix
     {
@@ -65,10 +54,7 @@ namespace PvZReanim
             }
         }
 
-        // =========================================================
-        // CREAR MATRIZ DESDE REANIM
-        // =========================================================
-
+    
         public static PvZReanimMatrix FromTransform(
             PvZReanimTransform transform)
         {
@@ -111,18 +97,6 @@ namespace PvZReanim
                     1f
                 );
 
-            /*
-             * Esto es lo que hace Resodded:
-             *
-             * float aSkewX = -DEG_TO_RAD(mSkewX);
-             * float aSkewY = -DEG_TO_RAD(mSkewY);
-             *
-             * m00 = cos(aSkewX) * scaleX;
-             * m10 = -sin(aSkewX) * scaleX;
-             *
-             * m01 = sin(aSkewY) * scaleY;
-             * m11 = cos(aSkewY) * scaleY;
-             */
 
             float radiansX =
                 -skewX *
@@ -158,10 +132,6 @@ namespace PvZReanim
                 1f
             );
         }
-
-        // =========================================================
-        // MULTIPLICAR PUNTO
-        // =========================================================
 
         public Vector2 MultiplyPoint(
             Vector2 point)
@@ -199,10 +169,6 @@ namespace PvZReanim
                 point.z
             );
         }
-
-        // =========================================================
-        // MULTIPLICAR MATRICES
-        // =========================================================
 
         public static PvZReanimMatrix Multiply(
             PvZReanimMatrix a,
@@ -247,10 +213,6 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // UNITY
-        // =========================================================
-
         public Matrix4x4 ToUnityMatrix()
         {
             Matrix4x4 result =
@@ -271,10 +233,6 @@ namespace PvZReanim
             return result;
         }
 
-        // =========================================================
-        // POSITION
-        // =========================================================
-
         public Vector3 GetPosition()
         {
             return new Vector3(
@@ -283,11 +241,6 @@ namespace PvZReanim
                 0f
             );
         }
-
-        // =========================================================
-        // LERP
-        // =========================================================
-
         public static PvZReanimMatrix Lerp(
             PvZReanimMatrix a,
             PvZReanimMatrix b,
