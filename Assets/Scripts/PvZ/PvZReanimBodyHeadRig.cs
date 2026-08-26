@@ -2,31 +2,6 @@
 
 namespace PvZReanim
 {
-    /*
-     * Replica la creación de reanimaciones de cabeza que hace
-     * Plant::PlantInitialize en el recompilado original.
-     *
-     * IMPORTANTE:
-     *
-     * La cabeza NO se obtiene aislando tracks que empiecen por
-     * "anim_head".
-     *
-     * "anim_head_idle", "anim_splitpea_idle", etc. son capas
-     * de animación. Son las que determinan el rango de frames
-     * que debe reproducir la reanimación.
-     *
-     * El juego original hace:
-     *
-     *   AddReanimation(...)
-     *   head->SetFramesForLayer("anim_head_idle")
-     *   head->AttachToAnotherReanimation(body, "anim_stem")
-     *
-     * Por eso aquí hacemos exactamente lo mismo mediante
-     * PlayReanim().
-     *
-     * NO ocultamos tracks manualmente.
-     */
-
     public class PvZReanimBodyHeadRig : MonoBehaviour
     {
         [Header("Reanim")]
@@ -55,7 +30,7 @@ namespace PvZReanim
         private string head2AnimName = "anim_splitpea_idle";
 
         [SerializeField]
-        private string head2AttachTrack = "anim_idle";
+        private string head2AttachTrack = "anim_stem";
 
         [Header("Cabeza 3")]
         [SerializeField]
@@ -150,10 +125,6 @@ namespace PvZReanim
             RefreshAttachments();
         }
 
-        // =========================================================
-        // IMAGE SYSTEM
-        // =========================================================
-
         private void ResolveImageComponentsFallback()
         {
             if (imageProvider == null)
@@ -170,10 +141,6 @@ namespace PvZReanim
                         PvZReanimImageResolver>();
             }
         }
-
-        // =========================================================
-        // BODY
-        // =========================================================
 
         private void BuildBody()
         {
@@ -204,10 +171,6 @@ namespace PvZReanim
                 bodyLoopType
             );
         }
-
-        // =========================================================
-        // HEAD 1
-        // =========================================================
 
         private void BuildHead1()
         {
@@ -243,10 +206,6 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // HEAD 2
-        // =========================================================
-
         private void BuildHead2()
         {
             GameObject headObj =
@@ -280,10 +239,6 @@ namespace PvZReanim
                 headLoopType
             );
         }
-
-        // =========================================================
-        // HEAD 3
-        // =========================================================
 
         private void BuildHead3()
         {
@@ -319,10 +274,6 @@ namespace PvZReanim
             );
         }
 
-        // =========================================================
-        // LOADER
-        // =========================================================
-
         private void ConfigureLoader(
             PvZReanimRuntimeLoader loader,
             string animName,
@@ -353,10 +304,6 @@ namespace PvZReanim
             loader.Load();
         }
 
-        // =========================================================
-        // ATTACHMENTS
-        // =========================================================
-
         private void ConnectAttachments()
         {
             connected = false;
@@ -366,23 +313,12 @@ namespace PvZReanim
             if (body == null)
             {
                 Debug.LogWarning(
-                    "[PvZReanimBodyHeadRig] " +
-                    "Body no existe.",
+                    "[PvZReanimBodyHeadRig] Body no existe.",
                     this
                 );
 
                 return;
             }
-
-            /*
-             * Igual que Plant.cpp:
-             *
-             * body -> anim_idle
-             *
-             * head -> anim_head_idle
-             *
-             * y cada cabeza se pega al track correspondiente.
-             */
 
             body.PlayReanim(
                 bodyAnimName,
@@ -391,13 +327,10 @@ namespace PvZReanim
                 animRate
             );
 
-            body.SetFrameBasePose(
-                body.FrameStart
-            );
-
             if (useHead1 &&
                 headLoader1 != null &&
-                headLoader1.Reanimation != null)
+                headLoader1.Reanimation != null &&
+                headAttachment1 != null)
             {
                 PvZReanimation head =
                     headLoader1.Reanimation;
@@ -409,11 +342,8 @@ namespace PvZReanim
                     animRate
                 );
 
-                head.SetFrameBasePose(
-                    head.FrameStart
-                );
-
                 headAttachment1.SetTarget(head);
+
                 headAttachment1.SetSource(
                     body,
                     head1AttachTrack
@@ -422,7 +352,8 @@ namespace PvZReanim
 
             if (useHead2 &&
                 headLoader2 != null &&
-                headLoader2.Reanimation != null)
+                headLoader2.Reanimation != null &&
+                headAttachment2 != null)
             {
                 PvZReanimation head =
                     headLoader2.Reanimation;
@@ -434,11 +365,8 @@ namespace PvZReanim
                     animRate
                 );
 
-                head.SetFrameBasePose(
-                    head.FrameStart
-                );
-
                 headAttachment2.SetTarget(head);
+
                 headAttachment2.SetSource(
                     body,
                     head2AttachTrack
@@ -447,7 +375,8 @@ namespace PvZReanim
 
             if (useHead3 &&
                 headLoader3 != null &&
-                headLoader3.Reanimation != null)
+                headLoader3.Reanimation != null &&
+                headAttachment3 != null)
             {
                 PvZReanimation head =
                     headLoader3.Reanimation;
@@ -459,11 +388,8 @@ namespace PvZReanim
                     animRate
                 );
 
-                head.SetFrameBasePose(
-                    head.FrameStart
-                );
-
                 headAttachment3.SetTarget(head);
+
                 headAttachment3.SetSource(
                     body,
                     head3AttachTrack
@@ -486,10 +412,6 @@ namespace PvZReanim
             if (headAttachment3 != null)
                 headAttachment3.Refresh();
         }
-
-        // =========================================================
-        // PUBLIC CONFIGURATION
-        // =========================================================
 
         public void SetReanimPath(
             string newRelativePath)
@@ -580,18 +502,9 @@ namespace PvZReanim
                 animationName;
         }
 
-        /*
-         * Compatibilidad con el código anterior.
-         *
-         * Ya NO se utiliza para ocultar tracks.
-         */
         public void SetHeadTrackPrefix(
             string unusedPrefix)
         {
-            // Intencionalmente vacío.
-            //
-            // El sistema anterior estaba equivocado:
-            // "anim_head" no es un grupo de meshes.
         }
 
         public void SetAnimNames(

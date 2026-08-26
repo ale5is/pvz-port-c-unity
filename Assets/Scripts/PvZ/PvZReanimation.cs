@@ -35,8 +35,6 @@ namespace PvZReanim
         private PvZReanimTrackInstance[] trackInstances;
         private PvZReanimTrackRenderer[] trackRenderers;
 
-        private PvZReanimTransform[] lastValidTransforms;
-
         private PvZReanimFrameTime cachedFrameTime;
         private bool frameTimeDirty = true;
 
@@ -97,16 +95,6 @@ namespace PvZReanim
 
         public PvZReanimMatrix OverlayMatrix =>
             overlayMatrix;
-        public void SetOverlayMatrix(
-            PvZReanimMatrix matrix)
-        {
-            overlayMatrix = matrix;
-        }
-        public void ResetOverlayMatrix()
-        {
-            overlayMatrix =
-                PvZReanimMatrix.Identity;
-        }
 
         private void Awake()
         {
@@ -145,11 +133,6 @@ namespace PvZReanim
                     definition.TrackCount
                 ];
 
-            lastValidTransforms =
-                new PvZReanimTransform[
-                    definition.TrackCount
-                ];
-
             for (int i = 0;
                  i < trackInstances.Length;
                  i++)
@@ -163,10 +146,9 @@ namespace PvZReanim
                 trackInstances[i].trackColor =
                     Color.white;
 
-                trackInstances[i].truncateDisappearingFrames =
+                trackInstances[i]
+                    .truncateDisappearingFrames =
                     false;
-
-                lastValidTransforms[i] = null;
             }
 
             frameStart = 0;
@@ -197,7 +179,9 @@ namespace PvZReanim
                 return;
 
             imageResolver =
-                GetComponent<PvZReanimImageResolver>();
+                GetComponent<
+                    PvZReanimImageResolver
+                >();
 
             if (imageResolver == null)
             {
@@ -288,15 +272,18 @@ namespace PvZReanim
                     i * TRACK_SORTING_STEP
                 );
 
-                trackRenderers[i] = renderer;
+                trackRenderers[i] =
+                    renderer;
             }
         }
+
         public void SetSortingOrderBase(
             int newSortingOrderBase,
             int newSortingLayerId = -1)
         {
             if (newSortingLayerId >= 0)
-                sortingLayerId = newSortingLayerId;
+                sortingLayerId =
+                    newSortingLayerId;
 
             sortingOrderBase =
                 newSortingOrderBase;
@@ -318,24 +305,30 @@ namespace PvZReanim
                 );
             }
         }
+
         public int GetSortingOrderForTrack(
             int trackIndex)
         {
-            return sortingOrderBase +
-                   trackIndex * TRACK_SORTING_STEP;
+            return
+                sortingOrderBase +
+                trackIndex *
+                TRACK_SORTING_STEP;
         }
 
         public void SetDefinition(
             PvZReanimDefinition newDefinition)
         {
-            definition = newDefinition;
+            definition =
+                newDefinition;
+
             Initialize();
         }
 
         public void SetImageResolver(
             PvZReanimImageResolver newResolver)
         {
-            imageResolver = newResolver;
+            imageResolver =
+                newResolver;
 
             if (trackRenderers == null)
                 return;
@@ -347,9 +340,10 @@ namespace PvZReanim
                 if (trackRenderers[i] == null)
                     continue;
 
-                trackRenderers[i].SetImageResolver(
-                    imageResolver
-                );
+                trackRenderers[i]
+                    .SetImageResolver(
+                        imageResolver
+                    );
             }
 
             UpdateTracks();
@@ -383,16 +377,20 @@ namespace PvZReanim
             frameBasePose = -1;
         }
 
-        public PvZReanimMatrix GetTrackBasePoseMatrix(
-            int trackIndex)
+        public PvZReanimMatrix
+            GetTrackBasePoseMatrix(
+                int trackIndex)
         {
             if (definition == null)
-                return PvZReanimMatrix.Identity;
+                return
+                    PvZReanimMatrix.Identity;
 
             if (trackIndex < 0 ||
-                trackIndex >= definition.TrackCount)
+                trackIndex >=
+                    definition.TrackCount)
             {
-                return PvZReanimMatrix.Identity;
+                return
+                    PvZReanimMatrix.Identity;
             }
 
             int baseFrame =
@@ -423,18 +421,20 @@ namespace PvZReanim
                     )
                 );
 
-            PvZReanimTransform baseTransform =
+            PvZReanimTransform transform =
                 GetTransformAtTime(
                     trackIndex,
                     baseTime
                 );
 
-            if (baseTransform == null)
-                return PvZReanimMatrix.Identity;
+            if (transform == null)
+                return
+                    PvZReanimMatrix.Identity;
 
-            return PvZReanimMatrix.FromTransform(
-                baseTransform
-            );
+            return
+                PvZReanimMatrix.FromTransform(
+                    transform
+                );
         }
 
         public PvZReanimMatrix
@@ -442,12 +442,15 @@ namespace PvZReanim
                 int trackIndex)
         {
             if (definition == null)
-                return PvZReanimMatrix.Identity;
+                return
+                    PvZReanimMatrix.Identity;
 
             if (trackIndex < 0 ||
-                trackIndex >= definition.TrackCount)
+                trackIndex >=
+                    definition.TrackCount)
             {
-                return PvZReanimMatrix.Identity;
+                return
+                    PvZReanimMatrix.Identity;
             }
 
             PvZReanimTransform current =
@@ -456,7 +459,8 @@ namespace PvZReanim
                 );
 
             if (current == null)
-                return PvZReanimMatrix.Identity;
+                return
+                    PvZReanimMatrix.Identity;
 
             PvZReanimMatrix currentMatrix =
                 PvZReanimMatrix.FromTransform(
@@ -479,10 +483,11 @@ namespace PvZReanim
                     baseMatrix
                 );
 
-            return PvZReanimMatrix.Multiply(
-                currentMatrix,
-                inverseBase
-            );
+            return
+                PvZReanimMatrix.Multiply(
+                    currentMatrix,
+                    inverseBase
+                );
         }
 
         private static PvZReanimMatrix
@@ -490,13 +495,16 @@ namespace PvZReanim
                 PvZReanimMatrix matrix)
         {
             float determinant =
-                matrix.m00 * matrix.m11 -
-                matrix.m01 * matrix.m10;
+                matrix.m00 *
+                matrix.m11 -
+                matrix.m01 *
+                matrix.m10;
 
             if (Mathf.Abs(determinant) <
                 0.000001f)
             {
-                return PvZReanimMatrix.Identity;
+                return
+                    PvZReanimMatrix.Identity;
             }
 
             float inv =
@@ -530,11 +538,9 @@ namespace PvZReanim
                 i00,
                 i01,
                 i02,
-
                 i10,
                 i11,
                 i12,
-
                 0f,
                 0f,
                 1f
@@ -550,8 +556,11 @@ namespace PvZReanim
             if (definition == null)
                 return;
 
-            loopType = newLoopType;
-            animRate = newAnimRate;
+            loopType =
+                newLoopType;
+
+            animRate =
+                newAnimRate;
 
             int maxFrames =
                 Mathf.Max(
@@ -571,13 +580,15 @@ namespace PvZReanim
                 frameCount =
                     Mathf.Min(
                         newFrameCount,
-                        maxFrames - frameStart
+                        maxFrames -
+                        frameStart
                     );
             }
             else
             {
                 frameCount =
-                    maxFrames - frameStart;
+                    maxFrames -
+                    frameStart;
             }
 
             frameCount =
@@ -595,7 +606,8 @@ namespace PvZReanim
             dead = false;
 
             if (frameBasePose < 0)
-                frameBasePose = frameStart;
+                frameBasePose =
+                    frameStart;
 
             frameTimeDirty = true;
 
@@ -611,7 +623,8 @@ namespace PvZReanim
             if (definition == null)
                 return;
 
-            if (string.IsNullOrWhiteSpace(trackName))
+            if (string.IsNullOrWhiteSpace(
+                    trackName))
             {
                 Play(
                     newLoopType,
@@ -622,16 +635,20 @@ namespace PvZReanim
             }
 
             if (blendTime > 0)
-                StartBlend(blendTime);
+                StartBlend(
+                    blendTime
+                );
 
             if (!Mathf.Approximately(
                     newAnimRate,
                     0f))
             {
-                animRate = newAnimRate;
+                animRate =
+                    newAnimRate;
             }
 
-            loopType = newLoopType;
+            loopType =
+                newLoopType;
 
             int newFrameStart;
             int newFrameCount;
@@ -642,7 +659,8 @@ namespace PvZReanim
                     out newFrameCount))
             {
                 Debug.LogWarning(
-                    "[PvZReanim] No se encontró el rango de animación: " +
+                    "[PvZReanim] No se encontró " +
+                    "el rango de animación: " +
                     trackName,
                     this
                 );
@@ -650,7 +668,8 @@ namespace PvZReanim
                 newFrameStart = 0;
 
                 newFrameCount =
-                    definition.GetMaxFrameCount();
+                    definition
+                        .GetMaxFrameCount();
             }
 
             frameStart =
@@ -666,7 +685,8 @@ namespace PvZReanim
                 );
 
             if (frameBasePose < 0)
-                frameBasePose = frameStart;
+                frameBasePose =
+                    frameStart;
 
             animTime =
                 animRate >= 0f
@@ -680,6 +700,11 @@ namespace PvZReanim
             UpdateTracks();
         }
 
+        /*
+         * Equivalente exacto a:
+         *
+         * Reanimation::GetFramesForLayer()
+         */
         public bool GetFramesForLayer(
             string animationName,
             out int resultFrameStart,
@@ -689,103 +714,89 @@ namespace PvZReanim
             resultFrameCount = 0;
 
             if (definition == null ||
-                string.IsNullOrWhiteSpace(animationName))
+                string.IsNullOrWhiteSpace(
+                    animationName))
             {
                 return false;
             }
 
-            string wanted =
-                animationName.Trim();
+            int trackIndex =
+                FindTrackIndex(
+                    animationName
+                );
 
-            PvZReanimTrack animationTrack =
-                definition.GetTrack(wanted);
+            if (trackIndex < 0)
+                return false;
 
-            if (animationTrack == null)
-            {
-                int index =
-                    definition.FindTrackIndex(
-                        wanted
-                    );
+            PvZReanimTrack track =
+                definition.GetTrack(
+                    trackIndex
+                );
 
-                if (index >= 0)
-                    animationTrack =
-                        definition.GetTrack(index);
-            }
-
-            if (animationTrack == null)
-            {
-                for (int i = 0;
-                     i < definition.TrackCount;
-                     i++)
-                {
-                    PvZReanimTrack track =
-                        definition.GetTrack(i);
-
-                    if (track == null)
-                        continue;
-
-                    if (string.Equals(
-                            track.name,
-                            wanted,
-                            System.StringComparison
-                                .OrdinalIgnoreCase))
-                    {
-                        animationTrack = track;
-                        break;
-                    }
-                }
-            }
-
-            if (animationTrack == null ||
-                animationTrack.transforms == null ||
-                animationTrack.transforms.Count == 0)
+            if (track == null ||
+                track.TransformCount == 0)
             {
                 return false;
             }
 
-            int first = -1;
-            int last = -1;
+            resultFrameStart = 0;
+            resultFrameCount = 1;
 
+            /*
+             * EXACTAMENTE como el original:
+             *
+             * for (...) {
+             *     if (mFrame >= 0) {
+             *         mFrameStart = i;
+             *         break;
+             *     }
+             * }
+             */
             for (int i = 0;
-                 i < animationTrack.TransformCount;
+                 i < track.TransformCount;
                  i++)
             {
-                PvZReanimTransform t =
-                    animationTrack.transforms[i];
+                PvZReanimTransform transform =
+                    track.GetTransform(i);
 
-                if (t == null ||
-                    !t.HasFrame ||
-                    t.GetFrame() < 0f)
-                {
+                if (transform == null)
                     continue;
+
+                if (transform.HasFrame &&
+                    transform.GetFrame() >= 0f)
+                {
+                    resultFrameStart = i;
+                    break;
                 }
-
-                if (first < 0)
-                    first = i;
-
-                last = i;
             }
 
-            if (first < 0)
+            /*
+             * EXACTAMENTE como el original:
+             *
+             * for (int j = mFrameStart; ...)
+             *     if (mFrame >= 0)
+             *         mFrameCount = ...
+             */
+            for (int j =
+                     resultFrameStart;
+                 j < track.TransformCount;
+                 j++)
             {
-                resultFrameStart = 0;
+                PvZReanimTransform transform =
+                    track.GetTransform(j);
 
-                resultFrameCount =
-                    Mathf.Max(
-                        1,
-                        definition.GetMaxFrameCount()
-                    );
+                if (transform == null)
+                    continue;
 
-                return true;
+                if (transform.HasFrame &&
+                    transform.GetFrame() >= 0f)
+                {
+                    resultFrameCount =
+                        j -
+                        resultFrameStart +
+                        1;
+                }
             }
-
-            resultFrameStart = first;
-
-            resultFrameCount =
-                Mathf.Max(
-                    1,
-                    last - first + 1
-                );
 
             return true;
         }
@@ -803,61 +814,44 @@ namespace PvZReanim
             }
 
             float fps =
-                definition.fps;
+                definition.fps > 0f
+                    ? definition.fps
+                    : 12f;
 
-            if (fps <= 0f)
-                fps = 12f;
-
-            float frameSpan;
-
-            switch (loopType)
-            {
-                case PvZReanimLoopType.Once:
-                    frameSpan =
-                        Mathf.Max(
-                            1,
-                            frameCount - 1
-                        );
-                    break;
-
-                case PvZReanimLoopType.Loop:
-                    frameSpan =
-                        Mathf.Max(
-                            1,
-                            frameCount - 1
-                        );
-                    break;
-
-                case PvZReanimLoopType.PingPong:
-                    frameSpan =
-                        Mathf.Max(
-                            1,
-                            frameCount - 1
-                        );
-                    break;
-
-                default:
-                    frameSpan =
-                        Mathf.Max(
-                            1,
-                            frameCount - 1
-                        );
-                    break;
-            }
+            /*
+             * El original utiliza:
+             *
+             * mAnimTime +=
+             * SECONDS_PER_UPDATE *
+             * mAnimRate /
+             * mFrameCount
+             *
+             * La equivalencia Unity se mantiene
+             * usando el rango seleccionado.
+             */
+            float frameSpan =
+                Mathf.Max(
+                    1f,
+                    frameCount
+                );
 
             float deltaFrames =
                 deltaTime *
                 fps *
-                Mathf.Abs(animRate);
+                Mathf.Abs(
+                    animRate
+                );
 
             float normalizedDelta =
                 deltaFrames /
                 frameSpan;
 
             if (animRate >= 0f)
-                animTime += normalizedDelta;
+                animTime +=
+                    normalizedDelta;
             else
-                animTime -= normalizedDelta;
+                animTime -=
+                    normalizedDelta;
 
             switch (loopType)
             {
@@ -914,7 +908,8 @@ namespace PvZReanim
             frameTimeDirty = true;
         }
 
-        public PvZReanimFrameTime GetFrameTime()
+        public PvZReanimFrameTime
+            GetFrameTime()
         {
             if (definition == null)
             {
@@ -943,25 +938,38 @@ namespace PvZReanim
             int maxFrame =
                 Mathf.Max(
                     0,
-                    definition.GetMaxFrameCount() - 1
+                    definition
+                        .GetMaxFrameCount() - 1
                 );
 
             int last =
                 Mathf.Min(
-                    start + count - 1,
+                    start +
+                    count - 1,
                     maxFrame
                 );
 
+            /*
+             * Igual que GetFrameTime() del original:
+             *
+             * aAnimPosition =
+             * mFrameStart +
+             * mAnimTime * (mFrameCount - 1)
+             */
             float frame =
                 start +
-                Mathf.Clamp01(animTime) *
+                Mathf.Clamp01(
+                    animTime
+                ) *
                 Mathf.Max(
                     0,
                     last - start
                 );
 
             int before =
-                Mathf.FloorToInt(frame);
+                Mathf.FloorToInt(
+                    frame
+                );
 
             float fraction =
                 frame - before;
@@ -1010,16 +1018,146 @@ namespace PvZReanim
             return cachedFrameTime;
         }
 
-        private PvZReanimTransform ApplyOverlayToTransform(
-            PvZReanimTransform original)
+        /*
+         * Equivalente a:
+         *
+         * Reanimation::GetTransformAtTime()
+         *
+         * IMPORTANTE:
+         *
+         * NO busca un transform anterior.
+         * NO conserva el último transform visible.
+         * Si el frame actual es -1, se devuelve -1.
+         *
+         * Esto es lo que permite que las piezas del Body
+         * desaparezcan correctamente cuando la instancia Head
+         * entra en anim_head_idle.
+         */
+        public PvZReanimTransform
+            GetTransformAtTime(
+                int trackIndex,
+                PvZReanimFrameTime frameTime)
+        {
+            if (definition == null ||
+                trackIndex < 0 ||
+                trackIndex >=
+                    definition.TrackCount)
+            {
+                return null;
+            }
+
+            PvZReanimTrack track =
+                definition.GetTrack(
+                    trackIndex
+                );
+
+            if (track == null ||
+                track.TransformCount == 0)
+            {
+                return null;
+            }
+
+            int before =
+                Mathf.Clamp(
+                    frameTime.frameBefore,
+                    0,
+                    track.TransformCount - 1
+                );
+
+            int after =
+                Mathf.Clamp(
+                    frameTime.frameAfter,
+                    0,
+                    track.TransformCount - 1
+                );
+
+            PvZReanimTransform a =
+                track.GetTransform(
+                    before
+                );
+
+            PvZReanimTransform b =
+                track.GetTransform(
+                    after
+                );
+
+            if (a == null ||
+                b == null)
+            {
+                return null;
+            }
+
+            /*
+             * El original interpola posición,
+             * escala, skew y alpha.
+             *
+             * Pero el frame y la imagen vienen
+             * del transform BEFORE.
+             */
+            PvZReanimTransform result =
+                PvZReanimInterpolator.Interpolate(
+                    a,
+                    b,
+                    frameTime.fraction
+                );
+
+            /*
+             * MUY IMPORTANTE:
+             *
+             * Si el frame BEFORE es -1,
+             * la pieza está oculta.
+             *
+             * No sustituirlo por un transform anterior.
+             */
+            result.frame =
+                a.frame;
+
+            /*
+             * La imagen también pertenece al
+             * transform BEFORE, igual que el original.
+             */
+            result.imageName =
+                a.imageName;
+
+            result.image =
+                a.image;
+
+            result.fontName =
+                a.fontName;
+
+            result.text =
+                a.text;
+
+            return result;
+        }
+
+        public PvZReanimTransform
+            GetCurrentTransform(
+                int trackIndex)
+        {
+            return GetTransformAtTime(
+                trackIndex,
+                GetFrameTime()
+            );
+        }
+
+        private PvZReanimTransform
+            ApplyOverlayToTransform(
+                PvZReanimTransform original)
         {
             if (original == null)
                 return null;
 
-            if (overlayMatrix.Equals(PvZReanimMatrix.Identity))
+            if (overlayMatrix.Equals(
+                    PvZReanimMatrix.Identity))
+            {
                 return original;
+            }
+
             PvZReanimMatrix pieceMatrix =
-                PvZReanimMatrix.FromTransform(original);
+                PvZReanimMatrix.FromTransform(
+                    original
+                );
 
             PvZReanimMatrix combined =
                 PvZReanimMatrix.Multiply(
@@ -1030,19 +1168,26 @@ namespace PvZReanim
             PvZReanimTransform result =
                 original.Clone();
 
-            result.x = combined.m02;
-            result.y = combined.m12;
+            result.x =
+                combined.m02;
+
+            result.y =
+                combined.m12;
 
             float scaleX =
                 Mathf.Sqrt(
-                    combined.m00 * combined.m00 +
-                    combined.m10 * combined.m10
+                    combined.m00 *
+                    combined.m00 +
+                    combined.m10 *
+                    combined.m10
                 );
 
             float scaleY =
                 Mathf.Sqrt(
-                    combined.m01 * combined.m01 +
-                    combined.m11 * combined.m11
+                    combined.m01 *
+                    combined.m01 +
+                    combined.m11 *
+                    combined.m11
                 );
 
             if (scaleX < 0.000001f)
@@ -1055,18 +1200,27 @@ namespace PvZReanim
                 Mathf.Atan2(
                     -combined.m10,
                     combined.m00
-                ) * Mathf.Rad2Deg;
+                ) *
+                Mathf.Rad2Deg;
 
             float angleY =
                 Mathf.Atan2(
                     combined.m01,
                     combined.m11
-                ) * Mathf.Rad2Deg;
+                ) *
+                Mathf.Rad2Deg;
 
-            result.scaleX = scaleX;
-            result.scaleY = scaleY;
-            result.skewX = -angleX;
-            result.skewY = -angleY;
+            result.scaleX =
+                scaleX;
+
+            result.scaleY =
+                scaleY;
+
+            result.skewX =
+                -angleX;
+
+            result.skewY =
+                -angleY;
 
             return result;
         }
@@ -1087,8 +1241,10 @@ namespace PvZReanim
                  i < definition.TrackCount;
                  i++)
             {
-                if (i >= trackInstances.Length ||
-                    i >= trackRenderers.Length)
+                if (i >=
+                    trackInstances.Length ||
+                    i >=
+                    trackRenderers.Length)
                 {
                     continue;
                 }
@@ -1102,49 +1258,44 @@ namespace PvZReanim
                 PvZReanimTrackInstance instance =
                     trackInstances[i];
 
+                /*
+                 * Primero respetamos renderGroup.
+                 *
+                 * Esto no cambia el comportamiento
+                 * original de frames.
+                 */
+                if (instance != null &&
+                    instance.renderGroup ==
+                    PvZReanimRenderGroup.Hidden)
+                {
+                    renderer.Apply(
+                        null,
+                        instance
+                    );
+
+                    continue;
+                }
+
                 PvZReanimTransform current =
                     GetTransformAtTime(
                         i,
                         frameTime
                     );
 
-                if (current == null)
+                /*
+                 * EXACTAMENTE como DrawTrack():
+                 *
+                 * mFrame < 0
+                 * => no se dibuja.
+                 */
+                if (current == null ||
+                    (current.HasFrame &&
+                     current.GetFrame() < 0f))
                 {
-                    PvZReanimTransform previous =
-                        GetLastValidTransform(i);
-
-                    if (previous != null)
-                    {
-                        renderer.Apply(
-                            previous,
-                            instance
-                        );
-                    }
-
-                    continue;
-                }
-
-                if (current.HasFrame &&
-                    current.GetFrame() < 0f)
-                {
-                    PvZReanimTransform previous =
-                        GetLastValidTransform(i);
-
-                    if (previous != null &&
-                        !previous.HasFrame)
-                    {
-                        renderer.Apply(
-                            previous,
-                            instance
-                        );
-                    }
-                    else
-                    {
-                        renderer.Apply(
-                            current,
-                            instance
-                        );
-                    }
+                    renderer.Apply(
+                        current,
+                        instance
+                    );
 
                     continue;
                 }
@@ -1158,7 +1309,8 @@ namespace PvZReanim
                     instance.blendTime > 0)
                 {
                     float factor =
-                        (float)instance.blendCounter /
+                        (float)
+                        instance.blendCounter /
                         instance.blendTime;
 
                     factor =
@@ -1167,11 +1319,12 @@ namespace PvZReanim
                         );
 
                     renderTransform =
-                        PvZReanimInterpolator.Interpolate(
-                            current,
-                            instance.blendTransform,
-                            factor
-                        );
+                        PvZReanimInterpolator
+                            .Interpolate(
+                                current,
+                                instance.blendTransform,
+                                factor
+                            );
 
                     instance.blendCounter--;
 
@@ -1182,16 +1335,11 @@ namespace PvZReanim
                         instance.blendTransform = null;
                     }
                 }
-                renderTransform =
-                    ApplyOverlayToTransform(renderTransform);
 
-                if (lastValidTransforms != null &&
-                    i < lastValidTransforms.Length &&
-                    renderTransform != null)
-                {
-                    lastValidTransforms[i] =
-                        renderTransform.Clone();
-                }
+                renderTransform =
+                    ApplyOverlayToTransform(
+                        renderTransform
+                    );
 
                 renderer.Apply(
                     renderTransform,
@@ -1200,140 +1348,12 @@ namespace PvZReanim
             }
         }
 
-        public PvZReanimTransform GetTransformAtTime(
-            int trackIndex,
-            PvZReanimFrameTime frameTime)
-        {
-            if (definition == null ||
-                trackIndex < 0 ||
-                trackIndex >= definition.TrackCount)
-            {
-                return null;
-            }
-
-            PvZReanimTrack track =
-                definition.GetTrack(trackIndex);
-
-            if (track == null ||
-                track.TransformCount <= 0)
-            {
-                return null;
-            }
-
-            int before =
-                Mathf.Clamp(
-                    frameTime.frameBefore,
-                    0,
-                    track.TransformCount - 1
-                );
-
-            int after =
-                Mathf.Clamp(
-                    frameTime.frameAfter,
-                    0,
-                    track.TransformCount - 1
-                );
-
-            PvZReanimTransform a =
-                track.GetTransform(before);
-
-            PvZReanimTransform b =
-                track.GetTransform(after);
-
-            if (a == null)
-            {
-                a =
-                    FindPreviousValidTransform(
-                        track,
-                        before
-                    );
-            }
-
-            if (b == null)
-            {
-                b =
-                    FindPreviousValidTransform(
-                        track,
-                        after
-                    );
-            }
-
-            if (a == null && b == null)
-                return null;
-
-            if (ReferenceEquals(a, b))
-                return a;
-
-            return PvZReanimInterpolator.Interpolate(
-                a,
-                b,
-                frameTime.fraction
-            );
-        }
-
-        private PvZReanimTransform
-            GetLastValidTransform(
-                int trackIndex)
-        {
-            if (lastValidTransforms == null ||
-                trackIndex < 0 ||
-                trackIndex >= lastValidTransforms.Length)
-            {
-                return null;
-            }
-
-            return lastValidTransforms[
-                trackIndex
-            ];
-        }
-
-        private PvZReanimTransform
-            FindPreviousValidTransform(
-                PvZReanimTrack track,
-                int startIndex)
-        {
-            if (track == null ||
-                track.transforms == null ||
-                track.transforms.Count == 0)
-            {
-                return null;
-            }
-
-            int index =
-                Mathf.Clamp(
-                    startIndex,
-                    0,
-                    track.transforms.Count - 1
-                );
-
-            for (int i = index;
-                 i >= 0;
-                 i--)
-            {
-                PvZReanimTransform value =
-                    track.transforms[i];
-
-                if (value != null)
-                    return value;
-            }
-
-            return null;
-        }
-
-        public PvZReanimTransform GetCurrentTransform(
-            int trackIndex)
-        {
-            return GetTransformAtTime(
-                trackIndex,
-                GetFrameTime()
-            );
-        }
-
         public int FindTrackIndex(
             string trackName)
         {
             if (definition == null ||
-                string.IsNullOrEmpty(trackName))
+                string.IsNullOrEmpty(
+                    trackName))
             {
                 return -1;
             }
@@ -1364,20 +1384,27 @@ namespace PvZReanim
         public int GetTrackIndex(
             string trackName)
         {
-            return FindTrackIndex(trackName);
+            return FindTrackIndex(
+                trackName
+            );
         }
 
         public bool TrackExists(
             string trackName)
         {
-            return FindTrackIndex(trackName) >= 0;
+            return
+                FindTrackIndex(
+                    trackName
+                ) >= 0;
         }
 
         public float GetTrackVelocity(
             string trackName)
         {
             return GetTrackVelocity(
-                GetTrackIndex(trackName)
+                GetTrackIndex(
+                    trackName
+                )
             );
         }
 
@@ -1386,13 +1413,16 @@ namespace PvZReanim
         {
             if (definition == null ||
                 trackIndex < 0 ||
-                trackIndex >= definition.TrackCount)
+                trackIndex >=
+                    definition.TrackCount)
             {
                 return 0f;
             }
 
             PvZReanimTrack track =
-                definition.GetTrack(trackIndex);
+                definition.GetTrack(
+                    trackIndex
+                );
 
             if (track == null ||
                 track.TransformCount < 2)
@@ -1421,8 +1451,11 @@ namespace PvZReanim
                     )
                 );
 
-            if (a == null || b == null)
+            if (a == null ||
+                b == null)
+            {
                 return 0f;
+            }
 
             float secondsPerFrame =
                 definition.fps > 0f
@@ -1461,21 +1494,13 @@ namespace PvZReanim
                     GetCurrentTransform(i);
 
                 if (current == null)
-                    current =
-                        GetLastValidTransform(i);
-
-                if (current == null)
                     continue;
 
                 if (current.HasFrame &&
                     current.GetFrame() < 0f)
                 {
-                    current =
-                        GetLastValidTransform(i);
-                }
-
-                if (current == null)
                     continue;
+                }
 
                 instance.blendTransform =
                     current.Clone();
@@ -1489,12 +1514,33 @@ namespace PvZReanim
                 instance.blendTime =
                     instance.blendCounter;
 
-                instance.blendTransform.image = null;
-                instance.blendTransform.fontName = null;
-                instance.blendTransform.text = null;
+                /*
+                 * Igual que el original:
+                 * el blend no conserva imagen/font/text.
+                 */
+                instance.blendTransform.image =
+                    null;
+
+                instance.blendTransform.fontName =
+                    null;
+
+                instance.blendTransform.text =
+                    null;
             }
 
             frameTimeDirty = true;
+        }
+
+        public void SetOverlayMatrix(
+            PvZReanimMatrix matrix)
+        {
+            overlayMatrix = matrix;
+        }
+
+        public void ResetOverlayMatrix()
+        {
+            overlayMatrix =
+                PvZReanimMatrix.Identity;
         }
 
         public void SetPosition(
@@ -1520,7 +1566,9 @@ namespace PvZReanim
                 return;
 
             int target =
-                FindTrackIndex(trackName);
+                FindTrackIndex(
+                    trackName
+                );
 
             if (target < 0)
                 return;
@@ -1529,7 +1577,8 @@ namespace PvZReanim
                  i < trackInstances.Length;
                  i++)
             {
-                trackInstances[i].renderGroup =
+                trackInstances[i]
+                    .renderGroup =
                     i == target
                         ? PvZReanimRenderGroup.Normal
                         : PvZReanimRenderGroup.Hidden;
@@ -1546,12 +1595,15 @@ namespace PvZReanim
                 return;
 
             int index =
-                FindTrackIndex(trackName);
+                FindTrackIndex(
+                    trackName
+                );
 
             if (index < 0)
                 return;
 
-            trackInstances[index].renderGroup =
+            trackInstances[index]
+                .renderGroup =
                 renderGroup;
 
             UpdateTracks();
@@ -1579,16 +1631,19 @@ namespace PvZReanim
                     definition.GetTrack(i);
 
                 if (track == null ||
-                    string.IsNullOrEmpty(track.name))
+                    string.IsNullOrEmpty(
+                        track.name))
                 {
                     continue;
                 }
 
                 if (track.name
                     .ToLowerInvariant()
-                    .StartsWith(lowerPrefix))
+                    .StartsWith(
+                        lowerPrefix))
                 {
-                    trackInstances[i].renderGroup =
+                    trackInstances[i]
+                        .renderGroup =
                         renderGroup;
                 }
             }
@@ -1596,24 +1651,16 @@ namespace PvZReanim
             UpdateTracks();
         }
 
-        // ---------------------------------------------------------
-        // Deja visibles SOLO los tracks cuyo nombre empieza con
-        // "prefix" (case-insensitive) y oculta todos los demás.
-        // Es lo que necesita PvZReanimBodyHeadRig: la instancia de
-        // "Head" carga el MISMO .reanim completo que el cuerpo
-        // (stem, leaves, pot, etc.), así que sin esto se ven todos
-        // los tracks del cuerpo también en la cabeza (y viceversa,
-        // usando AssignRenderGroupToPrefix con Hidden del lado del
-        // cuerpo para el prefix de la cabeza).
-        // ---------------------------------------------------------
         public void IsolatePrefix(
             string prefix)
         {
-            if (trackInstances == null ||
-                definition == null)
-            {
+            /*
+             * Se conserva por compatibilidad,
+             * pero NO debe utilizarse para el
+             * sistema Body/Head.
+             */
+            if (trackInstances == null)
                 return;
-            }
 
             string lowerPrefix =
                 string.IsNullOrEmpty(prefix)
@@ -1628,16 +1675,21 @@ namespace PvZReanim
                 PvZReanimTrack track =
                     definition.GetTrack(i);
 
-                bool matchesPrefix =
+                bool matches =
                     track != null &&
-                    !string.IsNullOrEmpty(track.name) &&
-                    !string.IsNullOrEmpty(lowerPrefix) &&
+                    !string.IsNullOrEmpty(
+                        lowerPrefix) &&
+                    !string.IsNullOrEmpty(
+                        track.name) &&
                     track.name
                         .ToLowerInvariant()
-                        .StartsWith(lowerPrefix);
+                        .StartsWith(
+                            lowerPrefix
+                        );
 
-                trackInstances[i].renderGroup =
-                    matchesPrefix
+                trackInstances[i]
+                    .renderGroup =
+                    matches
                         ? PvZReanimRenderGroup.Normal
                         : PvZReanimRenderGroup.Hidden;
             }
@@ -1649,16 +1701,20 @@ namespace PvZReanim
             string trackName)
         {
             int index =
-                FindTrackIndex(trackName);
+                FindTrackIndex(
+                    trackName
+                );
 
             if (index < 0 ||
                 trackInstances == null ||
-                index >= trackInstances.Length)
+                index >=
+                    trackInstances.Length)
             {
                 return false;
             }
 
-            if (trackInstances[index].renderGroup ==
+            if (trackInstances[index]
+                    .renderGroup ==
                 PvZReanimRenderGroup.Hidden)
             {
                 return false;
@@ -1668,19 +1724,11 @@ namespace PvZReanim
                 GetCurrentTransform(index);
 
             if (current == null)
-                current =
-                    GetLastValidTransform(index);
-
-            if (current == null)
                 return false;
 
-            if (current.HasFrame &&
-                current.GetFrame() < 0f)
-            {
-                return false;
-            }
-
-            return true;
+            return
+                !current.HasFrame ||
+                current.GetFrame() >= 0f;
         }
 
         public void SetTruncateDisappearingFrames(
@@ -1690,7 +1738,8 @@ namespace PvZReanim
             if (trackInstances == null)
                 return;
 
-            if (string.IsNullOrEmpty(trackName))
+            if (string.IsNullOrEmpty(
+                    trackName))
             {
                 for (int i = 0;
                      i < trackInstances.Length;
@@ -1705,7 +1754,9 @@ namespace PvZReanim
             }
 
             int index =
-                FindTrackIndex(trackName);
+                FindTrackIndex(
+                    trackName
+                );
 
             if (index < 0)
                 return;
@@ -1723,12 +1774,15 @@ namespace PvZReanim
                 return;
 
             int index =
-                FindTrackIndex(trackName);
+                FindTrackIndex(
+                    trackName
+                );
 
             if (index < 0)
                 return;
 
-            trackInstances[index].imageOverride =
+            trackInstances[index]
+                .imageOverride =
                 sprite;
 
             UpdateTracks();
@@ -1741,7 +1795,9 @@ namespace PvZReanim
                 return null;
 
             int index =
-                FindTrackIndex(trackName);
+                FindTrackIndex(
+                    trackName
+                );
 
             if (index < 0)
                 return null;
@@ -1755,17 +1811,15 @@ namespace PvZReanim
             string trackName)
         {
             int index =
-                FindTrackIndex(trackName);
+                FindTrackIndex(
+                    trackName
+                );
 
             if (index < 0)
                 return null;
 
             PvZReanimTransform transform =
                 GetCurrentTransform(index);
-
-            if (transform == null)
-                transform =
-                    GetLastValidTransform(index);
 
             if (transform == null)
                 return null;
@@ -1778,7 +1832,8 @@ namespace PvZReanim
 
             if (trackInstances != null &&
                 index < trackInstances.Length &&
-                trackInstances[index].imageOverride != null)
+                trackInstances[index]
+                    .imageOverride != null)
             {
                 return
                     trackInstances[index]
@@ -1835,19 +1890,24 @@ namespace PvZReanim
                     if (trackInstances[i] == null)
                         continue;
 
-                    trackInstances[i].blendCounter = 0;
-                    trackInstances[i].blendTime = 0;
-                    trackInstances[i].blendTransform = null;
-                }
-            }
+                    trackInstances[i]
+                        .blendCounter = 0;
 
-            if (lastValidTransforms != null)
-            {
-                for (int i = 0;
-                     i < lastValidTransforms.Length;
-                     i++)
-                {
-                    lastValidTransforms[i] = null;
+                    trackInstances[i]
+                        .blendTime = 0;
+
+                    trackInstances[i]
+                        .blendTransform = null;
+
+                    /*
+                     * Importante:
+                     * Reset vuelve a mostrar los
+                     * tracks como en una reanimation
+                     * nueva.
+                     */
+                    trackInstances[i]
+                        .renderGroup =
+                        PvZReanimRenderGroup.Normal;
                 }
             }
 
@@ -1878,7 +1938,8 @@ namespace PvZReanim
                 if (trackRenderers[i] == null)
                     continue;
 
-                trackRenderers[i].ResetRenderer();
+                trackRenderers[i]
+                    .ResetRenderer();
             }
         }
     }
