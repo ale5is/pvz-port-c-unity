@@ -4,19 +4,17 @@ using UnityEngine;
 
 namespace PvZReanim
 {
+    // Resuelve nombres de imagen usados por los .reanim contra el
+    // PvZReanimImageProvider (que a su vez lee del .pak). Antes
+    // también podía caer a un PvZReanimSpriteLoader (PNG/JPG
+    // sueltos fuera del proyecto) y a Resources.Load; se sacaron
+    // las dos rutas porque ya no se van a usar sprites fuera del
+    // .pak.
     public class PvZReanimImageResolver : MonoBehaviour
     {
         [Header("Provider")]
         [SerializeField]
         private PvZReanimImageProvider provider;
-
-        [Header("Sprite Loader")]
-        [SerializeField]
-        private PvZReanimSpriteLoader spriteLoader;
-
-        [Header("Resources")]
-        [SerializeField]
-        private bool searchResourcesIfMissing;
 
         [Header("Debug")]
         [SerializeField]
@@ -35,23 +33,6 @@ namespace PvZReanim
             }
         }
 
-        public PvZReanimSpriteLoader SpriteLoader
-        {
-            get => spriteLoader;
-
-            set
-            {
-                spriteLoader = value;
-                ClearCache();
-            }
-        }
-
-        public bool SearchResourcesIfMissing
-        {
-            get => searchResourcesIfMissing;
-            set => searchResourcesIfMissing = value;
-        }
-
         public bool LogMissingImages
         {
             get => logMissingImages;
@@ -61,7 +42,6 @@ namespace PvZReanim
         private void Awake()
         {
             FindProvider();
-            FindSpriteLoader();
             BuildCache();
         }
 
@@ -90,42 +70,10 @@ namespace PvZReanim
             }
         }
 
-        private void FindSpriteLoader()
-        {
-            if (spriteLoader != null)
-                return;
-
-            spriteLoader =
-                GetComponent<PvZReanimSpriteLoader>();
-
-            if (spriteLoader == null)
-            {
-                spriteLoader =
-                    GetComponentInParent<
-                        PvZReanimSpriteLoader
-                    >();
-            }
-
-            if (spriteLoader == null)
-            {
-                spriteLoader =
-                    FindFirstObjectByType<
-                        PvZReanimSpriteLoader
-                    >();
-            }
-        }
-
         public void SetProvider(
             PvZReanimImageProvider newProvider)
         {
             provider = newProvider;
-            ClearCache();
-        }
-
-        public void SetSpriteLoader(
-            PvZReanimSpriteLoader newSpriteLoader)
-        {
-            spriteLoader = newSpriteLoader;
             ClearCache();
         }
 
@@ -192,45 +140,6 @@ namespace PvZReanim
                 return sprite;
             }
 
-            FindSpriteLoader();
-
-            sprite =
-                ResolveFromSpriteLoader(
-                    imageName,
-                    normalizedName
-                );
-
-            if (sprite != null)
-            {
-                AddToCache(
-                    imageName,
-                    normalizedName,
-                    sprite
-                );
-
-                return sprite;
-            }
-
-            if (searchResourcesIfMissing)
-            {
-                sprite =
-                    ResolveFromResources(
-                        imageName,
-                        normalizedName
-                    );
-
-                if (sprite != null)
-                {
-                    AddToCache(
-                        imageName,
-                        normalizedName,
-                        sprite
-                    );
-
-                    return sprite;
-                }
-            }
-
             if (logMissingImages)
             {
                 Debug.LogWarning(
@@ -276,74 +185,6 @@ namespace PvZReanim
             return null;
         }
 
-        private Sprite ResolveFromSpriteLoader(
-            string originalName,
-            string normalizedName)
-        {
-            if (spriteLoader == null)
-                return null;
-
-            Sprite sprite =
-                spriteLoader.Get(
-                    originalName
-                );
-
-            if (sprite != null)
-                return sprite;
-
-            if (!string.Equals(
-                    originalName,
-                    normalizedName,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                sprite =
-                    spriteLoader.Get(
-                        normalizedName
-                    );
-
-                if (sprite != null)
-                    return sprite;
-            }
-
-            return null;
-        }
-
-        private Sprite ResolveFromResources(
-            string originalName,
-            string normalizedName)
-        {
-            string resourcePath =
-                NormalizeResourcePath(
-                    originalName
-                );
-
-            if (!string.IsNullOrEmpty(resourcePath))
-            {
-                Sprite sprite =
-                    Resources.Load<Sprite>(
-                        resourcePath
-                    );
-
-                if (sprite != null)
-                    return sprite;
-            }
-
-            if (!string.Equals(
-                    resourcePath,
-                    normalizedName,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                Sprite sprite =
-                    Resources.Load<Sprite>(
-                        normalizedName
-                    );
-
-                if (sprite != null)
-                    return sprite;
-            }
-
-            return null;
-        }
         private void AddToCache(
             string originalName,
             string normalizedName,
@@ -449,59 +290,6 @@ namespace PvZReanim
             }
 
             return value;
-        }
-
-        private static string NormalizeResourcePath(
-            string imageName)
-        {
-            if (string.IsNullOrWhiteSpace(imageName))
-                return string.Empty;
-
-            string result =
-                imageName.Trim();
-
-            if (result.Length >= 2 &&
-                result[0] == '"' &&
-                result[result.Length - 1] == '"')
-            {
-                result =
-                    result.Substring(
-                        1,
-                        result.Length - 2
-                    );
-            }
-
-            result =
-                result.Replace(
-                    '\\',
-                    '/'
-                );
-
-            result =
-                RemoveExtension(
-                    result,
-                    ".png"
-                );
-
-            result =
-                RemoveExtension(
-                    result,
-                    ".jpg"
-                );
-
-            result =
-                RemoveExtension(
-                    result,
-                    ".jpeg"
-                );
-
-            result =
-                RemoveExtension(
-                    result,
-                    ".webp"
-                );
-
-            return result;
         }
 
         public bool HasImage(

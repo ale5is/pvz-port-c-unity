@@ -1596,6 +1596,55 @@ namespace PvZReanim
             UpdateTracks();
         }
 
+        // ---------------------------------------------------------
+        // Deja visibles SOLO los tracks cuyo nombre empieza con
+        // "prefix" (case-insensitive) y oculta todos los demás.
+        // Es lo que necesita PvZReanimBodyHeadRig: la instancia de
+        // "Head" carga el MISMO .reanim completo que el cuerpo
+        // (stem, leaves, pot, etc.), así que sin esto se ven todos
+        // los tracks del cuerpo también en la cabeza (y viceversa,
+        // usando AssignRenderGroupToPrefix con Hidden del lado del
+        // cuerpo para el prefix de la cabeza).
+        // ---------------------------------------------------------
+        public void IsolatePrefix(
+            string prefix)
+        {
+            if (trackInstances == null ||
+                definition == null)
+            {
+                return;
+            }
+
+            string lowerPrefix =
+                string.IsNullOrEmpty(prefix)
+                    ? string.Empty
+                    : prefix.ToLowerInvariant();
+
+            for (int i = 0;
+                 i < definition.TrackCount &&
+                 i < trackInstances.Length;
+                 i++)
+            {
+                PvZReanimTrack track =
+                    definition.GetTrack(i);
+
+                bool matchesPrefix =
+                    track != null &&
+                    !string.IsNullOrEmpty(track.name) &&
+                    !string.IsNullOrEmpty(lowerPrefix) &&
+                    track.name
+                        .ToLowerInvariant()
+                        .StartsWith(lowerPrefix);
+
+                trackInstances[i].renderGroup =
+                    matchesPrefix
+                        ? PvZReanimRenderGroup.Normal
+                        : PvZReanimRenderGroup.Hidden;
+            }
+
+            UpdateTracks();
+        }
+
         public bool IsTrackShowing(
             string trackName)
         {

@@ -3,6 +3,13 @@ using UnityEngine;
 
 namespace PvZReanim
 {
+    // Carga un .reanim SIEMPRE desde main.pak. Antes, si no lo
+    // encontraba en el PAK, caía a buscar el archivo suelto en
+    // StreamingAssets (LoadFromFile) y también manejaba un
+    // PvZReanimSpriteLoader para PNG/JPG sueltos. Ya no: sólo se
+    // usa el .pak para texturas y animaciones, así que si el
+    // Reanim no está en el PAK esto falla (con un error claro) en
+    // vez de buscarlo en otro lado.
     public class PvZReanimRuntimeLoader : MonoBehaviour
     {
         [Header("Reanim")]
@@ -15,9 +22,6 @@ namespace PvZReanim
 
         [SerializeField]
         private PvZReanimImageResolver imageResolver;
-
-        [SerializeField]
-        private PvZReanimSpriteLoader spriteLoader;
 
         [Header("Playback")]
         [SerializeField]
@@ -52,20 +56,13 @@ namespace PvZReanim
 
         public void SetImageComponents(
             PvZReanimImageProvider newImageProvider,
-            PvZReanimImageResolver newImageResolver,
-            PvZReanimSpriteLoader newSpriteLoader = null)
+            PvZReanimImageResolver newImageResolver)
         {
             imageProvider =
                 newImageProvider;
 
             imageResolver =
                 newImageResolver;
-
-            if (newSpriteLoader != null)
-            {
-                spriteLoader =
-                    newSpriteLoader;
-            }
         }
 
         public void SetPlaybackDefaults(
@@ -148,40 +145,11 @@ namespace PvZReanim
                         PvZReanimImageResolver>();
             }
 
-            if (spriteLoader == null)
-            {
-                spriteLoader =
-                    GetComponent<PvZReanimSpriteLoader>();
-            }
-
-            if (spriteLoader == null)
-            {
-                spriteLoader =
-                    GetComponentInParent<
-                        PvZReanimSpriteLoader>();
-            }
-
-            if (spriteLoader == null)
-            {
-                spriteLoader =
-                    FindFirstObjectByType<
-                        PvZReanimSpriteLoader>();
-            }
-
             if (imageResolver != null)
             {
                 imageResolver.SetProvider(
                     imageProvider
                 );
-
-                imageResolver.SetSpriteLoader(
-                    spriteLoader
-                );
-            }
-
-            if (imageProvider != null)
-            {
-                imageProvider.SearchResources = false;
             }
 
             Debug.Log(
@@ -190,9 +158,7 @@ namespace PvZReanim
                 "Provider: " +
                 (imageProvider != null) +
                 " | Resolver: " +
-                (imageResolver != null) +
-                " | SpriteLoader: " +
-                (spriteLoader != null)
+                (imageResolver != null)
             );
         }
 
@@ -207,7 +173,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "PvZReanimRuntimeLoader: " +
-                    "La ruta del Reanim est� vac�a."
+                    "La ruta del Reanim está vacía."
                 );
 
                 return;
@@ -220,15 +186,10 @@ namespace PvZReanim
 
             if (definition == null)
             {
-                definition =
-                    LoadFromFile();
-            }
-
-            if (definition == null)
-            {
                 Debug.LogError(
                     "PvZReanimRuntimeLoader: " +
-                    "No se pudo cargar el Reanim:\n" +
+                    "No se pudo cargar el Reanim desde " +
+                    "main.pak:\n" +
                     relativePath
                 );
 
@@ -237,7 +198,7 @@ namespace PvZReanim
 
             Debug.Log(
                 "[PvZReanimRuntimeLoader] " +
-                "Definici�n obtenida | " +
+                "Definición obtenida | " +
                 "Nombre: " +
                 definition.name +
                 " | Tracks: " +
@@ -253,7 +214,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "PvZReanimRuntimeLoader: " +
-                    "La definici�n cargada no es v�lida."
+                    "La definición cargada no es válida."
                 );
 
                 return;
@@ -277,7 +238,7 @@ namespace PvZReanim
             {
                 Debug.LogWarning(
                     "PvZReanimRuntimeLoader: " +
-                    "No se encontr� main.pak:\n" +
+                    "No se encontró main.pak:\n" +
                     pakPath
                 );
 
@@ -322,7 +283,7 @@ namespace PvZReanim
             {
                 Debug.LogWarning(
                     "[PvZReanimRuntimeLoader] " +
-                    "No se encontr� el Reanim original:\n" +
+                    "No se encontró el Reanim original:\n" +
                     normalizedPath
                 );
 
@@ -378,47 +339,6 @@ namespace PvZReanim
             return definition;
         }
 
-        private PvZReanimDefinition LoadFromFile()
-        {
-            string path =
-                Path.Combine(
-                    Application.streamingAssetsPath,
-                    relativePath
-                );
-
-            if (!File.Exists(path))
-            {
-                Debug.LogWarning(
-                    "PvZReanimRuntimeLoader: " +
-                    "No existe archivo f�sico:\n" +
-                    path
-                );
-
-                return null;
-            }
-
-            Debug.Log(
-                "[PvZReanimRuntimeLoader] " +
-                "Cargando Reanim f�sico:\n" +
-                path
-            );
-
-            PvZReanimDefinition definition =
-                PvZReanimFileLoader.LoadFile(
-                    path
-                );
-
-            if (definition != null)
-            {
-                definition.name =
-                    Path.GetFileNameWithoutExtension(
-                        relativePath
-                    );
-            }
-
-            return definition;
-        }
-
         private void CreateReanimation(
             PvZReanimDefinition definition)
         {
@@ -458,11 +378,11 @@ namespace PvZReanim
             {
                 Debug.LogWarning(
                     "[PvZReanimRuntimeLoader] " +
-                    "defaultAnimName vac�o: se va a " +
+                    "defaultAnimName vacío: se va a " +
                     "reproducir el .reanim COMPLETO " +
                     "(todas las sub-animaciones " +
                     "concatenadas) en vez de una sola. " +
-                    "Asign� defaultAnimName (ej. " +
+                    "Asigná defaultAnimName (ej. " +
                     "\"anim_idle\") en el Inspector o " +
                     "con SetDefaultAnimName()."
                 );

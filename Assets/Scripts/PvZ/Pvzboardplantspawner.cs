@@ -3,42 +3,40 @@ using UnityEngine;
 namespace PvZReanim
 {
     /*
-     * Equivalente a Board::AddPlant + Plant::PlantInitialize
-     * del ResoddedFramework (Board.cpp / Plant.cpp).
+     * Equivalente a Board::AddPlant + Plant::PlantInitialize.
      *
-     * El framework original, para plantar algo, hace 3 cosas:
-     *   1) Convierte la celda de grilla a posición de pantalla
-     *      (Board::GridToPixelX/Y).
-     *   2) Calcula un orden de dibujado según la fila
-     *      (Plant::CalcRenderOrder -> Board::MakeRenderOrder).
-     *   3) Crea la reanimación del cuerpo con mApp->AddReanimation(...)
-     *      y, si la planta tiene cabeza separada (asoleadora, doble
-     *      girasol, etc.), crea una segunda reanimación y la pega
-     *      a un track del cuerpo con AttachToAnotherReanimation
-     *      (ej. "anim_stem", "anim_idle", "anim_head1"/"anim_head2").
+     * La regla importante es:
      *
-     * Este script hace lo mismo pero apoyándose en las piezas que
-     * ya existen en el proyecto:
-     *   - PvZPlantReanimTable   -> qué .reanim usa cada semilla
-     *   - PvZReanimRuntimeLoader -> carga y reproduce UN reanim
-     *   - PvZReanimBodyHeadRig  -> carga el MISMO reanim dos veces
-     *                              (cuerpo + cabeza) y los pega,
-     *                              igual que hace el juego original
-     *   - PvZReanimAttachment   -> el "AttachToAnotherReanimation"
+     *   PEASHOOTER
+     *   SNOWPEA
+     *   REPEATER
+     *   GATLINGPEA
+     *       -> Body + 1 Head
      *
-     * No inventa un sistema nuevo: sólo arma en runtime lo que en
-     * el original arma Plant::PlantInitialize.
+     *   SPLITPEA
+     *       -> Body + 2 Heads
+     *
+     *   THREEPEATER
+     *       -> Body + 3 Heads
+     *
+     *   TODAS LAS DEMÁS
+     *       -> solamente Body
+     *
+     * Esto sigue Plant.cpp del recompilado.
      */
+
     public class PvZBoardPlantSpawner : MonoBehaviour
     {
-        [Header("Grilla del tablero (ajustar a tu Board real)")]
+        [Header("Grilla del tablero")]
         [SerializeField]
-        private Vector2 originPixel = new Vector2(0f, 0f);
+        private Vector2 originPixel =
+            new Vector2(0f, 0f);
 
         [SerializeField]
-        private Vector2 cellSize = new Vector2(80f, 80f);
+        private Vector2 cellSize =
+            new Vector2(80f, 80f);
 
-        [Header("Prefabs base")]
+        [Header("Prefabs")]
         [SerializeField]
         private PvZReanimRuntimeLoader singleReanimPrefab;
 
@@ -51,80 +49,150 @@ namespace PvZReanim
         [SerializeField]
         private PvZReanimImageResolver imageResolver;
 
-        // Plantas cuya cabeza/rostro es una segunda instancia del
-        // mismo reanim pegada a un track del cuerpo (igual que
-        // Plant::PlantInitialize en el original). El nombre del
-        // track depende de la planta: la mayoría usa "anim_stem",
-        // el girasol usa "anim_idle".
-        private static bool NeedsHeadRig(string seedName, out string attachTrack)
+        // =========================================================
+        // TIPO DE RIG
+        // =========================================================
+
+        private enum PlantRigType
         {
-            switch (seedName.Trim().ToUpperInvariant())
+            Single,
+            OneHead,
+            TwoHeads,
+            ThreeHeads
+        }
+
+        private static PlantRigType GetRigType(
+            string seedName)
+        {
+            switch (
+                seedName
+                    .Trim()
+                    .ToUpperInvariant()
+            )
             {
                 case "PEASHOOTER":
-                case "REPEATER":
                 case "SNOWPEA":
+                case "REPEATER":
                 case "GATLINGPEA":
-                case "SPLITPEA":
-                case "FIREPEA":
-                case "CATTAIL":
-                    attachTrack = "anim_stem";
-                    return true;
+                    return PlantRigType.OneHead;
 
-                case "SUNFLOWER":
-                    attachTrack = "anim_idle";
-                    return true;
+                case "SPLITPEA":
+                    return PlantRigType.TwoHeads;
+
+                case "THREEPEATER":
+                    return PlantRigType.ThreeHeads;
 
                 default:
-                    attachTrack = null;
-                    return false;
+                    return PlantRigType.Single;
             }
         }
 
-        // Equivalente a Board::GridToPixelX / GridToPixelY.
-        // Reemplazar por las coordenadas reales de tu Board en
-        // cuanto exista Scripts/Board con la grilla de verdad.
-        public Vector2 GridToWorld(int gridX, int gridY)
+        // =========================================================
+        // POSICIÓN
+        // =========================================================
+
+        public Vector2 GridToWorld(
+            int gridX,
+            int gridY)
         {
             return new Vector2(
-                originPixel.x + gridX * cellSize.x,
-                originPixel.y - gridY * cellSize.y
+                originPixel.x +
+                    gridX * cellSize.x,
+
+                originPixel.y -
+                    gridY * cellSize.y
             );
         }
 
-        // Equivalente a Plant::CalcRenderOrder: las filas de más
-        // atrás (gridY menor) se dibujan primero.
-        public int CalcRenderOrder(int gridY)
+        public int CalcRenderOrder(
+            int gridY)
         {
             const int ROW_STEP = 1000;
+
             return gridY * ROW_STEP;
         }
 
-        /*
-         * Equivalente a Board::AddPlant(gridX, gridY, seedType, ...)
-         * seguido de Plant::PlantInitialize.
-         */
-        public GameObject PlantAt(string seedName, int gridX, int gridY)
+        // =========================================================
+        // CREAR PLANTA
+        // =========================================================
+
+        public GameObject PlantAt(
+            string seedName,
+            int gridX,
+            int gridY)
         {
-            string reanimPath = PvZPlantReanimTable.GetReanimPath(seedName);
+            string reanimPath =
+                PvZPlantReanimTable.GetReanimPath(
+                    seedName
+                );
+
             if (string.IsNullOrEmpty(reanimPath))
             {
                 Debug.LogError(
-                    "[PvZBoardPlantSpawner] No hay .reanim registrado " +
-                    "para la semilla '" + seedName + "' en PvZPlantReanimTable."
+                    "[PvZBoardPlantSpawner] " +
+                    "No hay .reanim registrado para '" +
+                    seedName +
+                    "'."
                 );
+
                 return null;
             }
 
-            Vector2 worldPos = GridToWorld(gridX, gridY);
-            int renderOrder = CalcRenderOrder(gridY);
+            Vector2 worldPos =
+                GridToWorld(
+                    gridX,
+                    gridY
+                );
 
-            if (NeedsHeadRig(seedName, out string attachTrack))
+            int renderOrder =
+                CalcRenderOrder(
+                    gridY
+                );
+
+            PlantRigType rigType =
+                GetRigType(
+                    seedName
+                );
+
+            switch (rigType)
             {
-                return SpawnBodyHead(seedName, reanimPath, attachTrack, worldPos, renderOrder);
-            }
+                case PlantRigType.OneHead:
+                    return SpawnOneHead(
+                        seedName,
+                        reanimPath,
+                        worldPos,
+                        renderOrder
+                    );
 
-            return SpawnSingle(seedName, reanimPath, worldPos, renderOrder);
+                case PlantRigType.TwoHeads:
+                    return SpawnTwoHeads(
+                        seedName,
+                        reanimPath,
+                        worldPos,
+                        renderOrder
+                    );
+
+                case PlantRigType.ThreeHeads:
+                    return SpawnThreeHeads(
+                        seedName,
+                        reanimPath,
+                        worldPos,
+                        renderOrder
+                    );
+
+                default:
+                    return SpawnSingle(
+                        seedName,
+                        reanimPath,
+                        worldPos,
+                        renderOrder
+                    );
+            }
         }
+
+        // =========================================================
+        // PLANTA NORMAL
+        // =========================================================
 
         private GameObject SpawnSingle(
             string seedName,
@@ -133,49 +201,240 @@ namespace PvZReanim
             int renderOrder)
         {
             PvZReanimRuntimeLoader instance =
-                Instantiate(singleReanimPrefab, worldPos, Quaternion.identity, transform);
+                Instantiate(
+                    singleReanimPrefab,
+                    worldPos,
+                    Quaternion.identity,
+                    transform
+                );
 
-            instance.name = seedName;
-            instance.SetImageComponents(imageProvider, imageResolver, null);
-            instance.SetPlaybackDefaults(PvZReanimLoopType.Loop, 1f);
-            instance.SetReanimPath(reanimPath);
+            instance.name =
+                seedName;
+
+            instance.SetImageComponents(
+                imageProvider,
+                imageResolver
+            );
+
+            instance.SetPlaybackDefaults(
+                PvZReanimLoopType.Loop,
+                15f
+            );
+
+            instance.SetReanimPath(
+                reanimPath
+            );
 
             if (instance.Reanimation != null)
             {
-                instance.Reanimation.SetSortingOrderBase(renderOrder);
+                instance.Reanimation
+                    .SetSortingOrderBase(
+                        renderOrder
+                    );
             }
 
             return instance.gameObject;
         }
 
-        private GameObject SpawnBodyHead(
+        // =========================================================
+        // PEASHOOTER / SNOWPEA / REPEATER / GATLING
+        // =========================================================
+
+        private GameObject SpawnOneHead(
             string seedName,
             string reanimPath,
-            string attachTrack,
             Vector2 worldPos,
             int renderOrder)
         {
             PvZReanimBodyHeadRig rig =
-                Instantiate(bodyHeadRigPrefab, worldPos, Quaternion.identity, transform);
+                CreateRig(
+                    seedName,
+                    reanimPath,
+                    worldPos,
+                    renderOrder
+                );
 
-            rig.name = seedName;
+            rig.SetHeadCount(1);
 
-            // El prefab trae valores por defecto puestos en el
-            // Inspector; acá los pisamos con los que corresponden
-            // a ESTA planta y forzamos recarga. Es el equivalente
-            // en runtime a lo que Plant::PlantInitialize arma al
-            // vuelo con AddReanimation + AttachToAnotherReanimation.
-            rig.SetReanimPath(reanimPath);
-            rig.SetAttachTrackName(attachTrack);
+            rig.SetHead1AnimName(
+                "anim_head_idle"
+            );
+
+            rig.SetAttachTrackName(
+                "anim_stem"
+            );
+
             rig.Rebuild();
+
             rig.PlayBoth();
+
+            return rig.gameObject;
+        }
+
+        // =========================================================
+        // SPLIT PEA
+        // =========================================================
+
+        private GameObject SpawnTwoHeads(
+            string seedName,
+            string reanimPath,
+            Vector2 worldPos,
+            int renderOrder)
+        {
+            PvZReanimBodyHeadRig rig =
+                CreateRig(
+                    seedName,
+                    reanimPath,
+                    worldPos,
+                    renderOrder
+                );
+
+            rig.SetHeadCount(2);
+
+            /*
+             * Plant.cpp:
+             *
+             * Head 1:
+             *   anim_head_idle
+             *   -> anim_idle
+             *
+             * Head 2:
+             *   anim_splitpea_idle
+             *   -> anim_idle
+             */
+
+            rig.SetHead1AnimName(
+                "anim_head_idle"
+            );
+
+            rig.SetAttachTrackName(
+                "anim_idle"
+            );
+
+            rig.SetHead2AnimName(
+                "anim_splitpea_idle"
+            );
+
+            rig.SetHead2AttachTrackName(
+                "anim_idle"
+            );
+
+            rig.Rebuild();
+
+            rig.PlayBoth();
+
+            return rig.gameObject;
+        }
+
+        // =========================================================
+        // THREEPEATER
+        // =========================================================
+
+        private GameObject SpawnThreeHeads(
+            string seedName,
+            string reanimPath,
+            Vector2 worldPos,
+            int renderOrder)
+        {
+            PvZReanimBodyHeadRig rig =
+                CreateRig(
+                    seedName,
+                    reanimPath,
+                    worldPos,
+                    renderOrder
+                );
+
+            rig.SetHeadCount(3);
+
+            /*
+             * Plant.cpp:
+             *
+             * Head 1:
+             *   anim_head_idle1
+             *   -> anim_head1
+             *
+             * Head 2:
+             *   anim_head_idle2
+             *   -> anim_head2
+             *
+             * Head 3:
+             *   anim_head_idle3
+             *   -> anim_head3
+             */
+
+            rig.SetHead1AnimName(
+                "anim_head_idle1"
+            );
+
+            rig.SetAttachTrackName(
+                "anim_head1"
+            );
+
+            rig.SetHead2AnimName(
+                "anim_head_idle2"
+            );
+
+            rig.SetHead2AttachTrackName(
+                "anim_head2"
+            );
+
+            rig.SetHead3AnimName(
+                "anim_head_idle3"
+            );
+
+            rig.SetHead3AttachTrackName(
+                "anim_head3"
+            );
+
+            rig.Rebuild();
+
+            rig.PlayBoth();
+
+            return rig.gameObject;
+        }
+
+        // =========================================================
+        // CREAR RIG
+        // =========================================================
+
+        private PvZReanimBodyHeadRig CreateRig(
+            string seedName,
+            string reanimPath,
+            Vector2 worldPos,
+            int renderOrder)
+        {
+            PvZReanimBodyHeadRig rig =
+                Instantiate(
+                    bodyHeadRigPrefab,
+                    worldPos,
+                    Quaternion.identity,
+                    transform
+                );
+
+            rig.name =
+                seedName;
+
+            rig.SetReanimPath(
+                reanimPath
+            );
+
+            /*
+             * Siempre usamos anim_idle para el cuerpo.
+             */
+            rig.SetAnimNames(
+                "anim_idle",
+                "anim_head_idle"
+            );
 
             if (rig.Body != null)
             {
-                rig.Body.SetSortingOrderBase(renderOrder);
+                rig.Body
+                    .SetSortingOrderBase(
+                        renderOrder
+                    );
             }
 
-            return rig.gameObject;
+            return rig;
         }
     }
 }

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Globalization;
-using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -10,28 +9,12 @@ namespace PvZReanim
 {
     public static class PvZReanimParser
     {
-        public static PvZReanimDefinition LoadFile(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                throw new ArgumentException(
-                    "La ruta del archivo .reanim est� vac�a.",
-                    nameof(path)
-                );
-            }
-
-            if (!File.Exists(path))
-            {
-                throw new FileNotFoundException(
-                    "No se encontr� el archivo .reanim.",
-                    path
-                );
-            }
-
-            return LoadBytes(
-                File.ReadAllBytes(path)
-            );
-        }
+        // (Antes había un LoadFile(path) acá que leía el .reanim
+        // directo de disco con File.ReadAllBytes. Sólo lo llamaba
+        // PvZReanimAssetLoader.LoadReanim, que ya se borró porque
+        // nada más lo usaba y esa ruta era justo "cargar reanim
+        // fuera del .pak". Ahora la única entrada real es
+        // LoadBytes, con los bytes que ya salieron del .pak.)
 
         public static PvZReanimDefinition LoadBytes(byte[] data)
         {

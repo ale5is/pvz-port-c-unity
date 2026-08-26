@@ -1,63 +1,17 @@
 ﻿using System;
-using System.IO;
 using UnityEngine;
 
 namespace PvZReanim
 {
+    // Antes tenía LoadFile/LoadStreamingAsset/LoadResource/
+    // FileExists/StreamingAssetExists/LoadText para leer un
+    // .reanim suelto de disco, Resources o StreamingAssets. Ya no
+    // se usan: PvZReanimRuntimeLoader saca los bytes directo del
+    // .pak y sólo necesita LoadBytes para detectar si es el
+    // formato binario compilado real del juego o texto/XML y
+    // rutearlo al parser correcto.
     public static class PvZReanimFileLoader
     {
-        // =========================================================
-        // LOAD FROM FILE
-        // =========================================================
-
-        public static PvZReanimDefinition LoadFile(
-            string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-            {
-                Debug.LogError(
-                    "PvZReanimFileLoader: " +
-                    "La ruta del archivo est� vac�a."
-                );
-
-                return null;
-            }
-
-            try
-            {
-                if (!File.Exists(path))
-                {
-                    Debug.LogError(
-                        "PvZReanimFileLoader: " +
-                        "No existe el archivo:\n" +
-                        path
-                    );
-
-                    return null;
-                }
-
-                return LoadBytes(
-                    File.ReadAllBytes(path)
-                );
-            }
-            catch (Exception exception)
-            {
-                Debug.LogError(
-                    "PvZReanimFileLoader: " +
-                    "Error cargando .reanim:\n" +
-                    path +
-                    "\n\n" +
-                    exception
-                );
-
-                return null;
-            }
-        }
-
-        // =========================================================
-        // LOAD FROM BYTES
-        // =========================================================
-
         public static PvZReanimDefinition LoadBytes(
             byte[] data)
         {
@@ -66,7 +20,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "PvZReanimFileLoader: " +
-                    "Los datos est�n vac�os."
+                    "Los datos están vacíos."
                 );
 
                 return null;
@@ -101,148 +55,6 @@ namespace PvZReanim
 
                 return null;
             }
-        }
-
-        // =========================================================
-        // LOAD FROM TEXT
-        // =========================================================
-
-        public static PvZReanimDefinition LoadText(
-            string text)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                Debug.LogError(
-                    "PvZReanimFileLoader: " +
-                    "El texto est� vac�o."
-                );
-
-                return null;
-            }
-
-            try
-            {
-                return PvZReanimParser.Parse(
-                    text
-                );
-            }
-            catch (Exception exception)
-            {
-                Debug.LogError(
-                    "PvZReanimFileLoader: " +
-                    "Error procesando texto .reanim.\n\n" +
-                    exception
-                );
-
-                return null;
-            }
-        }
-
-        // =========================================================
-        // STREAMING ASSETS
-        // =========================================================
-
-        public static PvZReanimDefinition LoadStreamingAsset(
-            string relativePath)
-        {
-            if (string.IsNullOrWhiteSpace(
-                    relativePath))
-            {
-                Debug.LogError(
-                    "PvZReanimFileLoader: " +
-                    "La ruta relativa est� vac�a."
-                );
-
-                return null;
-            }
-
-            string path =
-                Path.Combine(
-                    Application.streamingAssetsPath,
-                    relativePath
-                );
-
-            path =
-                path.Replace(
-                    '\\',
-                    Path.DirectorySeparatorChar
-                );
-
-            return LoadFile(
-                path
-            );
-        }
-
-        // =========================================================
-        // RESOURCES
-        // =========================================================
-
-        public static PvZReanimDefinition LoadResource(
-            string resourcePath)
-        {
-            if (string.IsNullOrWhiteSpace(
-                    resourcePath))
-            {
-                Debug.LogError(
-                    "PvZReanimFileLoader: " +
-                    "La ruta de Resources est� vac�a."
-                );
-
-                return null;
-            }
-
-            TextAsset asset =
-                Resources.Load<TextAsset>(
-                    resourcePath
-                );
-
-            if (asset == null)
-            {
-                Debug.LogError(
-                    "PvZReanimFileLoader: " +
-                    "No se encontr� TextAsset:\n" +
-                    resourcePath
-                );
-
-                return null;
-            }
-
-            // OJO: si el .reanim es un binario compilado (.bytes),
-            // hay que importarlo como TextAsset igual, pero leer
-            // .bytes en vez de .text -- .text rompe datos binarios.
-            return LoadBytes(
-                asset.bytes
-            );
-        }
-
-        // =========================================================
-        // VALIDATION
-        // =========================================================
-
-        public static bool FileExists(
-            string path)
-        {
-            return
-                !string.IsNullOrWhiteSpace(path) &&
-                File.Exists(path);
-        }
-
-        public static bool StreamingAssetExists(
-            string relativePath)
-        {
-            if (string.IsNullOrWhiteSpace(
-                    relativePath))
-            {
-                return false;
-            }
-
-            string path =
-                Path.Combine(
-                    Application.streamingAssetsPath,
-                    relativePath
-                );
-
-            return File.Exists(path);
         }
     }
 }

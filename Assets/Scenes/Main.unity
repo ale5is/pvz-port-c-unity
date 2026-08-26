@@ -538,8 +538,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   relativePath: reanim/PeaShooterSingle.reanim
   bodyAnimName: anim_idle
-  headAnimName: anim_head_idle
-  attachTrackName: anim_stem
+  useHead1: 1
+  head1AnimName: anim_head_idle
+  head1AttachTrack: anim_stem
+  useHead2: 0
+  head2AnimName: anim_splitpea_idle
+  head2AttachTrack: anim_idle
+  useHead3: 0
+  head3AnimName: anim_head_idle3
+  head3AttachTrack: anim_head3
   imageProvider: {fileID: 1172118328}
   imageResolver: {fileID: 1172118329}
   bodyLoopType: 1
@@ -722,6 +729,7 @@ GameObject:
   - component: {fileID: 1172118326}
   - component: {fileID: 1172118328}
   - component: {fileID: 1172118329}
+  - component: {fileID: 1172118330}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -772,8 +780,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d37270694ba76fd4b87cded0d57295d7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  atlas: {fileID: 0}
-  searchResources: 0
   searchPak: 1
   pakProvider: {fileID: 1172118326}
 --- !u!114 &1172118329
@@ -789,9 +795,25 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   provider: {fileID: 1172118328}
-  spriteLoader: {fileID: 0}
-  searchResourcesIfMissing: 0
   logMissingImages: 0
+--- !u!114 &1172118330
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1172118325}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c82133d0df04804d8e129fcd2169ddd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  originPixel: {x: 0, y: 0}
+  cellSize: {x: 80, y: 80}
+  singleReanimPrefab: {fileID: 0}
+  bodyHeadRigPrefab: {fileID: 1036647284}
+  imageProvider: {fileID: 1172118328}
+  imageResolver: {fileID: 1172118329}
 --- !u!1 &1653028544
 GameObject:
   m_ObjectHideFlags: 0
@@ -1138,9 +1160,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1036647284}
+      - m_Target: {fileID: 1172118325}
         m_TargetAssemblyTypeName: PvZReanim.PvZReanimBodyHeadRig, Assembly-CSharp
-        m_MethodName: Shoot
+        m_MethodName: 
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
