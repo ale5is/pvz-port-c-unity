@@ -85,7 +85,7 @@ namespace PvZReanim
             if (headAttachment == null)
                 return;
 
-           
+
             headAttachment.Refresh();
         }
 
@@ -156,7 +156,7 @@ namespace PvZReanim
             headObj.transform.localScale =
                 Vector3.one;
 
-      
+
             headAttachment =
                 headObj.AddComponent<
                     PvZReanimAttachment>();
@@ -172,7 +172,7 @@ namespace PvZReanim
             );
         }
 
-  
+
         private void ConfigureLoader(
             PvZReanimRuntimeLoader loader,
             string animName,
@@ -232,7 +232,7 @@ namespace PvZReanim
                 return;
             }
 
-   
+
             body.PlayReanim(
                 bodyAnimName,
                 bodyLoopType,
@@ -240,7 +240,7 @@ namespace PvZReanim
                 animRate
             );
 
-       
+
             head.PlayReanim(
                 headAnimName,
                 headLoopType,
@@ -248,7 +248,7 @@ namespace PvZReanim
                 animRate
             );
 
-      
+
             body.SetFrameBasePose(
                 body.FrameStart
             );
@@ -257,7 +257,7 @@ namespace PvZReanim
                 head.FrameStart
             );
 
-          
+
             headAttachment.SetTarget(
                 head
             );
@@ -272,12 +272,65 @@ namespace PvZReanim
             headAttachment.Refresh();
         }
 
-     
+
         public void Reconnect()
         {
             connected = false;
 
             ConnectAttachment();
+        }
+
+        // ---------------------------------------------------------
+        // Setters agregados para poder reusar UN mismo prefab de
+        // rig con distintas plantas (spawneo por datos desde
+        // PvZBoardPlantSpawner), en vez de necesitar un prefab
+        // por planta con estos valores fijados en el Inspector.
+        // ---------------------------------------------------------
+
+        public void SetReanimPath(
+            string newRelativePath)
+        {
+            relativePath = newRelativePath;
+
+            if (bodyLoader != null)
+                bodyLoader.SetReanimPath(relativePath, false);
+
+            if (headLoader != null)
+                headLoader.SetReanimPath(relativePath, false);
+        }
+
+        public void SetAttachTrackName(
+            string newAttachTrackName)
+        {
+            attachTrackName = newAttachTrackName;
+        }
+
+        public void SetAnimNames(
+            string newBodyAnimName,
+            string newHeadAnimName)
+        {
+            bodyAnimName = newBodyAnimName;
+            headAnimName = newHeadAnimName;
+
+            if (bodyLoader != null)
+                bodyLoader.SetDefaultAnimName(bodyAnimName);
+
+            if (headLoader != null)
+                headLoader.SetDefaultAnimName(headAnimName);
+        }
+
+        // Fuerza a que cuerpo y cabeza recarguen con el path/nombre
+        // de animación actuales y vuelve a pegar la cabeza al track
+        // del cuerpo. Llamar después de SetReanimPath/SetAnimNames.
+        public void Rebuild()
+        {
+            if (bodyLoader != null)
+                bodyLoader.ForceReload();
+
+            if (headLoader != null)
+                headLoader.ForceReload();
+
+            Reconnect();
         }
 
         public void SetAnimationRate(

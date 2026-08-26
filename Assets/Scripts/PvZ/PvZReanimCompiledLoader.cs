@@ -18,6 +18,18 @@ namespace PvZReanim
 
         private const int NATIVE_TRANSFORM_SIZE = 44;
 
+        // Deja ver desde afuera (PvZReanimFileLoader) si un bloque
+        // de bytes es un .reanim.compiled real, sin loguear nada,
+        // para poder decidir a qué loader mandarlo.
+        public static bool IsCompiledFormat(
+            byte[] data)
+        {
+            return data != null &&
+                data.Length >= HEADER_SIZE &&
+                BitConverter.ToUInt32(data, 0) ==
+                    COMPILED_LEGACY_DEFINITION_MAGIC;
+        }
+
         public static PvZReanimDefinition LoadBytes(
             byte[] data)
         {

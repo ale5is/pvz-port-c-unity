@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.IO;
 using UnityEngine;
 
@@ -17,7 +17,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "PvZReanimFileLoader: " +
-                    "La ruta del archivo está vacía."
+                    "La ruta del archivo estï¿½ vacï¿½a."
                 );
 
                 return null;
@@ -36,8 +36,8 @@ namespace PvZReanim
                     return null;
                 }
 
-                return PvZReanimParser.LoadFile(
-                    path
+                return LoadBytes(
+                    File.ReadAllBytes(path)
                 );
             }
             catch (Exception exception)
@@ -66,7 +66,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "PvZReanimFileLoader: " +
-                    "Los datos están vacíos."
+                    "Los datos estï¿½n vacï¿½os."
                 );
 
                 return null;
@@ -74,6 +74,19 @@ namespace PvZReanim
 
             try
             {
+                // Los .reanim reales del juego (los que estÃ¡n en
+                // assets/compiled/reanim en el recomp) son binarios
+                // comprimidos, no XML. Antes esto se mandaba
+                // siempre a PvZReanimParser (texto) y con un
+                // archivo real fallaba en silencio. Ahora se
+                // detecta el formato por su cookie y se rutea.
+                if (PvZReanimCompiledLoader.IsCompiledFormat(data))
+                {
+                    return PvZReanimCompiledLoader.LoadBytes(
+                        data
+                    );
+                }
+
                 return PvZReanimParser.LoadBytes(
                     data
                 );
@@ -101,7 +114,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "PvZReanimFileLoader: " +
-                    "El texto está vacío."
+                    "El texto estï¿½ vacï¿½o."
                 );
 
                 return null;
@@ -137,7 +150,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "PvZReanimFileLoader: " +
-                    "La ruta relativa está vacía."
+                    "La ruta relativa estï¿½ vacï¿½a."
                 );
 
                 return null;
@@ -172,7 +185,7 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "PvZReanimFileLoader: " +
-                    "La ruta de Resources está vacía."
+                    "La ruta de Resources estï¿½ vacï¿½a."
                 );
 
                 return null;
@@ -187,15 +200,18 @@ namespace PvZReanim
             {
                 Debug.LogError(
                     "PvZReanimFileLoader: " +
-                    "No se encontró TextAsset:\n" +
+                    "No se encontrï¿½ TextAsset:\n" +
                     resourcePath
                 );
 
                 return null;
             }
 
-            return LoadText(
-                asset.text
+            // OJO: si el .reanim es un binario compilado (.bytes),
+            // hay que importarlo como TextAsset igual, pero leer
+            // .bytes en vez de .text -- .text rompe datos binarios.
+            return LoadBytes(
+                asset.bytes
             );
         }
 
