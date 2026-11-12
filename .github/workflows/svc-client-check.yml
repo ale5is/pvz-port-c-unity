@@ -75,6 +75,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.14"
+      - name: Pin Minecraft 26.3 metadata to Horizon's verified manifest
+        working-directory: ${{ runner.temp }}/horizon-078-svc
+        run: git apply "$GITHUB_WORKSPACE/patches/horizon-078/pinned-minecraft-manifest.patch"
       - name: Prepare public Minecraft data
         working-directory: ${{ runner.temp }}/horizon-078-svc
         run: python3 tools/android_prepare.py
