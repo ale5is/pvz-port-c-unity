@@ -1,0 +1,75 @@
+[mod]
+id = "simple-voice-chat"
+version = "1.0.1-pavo"
+priority = 100
+
+[compatibility]
+horizon_revision = "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29"
+
+[[module]]
+id = "runtime"
+file = "crates/horizon-client/src/game.rs"
+name = "simple_voice_chat"
+source = "runtime.rs"
+
+[[injection]]
+id = "world_lifecycle"
+kind = "HEAD"
+hook = "world_lifecycle"
+hook_version = 1
+helper = "lifecycle.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "context", ty = "&crate::game::native_lifecycle::NativeLifecycleContext", value = "&context" },
+  { name = "phase", ty = "crate::game::native_lifecycle::WorldPhase", value = "phase" },
+  { name = "error_text", ty = "&str", value = "error_text" },
+]
+
+[[injection]]
+id = "net_from_server"
+kind = "HEAD"
+hook = "net_from_server"
+hook_version = 1
+helper = "net.rs"
+bindings = [
+  { name = "channel", ty = "&str", value = "channel" },
+  { name = "data", ty = "&[u8]", value = "data" },
+]
+
+[[injection]]
+id = "key"
+kind = "HEAD"
+hook = "key"
+hook_version = 1
+helper = "key.rs"
+bindings = [
+  { name = "key", ty = "&str", value = "key" },
+  { name = "pressed", ty = "bool", value = "pressed" },
+]
+
+[[injection]]
+id = "command"
+kind = "HEAD"
+hook = "command"
+hook_version = 1
+helper = "command_hook.rs"
+bindings = [
+  { name = "command", ty = "&str", value = "command" },
+  { name = "ran", ty = "&mut bool", value = "&mut *ran" },
+]
+
+[[injection]]
+id = "frame"
+kind = "HEAD"
+hook = "frame"
+hook_version = 1
+helper = "frame.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "elapsed", ty = "std::time::Duration", value = "elapsed" },
+]
+
+[[crate]]
+id = "svc_client"
+path = "crates/svc_client"
+dependent = "horizon-client"
