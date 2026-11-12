@@ -16,17 +16,16 @@ def run(command, cwd=None):
     subprocess.run([str(x) for x in command], cwd=cwd, check=True)
 
 def install_mixins():
-    executable = shutil.which("horizon-mixins")
-    if executable:
-        return Path(executable)
     cargo = shutil.which("cargo")
     if not cargo:
         raise SystemExit("Rust/Cargo is required. Install Rust first.")
-    run([cargo, "install", "--locked", "--git", MIXINS_REPO, "--rev", MIXINS_REV, "horizon-mixins-cli"])
-    executable = shutil.which("horizon-mixins")
-    if not executable:
-        raise SystemExit("horizon-mixins installation completed but the executable is not on PATH.")
-    return Path(executable)
+    root = ROOT / ".build/horizon-mixins"
+    run([cargo, "install", "--locked", "--git", MIXINS_REPO, "--rev", MIXINS_REV,
+         "--root", root, "--force", "horizon-mixins-cli"])
+    executable = root / "bin" / ("horizon-mixins.exe" if os.name == "nt" else "horizon-mixins")
+    if not executable.is_file():
+        raise SystemExit(f"Pinned horizon-mixins binary was not created: {executable}")
+    return executable
 
 def verify_source(source):
     hooks = source / "crates/horizon-client/src/game/native_hooks.rs"
@@ -42,6 +41,10 @@ def verify_source(source):
         revision = subprocess.check_output([git, "rev-parse", "HEAD"], cwd=source, text=True).strip()
         if revision != HORIZON_REV:
             raise SystemExit(f"Wrong Horizon revision: {revision}. Expected {HORIZON_REV} (v0.7.8).")
+    else:
+        marker = source / ".horizon-revision"
+        if not marker.is_file() or marker.read_text(encoding="utf-8").strip() != HORIZON_REV:
+            raise SystemExit("Use a git checkout at the exact v0.7.8 commit, or add a verified .horizon-revision marker.")
 
 def copy_prepared_data(source, stage):
     prepared = source / ".local/horizon-client"
@@ -55,26 +58,52 @@ def copy_prepared_data(source, stage):
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(controls, destination)
 
+def patch_android_microphone(stage):
+    manifest = stage / "packaging/android/AndroidManifest.xml"
+    text = manifest.read_text(encoding="utf-8")
+    permission = '    <uses-permission android:name="android.permission.RECORD_AUDIO" />'
+    if "android.permission.RECORD_AUDIO" not in text:
+        needle = '    <uses-permission android:name="android.permission.INTERNET" />'
+        if needle not in text:
+            raise SystemExit("Could not locate the INTERNET permission in AndroidManifest.xml.")
+        text = text.replace(needle, needle + "\\n" + permission)
+    feature = '    <uses-feature android:name="android.hardware.microphone" android:required="false" />'
+    if "android.hardware.microphone" not in text:
+        needle = '    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />'
+        if needle not in text:
+            raise SystemExit("Could not locate the touchscreen feature in AndroidManifest.xml.")
+        text = text.replace(needle, needle + "\\n" + feature)
+    manifest.write_text(text, encoding="utf-8")
+
+    java = stage / "packaging/android/java/dev/horizon/android/HorizonActivity.java"
+    source = ROOT / "android/HorizonActivity.java"
+    if not source.is_file():
+        raise SystemExit(f"Missing microphone permission adapter: {source}")
+    shutil.copy2(source, java)
+
 def main():
     parser = argparse.ArgumentParser(description="Apply the API-80 voice-chat mixin and build a Horizon Android APK.")
     parser.add_argument("--horizon-source", type=Path, required=True, help="Clean Horizon v0.7.8 source checkout")
     parser.add_argument("--out", type=Path, default=ROOT / ".build/horizon-078-android")
     parser.add_argument("--abi", choices=["arm64-v8a", "armeabi-v7a", "x86", "x86_64"], default="arm64-v8a")
-    parser.add_argument("--sdk", type=Path, default=Path(os.environ.get("ANDROID_HOME", os.environ.get("ANDROID_SDK_ROOT", ""))))
-    parser.add_argument("--java-home", type=Path, default=Path(os.environ.get("JAVA_HOME", "")))
+    parser.add_argument("--sdk", type=Path, default=Path(os.environ["ANDROID_HOME"]) if os.environ.get("ANDROID_HOME") else Path(os.environ["ANDROID_SDK_ROOT"]) if os.environ.get("ANDROID_SDK_ROOT") else None)
+    parser.add_argument("--java-home", type=Path, default=Path(os.environ["JAVA_HOME"]) if os.environ.get("JAVA_HOME") else None)
     parser.add_argument("--ndk-version", default="28.2.13676358")
     parser.add_argument("--build-tools-version", default="35.0.0")
     parser.add_argument("--profile", choices=["fast", "release", "dev"], default="fast")
     parser.add_argument("--check-only", action="store_true", help="Run cargo check for the Android ABI instead of producing an APK")
+    parser.add_argument("--trust-native-code", action="store_true", help="Allow Cargo to compile and execute the reviewed native mod build scripts")
     args = parser.parse_args()
 
     source = args.horizon_source.expanduser().resolve()
     stage = args.out.expanduser().resolve()
     verify_source(source)
-    if not args.sdk or not args.sdk.is_dir():
+    if args.sdk is None or not args.sdk.is_dir():
         raise SystemExit("Pass --sdk or set ANDROID_HOME to the installed Android SDK.")
-    if not args.java_home or not args.java_home.is_dir():
+    if args.java_home is None or not args.java_home.is_dir():
         raise SystemExit("Pass --java-home or set JAVA_HOME to a JDK directory.")
+    if not args.check_only and not args.trust_native_code:
+        raise SystemExit("This build executes native mod code and build scripts. Review the source and pass --trust-native-code.")
 
     mixins = install_mixins()
     stage.parent.mkdir(parents=True, exist_ok=True)
@@ -85,6 +114,7 @@ def main():
         "--out", stage
     ])
     copy_prepared_data(source, stage)
+    patch_android_microphone(stage)
 
     command = [
         sys.executable,
