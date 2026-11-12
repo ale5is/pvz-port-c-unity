@@ -64,6 +64,7 @@ pub struct Glue {
     last_audio_attempt: Option<Instant>,
     pub audio_permission_granted: bool,
     last_permission_check: Option<Instant>,
+    world_active: bool,
 }
 
 impl Default for Glue {
@@ -86,6 +87,7 @@ impl Default for Glue {
             last_audio_attempt: None,
             audio_permission_granted: false,
             last_permission_check: None,
+            world_active: false,
         }
     }
 }
@@ -111,6 +113,8 @@ impl Glue {
 
     /// A world opened: drop any old session, the handshake goes out next.
     pub fn world_open(&mut self) {
+        self.world_active = true;
+        self.last_audio_attempt = None;
         self.session = None;
         self.server_addr = None;
         self.group_id = None;
@@ -123,10 +127,20 @@ impl Glue {
 
     /// The world closed: the socket dies with it.
     pub fn world_close(&mut self) {
+        self.world_active = false;
         if let Some(mut s) = self.session.take() {
             s.close();
         }
+        self.mic = None;
+        self.speaker = None;
+        self.codec = None;
+        self.last_audio_attempt = None;
+        self.pending_sends.clear();
         self.reconnect_pending = false;
+    }
+
+    pub fn is_world_active(&self) -> bool {
+        self.world_active
     }
 
     /// The handshake request: the channel and body for `native_net_send_to_server`.
@@ -251,7 +265,7 @@ impl Glue {
     }
 
     pub fn ensure_audio(&mut self, now: Instant) -> Vec<String> {
-        if !self.audio_permission_granted {
+        if !self.world_active || !self.audio_permission_granted {
             return Vec::new();
         }
         if self.mic.is_some() && self.speaker.is_some() && self.codec.is_some() {
@@ -485,6 +499,20 @@ mod tests {
 
     fn glue() -> Glue {
         Glue::default()
+    }
+
+    #[test]
+    fn audio_requires_an_active_world_and_permission() {
+        let mut glue = Glue::default();
+        glue.set_audio_permission(true);
+        assert!(glue.ensure_audio(Instant::now()).is_empty());
+        assert!(glue.last_audio_attempt.is_none());
+        glue.world_open();
+        assert!(glue.is_world_active());
+        glue.world_close();
+        assert!(!glue.is_world_active());
+        assert!(glue.mic.is_none());
+        assert!(glue.speaker.is_none());
     }
 
     #[test]
