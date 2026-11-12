@@ -227,9 +227,9 @@ impl Glue {
 
     /// Open the microphone and speaker. Returns chat notes for what failed;
     /// called once per client start, devices outlive worlds.
-    pub fn start_audio(&mut self) -> Vec<String> {
+    pub fn start_audio(&mut self, allow_microphone: bool) -> Vec<String> {
         let mut notes = Vec::new();
-        if self.mic.is_none() {
+        if allow_microphone && self.mic.is_none() {
             match crate::audio_io::MicStream::open() {
                 Ok(m) => self.mic = Some(m),
                 Err(e) => notes.push(format!("[voice] no microphone: {}", e)),
@@ -251,7 +251,13 @@ impl Glue {
     }
 
     pub fn set_audio_permission(&mut self, granted: bool) {
-        self.audio_permission_granted = granted;
+        if self.audio_permission_granted != granted {
+            self.audio_permission_granted = granted;
+            self.last_audio_attempt = None;
+            if !granted {
+                self.mic = None;
+            }
+        }
     }
 
     pub fn should_check_audio_permission(&mut self, now: Instant) -> bool {
@@ -265,10 +271,12 @@ impl Glue {
     }
 
     pub fn ensure_audio(&mut self, now: Instant) -> Vec<String> {
-        if !self.world_active || !self.audio_permission_granted {
+        if !self.world_active {
             return Vec::new();
         }
-        if self.mic.is_some() && self.speaker.is_some() && self.codec.is_some() {
+        let need_microphone = self.audio_permission_granted && self.mic.is_none();
+        let need_output = self.speaker.is_none() || self.codec.is_none();
+        if !need_microphone && !need_output {
             return Vec::new();
         }
         if self
@@ -278,7 +286,7 @@ impl Glue {
             return Vec::new();
         }
         self.last_audio_attempt = Some(now);
-        self.start_audio()
+        self.start_audio(self.audio_permission_granted)
     }
 
     /// The microphone side: when talking, turn captured audio into Opus
