@@ -25,6 +25,7 @@ pub fn drain_outbound() -> Vec<(String, Vec<u8>)> {
 }
 
 pub fn world_open_ready() {
+    #[cfg(target_os = "android")]
     if let Err(error) = crate::native_ime::request_audio_permission() {
         eprintln!("[voice] microphone permission request failed: {error}");
     }
