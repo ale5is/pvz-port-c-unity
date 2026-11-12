@@ -6,6 +6,7 @@ on:
       - port/horizon-078-hooks-359
     paths:
       - "mod/**"
+      - "patches/**"
       - ".github/workflows/svc-client-check.yml"
   pull_request:
     paths:
