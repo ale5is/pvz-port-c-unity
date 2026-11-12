@@ -40,7 +40,7 @@ Este trabajo es una adaptación del mod a los hooks API 80 de Horizon 0.7.8; no 
 - [x] Obtener la dirección real del servidor de Minecraft cuando el servidor de voz no envía un host separado.
 - [x] Evitar que el hook del mod consuma comandos ajenos a `/svc` y `/vcgroup`.
 - [x] Añadir puente de posiciones usando las entidades de jugadores que Horizon 0.7.8 ya rastrea; actualiza listener y jugadores cada frame para audio de proximidad.
-- [x] Pasar 23 pruebas Linux del crate del cliente: protocolo, Opus, audio, handshake UDP, host, comandos y actualización de posiciones.
+- [x] Pasar 24 pruebas Linux del crate del cliente: protocolo, Opus, audio, handshake UDP, host, comandos y actualización de posiciones.
 - [ ] Confirmar compilación del bundle transformado dentro del workspace Horizon 0.7.8.
 - [x] Compilar el crate SVC aislado para Android ARM64 con NDK.
 - [ ] Compilar el cliente Horizon Android completo para ARM64.
@@ -61,6 +61,6 @@ Este trabajo es una adaptación del mod a los hooks API 80 de Horizon 0.7.8; no 
 
 ## Estado de validación
 
-La auditoría y los árboles fuente completos están guardados. El crate de Simple Voice Chat pasó 23 pruebas Linux; la integración con el código de Horizon 0.7.8 y la compilación ARM64 se validan por separado. **El backport general de API 359 no está implementado; todavía no hay APK funcional ni prueba en dispositivo.**
+La auditoría y los árboles fuente completos están guardados. El crate de Simple Voice Chat pasó 24 pruebas Linux; la integración con el código de Horizon 0.7.8 y la compilación ARM64 se validan por separado. **El backport general de API 359 no está implementado; todavía no hay APK funcional ni prueba en dispositivo.**
 
 No se debe cambiar `mod/horizon-native.json` a API 359 ni declarar compatibilidad hasta que el runtime implemente realmente el catálogo y las pruebas pasen.
