@@ -1,4 +1,4 @@
-name: Simple Voice Chat client crate
+name: Simple Voice Chat client and Horizon 0.7.8 Android build
 
 on:
   push:
