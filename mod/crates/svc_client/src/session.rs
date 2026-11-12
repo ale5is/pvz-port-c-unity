@@ -100,6 +100,15 @@ impl Session {
     pub fn set_position(&mut self, who: u128, pos: [f64; 3]) {
         self.positions.insert(who, pos);
     }
+    pub fn set_positions(
+        &mut self,
+        listener: [f64; 3],
+        positions: impl IntoIterator<Item = (u128, [f64; 3])>,
+    ) {
+        self.listener = listener;
+        self.positions.clear();
+        self.positions.extend(positions);
+    }
     pub fn forget_position(&mut self, who: u128) {
         self.positions.remove(&who);
     }
