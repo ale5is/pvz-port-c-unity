@@ -26,7 +26,7 @@ Actualizar la base Android de Horizon 0.7.8 para que implemente el contrato nati
 - Hooks eliminados: 0.
 - Hooks compartidos cuyo `version` o `target` cambió: 0.
 
-Los 108 hooks compartidos conservan el mismo nombre, versión y destino en los dos catálogos. Starling agrega metadatos `mod_api`; eso no se interpreta como cambio de destino o versión del hook.\n\nComparación adicional de `native_hooks.rs`: el análisis de declaraciones encontró 219 métodos `native_*` en 0.7.8 y 498 en Starling; 215 nombres aparecen en ambos y 283 nombres de métodos son nuevos. Entre los métodos compartidos se detectó una sola diferencia textual de firma (`dispense_item`), que usa nombres de tipos completamente cualificados en 0.7.8 y aliases en Starling; debe verificarse la resolución de esos tipos al portar.
+Los 108 hooks compartidos conservan el mismo nombre, versión y destino en los dos catálogos. Starling agrega metadatos `mod_api`; eso no se interpreta como cambio de destino o versión del hook.\n\nComparación adicional de `native_hooks.rs`: el análisis de declaraciones encontró 219 métodos `native_*` en 0.7.8 y 498 en Starling; 215 nombres aparecen en ambos y 283 nombres de métodos son nuevos. Cuatro métodos auxiliares antiguos no aparecen con el mismo nombre en Starling (`entities_left`, `items_left_since`, `orbs_left_since`, `entity_joins`); no son entradas del catálogo público. Entre los métodos compartidos se detectó una sola diferencia textual de firma (`dispense_item`), que usa nombres de tipos completamente cualificados en 0.7.8 y aliases en Starling; debe verificarse la resolución de esos tipos al portar.
 
 ## Hallazgo crítico de implementación
 
