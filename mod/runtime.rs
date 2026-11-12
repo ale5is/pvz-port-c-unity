@@ -70,9 +70,11 @@ pub fn on_key(key: &str, pressed: bool) {
 }
 
 pub fn on_command(command: &str, ran: &mut bool) {
+    let command = command.trim();
     if !svc_client::runtime::is_voice_command(command) {
         return;
     }
+    let command = command.strip_prefix('/').unwrap_or(command);
     let (feedback, outbound) = locked().on_command(command);
     if !feedback.is_empty() {
         eprintln!("{feedback}");
