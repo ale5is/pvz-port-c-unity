@@ -18,4 +18,4 @@ This is the API-80 adaptation of the Simple Voice Chat client for Horizon Androi
 
 The Linux client-crate CI job has passed 23 unit tests covering protocol layouts, Opus encode/decode, audio resampling/mixing, UDP handshake, voice packets, server-address resolution, command filtering, and position refresh.
 
-The Horizon source integration and Android ARM64 cross-compile are separate checks and are still being validated. A green crate test does not establish that an APK runs on a device. Android microphone permission wiring and on-device audio/UDP tests remain required before calling this port release-ready.
+The crate's Android ARM64 cross-compile has passed. The repository also includes `patches/horizon-078/audio-permission.patch`, which adds `RECORD_AUDIO`, a runtime permission request, and a permission check before CPAL opens the microphone. The patched full Horizon Android build and on-device audio/UDP tests are still required before calling this port release-ready.
