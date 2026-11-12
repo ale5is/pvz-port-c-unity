@@ -5,11 +5,11 @@ on:
     branches:
       - port/horizon-078-hooks-359
     paths:
-      - "mod/crates/svc_client/**"
+      - "mod/**"
       - ".github/workflows/svc-client-check.yml"
   pull_request:
     paths:
-      - "mod/crates/svc_client/**"
+      - "mod/**"
       - ".github/workflows/svc-client-check.yml"
   workflow_dispatch:
 
