@@ -27,7 +27,9 @@ git submodule update --init --recursive
 
 ## Estado
 
-La rama contiene referencias upstream completas, auditoría reproducible y workflow de verificación. **El backport de los 278 hooks todavía no está implementado, compilado ni probado en Android.** No se declara compatibilidad API 359 ni se entrega un APK hasta superar esas pruebas.
+La rama ya incluye una adaptación específica de Simple Voice Chat para Horizon 0.7.8 / API 80: 23 pruebas Linux del crate pasaron, se añadió un puente de posiciones para audio de proximidad y se corrigió el filtrado de comandos. La integración del bundle en el código Horizon y la compilación Android ARM64 siguen en validación.
+
+**El backport general de los 278 hooks API 359 todavía no está implementado. No hay APK funcional ni prueba en dispositivo; no se declara compatibilidad API 359.
 
 ## Documentación
 
