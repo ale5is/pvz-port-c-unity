@@ -1,0 +1,53 @@
+name: Native hooks API 359 audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - port/horizon-078-hooks-359
+    paths:
+      - "reference/**"
+      - "tools/**"
+      - ".gitmodules"
+      - ".github/workflows/native-hooks-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout with pinned upstream source submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compare pinned hook catalogs
+        run: |
+          python tools/compare_native_hooks.py reference/horizon-078/native-hooks.json reference/starling-api359/native-hooks.json
+      - name: Verify source revisions
+        shell: bash
+        run: |
+          test "$(git -C upstream/horizon-078 rev-parse HEAD)" = "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29"
+          test "$(git -C upstream/starling-api359 rev-parse HEAD)" = "c4e44c1e0df785373572a479a9adb4fb99eff7fb"
+          test -f upstream/horizon-078/crates/horizon-client/src/game/native_hooks.rs
+          test -f upstream/starling-api359/crates/horizon-client/src/game/native_hooks.rs
+      - name: Verify native hook declarations
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          old = Path("upstream/horizon-078/crates/horizon-client/src/game/native_hooks.rs").read_text()
+          new = Path("upstream/starling-api359/crates/horizon-client/src/game/native_hooks.rs").read_text()
+          names = lambda source: set(re.findall(r"pub\(super\) fn native_([A-Za-z0-9_]+)", source))
+          old_names, new_names = names(old), names(new)
+          print(f"Horizon 0.7.8 native methods: {len(old_names)}")
+          print(f"Starling API 359 native methods: {len(new_names)}")
+          print(f"New method names: {len(new_names - old_names)}")
+          print(f"Removed/renamed method names: {sorted(old_names - new_names)}")
+          assert len(new_names - old_names) == 283
+          PY
