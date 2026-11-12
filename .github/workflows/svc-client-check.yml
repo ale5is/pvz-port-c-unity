@@ -1,0 +1,34 @@
+name: Simple Voice Chat client crate
+
+on:
+  push:
+    branches:
+      - port/horizon-078-hooks-359
+    paths:
+      - "mod/crates/svc_client/**"
+      - ".github/workflows/svc-client-check.yml"
+  pull_request:
+    paths:
+      - "mod/crates/svc_client/**"
+      - ".github/workflows/svc-client-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install audio build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libasound2-dev
+      - name: Compile the SVC client crate
+        run: cargo test --manifest-path mod/crates/svc_client/Cargo.toml --all-targets
+      - name: Check formatting
+        run: cargo fmt --manifest-path mod/crates/svc_client/Cargo.toml -- --check
