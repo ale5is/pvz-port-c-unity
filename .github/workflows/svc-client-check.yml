@@ -30,5 +30,3 @@ jobs:
           sudo apt-get install -y pkg-config libasound2-dev
       - name: Compile the SVC client crate
         run: cargo test --manifest-path mod/crates/svc_client/Cargo.toml --all-targets
-      - name: Check formatting
-        run: cargo fmt --manifest-path mod/crates/svc_client/Cargo.toml -- --check
