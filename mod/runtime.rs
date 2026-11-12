@@ -36,36 +36,55 @@ pub fn world_closed() {
     locked().world_close();
 }
 
-pub fn world_lifecycle(
-    _game: &mut crate::game::Game<'_>,
-    _context: &crate::game::native_lifecycle::NativeLifecycleContext,
-    phase: crate::game::native_lifecycle::WorldPhase,
-    _error_text: &str,
+fn server_host(address: &str) -> Option<String> {
+    use std::net::ToSocketAddrs;
+    let direct = address.to_socket_addrs().ok().and_then(|mut addrs| addrs.next());
+    let fallback = if address.matches(':').count() > 1 && !address.starts_with('[') {
+        format!("[{address}]:25565")
+    } else {
+        format!("{address}:25565")
+    };
+    direct
+        .or_else(|| fallback.to_socket_addrs().ok().and_then(|mut addrs| addrs.next()))
+        .map(|address| address.ip().to_string())
+}
+
+pub fn on_net_from_game(
+    game: &crate::game::Game<'_>,
+    channel: &str,
+    data: &[u8],
 ) {
-    use crate::game::native_lifecycle::WorldPhase::{WorldCloseFailed, WorldCloseFinal, WorldOpenFailed, WorldOpenReady};
-    match phase {
-        WorldOpenReady => world_open_ready(),
-        WorldOpenFailed | WorldCloseFinal | WorldCloseFailed => world_closed(),
+    let hint = game
+        .remote
+        .as_ref()
+        .and_then(|remote| server_host(&remote.session.address));
+    locked().on_net(channel, data, hint.as_deref(), Instant::now());
+}
+
+static REMOTE_ACTIVE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration) {
+    let connected = game
+        .remote
+        .as_ref()
+        .is_some_and(|remote| remote.logged_in && remote.reconfiguring.is_none());
+    let was_connected = REMOTE_ACTIVE.swap(connected, std::sync::atomic::Ordering::Relaxed);
+
+    if connected && !was_connected {
+        world_open_ready();
+    } else if !connected && was_connected {
+        world_closed();
     }
-}
 
-pub fn on_net(channel: &str, data: &[u8]) {
-    locked().on_net(channel, data, None, Instant::now());
-}
-
-pub fn on_key(key: &str, pressed: bool) {
-    let code = key.strip_prefix("key.keyboard.")
-        .and_then(|name| {
-            let mut chars = name.chars();
-            let first = chars.next()?;
-            if chars.next().is_none() && first.is_ascii_alphanumeric() {
-                Some(format!("Key{}", first.to_ascii_uppercase()))
-            } else {
-                None
-            }
-        });
-    if let Some(code) = code {
-        locked().on_key(&code, pressed);
+    let reconnect = {
+        let mut g = locked();
+        let _ = g.on_frame(Instant::now());
+        std::mem::take(&mut g.reconnect_pending)
+    };
+    if connected && reconnect {
+        let (channel, body) = Glue::handshake();
+        queue_outbound(channel, body);
     }
 }
 

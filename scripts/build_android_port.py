@@ -66,13 +66,13 @@ def patch_android_microphone(stage):
         needle = '    <uses-permission android:name="android.permission.INTERNET" />'
         if needle not in text:
             raise SystemExit("Could not locate the INTERNET permission in AndroidManifest.xml.")
-        text = text.replace(needle, needle + "\\n" + permission)
+        text = text.replace(needle, needle + "\n" + permission)
     feature = '    <uses-feature android:name="android.hardware.microphone" android:required="false" />'
     if "android.hardware.microphone" not in text:
         needle = '    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />'
         if needle not in text:
             raise SystemExit("Could not locate the touchscreen feature in AndroidManifest.xml.")
-        text = text.replace(needle, needle + "\\n" + feature)
+        text = text.replace(needle, needle + "\n" + feature)
     manifest.write_text(text, encoding="utf-8")
 
     java = stage / "packaging/android/java/dev/horizon/android/HorizonActivity.java"
@@ -102,7 +102,7 @@ def main():
         raise SystemExit("Pass --sdk or set ANDROID_HOME to the installed Android SDK.")
     if args.java_home is None or not args.java_home.is_dir():
         raise SystemExit("Pass --java-home or set JAVA_HOME to a JDK directory.")
-    if not args.check_only and not args.trust_native_code:
+    if not args.trust_native_code:
         raise SystemExit("This build executes native mod code and build scripts. Review the source and pass --trust-native-code.")
 
     mixins = install_mixins()
