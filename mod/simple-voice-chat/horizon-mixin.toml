@@ -79,4 +79,4 @@ bindings = [
 [[crate]]
 id = "svc_client"
 path = "crates/svc_client"
-dependent = "horizon-client"
+dependent = "horizon-android"
