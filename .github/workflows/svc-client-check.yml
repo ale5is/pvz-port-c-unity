@@ -55,11 +55,24 @@ jobs:
 
   horizon-078-integration:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.95.0
+        with:
+          targets: aarch64-linux-android
       - name: Checkout pinned Horizon 0.7.8 source
         run: git submodule update --init --depth 1 upstream/horizon-078
+      - name: Apply Android microphone permission patch
+        run: git -C upstream/horizon-078 apply "$GITHUB_WORKSPACE/patches/horizon-078/audio-permission.patch"
+      - name: Install Android NDK
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" "ndk;27.2.12479018"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
       - name: Install host audio dependencies
         run: |
           sudo apt-get update
@@ -79,3 +92,10 @@ jobs:
           "$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins" apply --workspace upstream/horizon-078 --mods mod --out "$RUNNER_TEMP/horizon-078-svc"
       - name: Compile the staged Horizon client with the SVC bundle
         run: cargo check --manifest-path "$RUNNER_TEMP/horizon-078-svc/Cargo.toml" --locked --offline -p horizon-client
+      - name: Compile the staged Horizon Android client ARM64
+        shell: bash
+        run: |
+          TOOLCHAIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          export CC_aarch64_linux_android="$TOOLCHAIN/aarch64-linux-android24-clang"
+          export AR_aarch64_linux_android="$TOOLCHAIN/llvm-ar"
+          cargo check --manifest-path "$RUNNER_TEMP/horizon-078-svc/Cargo.toml" --locked --offline -p horizon-android --target aarch64-linux-android
