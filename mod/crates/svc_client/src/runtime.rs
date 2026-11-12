@@ -502,3 +502,32 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
+
+#[cfg(test)]
+mod voice_address_tests {
+    use super::*;
+
+    #[test]
+    fn empty_voice_host_uses_the_game_server_address() {
+        assert_eq!(
+            voice_socket("", Some("127.0.0.1"), 24454),
+            "127.0.0.1:24454".parse::<SocketAddr>().unwrap()
+        );
+    }
+
+    #[test]
+    fn voice_host_can_override_only_the_udp_port() {
+        assert_eq!(
+            voice_socket("24455", Some("127.0.0.1"), 24454),
+            "127.0.0.1:24455".parse::<SocketAddr>().unwrap()
+        );
+    }
+
+    #[test]
+    fn voice_host_can_override_host_and_port() {
+        assert_eq!(
+            voice_socket("127.0.0.2:24456", Some("127.0.0.1"), 24454),
+            "127.0.0.2:24456".parse::<SocketAddr>().unwrap()
+        );
+    }
+}

@@ -35,7 +35,7 @@ def install_mixins():
     if not executable.is_file():
         raise SystemExit(f"Pinned horizon-mixins binary was not created: {executable}")
     root.mkdir(parents=True, exist_ok=True)
-    marker.write_text(MIXINS_REV + "\\n", encoding="utf-8")
+    marker.write_text(MIXINS_REV + "\n", encoding="utf-8")
     return executable
 
 def verify_source(source):
