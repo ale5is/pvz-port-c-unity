@@ -129,15 +129,28 @@ impl Glue {
         match msg {
             proto::ServerMessage::Secret { secret, port, player, distance, voice_host, .. } => {
                 let host = if voice_host.is_empty() {
-                    hint.unwrap_or("127.0.0.1").to_string()
+                    let Some(address) = hint.and_then(server_host) else {
+                        self.notes.push("[voice] could not determine the game server address".into());
+                        return;
+                    };
+                    address
                 } else {
                     resolve_host(&voice_host)
                 };
-                let target = socket_of(&host, port);
+                let target = match socket_of(&host, port) {
+                    Ok(address) => address,
+                    Err(error) => {
+                        self.notes.push(format!("[voice] could not resolve voice server: {error}"));
+                        return;
+                    }
+                };
                 self.server_addr = Some(target);
                 let mut s = Session::new(player);
                 s.set_max_distance(distance);
-                s.on_secret(secret, target).ok();
+                if let Err(error) = s.on_secret(secret, target) {
+                    self.notes.push(format!("[voice] could not open UDP session: {error}"));
+                    return;
+                }
                 self.session = Some(s);
             }
             proto::ServerMessage::State(st) => self.see_state(&st, now),
@@ -375,25 +388,45 @@ fn host_of(addr: SocketAddr) -> String {
     }
 }
 
-fn resolve_host(host: &str) -> String {
+fn server_host(address: &str) -> Option<String> {
     use std::net::ToSocketAddrs;
-    format!("{}:0", host)
+    address
         .to_socket_addrs()
         .ok()
-        .and_then(|mut it| it.next())
-        .map(|a| host_of(a))
+        .and_then(|mut addresses| addresses.next())
+        .map(host_of)
+        .or_else(|| {
+            format!("{address}:25565")
+                .to_socket_addrs()
+                .ok()
+                .and_then(|mut addresses| addresses.next())
+                .map(host_of)
+        })
+}
+
+fn resolve_host(host: &str) -> String {
+    use std::net::{IpAddr, ToSocketAddrs};
+    if host.parse::<IpAddr>().is_ok() {
+        return host.to_string();
+    }
+    format!("{host}:0")
+        .to_socket_addrs()
+        .ok()
+        .and_then(|mut addresses| addresses.next())
+        .map(host_of)
         .unwrap_or_else(|| host.to_string())
 }
 
-fn socket_of(host: &str, port: u16) -> SocketAddr {
-    use std::net::ToSocketAddrs;
-    format!("{}:{}", host, port)
+fn socket_of(host: &str, port: u16) -> Result<SocketAddr, String> {
+    use std::net::{IpAddr, ToSocketAddrs};
+    if let Ok(ip) = host.parse::<IpAddr>() {
+        return Ok(SocketAddr::new(ip, port));
+    }
+    format!("{host}:{port}")
         .to_socket_addrs()
-        .ok()
-        .and_then(|mut it| it.next())
-        .unwrap_or_else(|| {
-            ([127, 0, 0, 1], port).into()
-        })
+        .map_err(|error| error.to_string())?
+        .next()
+        .ok_or_else(|| format!("no address found for {host}"))
 }
 
 /// The shared state the helpers reach.
