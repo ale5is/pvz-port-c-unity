@@ -1,23 +1,39 @@
 # Horizon Port Pavo
 
-Port nativo de Simple Voice Chat para Horizon Android 0.7.8.
+Port de Horizon Android 0.7.8 con objetivo de Native Hooks API 359 y compatibilidad con mods nativos como Simple Voice Chat.
 
-Este repositorio queda dedicado al port. El contenido anterior del proyecto PvZ se reemplaza en la rama principal por este espacio de trabajo.
+## Base y referencias
 
-## Objetivo
-Adaptar el mod nativo de Simple Voice Chat para Horizon Android 0.7.8, tomando el cargador nativo de Starling actual como referencia sin actualizar el runtime objetivo.
+- Runtime Android objetivo: Horizon 0.7.8, commit `68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29`.
+- API nativa de referencia: Starling, commit `c4e44c1e0df785373572a479a9adb4fb99eff7fb`.
+- Las dos fuentes completas están fijadas como submódulos en `upstream/horizon-078` y `upstream/starling-api359`.
+
+Clonar el proyecto correctamente:
+
+```sh
+git clone --recurse-submodules https://github.com/ale5is/pvz-port-c-unity.git
+cd pvz-port-c-unity
+git checkout port/horizon-078-hooks-359
+git submodule update --init --recursive
+```
+
+## Auditoría verificada
+
+- Horizon 0.7.8: API 80, 108 entradas de catálogo.
+- Starling actual: API 359, 386 entradas de catálogo.
+- 108 hooks compartidos, 278 nuevos y ninguno eliminado.
+- 219 métodos `native_*` en Horizon 0.7.8 y 498 en Starling; 283 nombres nuevos.
+- El catálogo y los métodos no bastan por sí solos: también hay que portar los puntos de llamada del motor y las dependencias.
 
 ## Estado
-Investigación y preparación inicial. Aún no es un port compilado ni probado en dispositivo.
+
+La rama contiene referencias upstream completas, auditoría reproducible y workflow de verificación. **El backport de los 278 hooks todavía no está implementado, compilado ni probado en Android.** No se declara compatibilidad API 359 ni se entrega un APK hasta superar esas pruebas.
 
 ## Documentación
-- [Estado de adaptación](PORTING_STATUS.md)
-- [Fuentes y revisiones upstream](UPSTREAM.md)
-- [Manifiesto del workspace Simple Voice Chat](sources/simple-voice-chat/Cargo.toml)
-- [Manifiesto de Horizon 0.7.8](sources/horizon-078/Cargo.toml)
 
-## Compatibilidad confirmada
-- Horizon 0.7.8: Native Hooks API 80, 108 entradas.
-- Starling actual: Native Hooks API 359, 386 entradas.
-- El mod actual declara API 359: no se puede cargar sin adaptar.
-- Falta resolver el hook de player-submit y adaptar el contrato de entrada de teclado.
+- [Estado y tareas pendientes](PORTING_STATUS.md)
+- [Auditoría técnica API 359](HOOKS_API_359_PORT.md)
+- [Revisiones upstream](UPSTREAM.md)
+- [Workflow de auditoría](.github/workflows/native-hooks-audit.yml)
+- [Comparador de catálogos](tools/compare_native_hooks.py)
+- [Fuentes de referencia](reference/README.md)
