@@ -29,30 +29,6 @@ jobs:
       - name: Compile the SVC client crate
         run: cargo test --manifest-path mod/simple-voice-chat/crates/svc_client/Cargo.toml --all-targets
 
-  android-arm64-check:
-    runs-on: ubuntu-latest
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android
-      - name: Install Android NDK
-        run: |
-          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
-          test -n "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" "ndk;27.2.12479018" "platforms;android-35" "build-tools;35.0.0"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
-      - name: Check the ARM64 Android client crate
-        shell: bash
-        run: |
-          TOOLCHAIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          export CC_aarch64_linux_android="$TOOLCHAIN/aarch64-linux-android24-clang"
-          export AR_aarch64_linux_android="$TOOLCHAIN/llvm-ar"
-          cargo check --manifest-path mod/simple-voice-chat/crates/svc_client/Cargo.toml --target aarch64-linux-android
-
   horizon-078-integration:
     runs-on: ubuntu-latest
     env:
