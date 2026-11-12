@@ -61,6 +61,7 @@ pub struct Glue {
     pub speaker: Option<crate::audio_io::Speaker>,
     /// The Opus codec, created with the audio devices.
     pub codec: Option<crate::audio::VoiceCodec>,
+    last_audio_attempt: Option<Instant>,
 }
 
 impl Default for Glue {
@@ -80,6 +81,7 @@ impl Default for Glue {
             mic: None,
             speaker: None,
             codec: None,
+            last_audio_attempt: None,
         }
     }
 }
@@ -228,6 +230,20 @@ impl Glue {
             }
         }
         notes
+    }
+
+    pub fn ensure_audio(&mut self, now: Instant) -> Vec<String> {
+        if self.mic.is_some() && self.speaker.is_some() && self.codec.is_some() {
+            return Vec::new();
+        }
+        if self
+            .last_audio_attempt
+            .is_some_and(|last| now.saturating_duration_since(last) < std::time::Duration::from_secs(5))
+        {
+            return Vec::new();
+        }
+        self.last_audio_attempt = Some(now);
+        self.start_audio()
     }
 
     /// The microphone side: when talking, turn captured audio into Opus
