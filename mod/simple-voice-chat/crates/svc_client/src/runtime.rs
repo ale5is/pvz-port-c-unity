@@ -225,8 +225,7 @@ impl Glue {
         let _ = now;
     }
 
-    /// Open the microphone and speaker. Returns chat notes for what failed;
-    /// called once per client start, devices outlive worlds.
+    /// Open playback and codec; open the microphone only after permission is granted.
     pub fn start_audio(&mut self, allow_microphone: bool) -> Vec<String> {
         let mut notes = Vec::new();
         if allow_microphone && self.mic.is_none() {
