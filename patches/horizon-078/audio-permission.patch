@@ -1,15 +1,14 @@
 diff --git a/packaging/android/AndroidManifest.xml b/packaging/android/AndroidManifest.xml
 --- a/packaging/android/AndroidManifest.xml
 +++ b/packaging/android/AndroidManifest.xml
-@@
+@@ -3,2 +3,3 @@
      <uses-permission android:name="android.permission.INTERNET" />
 +    <uses-permission android:name="android.permission.RECORD_AUDIO" />
      <uses-permission android:name="android.permission.VIBRATE" />
 diff --git a/packaging/android/java/dev/horizon/android/HorizonActivity.java b/packaging/android/java/dev/horizon/android/HorizonActivity.java
 --- a/packaging/android/java/dev/horizon/android/HorizonActivity.java
 +++ b/packaging/android/java/dev/horizon/android/HorizonActivity.java
-@@
- public final class HorizonActivity extends android.app.NativeActivity {
+@@ -5,4 +5,15 @@
      static { System.loadLibrary("horizon_android"); }
      private native void nativeDocumentResult(int request, int result, String uri);
  
@@ -27,14 +26,10 @@ diff --git a/packaging/android/java/dev/horizon/android/HorizonActivity.java b/p
      @Override protected void onActivityResult(int request, int result, android.content.Intent data) {
          super.onActivityResult(request, result, data);
          if (request != 4101) return;
-         nativeDocumentResult(request, result,
-                 data == null || data.getData() == null ? null : data.getData().toString());
-     }
- }
 diff --git a/crates/horizon-client/src/android/native_ime.rs b/crates/horizon-client/src/android/native_ime.rs
 --- a/crates/horizon-client/src/android/native_ime.rs
 +++ b/crates/horizon-client/src/android/native_ime.rs
-@@
+@@ -205,4 +205,17 @@
      UI.set(ui).ok();
      Ok(())
  }
