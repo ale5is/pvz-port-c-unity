@@ -43,7 +43,8 @@ Este trabajo es una adaptación del mod a los hooks API 80 de Horizon 0.7.8; no 
 - [x] Pasar 23 pruebas Linux del crate del cliente: protocolo, Opus, audio, handshake UDP, host, comandos y actualización de posiciones.
 - [ ] Confirmar compilación del bundle transformado dentro del workspace Horizon 0.7.8.
 - [ ] Confirmar compilación cruzada Android ARM64.
-- [ ] Añadir permiso de micrófono al APK y solicitarlo en runtime.
+- [x] Preparar parche para declarar `RECORD_AUDIO`, solicitar permiso al entrar al mundo y comprobar el permiso antes de abrir CPAL.
+- [ ] Compilar el APK Horizon Android con el parche de manifiesto/Java.
 - [ ] Probar micrófono, reproducción, UDP y audio de proximidad en un dispositivo Android.
 
 ## Pendiente: backport real
