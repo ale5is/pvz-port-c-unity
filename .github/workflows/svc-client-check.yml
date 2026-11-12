@@ -91,7 +91,7 @@ jobs:
           "$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins" plan --workspace upstream/horizon-078 --mods mod --out "$RUNNER_TEMP/svc-plan.json"
           "$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins" apply --workspace upstream/horizon-078 --mods mod --out "$RUNNER_TEMP/horizon-078-svc"
       - name: Compile the staged Horizon client with the SVC bundle
-        run: cargo check --manifest-path "$RUNNER_TEMP/horizon-078-svc/Cargo.toml" --locked --offline -p horizon-client --no-default-features --features audio
+        run: cargo check --manifest-path "$RUNNER_TEMP/horizon-078-svc/Cargo.toml" --locked --offline -p horizon-client --no-default-features --features audio,mods
       - name: Compile the staged Horizon Android client ARM64
         run: |
           cd "$RUNNER_TEMP/horizon-078-svc"
