@@ -54,7 +54,7 @@ pub fn world_lifecycle(
     }
 }
 
-pub fn server_address(game: &crate::game::Game<'_>) -> Option<&str> {
+pub fn server_address<'a, 'w>(game: &'a crate::game::Game<'w>) -> Option<&'a str> {
     game.remote
         .as_ref()
         .map(|remote| remote.session.address.as_str())
