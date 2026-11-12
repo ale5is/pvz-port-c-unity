@@ -444,6 +444,22 @@ mod tests {
         Glue::default()
     }
 
+    #[test]
+    fn game_server_address_resolves_to_voice_host() {
+        let host = server_host("127.0.0.1:25565").unwrap();
+        assert_eq!(host, "127.0.0.1");
+        assert_eq!(
+            socket_of(&host, 24454).unwrap(),
+            "127.0.0.1:24454".parse::<SocketAddr>().unwrap()
+        );
+    }
+
+    #[test]
+    fn voice_socket_accepts_ipv6_addresses() {
+        let address = socket_of("::1", 24454).unwrap();
+        assert_eq!(address, "[::1]:24454".parse::<SocketAddr>().unwrap());
+    }
+
     use std::time::Instant;
 
     fn secret_bytes(player: u128, port: u16, distance: f64) -> Vec<u8> {
