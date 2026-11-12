@@ -91,10 +91,15 @@ jobs:
       - name: Prepare public Minecraft data
         working-directory: ${{ runner.temp }}/horizon-078-svc
         run: python3 tools/android_prepare.py
+      - name: Install Java 17 for Gradle and Android packaging
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
       - name: Build installable Horizon 0.7.8 SVC APK
         working-directory: ${{ runner.temp }}/horizon-078-svc
         run: |
-          python3 tools/android_build.py --abi arm64-v8a --ndk-version 27.2.12479018 --build-tools-version 35.0.0 --sdk "$ANDROID_HOME" --gradle "$(command -v gradle)" --public --release-candidate --profile fast --dev-build pavo --dev-version-code "$GITHUB_RUN_NUMBER"
+          python3 tools/android_build.py --abi arm64-v8a --ndk-version 27.2.12479018 --build-tools-version 35.0.0 --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME" --gradle "$(command -v gradle)" --public --release-candidate --profile fast --dev-build pavo --dev-version-code "$GITHUB_RUN_NUMBER"
           sha256sum .local/android/apk/arm64-v8a/horizon-android-public.apk > .local/android/apk/arm64-v8a/SHA256SUMS.txt
       - name: Upload Horizon APK
         uses: actions/upload-artifact@v4
