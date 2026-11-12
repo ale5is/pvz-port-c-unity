@@ -1,0 +1,55 @@
+diff --git a/packaging/android/AndroidManifest.xml b/packaging/android/AndroidManifest.xml
+--- a/packaging/android/AndroidManifest.xml
++++ b/packaging/android/AndroidManifest.xml
+@@
+     <uses-permission android:name="android.permission.INTERNET" />
++    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+     <uses-permission android:name="android.permission.VIBRATE" />
+diff --git a/packaging/android/java/dev/horizon/android/HorizonActivity.java b/packaging/android/java/dev/horizon/android/HorizonActivity.java
+--- a/packaging/android/java/dev/horizon/android/HorizonActivity.java
++++ b/packaging/android/java/dev/horizon/android/HorizonActivity.java
+@@
+ public final class HorizonActivity extends android.app.NativeActivity {
+     static { System.loadLibrary("horizon_android"); }
+     private native void nativeDocumentResult(int request, int result, String uri);
+ 
++    public void requestAudioPermission() {
++        runOnUiThread(() -> {
++            if (android.os.Build.VERSION.SDK_INT >= 23 &&
++                    checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
++                            != android.content.pm.PackageManager.PERMISSION_GRANTED) {
++                requestPermissions(
++                        new String[]{android.Manifest.permission.RECORD_AUDIO}, 4102);
++            }
++        });
++    }
++
+     @Override protected void onActivityResult(int request, int result, android.content.Intent data) {
+         super.onActivityResult(request, result, data);
+         if (request != 4101) return;
+         nativeDocumentResult(request, result,
+                 data == null || data.getData() == null ? null : data.getData().toString());
+     }
+ }
+diff --git a/crates/horizon-client/src/android/native_ime.rs b/crates/horizon-client/src/android/native_ime.rs
+--- a/crates/horizon-client/src/android/native_ime.rs
++++ b/crates/horizon-client/src/android/native_ime.rs
+@@
+     UI.set(ui).ok();
+     Ok(())
+ }
++
++pub(crate) fn request_audio_permission() -> Result<(), String> {
++    let ui = UI
++        .get()
++        .ok_or_else(|| "Android activity is not initialized".to_string())?;
++    let mut env = ui
++        .vm
++        .attach_current_thread()
++        .map_err(|error| error.to_string())?;
++    env.call_method(&ui.activity, "requestAudioPermission", "()V", &[])
++        .map_err(|error| error.to_string())?;
++    Ok(())
++}
++
+ impl Ui {
