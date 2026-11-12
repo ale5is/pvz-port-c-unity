@@ -76,7 +76,7 @@ jobs:
       - name: Install host audio dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libasound2-dev
+          sudo apt-get install -y pkg-config libasound2-dev libudev-dev libxkbcommon-dev libwayland-dev libx11-dev libxi-dev libxrandr-dev libxcursor-dev libxinerama-dev libxfixes-dev libxext-dev
       - name: Fetch Horizon dependencies
         working-directory: upstream/horizon-078
         run: cargo fetch --locked
