@@ -25,7 +25,7 @@ jobs:
       - name: Install audio build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libasound2-dev
+          sudo apt-get install -y pkg-config libasound2-dev libudev-dev libxkbcommon-dev libwayland-dev libx11-dev libxi-dev libxrandr-dev libxcursor-dev libxinerama-dev libxfixes-dev libxext-dev
       - name: Compile the SVC client crate
         run: cargo test --manifest-path mod/simple-voice-chat/crates/svc_client/Cargo.toml --all-targets
 
@@ -91,7 +91,7 @@ jobs:
           "$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins" plan --workspace upstream/horizon-078 --mods mod --out "$RUNNER_TEMP/svc-plan.json"
           "$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins" apply --workspace upstream/horizon-078 --mods mod --out "$RUNNER_TEMP/horizon-078-svc"
       - name: Compile the staged Horizon client with the SVC bundle
-        run: cargo check --manifest-path "$RUNNER_TEMP/horizon-078-svc/Cargo.toml" --locked --offline -p horizon-client
+        run: cargo check --manifest-path "$RUNNER_TEMP/horizon-078-svc/Cargo.toml" --locked --offline -p horizon-client --no-default-features --features audio
       - name: Compile the staged Horizon Android client ARM64
         shell: bash
         run: |
