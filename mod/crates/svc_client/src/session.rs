@@ -339,6 +339,16 @@ mod tests {
     }
 
     #[test]
+    fn refreshed_positions_drop_departed_players() {
+        let mut session = Session::new(1);
+        session.set_positions([1.0, 2.0, 3.0], [(2, [4.0, 5.0, 6.0])]);
+        assert_eq!(session.positions.len(), 1);
+        session.set_positions([2.0, 3.0, 4.0], []);
+        assert!(session.positions.is_empty());
+        assert_eq!(session.listener, [2.0, 3.0, 4.0]);
+    }
+
+    #[test]
     fn handshake_keep_alive_mic_and_voice() {
         let secret = [7u8; 16];
         let player = 11u128;
