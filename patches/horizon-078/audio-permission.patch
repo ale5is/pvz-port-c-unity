@@ -8,10 +8,16 @@ diff --git a/packaging/android/AndroidManifest.xml b/packaging/android/AndroidMa
 diff --git a/packaging/android/java/dev/horizon/android/HorizonActivity.java b/packaging/android/java/dev/horizon/android/HorizonActivity.java
 --- a/packaging/android/java/dev/horizon/android/HorizonActivity.java
 +++ b/packaging/android/java/dev/horizon/android/HorizonActivity.java
-@@ -5,4 +5,15 @@
+@@ -5,4 +5,21 @@
      static { System.loadLibrary("horizon_android"); }
      private native void nativeDocumentResult(int request, int result, String uri);
  
++    public boolean hasAudioPermission() {
++        return android.os.Build.VERSION.SDK_INT < 23 ||
++                checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
++                        == android.content.pm.PackageManager.PERMISSION_GRANTED;
++    }
++
 +    public void requestAudioPermission() {
 +        runOnUiThread(() -> {
 +            if (android.os.Build.VERSION.SDK_INT >= 23 &&
@@ -29,10 +35,23 @@ diff --git a/packaging/android/java/dev/horizon/android/HorizonActivity.java b/p
 diff --git a/crates/horizon-client/src/android/native_ime.rs b/crates/horizon-client/src/android/native_ime.rs
 --- a/crates/horizon-client/src/android/native_ime.rs
 +++ b/crates/horizon-client/src/android/native_ime.rs
-@@ -205,4 +205,17 @@
+@@ -205,4 +205,24 @@
      UI.set(ui).ok();
      Ok(())
  }
++
++pub(crate) fn has_audio_permission() -> Result<bool, String> {
++    let ui = UI
++        .get()
++        .ok_or_else(|| "Android activity is not initialized".to_string())?;
++    let mut env = ui
++        .vm
++        .attach_current_thread()
++        .map_err(|error| error.to_string())?;
++    env.call_method(&ui.activity, "hasAudioPermission", "()Z", &[])
++        .and_then(|value| value.z())
++        .map_err(|error| error.to_string())
++}
 +
 +pub(crate) fn request_audio_permission() -> Result<(), String> {
 +    let ui = UI
