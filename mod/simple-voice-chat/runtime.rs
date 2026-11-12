@@ -25,11 +25,16 @@ pub fn drain_outbound() -> Vec<(String, Vec<u8>)> {
 }
 
 pub fn world_open_ready() {
+    if let Err(error) = crate::native_ime::request_audio_permission() {
+        eprintln!("[voice] microphone permission request failed: {error}");
+    }
     let mut g = locked();
     g.world_open();
     let (channel, body) = Glue::handshake();
     queue_outbound(channel, body);
-    let _ = g.start_audio();
+    for note in g.ensure_audio(Instant::now()) {
+        eprintln!("{note}");
+    }
 }
 
 pub fn world_closed() {
@@ -93,9 +98,13 @@ pub fn on_command(command: &str, ran: &mut bool) {
 
 pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration) {
     let (listener, players) = game.native_voice_positions();
+    let now = Instant::now();
     let mut g = locked();
     if let (Some(listener), Some(session)) = (listener, g.session.as_mut()) {
         session.set_positions(listener, players);
     }
-    let _ = g.on_frame(Instant::now());
+    for note in g.ensure_audio(now) {
+        eprintln!("{note}");
+    }
+    let _ = g.on_frame(now);
 }
