@@ -77,7 +77,17 @@ jobs:
           gradle-version: "8.14"
       - name: Pin Minecraft 26.3 metadata to Horizon's verified manifest
         working-directory: ${{ runner.temp }}/horizon-078-svc
-        run: git apply "$GITHUB_WORKSPACE/patches/horizon-078/pinned-minecraft-manifest.patch"
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("tools/android_prepare.py")
+          source = path.read_text()
+          old = "    lab.download(entry['url'], manifest_path, entry['sha1'])"
+          new = "    manifest_url = f\"https://piston-meta.mojang.com/v1/packages/{pins['manifest_sha1']}/{version}.json\"\n    lab.download(manifest_url, manifest_path, pins['manifest_sha1'])"
+          if source.count(old) != 1:
+              raise SystemExit("Expected unique Mojang manifest download line; refusing unsafe edit")
+          path.write_text(source.replace(old, new))
+          PY
       - name: Prepare public Minecraft data
         working-directory: ${{ runner.temp }}/horizon-078-svc
         run: python3 tools/android_prepare.py
