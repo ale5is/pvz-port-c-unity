@@ -1,4 +1,4 @@
-impl super::Game<'_> {
+impl crate::game::Game<'_> {
     pub(in crate::game) fn native_voice_positions(
         &self,
     ) -> (Option<[f64; 3]>, Vec<(u128, [f64; 3])>) {
