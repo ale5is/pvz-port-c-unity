@@ -363,13 +363,6 @@ impl Glue {
     }
 }
 
-fn host_of(addr: SocketAddr) -> String {
-    match addr {
-        SocketAddr::V4(v4) => v4.ip().to_string(),
-        SocketAddr::V6(v6) => v6.ip().to_string(),
-    }
-}
-
 fn voice_socket(voice_host: &str, hint: Option<&str>, port: u16) -> SocketAddr {
     let fallback = hint.unwrap_or("127.0.0.1");
     if voice_host.is_empty() {

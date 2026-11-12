@@ -29,7 +29,9 @@ pub fn world_open_ready() {
     g.world_open();
     let (channel, body) = Glue::handshake();
     queue_outbound(channel, body);
-    let _ = g.start_audio();
+    for note in g.start_audio() {
+        eprintln!("{note}");
+    }
 }
 
 pub fn world_closed() {
@@ -37,16 +39,22 @@ pub fn world_closed() {
 }
 
 fn server_host(address: &str) -> Option<String> {
-    use std::net::ToSocketAddrs;
-    let direct = address.to_socket_addrs().ok().and_then(|mut addrs| addrs.next());
-    let fallback = if address.matches(':').count() > 1 && !address.starts_with('[') {
-        format!("[{address}]:25565")
-    } else {
-        format!("{address}:25565")
-    };
-    direct
-        .or_else(|| fallback.to_socket_addrs().ok().and_then(|mut addrs| addrs.next()))
-        .map(|address| address.ip().to_string())
+    let address = address.trim();
+    if let Ok(socket) = address.parse::<std::net::SocketAddr>() {
+        return Some(socket.ip().to_string());
+    }
+    if let Some(bracketed) = address.strip_prefix('[')
+        && let Some(end) = bracketed.find(']')
+    {
+        return Some(bracketed[..end].to_string());
+    }
+    if let Some((host, port)) = address.rsplit_once(':')
+        && !host.contains(':')
+        && port.parse::<u16>().is_ok()
+    {
+        return Some(host.to_string());
+    }
+    Some(address.to_string())
 }
 
 pub fn on_net_from_game(
