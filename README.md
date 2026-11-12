@@ -17,11 +17,13 @@ python scripts/build_android_port.py --horizon-source /path/to/starling --abi ar
 
 The script installs the exact `horizon-mixins` revision used by Horizon 0.7.8 if it is not already on PATH, applies the API-80 bundle to a separate staged source tree, copies the prepared engine data, and invokes Horizon's own Android build script. Use `--check-only --trust-native-code` first to type-check without packaging an APK. The trust flag is required because Cargo executes the mod's reviewed build script.
 
-The build is not yet validated. Android microphone permission handling, audio-device capture/playback, and the Simple Voice Chat UDP handshake still need runtime testing.
+The Opus C/H source is kept under `mod/data/vendor/` because Horizon mixin bundles only permit C/H files inside the `data/` payload area. The mixins staging process places it under `native-data/simple-voice-chat/vendor/`, where the crate build script reads it.
+
+The build is not yet validated. Android microphone permission handling, audio-device capture/playback, UDP connection, and server interoperability still need runtime testing.
 
 ## Source layout
 - `mod/`: adapted hooks, Rust client, protocol and audio implementation.
-- `mod/crates/svc_client/vendor/`: vendored libopus 1.4 C/H sources for direct builds.
+- `mod/data/vendor/`: vendored libopus 1.4 C/H sources.
 - `scripts/build_android_port.py`: Android source-transform/build pipeline.
 - `scripts/package_hnmod.py`: packages a desktop native-mod bundle; it is not the Android APK builder.
 

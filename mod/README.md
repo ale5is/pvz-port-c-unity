@@ -6,6 +6,7 @@ This API-80 adaptation speaks the Simple Voice Chat 2.6.x client protocol (compa
 - Horizon dedicated-server path: also mirrors control messages through `horizon:mod_net` when the server announces that channel, for the Horizon `voicechat-server` relay.
 - Audio: CPAL 0.16 Android backend plus vendored libopus 1.4.
 - Microphone permission: the Android build adapter adds `RECORD_AUDIO` to the manifest and requests it at runtime.
+- Opus C/H files are stored in `data/vendor/`; Horizon stages these as `native-data/simple-voice-chat/vendor/` for the crate build script.
 
 Horizon 0.7.8 hook API: 80. The remote client connection is detected from `Remote.logged_in` in the frame hook; the 0.7.8 `world_lifecycle` hook is server-side and does not fire for remote clients.
 

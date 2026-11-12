@@ -8,7 +8,7 @@
 - Replaced server-only world lifecycle detection with remote-client login detection in the frame hook.
 - Added server-host resolution from the active remote session so an empty `voice_host` uses the actual game server address instead of localhost.
 - Reconnect requests are queued when the UDP session reports a dropped connection.
-- Imported client protocol/session/audio Rust sources and 205 Opus C/H files.
+- Imported the client protocol/session/audio Rust sources and 205 Opus C/H files under bundle `data/vendor/`; Horizon stages them under `native-data/simple-voice-chat/vendor/`.
 - Android build adapter requests runtime microphone permission and uses the pinned Horizon 0.7.8 Android build pipeline.
 
 ## Compatibility checks
@@ -18,6 +18,6 @@
 - `horizon-mixins` is pinned to the 0.7.8 launcher revision.
 
 ## Not yet verified
-- `horizon-mixins apply` has not been run against a local Horizon checkout.
+- `horizon-mixins apply` has not yet succeeded against a local Horizon checkout.
 - No Android `cargo check`, ABI build or APK build has succeeded yet.
 - No install or device test has verified microphone capture, playback, UDP, or server interoperability.
