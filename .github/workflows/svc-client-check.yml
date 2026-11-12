@@ -93,9 +93,6 @@ jobs:
       - name: Compile the staged Horizon client with the SVC bundle
         run: cargo check --manifest-path "$RUNNER_TEMP/horizon-078-svc/Cargo.toml" --locked --offline -p horizon-client --no-default-features --features audio
       - name: Compile the staged Horizon Android client ARM64
-        shell: bash
         run: |
-          TOOLCHAIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          export CC_aarch64_linux_android="$TOOLCHAIN/aarch64-linux-android24-clang"
-          export AR_aarch64_linux_android="$TOOLCHAIN/llvm-ar"
-          cargo check --manifest-path "$RUNNER_TEMP/horizon-078-svc/Cargo.toml" --locked --offline -p horizon-android --target aarch64-linux-android
+          cd "$RUNNER_TEMP/horizon-078-svc"
+          python3 tools/android_build.py --check --abi arm64-v8a --ndk-version 27.2.12479018 --build-tools-version 35.0.0 --sdk "$ANDROID_HOME"
