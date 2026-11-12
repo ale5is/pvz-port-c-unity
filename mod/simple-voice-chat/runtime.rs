@@ -31,11 +31,10 @@ pub fn world_open_ready() {
     }
     let mut g = locked();
     g.world_open();
+    #[cfg(not(target_os = "android"))]
+    g.set_audio_permission(true);
     let (channel, body) = Glue::handshake();
     queue_outbound(channel, body);
-    for note in g.ensure_audio(Instant::now()) {
-        eprintln!("{note}");
-    }
 }
 
 pub fn world_closed() {
@@ -104,6 +103,15 @@ pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration)
     if let (Some(listener), Some(session)) = (listener, g.session.as_mut()) {
         session.set_positions(listener, players);
     }
+    #[cfg(target_os = "android")]
+    if g.should_check_audio_permission(now) {
+        match crate::native_ime::has_audio_permission() {
+            Ok(granted) => g.set_audio_permission(granted),
+            Err(error) => eprintln!("[voice] microphone permission check failed: {error}"),
+        }
+    }
+    #[cfg(not(target_os = "android"))]
+    g.set_audio_permission(true);
     for note in g.ensure_audio(now) {
         eprintln!("{note}");
     }
