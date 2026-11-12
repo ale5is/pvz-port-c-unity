@@ -11,6 +11,7 @@ on:
   pull_request:
     paths:
       - "mod/**"
+      - "patches/**"
       - ".github/workflows/svc-client-check.yml"
   workflow_dispatch:
 
