@@ -1,23 +1,31 @@
 # Estado del port
 
-## Incompatibilidades
-1. Horizon 0.7.8 ofrece Native Hooks API 80; Starling actual ofrece 359; el mod requiere 359.
-2. Horizon 0.7.8 tiene 108 hooks; Starling actual 386.
-3. Hay equivalentes preliminares para world_lifecycle, net_from_server, command y frame; hay que cotejar firmas y semántica.
-4. player_submit no tiene equivalente directo en 0.7.8. No reemplazarlo por un hook no relacionado.
-5. Horizon 0.7.8 expone native_key(&mut self, key: &str, pressed: bool); el mod espera un evento de teclado más rico. Requiere adaptador.
-6. Horizon usa paquete Android dev.horizon.android y HorizonActivity.java; Starling actual usa io.github.juanluci.starling. Hay que conservar la identidad de Horizon 0.7.8.
+## Objetivo actual
 
-## Lista de trabajo
-- [ ] Importar el código completo del mod y sus recursos/dependencias, incluido Opus.
-- [ ] Implementar capa de compatibilidad de hooks para API 80.
-- [ ] Resolver player-submit contra el ciclo real de jugador/renderizado de 0.7.8.
-- [ ] Adaptar eventos de teclado conservando key-down/key-up.
-- [ ] Backport del cargador nativo a HorizonActivity/JNI de 0.7.8.
-- [ ] Adaptar validación de metadatos y permisos.
-- [ ] Resolver revisiones de horizon-mixins y ABI.
-- [ ] Preparar build reproducible con NDK/Rust.
-- [ ] Compilar, instalar y probar captura, reproducción, conexión y ciclo de vida.
+Backport completo de Native Hooks API 359 de Starling a la base Android Horizon 0.7.8, manteniendo los cambios Android de 0.7.8. No se limita a hacer funcionar Simple Voice Chat.
 
-## Estado de validación
-No hay compilación exitosa, instalación ni sesión de voz probada. No considerar el port funcional hasta superar esas pruebas.
+## Trabajo realizado en esta rama
+
+- [x] Crear rama aislada `port/horizon-078-hooks-359`; no modificar `main`.
+- [x] Fijar las revisiones upstream de Horizon 0.7.8 y Starling actual.
+- [x] Guardar ambos catálogos `native-hooks.json` como referencias.
+- [x] Guardar ambos archivos `native_hooks.rs` como referencias.
+- [x] Añadir comparación reproducible de catálogos.
+- [x] Confirmar 108 hooks compartidos, 278 añadidos, ninguno eliminado y ningún cambio en nombre/versión/destino de los compartidos.
+- [x] Comparar declaraciones `native_*`: 219 métodos en 0.7.8, 498 en Starling; 283 nombres de método añadidos.
+- [ ] Importar el árbol completo del código fuente de Horizon Android 0.7.8.
+- [ ] Portar las implementaciones de los hooks nuevos y sus tipos auxiliares.
+- [ ] Portar los puntos de llamada de los hooks nuevos por subsistemas.
+- [ ] Portar el registro/generación del catálogo y las herramientas de `horizon-mixins`.
+- [ ] Resolver diferencias Android sin reemplazar Activity, JNI, paquete ni ciclo de vida de 0.7.8.
+- [ ] Ejecutar pruebas unitarias y de integración.
+- [ ] Compilar ARM64 y validar en dispositivo.
+- [ ] Integrar y probar Simple Voice Chat sobre API 359.
+
+## Bloqueo actual
+
+El directorio `sources/horizon-078` todavía contiene solo el `Cargo.toml` raíz; no contiene los crates completos. Por eso todavía no se puede compilar ni portar las funciones de manera verificable. La rama actual es una base de auditoría y referencias, no un APK ni un backport terminado.
+
+## Resultado de validación
+
+No hay build exitoso ni prueba en dispositivo. No declarar compatibilidad API 359 hasta completar las casillas pendientes.
