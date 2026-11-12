@@ -15,6 +15,12 @@ use crate::session::{Event, Session};
 
 pub const PORT: &str = "simple-voice-chat";
 
+pub fn is_voice_command(command: &str) -> bool {
+    let command = command.trim();
+    let command = command.strip_prefix('/').unwrap_or(command);
+    matches!(command.split_whitespace().next(), Some("svc" | "vcgroup"))
+}
+
 /// Client settings, persisted at `<config>/simple_voice_chat/config.json`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
@@ -442,6 +448,18 @@ mod tests {
 
     fn glue() -> Glue {
         Glue::default()
+    }
+
+    #[test]
+    fn only_voice_commands_are_consumed() {
+        assert!(is_voice_command("svc mute"));
+        assert!(is_voice_command("/svc status"));
+        assert!(is_voice_command("vcgroup list"));
+        assert!(is_voice_command("/vcgroup create friends"));
+        assert!(!is_voice_command("help"));
+        assert!(!is_voice_command("/say hello"));
+        assert!(!is_voice_command("svchack"));
+        assert!(!is_voice_command("vcgroups"));
     }
 
     #[test]
