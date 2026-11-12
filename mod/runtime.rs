@@ -85,6 +85,11 @@ pub fn on_command(command: &str, ran: &mut bool) {
     *ran = true;
 }
 
-pub fn on_frame(_game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration) {
-    let _ = locked().on_frame(Instant::now());
+pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration) {
+    let (listener, players) = game.native_voice_positions();
+    let mut g = locked();
+    if let (Some(listener), Some(session)) = (listener, g.session.as_mut()) {
+        session.set_positions(listener, players);
+    }
+    let _ = g.on_frame(Instant::now());
 }
