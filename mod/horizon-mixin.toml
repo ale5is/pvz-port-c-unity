@@ -12,6 +12,12 @@ file = "crates/horizon-client/src/game.rs"
 name = "simple_voice_chat"
 source = "runtime.rs"
 
+[[module]]
+id = "voice_positions"
+file = "crates/horizon-client/src/game/remote.rs"
+name = "native_voice_positions"
+source = "voice_positions.rs"
+
 [[injection]]
 id = "world_lifecycle"
 kind = "HEAD"
