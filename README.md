@@ -1,23 +1,20 @@
 # Horizon Port Pavo
 
-Port nativo de Simple Voice Chat para Horizon Android 0.7.8.
+Native Simple Voice Chat port for Horizon Android 0.7.8.
 
-Este repositorio queda dedicado al port. El contenido anterior del proyecto PvZ se reemplaza en la rama principal por este espacio de trabajo.
+The repository's root project is dedicated to this port. The mod workspace is in `mod/`; its compatibility metadata targets Horizon hook API 80.
 
-## Objetivo
-Adaptar el mod nativo de Simple Voice Chat para Horizon Android 0.7.8, tomando el cargador nativo de Starling actual como referencia sin actualizar el runtime objetivo.
+## Build pipeline
+Horizon 0.7.8 already contains its own native-mod compiler and Rust toolchain. Use that launcher pipeline; do not copy Starling's newer launcher or change the target runtime.
 
-## Estado
-Investigación y preparación inicial. Aún no es un port compilado ni probado en dispositivo.
+The source bundle can be packaged with:
 
-## Documentación
-- [Estado de adaptación](PORTING_STATUS.md)
-- [Fuentes y revisiones upstream](UPSTREAM.md)
-- [Manifiesto del workspace Simple Voice Chat](sources/simple-voice-chat/Cargo.toml)
-- [Manifiesto de Horizon 0.7.8](sources/horizon-078/Cargo.toml)
+```sh
+python3 scripts/package_hnmod.py
+```
 
-## Compatibilidad confirmada
-- Horizon 0.7.8: Native Hooks API 80, 108 entradas.
-- Starling actual: Native Hooks API 359, 386 entradas.
-- El mod actual declara API 359: no se puede cargar sin adaptar.
-- Falta resolver el hook de player-submit y adaptar el contrato de entrada de teclado.
+This creates `dist/simple-voice-chat-horizon-0.7.8.hnmod`. The packager moves the vendored Opus C/H files into the bundle's `data/` area because Horizon's native-bundle validator only permits Rust/TOML source plus data payloads. Horizon stages that payload under `native-data/simple-voice-chat/vendor`, where the crate build script reads it.
+
+See [port status](PORTING_STATUS.md), [upstream pins](UPSTREAM.md), and [mod source](mod/README.md).
+
+No successful compilation or runtime test is claimed yet.

@@ -53,13 +53,6 @@ pub fn on_net(channel: &str, data: &[u8]) {
     locked().on_net(channel, data, None, Instant::now());
 }
 
-pub fn on_player_submit(
-    _player: &crate::game::native_mob_draw::NativeMobRender<'_>,
-    _who: &crate::game::native_mob_draw::NativePlayerRender<'_>,
-) {
-    // Per-player voice indicators are wired in a later stage.
-}
-
 pub fn on_key(key: &str, pressed: bool) {
     let code = key.strip_prefix("key.keyboard.")
         .and_then(|name| {
@@ -77,6 +70,10 @@ pub fn on_key(key: &str, pressed: bool) {
 }
 
 pub fn on_command(command: &str, ran: &mut bool) {
+    let head = command.split_whitespace().next().unwrap_or("");
+    if head != "svc" && head != "vcgroup" {
+        return;
+    }
     let (feedback, outbound) = locked().on_command(command);
     if !feedback.is_empty() {
         eprintln!("{feedback}");
