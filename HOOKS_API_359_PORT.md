@@ -55,7 +55,7 @@ El script valida duplicados, adiciones, eliminaciones y cambios en `version`/ `t
 
 Esta rama contiene los catálogos y archivos de implementación upstream fijados como referencia y una comparación reproducible. **Todavía no contiene el backport de los 278 hooks al código fuente completo de Horizon 0.7.8 ni un APK compilado.**
 
-El directorio `sources/horizon-078` todavía no tiene el árbol completo de crates; solo conserva el manifiesto raíz. El siguiente paso de implementación es importar el código fuente completo del tag 0.7.8 y aplicar el port por grupos, ejecutando pruebas después de cada grupo.
+El árbol completo del tag 0.7.8 ya está disponible en el submódulo `upstream/horizon-078`; Starling API 359 está en `upstream/starling-api359`. El siguiente paso del backport general sigue siendo portar las implementaciones y puntos de llamada por grupos, ejecutando pruebas después de cada grupo. La adaptación específica de Simple Voice Chat se mantiene separada en `mod/simple-voice-chat` y usa API 80.
 
 ## Criterio de aceptación
 
