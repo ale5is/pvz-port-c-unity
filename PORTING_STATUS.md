@@ -31,6 +31,21 @@ git checkout port/horizon-078-hooks-359
 git submodule update --init --recursive
 ```
 
+## Avance específico: Simple Voice Chat en Horizon 0.7.8
+
+Este trabajo es una adaptación del mod a los hooks API 80 de Horizon 0.7.8; no equivale al backport general de API 359.
+
+- [x] Empaquetar el mod como bundle válido de `horizon-mixins`.
+- [x] Conectar lifecycle, red, input, comandos y frame con los hooks API 80.
+- [x] Obtener la dirección real del servidor de Minecraft cuando el servidor de voz no envía un host separado.
+- [x] Evitar que el hook del mod consuma comandos ajenos a `/svc` y `/vcgroup`.
+- [x] Añadir puente de posiciones usando las entidades de jugadores que Horizon 0.7.8 ya rastrea; actualiza listener y jugadores cada frame para audio de proximidad.
+- [x] Pasar 23 pruebas Linux del crate del cliente: protocolo, Opus, audio, handshake UDP, host, comandos y actualización de posiciones.
+- [ ] Confirmar compilación del bundle transformado dentro del workspace Horizon 0.7.8.
+- [ ] Confirmar compilación cruzada Android ARM64.
+- [ ] Añadir permiso de micrófono al APK y solicitarlo en runtime.
+- [ ] Probar micrófono, reproducción, UDP y audio de proximidad en un dispositivo Android.
+
 ## Pendiente: backport real
 
 - [ ] Extraer los cambios de implementación de los 278 hooks nuevos.
@@ -44,6 +59,6 @@ git submodule update --init --recursive
 
 ## Estado de validación
 
-La auditoría está guardada y los árboles fuente completos están fijados como submódulos. El workflow de verificación quedó configurado, pero todavía no se ha confirmado una ejecución exitosa. **El backport de API 359 no está implementado ni compilado; no hay APK funcional todavía.**
+La auditoría y los árboles fuente completos están guardados. El crate de Simple Voice Chat pasó 23 pruebas Linux; la integración con el código de Horizon 0.7.8 y la compilación ARM64 se validan por separado. **El backport general de API 359 no está implementado; todavía no hay APK funcional ni prueba en dispositivo.**
 
 No se debe cambiar `mod/horizon-native.json` a API 359 ni declarar compatibilidad hasta que el runtime implemente realmente el catálogo y las pruebas pasen.
