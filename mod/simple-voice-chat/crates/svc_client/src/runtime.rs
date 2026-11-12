@@ -62,6 +62,8 @@ pub struct Glue {
     /// The Opus codec, created with the audio devices.
     pub codec: Option<crate::audio::VoiceCodec>,
     last_audio_attempt: Option<Instant>,
+    pub audio_permission_granted: bool,
+    last_permission_check: Option<Instant>,
 }
 
 impl Default for Glue {
@@ -82,6 +84,8 @@ impl Default for Glue {
             speaker: None,
             codec: None,
             last_audio_attempt: None,
+            audio_permission_granted: false,
+            last_permission_check: None,
         }
     }
 }
@@ -232,7 +236,24 @@ impl Glue {
         notes
     }
 
+    pub fn set_audio_permission(&mut self, granted: bool) {
+        self.audio_permission_granted = granted;
+    }
+
+    pub fn should_check_audio_permission(&mut self, now: Instant) -> bool {
+        if self.last_permission_check.is_some_and(|last| {
+            now.saturating_duration_since(last) < std::time::Duration::from_secs(1)
+        }) {
+            return false;
+        }
+        self.last_permission_check = Some(now);
+        true
+    }
+
     pub fn ensure_audio(&mut self, now: Instant) -> Vec<String> {
+        if !self.audio_permission_granted {
+            return Vec::new();
+        }
         if self.mic.is_some() && self.speaker.is_some() && self.codec.is_some() {
             return Vec::new();
         }
