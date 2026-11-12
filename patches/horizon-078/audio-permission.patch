@@ -35,7 +35,7 @@ diff --git a/packaging/android/java/dev/horizon/android/HorizonActivity.java b/p
 diff --git a/crates/horizon-client/src/android/native_ime.rs b/crates/horizon-client/src/android/native_ime.rs
 --- a/crates/horizon-client/src/android/native_ime.rs
 +++ b/crates/horizon-client/src/android/native_ime.rs
-@@ -205,4 +205,24 @@
+@@ -205,4 +205,31 @@
      UI.set(ui).ok();
      Ok(())
  }
