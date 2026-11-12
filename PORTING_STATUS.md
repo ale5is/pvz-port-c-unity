@@ -42,7 +42,8 @@ Este trabajo es una adaptación del mod a los hooks API 80 de Horizon 0.7.8; no 
 - [x] Añadir puente de posiciones usando las entidades de jugadores que Horizon 0.7.8 ya rastrea; actualiza listener y jugadores cada frame para audio de proximidad.
 - [x] Pasar 23 pruebas Linux del crate del cliente: protocolo, Opus, audio, handshake UDP, host, comandos y actualización de posiciones.
 - [ ] Confirmar compilación del bundle transformado dentro del workspace Horizon 0.7.8.
-- [ ] Confirmar compilación cruzada Android ARM64.
+- [x] Compilar el crate SVC aislado para Android ARM64 con NDK.
+- [ ] Compilar el cliente Horizon Android completo para ARM64.
 - [x] Preparar parche para declarar `RECORD_AUDIO`, solicitar permiso al entrar al mundo y comprobar el permiso antes de abrir CPAL.
 - [ ] Compilar el APK Horizon Android con el parche de manifiesto/Java.
 - [ ] Probar micrófono, reproducción, UDP y audio de proximidad en un dispositivo Android.
