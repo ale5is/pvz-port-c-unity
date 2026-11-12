@@ -12,10 +12,10 @@ The target is the Android APK, not a dynamically loaded desktop `.hnmod`. Horizo
 4. From this repository, run:
 
 ```sh
-python scripts/build_android_port.py --horizon-source /path/to/starling --abi arm64-v8a --sdk /path/to/Android/Sdk --java-home /path/to/jdk
+python scripts/build_android_port.py --horizon-source /path/to/starling --abi arm64-v8a --sdk /path/to/Android/Sdk --java-home /path/to/jdk --trust-native-code
 ```
 
-The script installs the exact `horizon-mixins` revision used by Horizon 0.7.8 if it is not already on PATH, applies the API-80 bundle to a separate staged source tree, copies the prepared engine data, and invokes Horizon's own Android build script. Use `--check-only` first to type-check without packaging an APK.
+The script installs the exact `horizon-mixins` revision used by Horizon 0.7.8 if it is not already on PATH, applies the API-80 bundle to a separate staged source tree, copies the prepared engine data, and invokes Horizon's own Android build script. Use `--check-only --trust-native-code` first to type-check without packaging an APK. The trust flag is required because Cargo executes the mod's reviewed build script.
 
 The build is not yet validated. Android microphone permission handling, audio-device capture/playback, and the Simple Voice Chat UDP handshake still need runtime testing.
 

@@ -1,0 +1,61 @@
+name: Horizon Android port check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-arm64-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Horizon Port Pavo
+        uses: actions/checkout@v4
+
+      - name: Checkout exact Horizon 0.7.8 source
+        uses: actions/checkout@v4
+        with:
+          repository: starling-client/starling
+          ref: 68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29
+          path: horizon-source
+
+      - name: Install Rust 1.95.0 and Android target
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+          targets: aarch64-linux-android
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install pinned Android NDK and build tools
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager --install "ndk;28.2.13676358" "build-tools;35.0.0" "platforms;android-36"
+
+      - name: Apply API-80 port and check Android ARM64
+        run: |
+          python scripts/build_android_port.py \
+            --horizon-source horizon-source \
+            --abi arm64-v8a \
+            --sdk "$ANDROID_HOME" \
+            --java-home "$JAVA_HOME" \
+            --check-only \
+            --trust-native-code

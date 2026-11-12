@@ -20,11 +20,22 @@ def install_mixins():
     if not cargo:
         raise SystemExit("Rust/Cargo is required. Install Rust first.")
     root = ROOT / ".build/horizon-mixins"
-    run([cargo, "install", "--locked", "--git", MIXINS_REPO, "--rev", MIXINS_REV,
-         "--root", root, "--force", "horizon-mixins-cli"])
     executable = root / "bin" / ("horizon-mixins.exe" if os.name == "nt" else "horizon-mixins")
+    marker = root / ".pinned-revision"
+    if executable.is_file() and marker.is_file() and marker.read_text(encoding="utf-8").strip() == MIXINS_REV:
+        return executable
+    rustup = shutil.which("rustup")
+    if rustup:
+        run([rustup, "toolchain", "install", "1.95.0"])
+        cargo_command = [cargo, "+1.95.0"]
+    else:
+        cargo_command = [cargo]
+    run([*cargo_command, "install", "--locked", "--git", MIXINS_REPO, "--rev", MIXINS_REV,
+         "--root", root, "--force", "horizon-mixins-cli"])
     if not executable.is_file():
         raise SystemExit(f"Pinned horizon-mixins binary was not created: {executable}")
+    root.mkdir(parents=True, exist_ok=True)
+    marker.write_text(MIXINS_REV + "\\n", encoding="utf-8")
     return executable
 
 def verify_source(source):
