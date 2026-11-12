@@ -49,8 +49,14 @@ pub fn world_lifecycle(
     }
 }
 
-pub fn on_net(channel: &str, data: &[u8]) {
-    locked().on_net(channel, data, None, Instant::now());
+pub fn server_address(game: &crate::game::Game<'_>) -> Option<&str> {
+    game.remote
+        .as_ref()
+        .map(|remote| remote.session.address.as_str())
+}
+
+pub fn on_net(channel: &str, data: &[u8], server_address: Option<&str>) {
+    locked().on_net(channel, data, server_address, Instant::now());
 }
 
 pub fn on_key(key: &str, pressed: bool) {
