@@ -1,22 +1,21 @@
 # Port status — Horizon Port Pavo
 
 ## Confirmed from Horizon 0.7.8 source
-- The 0.7.8 launcher already includes native-mod compilation: `launcher/src/native_mods.rs`, `launcher/src/native_mods/crates.rs`, and `launcher/src/rust_toolchain.rs`.
-- Hook API is 80. The needed `frame`, `world_lifecycle`, `key`, `command`, and `net_from_server` hooks exist.
-- Native bundles are ZIP-based `.hnmod` files. Their manifest requires schema, id, version, game, exact Horizon and mixins commits, and optional hook API.
-- Bundle source files are restricted to Rust/TOML plus text and `data/` payloads. Opus C/H files therefore must be packaged as data, then read from Horizon's `native-data/<mod-id>/` staging directory during the crate build.
+- Native hook API is 80. The needed `frame`, `world_lifecycle`, `key`, `command`, and `net_from_server` hooks exist.
+- The 0.7.8 desktop launcher's native-mod compiler builds a desktop `horizon-client` executable. Its bundled Rust toolchains target desktop hosts only; it is not the Android APK pipeline.
+- Android is built separately by `tools/android_build.py`, which compiles package `horizon-android` for Android ABIs.
+- The pinned horizon-mixins revision supports named hooks, bundle crates and data staging. C/H vendor files must be placed in bundle `data/`; the crate build script then reads them from `native-data/<mod-id>/`.
 
-## Implemented in this workspace
-- API-80 hook manifest and adapters for lifecycle, key, server network, command and frame.
-- Removed the unused player-submit callback without substituting an unrelated hook.
-- Adapted key names from `key.keyboard.v` to the mod's `KeyV` representation.
-- Prevented the command hook from claiming unrelated commands.
+## Implemented
+- API-80 hook adapters for lifecycle, key, server network, command and frame.
+- Removed the unused player-submit callback; no unrelated hook was substituted.
+- Adapted vanilla key names and prevented the command hook from claiming unrelated commands.
 - Imported the client protocol, session, audio and Opus FFI Rust code.
-- Imported 205 Opus C/H files; the build script supports both direct-source builds and the `native-data` layout used by packaged `.hnmod` bundles.
-- Added a packager that converts the workspace to the 0.7.8 bundle ZIP layout.
+- Imported 205 Opus C/H files and made the build script support both direct-source and staged-data layouts.
+- Added a bundle packager and an Android-specific build script that applies the exact 0.7.8 mixins revision to a clean Horizon source tree before invoking the Android APK build pipeline.
 
 ## Not yet verified
-- The `.hnmod` packager has not been run in this environment.
-- The 0.7.8 `horizon-mixins` apply step has not been executed against the mod.
-- No native build, Android build, installation, microphone capture, UDP handshake or playback has been tested.
-- The Android audio backend and platform permissions remain a specific validation risk.
+- The bundle packager has not been executed.
+- The mixins apply stage has not been executed against a local Horizon checkout.
+- No Android cargo check or APK build has succeeded yet.
+- No device installation, microphone capture, audio playback, UDP handshake or server interoperability has been tested.
