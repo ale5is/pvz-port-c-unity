@@ -488,7 +488,12 @@ mod tests {
         assert!(!body.is_empty());
         let body = secret_bytes(7, 24454, 48.0);
         eprintln!("parse: {:?}", proto::read("voicechat:secret", &body));
-        g.on_net("voicechat:secret", &body, None, Instant::now());
+        g.on_net(
+            "voicechat:secret",
+            &body,
+            Some("127.0.0.1:25565"),
+            Instant::now(),
+        );
         assert!(g.session.is_some());
         assert_eq!(g.server_addr.unwrap().port(), 24454);
     }
