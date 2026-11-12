@@ -103,6 +103,3 @@ pub fn on_command(command: &str, ran: &mut bool) {
     *ran = true;
 }
 
-pub fn on_frame(_game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration) {
-    let _ = locked().on_frame(Instant::now());
-}

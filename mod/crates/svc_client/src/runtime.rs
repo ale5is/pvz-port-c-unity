@@ -128,12 +128,7 @@ impl Glue {
         let Ok(msg) = parsed else { return };
         match msg {
             proto::ServerMessage::Secret { secret, port, player, distance, voice_host, .. } => {
-                let host = if voice_host.is_empty() {
-                    hint.unwrap_or("127.0.0.1").to_string()
-                } else {
-                    resolve_host(&voice_host)
-                };
-                let target = socket_of(&host, port);
+                let target = voice_socket(&voice_host, hint, port);
                 self.server_addr = Some(target);
                 let mut s = Session::new(player);
                 s.set_max_distance(distance);
@@ -375,25 +370,37 @@ fn host_of(addr: SocketAddr) -> String {
     }
 }
 
-fn resolve_host(host: &str) -> String {
-    use std::net::ToSocketAddrs;
-    format!("{}:0", host)
-        .to_socket_addrs()
-        .ok()
-        .and_then(|mut it| it.next())
-        .map(|a| host_of(a))
-        .unwrap_or_else(|| host.to_string())
+fn voice_socket(voice_host: &str, hint: Option<&str>, port: u16) -> SocketAddr {
+    let fallback = hint.unwrap_or("127.0.0.1");
+    if voice_host.is_empty() {
+        return socket_of(fallback, port);
+    }
+    if let Ok(port_override) = voice_host.parse::<u16>() {
+        return socket_of(fallback, port_override);
+    }
+    if let Some((host, port_text)) = voice_host.rsplit_once(':')
+        && (host.starts_with('[') || !host.contains(':'))
+        && let Ok(port_override) = port_text.parse::<u16>()
+    {
+        return socket_of(host, port_override);
+    }
+    socket_of(voice_host, port)
 }
 
 fn socket_of(host: &str, port: u16) -> SocketAddr {
     use std::net::ToSocketAddrs;
-    format!("{}:{}", host, port)
+    let address = if host.starts_with('[') {
+        format!("{host}:{port}")
+    } else if host.contains(':') {
+        format!("[{host}]:{port}")
+    } else {
+        format!("{host}:{port}")
+    };
+    address
         .to_socket_addrs()
         .ok()
         .and_then(|mut it| it.next())
-        .unwrap_or_else(|| {
-            ([127, 0, 0, 1], port).into()
-        })
+        .unwrap_or_else(|| ([127, 0, 0, 1], port).into())
 }
 
 /// The shared state the helpers reach.
