@@ -749,14 +749,13 @@ mod tests {
         }
         .write();
         assert_eq!(mic, [&[1u8, 2, 0xAA, 0xBB][..], &5i64.to_be_bytes(), &[1]].concat());
-        let auth = ToServer::Authenticate {
-            player: 7,
-            secret: [3; 16],
-        }
-        .write();
-        assert_eq!(auth, [&[5u8][..], &7u128.to_be_bytes(), &[3; 16]].concat());
+        assert_eq!(ToServer::Authenticate.write(), vec![5]);
         assert_eq!(ToServer::KeepAlive.write(), vec![8]);
-        assert_eq!(ToServer::ConnectionCheck.write(), vec![9]);
+        let nonce = [0xAA; 16];
+        assert_eq!(
+            ToServer::ConnectionCheck { nonce }.write(),
+            [&[9u8][..], &nonce[..]].concat()
+        );
         assert_eq!(ToServer::Ping { id: 1, timestamp: 2 }.write(), [&[7u8][..], &1u128.to_be_bytes(), &2i64.to_be_bytes()].concat());
 
         let sound = [
@@ -796,7 +795,11 @@ mod tests {
                 sequence: 2,
             })
         );
-        assert_eq!(FromServer::read(&[6]), Ok(FromServer::AuthenticateAck));
+        let ack = [&[6u8][..], &[0xBB; 16][..]].concat();
+        assert_eq!(
+            FromServer::read(&ack),
+            Ok(FromServer::AuthenticateAck { nonce: [0xBB; 16] })
+        );
         assert_eq!(FromServer::read(&[10]), Ok(FromServer::ConnectionCheckAck));
         assert_eq!(FromServer::read(&[1]), Err(Malformed), "a client's packet");
     }
