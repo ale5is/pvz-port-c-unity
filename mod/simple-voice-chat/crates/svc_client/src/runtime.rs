@@ -29,6 +29,8 @@ pub fn is_voice_command(command: &str) -> bool {
 pub struct VoiceConfig {
     /// The key that opens the mic while held (`KeyV`).
     pub ptt_key: String,
+    pub mute_key: String,
+    pub enabled: bool,
     pub muted: bool,
     /// Master playback volume, 0..=1.
     pub volume: f32,
@@ -38,7 +40,7 @@ pub struct VoiceConfig {
 
 impl Default for VoiceConfig {
     fn default() -> Self {
-        Self { ptt_key: "KeyV".into(), muted: false, volume: 1.0, mic_volume: 1.0 }
+        Self { ptt_key: "KeyV".into(), mute_key: "KeyM".into(), enabled: true, muted: false, volume: 1.0, mic_volume: 1.0 }
     }
 }
 
@@ -485,7 +487,7 @@ impl Glue {
             self.ptt_held = pressed;
             return None;
         }
-        if pressed && code.eq_ignore_ascii_case("KeyM") {
+        if pressed && code.eq_ignore_ascii_case(&self.cfg.mute_key) {
             self.cfg.muted = !self.cfg.muted;
             return Some(if self.cfg.muted {
                 "voice muted".into()
