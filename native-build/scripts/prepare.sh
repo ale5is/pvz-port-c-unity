@@ -8,7 +8,7 @@ commit=$(python3 - "$repo_root/native-build/versions.json" "$version" <<'PY'
 import json, sys
 versions = json.load(open(sys.argv[1]))
 try:
-    print(versions[sys.argv[2]])
+    print(versions[sys.argv[2]]["horizon"])
 except KeyError:
     raise SystemExit("unsupported Horizon version: " + sys.argv[2])
 PY
