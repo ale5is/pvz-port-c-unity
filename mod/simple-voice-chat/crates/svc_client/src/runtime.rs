@@ -120,6 +120,8 @@ impl Glue {
     /// A world opened: drop any old session, the handshake goes out next.
     pub fn world_open(&mut self) {
         self.world_active = true;
+        self.permission_checked = false;
+        self.last_permission_check = None;
         self.last_audio_attempt = None;
         self.session = None;
         self.server_addr = None;
@@ -134,6 +136,7 @@ impl Glue {
     /// The world closed: the socket dies with it.
     pub fn world_close(&mut self) {
         self.world_active = false;
+        self.hud_open = false;
         if let Some(mut s) = self.session.take() {
             s.close();
         }
