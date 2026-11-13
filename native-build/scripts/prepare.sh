@@ -27,6 +27,8 @@ cp "$repo_root/patches/horizon-078/voicechat-packets.patch" "$root/patches/horiz
 cp "$repo_root/patches/horizon-078/native-mod-system.py" "$root/patches/horizon-078/"
 rm -rf "$root/builtin/simple-voice-chat"
 cp -r "$repo_root/mod/simple-voice-chat" "$root/builtin/simple-voice-chat"
+rm -rf "$root/builtin/native-mod-builder"
+cp -r "$repo_root/mod/native-mod-builder" "$root/builtin/native-mod-builder"
 echo "$commit" > "$root/HORIZON_COMMIT"
 echo "$version" > "$root/HORIZON_VERSION"
 echo "Prepared Horizon $version at $commit in $root"
