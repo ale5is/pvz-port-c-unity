@@ -339,16 +339,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.reply(400, {"error": "incomplete request body"})
         ask = secrets.token_urlsafe(24).replace("-", "_")
         version_file = ROOT / "versions.json"
-        commit = json.loads(version_file.read_text()).get(version)
-        if not commit:
+        version_info = json.loads(version_file.read_text()).get(version)
+        if not version_info:
             return self.reply(400, {"error": "unsupported Horizon version"})
+        commit = version_info["horizon"]
         with tempfile.TemporaryDirectory(prefix="horizon-validate-") as temp:
             try:
                 manifests = unpack_request(body, pathlib.Path(temp) / "mods")
-                if any(m.get("horizon") != commit for m in manifests):
-                    return self.reply(400, {"error": "one or more mods target a different Horizon revision"})
-                if any(m.get("mixins") != "a2af5c0dd4117d51ecd70066ba7a00b4a2c10dab" for m in manifests):
-                    return self.reply(400, {"error": "one or more mods target an unsupported horizon-mixins revision"})
+                if any(
+                    m.get("horizon") != commit
+                    or m.get("game") != version_info["game"]
+                    or m.get("mixins") != version_info["mixins"]
+                    for m in manifests
+                ):
+                    return self.reply(400, {"error": "one or more mods target a different Horizon, Minecraft or mixins revision"})
             except Exception as error:
                 return self.reply(400, {"error": str(error)})
         folder = DATA / "requests"
