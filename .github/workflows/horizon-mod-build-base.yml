@@ -1,6 +1,11 @@
 name: Prepare Horizon 0.7.8 native-mod build cache
 
 on:
+  push:
+    branches:
+      - port/horizon-078-hooks-359
+    paths:
+      - "native-build/run-base-cache.once"
   workflow_dispatch:
 
 permissions:
