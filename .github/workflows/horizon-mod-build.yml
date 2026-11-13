@@ -49,6 +49,10 @@ jobs:
           exit 1
       - name: Prepare pinned Horizon source and built-in SVC mod
         run: bash native-build/scripts/prepare.sh "${{ inputs.version }}"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
       - name: Verify toolchain and install Android build packages
         run: bash native-build/scripts/tools.sh
       - name: Free temporary runner disk space
