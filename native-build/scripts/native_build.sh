@@ -64,7 +64,7 @@ export ANDROID_HOME
 (cd "$build" && python3 tools/android_build.py \
   --abi "$ABI" --ndk-version "$NDK_VERSION" \
   --build-tools-version "$BUILD_TOOLS_VERSION" \
-  --sdk "$ANDROID_HOME" --profile "$PROFILE" --rust-only)
+  --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME" --profile "$PROFILE" --rust-only)
 library=$build/target/aarch64-linux-android/$PROFILE/libhorizon_android.so
 [ -s "$library" ] || fail "Android ARM64 library was not produced: $library"
 cp "$library" "$out/libhorizon_android.so"
