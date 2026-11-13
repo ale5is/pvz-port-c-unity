@@ -1,0 +1,40 @@
+name: Prepare Horizon 0.7.8 native-mod build cache
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  base:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      MOD_BUILD_BASE_OVERRIDE: "1"
+      MOD_BUILD_SECONDS_OVERRIDE: "3200"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prepare pinned Horizon source and built-in SVC mod
+        run: bash native-build/scripts/prepare.sh 0.7.8
+      - name: Install Rust, Android NDK and horizon-mixins
+        run: bash native-build/scripts/tools.sh
+      - name: Free temporary runner disk space
+        run: bash native-build/scripts/room.sh
+      - name: Build trusted Horizon + Simple Voice Chat base
+        run: |
+          commit=$(cat "$HOME/modbuild/HORIZON_COMMIT")
+          job="$HOME/modbuild/jobs/base"
+          mkdir -p "$job/mods" "$job/out"
+          bash native-build/scripts/mod_build_sandbox.sh "$HOME/modbuild" "$commit" "$job"
+      - name: Save reusable clean build cache
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            /home/runner/.rustup
+            /home/runner/modbuild/cargo
+            /home/runner/modbuild/base
+            /usr/local/lib/android/sdk/ndk/27.2.12479018
+          key: horizon-078-native-base-arm64-v1
