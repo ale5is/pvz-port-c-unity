@@ -48,6 +48,13 @@ def main() -> None:
         pass
     else:
         raise AssertionError("Starling API 359 bundle was accepted for Horizon 0.7.8 API 80")
+    reserved_id = dict(manifest, id="horizon-native-builder")
+    try:
+        check_compatibility([reserved_id], VERSION)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("built-in native builder ID was not reserved")
     with tempfile.TemporaryDirectory() as temp:
         body = len(valid).to_bytes(4, "big") + valid
         result = unpack_request(body, pathlib.Path(temp))
