@@ -707,6 +707,19 @@ mod tests {
     }
 
     #[test]
+    fn missing_secret_reply_is_reported_after_timeout() {
+        let mut g = glue();
+        g.world_open();
+        let sent = Instant::now();
+        g.record_tx(proto::REQUEST_SECRET, proto::request_secret().len(), sent);
+        g.on_frame(sent + SECRET_TIMEOUT);
+        assert_eq!(g.connection_stage, "TIMEOUT SECRET");
+        assert!(g.last_net_error.contains("voicechat:secret"));
+        assert_eq!(g.net_tx_count, 1);
+        assert_eq!(g.net_rx_count, 0);
+    }
+
+    #[test]
     fn handshake_builds_and_connects() {
         let mut g = glue();
         g.world_open();
