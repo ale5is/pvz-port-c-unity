@@ -31,15 +31,20 @@ Then a build request can be submitted to Horizon native mod build with:
 The request body is a sequence of big-endian 32-bit lengths followed by .hnmod ZIP files.
 The output artifact contains libhorizon_android.so and build.json.
 
-## Not yet the in-game feature
+## In-game workflow
 
-The build worker and GitHub workflow are foundations, not a finished in-game compiler.
-The Android file picker and next-start native-library loader are already patched into the APK.
-The remaining in-game work is the Starlight-style build card and its Rust client: collect enabled
-.hnmod files, upload them to the configured gateway, poll progress, verify the downloaded SHA-256,
-store the library under files/native, and mark it current for the next launch. The gateway code is
-provided, but it still must be deployed behind HTTPS with a server-side GitHub token. That token
-must never be embedded in the APK.
+1. Import a compatible `.hnmod` package through the Android file picker. It is stored in
+   `files/horizon-native-mods/`.
+2. Put the HTTPS gateway base URL in `files/horizon-native-mods/build-server.txt`.
+3. Open Options → Mods → Native Mod Builder and choose Compile installed native mods.
+4. The app uploads the packages, displays build progress, verifies the returned SHA-256 and
+   records the compiled library under `files/native/`.
+5. Restart Horizon. The Android bootstrap loads the verified library for that APK installation;
+   if the custom build fails to reach the game window twice, it falls back to the APK's original
+   library.
+
+The gateway must be deployed behind HTTPS with a server-side GitHub token. That token must never
+be embedded in the APK.
 
 Native mods execute with the game's process permissions. Only compile code from authors you trust.
 The worker validates the bundle format and runs compilation without network access or secrets, but
