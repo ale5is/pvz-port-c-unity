@@ -65,6 +65,8 @@ pub struct Glue {
     pub codec: Option<crate::audio::VoiceCodec>,
     last_audio_attempt: Option<Instant>,
     pub audio_permission_granted: bool,
+    pub permission_checked: bool,
+    pub hud_open: bool,
     last_permission_check: Option<Instant>,
     world_active: bool,
 }
@@ -88,6 +90,8 @@ impl Default for Glue {
             codec: None,
             last_audio_attempt: None,
             audio_permission_granted: false,
+            permission_checked: false,
+            hud_open: false,
             last_permission_check: None,
             world_active: false,
         }
@@ -252,6 +256,7 @@ impl Glue {
     }
 
     pub fn set_audio_permission(&mut self, granted: bool) {
+        self.permission_checked = true;
         if self.audio_permission_granted != granted {
             self.audio_permission_granted = granted;
             self.last_audio_attempt = None;
