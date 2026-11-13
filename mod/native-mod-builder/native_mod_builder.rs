@@ -84,6 +84,7 @@ pub(super) fn settings(
         short(&state.status)
     };
     buttons.push(format!("{action} — {status}"));
+    buttons.push("Revert to original Horizon library on next launch".into());
 }
 
 pub(super) fn settings_click(
@@ -91,8 +92,45 @@ pub(super) fn settings_click(
     mod_id: &str,
     button: usize,
 ) {
-    if mod_id == BUILDER_ID && button == 0 {
-        start_compile();
+    if mod_id != BUILDER_ID {
+        return;
+    }
+    match button {
+        0 => start_compile(),
+        1 => disable_compiled_build(),
+        _ => {}
+    }
+}
+
+fn app_home() -> Result<std::path::PathBuf, String> {
+    let config = Game::native_config_dir()?;
+    config
+        .parent()
+        .map(std::path::Path::to_path_buf)
+        .ok_or_else(|| "Horizon config directory has no application-data parent.".into())
+}
+
+fn disable_compiled_build() {
+    let result = (|| -> Result<(), String> {
+        let native = app_home()?.join("native");
+        match fs::remove_file(native.join("current")) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.to_string()),
+        }
+        let _ = fs::remove_file(native.join("starts"));
+        Ok(())
+    })();
+    let mut state = state_lock();
+    match result {
+        Ok(()) => {
+            state.status = "Original Horizon library selected for the next launch.".into();
+            state.error = None;
+        }
+        Err(error) => {
+            state.status = format!("Could not select original Horizon library: {error}");
+            state.error = Some(error);
+        }
     }
 }
 
@@ -222,11 +260,7 @@ fn bundles_body(home: &std::path::Path) -> Result<Vec<u8>, String> {
 }
 
 fn compile_installed() -> Result<String, String> {
-    let config = Game::native_config_dir()?;
-    let home = config
-        .parent()
-        .ok_or("Horizon config directory has no application-data parent.")?
-        .to_path_buf();
+    let home = app_home()?;
     let server = server_url(&home)?;
     let stamp = std::env::var("HORIZON_APK")
         .ok()
