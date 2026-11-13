@@ -1,0 +1,48 @@
+[mod]
+id = "horizon-native-builder"
+version = "0.1.0"
+priority = 100
+
+[compatibility]
+horizon_revision = "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29"
+
+[[module]]
+id = "runtime"
+file = "crates/horizon-client/src/game.rs"
+name = "native_mod_builder"
+source = "native_mod_builder.rs"
+
+[[injection]]
+id = "mods"
+kind = "HEAD"
+hook = "mods"
+hook_version = 1
+helper = "mods.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "mods", ty = "&mut Vec<crate::game::native_hooks::NativeMod>", value = "&mut *mods" },
+]
+
+[[injection]]
+id = "settings"
+kind = "HEAD"
+hook = "settings"
+hook_version = 1
+helper = "settings.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "mod_id", ty = "&str", value = "mod_id" },
+  { name = "buttons", ty = "&mut Vec<String>", value = "&mut *buttons" },
+]
+
+[[injection]]
+id = "settings_click"
+kind = "HEAD"
+hook = "settings_click"
+hook_version = 1
+helper = "settings_click.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "mod_id", ty = "&str", value = "mod_id" },
+  { name = "button", ty = "usize", value = "button" },
+]

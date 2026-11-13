@@ -46,6 +46,8 @@ jobs:
         run: git -C upstream/horizon-078 apply "$GITHUB_WORKSPACE/patches/horizon-078/audio-permission.patch"
       - name: Route raw Simple Voice Chat custom payloads into the existing native hook
         run: git -C upstream/horizon-078 apply "$GITHUB_WORKSPACE/patches/horizon-078/voicechat-packets.patch"
+      - name: Add native mod compilation loader and .hnmod import support
+        run: python3 "$GITHUB_WORKSPACE/patches/horizon-078/native-mod-system.py" upstream/horizon-078
       - name: Install Android NDK
         run: |
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
