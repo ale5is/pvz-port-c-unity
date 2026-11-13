@@ -1,3 +1,7 @@
 {
-  "0.7.8": "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29"
+  "0.7.8": {
+    "horizon": "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29",
+    "game": "26.3",
+    "mixins": "a2af5c0dd4117d51ecd70066ba7a00b4a2c10dab"
+  }
 }
