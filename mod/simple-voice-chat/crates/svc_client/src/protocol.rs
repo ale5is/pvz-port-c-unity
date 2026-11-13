@@ -1,4 +1,4 @@
-//! The voice chat wire format Simple Voice Chat 2.6.x clients speak
+//! The voice chat wire format Simple Voice Chat 2.6.27+26.3 clients speak
 //! (compatibility version 20), from the client's side: control messages on
 //! `voicechat:` channels over the game connection, and AES-128-GCM UDP
 //! datagrams for the voice itself. This is an independent implementation of
