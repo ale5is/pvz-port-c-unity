@@ -86,7 +86,7 @@ pub fn on_net(channel: &str, data: &[u8], server_address: Option<&str>) {
 }
 
 pub fn record_net_tx(channel: &str, bytes: usize) {
-    locked().record_tx(channel, bytes);
+    locked().record_tx(channel, bytes, Instant::now());
 }
 
 pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
