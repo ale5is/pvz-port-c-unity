@@ -53,6 +53,13 @@ def main() -> None:
     assert '"hooks": int(hooks_api)' in build_script
     assert "horizon-native-builder" in build_script
 
+    base_workflow = (ROOT / ".github/workflows/horizon-mod-build-base.yml").read_text()
+    build_workflow = (ROOT / ".github/workflows/horizon-mod-build.yml").read_text()
+    assert "horizon-078-native-base-arm64-v2" in base_workflow
+    assert "horizon-078-native-base-arm64-v2" in build_workflow
+    assert 'MOD_BUILD_SECONDS_OVERRIDE: "14000"' in base_workflow
+    assert "create_smoke_request.py" in base_workflow
+
     workflow = (ROOT / ".github/workflows/svc-client-check.yml").read_text()
     assert "native-mod-system.py upstream/horizon-078" in workflow
     assert "--mods mod" in workflow
