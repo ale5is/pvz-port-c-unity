@@ -73,7 +73,9 @@ def decode_bundle(data: bytes) -> tuple[str, dict[str, bytes], dict]:
         or not manifest.get("game")
         or not REV.fullmatch(manifest.get("horizon", ""))
         or not REV.fullmatch(manifest.get("mixins", ""))
-        or manifest.get("hooks") == 0
+        or not isinstance(manifest.get("hooks", 0), int)
+        or isinstance(manifest.get("hooks", 0), bool)
+        or manifest.get("hooks", 0) < 0
     ):
         raise ValueError("invalid native manifest: schema, id, version, game and revisions required")
     prefix = f"mixins/{mod_id}/"
