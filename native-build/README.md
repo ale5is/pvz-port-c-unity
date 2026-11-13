@@ -34,10 +34,12 @@ The output artifact contains libhorizon_android.so and build.json.
 ## Not yet the in-game feature
 
 The build worker and GitHub workflow are foundations, not a finished in-game compiler.
-The Android Mods page still needs the Starlight-style build card, request upload/poll/download
-client, checksum validation and next-start native-library loader. A gateway service also needs
-to accept requests, store them temporarily, dispatch the workflow with a server-side GitHub token,
-poll the run and expose its artifact. The token must never be embedded in the APK.
+The Android file picker and next-start native-library loader are already patched into the APK.
+The remaining in-game work is the Starlight-style build card and its Rust client: collect enabled
+.hnmod files, upload them to the configured gateway, poll progress, verify the downloaded SHA-256,
+store the library under files/native, and mark it current for the next launch. The gateway code is
+provided, but it still must be deployed behind HTTPS with a server-side GitHub token. That token
+must never be embedded in the APK.
 
 Native mods execute with the game's process permissions. Only compile code from authors you trust.
 The worker validates the bundle format and runs compilation without network access or secrets, but
