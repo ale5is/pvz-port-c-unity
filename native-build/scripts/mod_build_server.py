@@ -105,6 +105,9 @@ def decode_bundle(data: bytes) -> tuple[str, dict[str, bytes], dict]:
 
 
 def check_compatibility(manifests: list[dict], version: dict) -> None:
+    reserved = {"simple-voice-chat", "native-mod-builder", "horizon-native-builder"}
+    if any(item.get("id") in reserved for item in manifests):
+        raise ValueError("native mod ID is reserved by Horizon's built-in mods")
     if any(
         item.get("horizon") != version["horizon"]
         or item.get("game") != version["game"]
