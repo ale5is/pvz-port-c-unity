@@ -39,6 +39,8 @@ pub enum Event {
 
 pub struct Session {
     player: u128,
+    connection_id: u128,
+    auth_nonce: Option<[u8; 16]>,
     rng: ring::rand::SystemRandom,
     cipher: Option<Cipher>,
     socket: Option<UdpSocket>,
@@ -66,6 +68,8 @@ impl Session {
     pub fn new(player: u128) -> Self {
         Self {
             player,
+            connection_id: 0,
+            auth_nonce: None,
             rng: ring::rand::SystemRandom::new(),
             cipher: None,
             socket: None,
@@ -136,16 +140,15 @@ impl Session {
     }
 
     /// The server's secret reply arrived; open the UDP socket and authenticate.
-    pub fn on_secret(&mut self, secret: [u8; 16], server: SocketAddr) -> std::io::Result<()> {
+    pub fn on_secret(&mut self, secret: [u8; 16], connection_id: u128, server: SocketAddr) -> std::io::Result<()> {
         let socket = UdpSocket::bind(if server.is_ipv4() { "0.0.0.0:0" } else { "[::]:0" })?;
         socket.set_nonblocking(true)?;
         self.socket = Some(socket);
+        self.connection_id = connection_id;
+        self.auth_nonce = None;
         self.cipher = Some(Cipher::new(&secret));
         self.server = Some(server);
-        self.send(&ToServer::Authenticate {
-            player: self.player,
-            secret,
-        });
+        self.send(&ToServer::Authenticate);
         self.state = State::Connecting;
         self.last_seen = Instant::now();
         Ok(())
@@ -156,6 +159,8 @@ impl Session {
         self.socket = None;
         self.cipher = None;
         self.server = None;
+        self.connection_id = 0;
+        self.auth_nonce = None;
         self.state = State::Idle;
         self.events.clear();
     }
@@ -168,7 +173,7 @@ impl Session {
         let Some(sealed) = cipher.seal(&self.rng, &packet.write()) else {
             return;
         };
-        let datagram = client_datagram(self.player, &sealed);
+        let datagram = client_datagram(self.connection_id, &sealed);
         match socket.send_to(&datagram, server) {
             Ok(_) => self.udp_tx_count = self.udp_tx_count.saturating_add(1),
             Err(error) => self.last_udp_error = Some(format!("UDP send_to: {error}")),
@@ -190,6 +195,15 @@ impl Session {
 
     /// The keep-alive and ping clocks; call once per frame while connected.
     pub fn tick(&mut self) {
+        if self.state == State::Connecting {
+            if let Some(nonce) = self.auth_nonce {
+                if self.last_keep_alive.elapsed() >= self.keep_alive_every {
+                    self.last_keep_alive = Instant::now();
+                    self.send(&ToServer::ConnectionCheck { nonce });
+                }
+            }
+            return;
+        }
         if self.state != State::Connected {
             return;
         }
@@ -264,13 +278,20 @@ impl Session {
         };
         self.last_seen = Instant::now();
         match packet {
-            FromServer::AuthenticateAck => {
+            FromServer::AuthenticateAck { nonce } => {
+                if self.state == State::Connecting {
+                    self.auth_nonce = Some(nonce);
+                    self.last_keep_alive = Instant::now() - self.keep_alive_every;
+                }
+            }
+            FromServer::ConnectionCheckAck => {
                 if self.state == State::Connecting {
                     self.state = State::Connected;
+                    self.auth_nonce = None;
                     self.events.push(Event::Connected);
                 }
             }
-            FromServer::KeepAlive | FromServer::Ping { .. } | FromServer::ConnectionCheckAck => {}
+            FromServer::KeepAlive | FromServer::Ping { .. } => {}
             FromServer::Positional {
                 sender,
                 data,
@@ -356,7 +377,8 @@ mod tests {
             self.from = Some(from);
             let mut r = In::new(&buf[..n]);
             assert_eq!(r.byte().unwrap(), MAGIC);
-            let _player = r.uuid().unwrap();
+            let connection_id = r.uuid().unwrap();
+            assert_eq!(connection_id, 0xCC);
             let sealed = r.bytes(MAX_BODY).unwrap();
             let plain = self.cipher.open(sealed).unwrap();
             match ToServer::read(&plain) {
@@ -391,18 +413,23 @@ mod tests {
         let mut s = Session::new(player);
         s.request_secret();
         assert_eq!(s.state(), State::RequestingSecret);
-        s.on_secret(secret, addr).unwrap();
+        s.on_secret(secret, 0xCC, addr).unwrap();
         assert_eq!(s.state(), State::Connecting);
 
         // The server reads the sealed Authenticate and answers with the ack.
         match srv.recv_packet() {
-            ToServer::Authenticate { player: p, secret: got } => {
-                assert_eq!(p, player);
-                assert_eq!(got, secret);
-            }
+            ToServer::Authenticate => {}
             other => panic!("expected Authenticate, got {other:?}"),
         }
-        srv.send_packet(&FromServer::AuthenticateAck);
+        srv.send_packet(&FromServer::AuthenticateAck { nonce: [0xAA; 16] });
+        assert!(s.pump().is_empty());
+        assert_eq!(s.state(), State::Connecting);
+        s.tick();
+        match srv.recv_packet() {
+            ToServer::ConnectionCheck { nonce } => assert_eq!(nonce, [0xAA; 16]),
+            other => panic!("expected ConnectionCheck, got {other:?}"),
+        }
+        srv.send_packet(&FromServer::ConnectionCheckAck);
         assert_eq!(s.pump(), vec![Event::Connected]);
         assert_eq!(s.state(), State::Connected);
 
