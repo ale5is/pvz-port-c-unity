@@ -79,12 +79,11 @@ pub(super) fn settings(
         "Compile installed native mods"
     };
     let status = if state.status.is_empty() {
-        "Idle"
+        "Idle".to_owned()
     } else {
         short(&state.status)
     };
-    buttons.push(action.into());
-    buttons.push(format!("Refresh status: {status}"));
+    buttons.push(format!("{action} — {status}"));
 }
 
 pub(super) fn settings_click(
@@ -223,7 +222,11 @@ fn bundles_body(home: &std::path::Path) -> Result<Vec<u8>, String> {
 }
 
 fn compile_installed() -> Result<String, String> {
-    let home = std::env::current_dir().map_err(|e| e.to_string())?;
+    let config = Game::native_config_dir()?;
+    let home = config
+        .parent()
+        .ok_or("Horizon config directory has no application-data parent.")?
+        .to_path_buf();
     let server = server_url(&home)?;
     let stamp = std::env::var("HORIZON_APK")
         .ok()
