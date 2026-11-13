@@ -675,6 +675,8 @@ mod tests {
         assert!(glue.last_audio_attempt.is_none());
         glue.world_open();
         assert!(glue.is_world_active());
+        assert!(glue.ensure_audio(Instant::now()).is_empty());
+        assert!(glue.last_audio_attempt.is_none(), "audio must not initialize before the SVC UDP session is connected");
         glue.world_close();
         assert!(!glue.is_world_active());
         assert!(glue.mic.is_none());
