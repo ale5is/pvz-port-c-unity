@@ -28,13 +28,15 @@ pub struct VoiceConfig {
     /// The key that opens the mic while held (`KeyV`).
     pub ptt_key: String,
     pub muted: bool,
-    /// Mic capture volume, 0..=1.
+    /// Master playback volume, 0..=1.
     pub volume: f32,
+    /// Microphone capture gain, 0..=1.
+    pub mic_volume: f32,
 }
 
 impl Default for VoiceConfig {
     fn default() -> Self {
-        Self { ptt_key: "KeyV".into(), muted: false, volume: 1.0 }
+        Self { ptt_key: "KeyV".into(), muted: false, volume: 1.0, mic_volume: 1.0 }
     }
 }
 
@@ -303,7 +305,11 @@ impl Glue {
             if !talking {
                 continue;
             }
-            let packet = match self.codec.as_mut().map(|c| c.encode(&frame)) {
+            let adjusted: Vec<i16> = frame
+                .iter()
+                .map(|sample| (*sample as f32 * self.cfg.mic_volume).clamp(-32768.0, 32767.0) as i16)
+                .collect();
+            let packet = match self.codec.as_mut().map(|c| c.encode(&adjusted)) {
                 Some(Ok(p)) => p,
                 _ => break,
             };
@@ -386,24 +392,46 @@ impl Glue {
                 self.cfg.muted = false;
                 ("voice unmuted".into(), sends)
             }
+            "toggle" => {
+                self.cfg.muted = !self.cfg.muted;
+                (if self.cfg.muted { "voice muted" } else { "voice unmuted" }.into(), sends)
+            }
             "ptt" => {
                 if let Some(k) = rest.first() {
+                    if !valid_key_code(k) {
+                        return ("usage: /svc ptt KeyV (use a key code such as KeyV or KeyM)".into(), sends);
+                    }
                     self.cfg.ptt_key = k.to_string();
                     (format!("push-to-talk key set to {}", k), sends)
                 } else {
                     (format!("push-to-talk key is {}", self.cfg.ptt_key), sends)
                 }
             }
+            "volume" => {
+                if let Some(value) = rest.first().and_then(|v| v.parse::<f32>().ok()) {
+                    self.cfg.volume = value.clamp(0.0, 100.0) / 100.0;
+                }
+                (format!("voice output volume: {}%", (self.cfg.volume * 100.0).round() as u32), sends)
+            }
+            "micvolume" => {
+                if let Some(value) = rest.first().and_then(|v| v.parse::<f32>().ok()) {
+                    self.cfg.mic_volume = value.clamp(0.0, 100.0) / 100.0;
+                }
+                (format!("microphone gain: {}%", (self.cfg.mic_volume * 100.0).round() as u32), sends)
+            }
             "status" => (
-                match &self.session {
-                    None => "voice chat: not connected".into(),
-                    Some(_) if self.cfg.muted => "voice chat: connected, muted".into(),
-                    Some(_) => "voice chat: connected".into(),
-                },
+                format!(
+                    "voice chat: {}, mic permission: {}, mic gain: {}%, output: {}%, PTT: {}",
+                    if self.session.as_ref().is_some_and(|s| s.state() == crate::session::State::Connected) { "connected" } else { "disconnected" },
+                    if self.audio_permission_granted { "granted" } else { "not granted" },
+                    (self.cfg.mic_volume * 100.0).round() as u32,
+                    (self.cfg.volume * 100.0).round() as u32,
+                    self.cfg.ptt_key
+                ) + if self.cfg.muted { ", muted" } else { ", unmuted" },
                 sends,
             ),
             _ => (
-                "/svc mute|unmute|ptt <key>|status, /vcgroup create|join|leave|list".into(),
+                "/svc mute|unmute|toggle|ptt <KeyCode>|volume <0-100>|micvolume <0-100>|status; /vcgroup create|join|leave|list".into(),
                 sends,
             ),
         }
@@ -443,6 +471,11 @@ impl Glue {
             _ => "usage: /vcgroup create|join|leave|list".into(),
         }
     }
+}
+
+fn valid_key_code(key: &str) -> bool {
+    (key.starts_with("Key") && key.len() == 4 && key.as_bytes()[3].is_ascii_alphabetic())
+        || (key.starts_with("Digit") && key.len() == 6 && key.as_bytes()[5].is_ascii_digit())
 }
 
 fn host_of(addr: SocketAddr) -> String {
