@@ -10,15 +10,22 @@ pub use svc_client::runtime::{state, Glue};
 
 static OUT: Mutex<Vec<(String, Vec<u8>)>> = Mutex::new(Vec::new());
 
-fn config_base() -> String {
-    crate::game::Game::native_config_dir()
-        .to_string_lossy()
-        .into_owned()
+fn config_base() -> Option<String> {
+    match crate::game::Game::native_config_dir() {
+        Ok(path) => Some(path.to_string_lossy().into_owned()),
+        Err(error) => {
+            eprintln!("[voice] cannot resolve config directory: {error}");
+            None
+        }
+    }
 }
 
 fn save_config() {
+    let Some(base) = config_base() else {
+        return;
+    };
     let cfg = locked().cfg.clone();
-    svc_client::runtime::Glue::save_config(&config_base(), &cfg);
+    svc_client::runtime::Glue::save_config(&base, &cfg);
 }
 fn locked() -> std::sync::MutexGuard<'static, Glue> {
     state().lock().unwrap_or_else(|e| e.into_inner())
@@ -39,9 +46,10 @@ pub fn world_open_ready(_game: &mut crate::game::Game<'_>) {
     if let Err(error) = crate::native_ime::request_audio_permission() {
         eprintln!("[voice] microphone permission request failed: {error}");
     }
-    let base = config_base();
     let mut g = locked();
-    g.cfg = svc_client::runtime::Glue::load_config(&base);
+    if let Some(base) = config_base() {
+        g.cfg = svc_client::runtime::Glue::load_config(&base);
+    }
     g.world_open();
     #[cfg(not(target_os = "android"))]
     g.set_audio_permission(true);
@@ -106,9 +114,11 @@ pub fn on_command(game: &mut crate::game::Game<'_>, command: &str, ran: &mut boo
         let (feedback, outbound) = g.on_command(command);
         (feedback, outbound, g.cfg.clone())
     };
-    svc_client::runtime::Glue::save_config(&config_base(), &cfg);
+    if let Some(base) = config_base() {
+        svc_client::runtime::Glue::save_config(&base, &cfg);
+    }
     if !feedback.is_empty() {
-        game.system_message(crate::text::Text::literal(feedback));
+        game.system_message(horizon_client::text::Text::literal(feedback));
     }
     for (channel, body) in outbound {
         queue_outbound(channel, body);
