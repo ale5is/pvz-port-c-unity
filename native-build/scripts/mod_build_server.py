@@ -103,6 +103,21 @@ def decode_bundle(data: bytes) -> tuple[str, dict[str, bytes], dict]:
     return mod_id, files, manifest
 
 
+
+def check_compatibility(manifests: list[dict], version: dict) -> None:
+    if any(
+        item.get("horizon") != version["horizon"]
+        or item.get("game") != version["game"]
+        or item.get("mixins") != version["mixins"]
+        or item.get("hooks") != version["hooks"]
+        for item in manifests
+    ):
+        raise ValueError(
+            "one or more native mods target a different Horizon, Minecraft, "
+            "horizon-mixins revision or native hooks API"
+        )
+
+
 def unpack_request(body: bytes, destination: pathlib.Path) -> list[dict]:
     if len(body) > MAX_BODY:
         raise ValueError("request exceeds 32 MiB")
