@@ -239,7 +239,7 @@ impl Glue {
         self.last_net_error.clear();
         self.push_net_event(format!("RX PARSE OK {}", channel));
         match parsed {
-            proto::ServerMessage::Secret { secret, connection_id, port, player, distance, voice_host, .. } => {
+            proto::ServerMessage::Secret { secret, connection_id, port, player, distance, keep_alive_ms, voice_host, .. } => {
                 self.secret_sent_at = None;
                 self.connection_stage = "SECRETO RECIBIDO".into();
                 let host = if voice_host.is_empty() {
@@ -265,6 +265,7 @@ impl Glue {
                 self.server_addr = Some(target);
                 let mut s = Session::new(player);
                 s.set_max_distance(distance);
+                s.keep_alive_every = Duration::from_millis(keep_alive_ms.clamp(100, 60_000) as u64);
                 if let Err(error) = s.on_secret(secret, connection_id, target) {
                     self.connection_stage = "ERROR ABRIR UDP".into();
                     self.last_net_error = format!("no se pudo abrir UDP: {error}");
@@ -717,7 +718,7 @@ mod tests {
         out.push(0);
         out.extend_from_slice(&1024i32.to_be_bytes());
         out.extend_from_slice(&distance.to_be_bytes());
-        out.extend_from_slice(&1000i32.to_be_bytes());
+        out.extend_from_slice(&2500i32.to_be_bytes());
         out.push(1); // groups allowed
         out.push(0); // voice host: empty
         out.push(0); // recording not allowed
@@ -774,6 +775,7 @@ mod tests {
             Instant::now(),
         );
         assert!(g.session.is_some());
+        assert_eq!(g.session.as_ref().unwrap().keep_alive_every, Duration::from_millis(2500));
         assert_eq!(g.server_addr.unwrap().port(), 24454);
     }
 
