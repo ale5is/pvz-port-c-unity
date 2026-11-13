@@ -10,7 +10,7 @@ MOD_BUILD_BASE=0
 if [ -n "${MOD_BUILD_SECONDS_OVERRIDE-}" ]; then MOD_BUILD_SECONDS=$MOD_BUILD_SECONDS_OVERRIDE; fi
 if [ -n "${MOD_BUILD_BASE_OVERRIDE-}" ]; then MOD_BUILD_BASE=$MOD_BUILD_BASE_OVERRIDE; fi
 git -C "$root/source" checkout -q --detach "$commit"
-cleanup() { if [ "$MOD_BUILD_BASE" != 1 ]; then sudo -n rm -rf "$job/overlay"; fi; }
+cleanup() { if [ "$MOD_BUILD_BASE" != 1 ]; then sudo -n rm -rf "$job/overlay" "$job/rustup-overlay"; fi; }
 trap cleanup EXIT
 sudo -n timeout --kill-after=10 "$MOD_BUILD_SECONDS" \
   unshare --net --mount --pid --fork --kill-child --propagation private \
