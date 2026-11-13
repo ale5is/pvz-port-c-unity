@@ -1,0 +1,36 @@
+name: Horizon native-mod build tooling checks
+
+on:
+  push:
+    branches:
+      - port/horizon-078-hooks-359
+    paths:
+      - "native-build/**"
+      - ".github/workflows/horizon-mod-build*.yml"
+      - ".github/workflows/horizon-mod-build-check.yml"
+  pull_request:
+    paths:
+      - "native-build/**"
+      - ".github/workflows/horizon-mod-build*.yml"
+      - ".github/workflows/horizon-mod-build-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tooling:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check shell syntax
+        run: bash -n native-build/scripts/*.sh
+      - name: Check Python syntax
+        run: python -m py_compile native-build/scripts/*.py native-build/gateway/*.py
+      - name: Test .hnmod validation and path traversal rejection
+        run: python native-build/scripts/test_bundle.py
