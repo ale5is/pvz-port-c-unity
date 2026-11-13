@@ -37,6 +37,7 @@ jobs:
           bash -n native-build/scripts/*.sh
           python3 -m py_compile native-build/scripts/*.py native-build/gateway/*.py
           python3 native-build/scripts/test_bundle.py
+          python3 native-build/scripts/test_build_layout.py
       - name: Restore the pinned Horizon base cache
         id: cache
         uses: actions/cache/restore@v4
