@@ -22,10 +22,10 @@ This is the API-80 adaptation of the Simple Voice Chat client for Horizon Androi
 - `/svc mute`, `/svc unmute`, `/svc toggle`, `/svc status` control and report voice state.
 - `/svc ptt KeyV` changes the push-to-talk key. Key names use Horizon's `KeyA` / `KeyV` format.
 - `/svc volume 0-100` sets received voice volume; `/svc micvolume 0-100` sets microphone gain.
-- Settings are loaded when a world opens and saved under `simple_voice_chat/config.json` beside Horizon's `options.txt`.
+- Settings are loaded when a world opens and saved under `config/simple_voice_chat/config.json` using Horizon's shared native config directory.
 - Android's `RECORD_AUDIO` permission remains a separate requirement. Muting does not revoke the Android permission; denying it prevents microphone capture.
 
-These are command/key controls, not a graphical settings screen. The current port does not yet add a dedicated voice settings page.
+Command replies are shown in the in-game system chat. These are command/key controls, not a graphical settings screen. Horizon's native-mod API does not provide a generic settings-page widget for native mods; a custom screen would require a separate UI mixin.
 
 ## Validation
 
