@@ -15,4 +15,4 @@ trap cleanup EXIT
 sudo -n timeout --kill-after=10 "$MOD_BUILD_SECONDS" \
   unshare --net --mount --pid --fork --kill-child --propagation private \
   bash "$script_dir/sandbox_inner.sh" "$HOME" "$root" "$job" \
-  "$(id -u)" "$(id -g)" "$MOD_BUILD_BASE" "$script_dir"
+  "$(id -u)" "$(id -g)" "$MOD_BUILD_BASE" "$script_dir" "$JAVA_HOME"
