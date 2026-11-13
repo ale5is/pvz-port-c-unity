@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 use std::net::{SocketAddr, UdpSocket};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use crate::protocol::{client_datagram, server_datagram, Cipher, FromServer, ToServer};
 
