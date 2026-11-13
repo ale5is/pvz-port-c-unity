@@ -7,8 +7,8 @@ job=$3
 script_dir=$(cd "$(dirname "$0")" && pwd)
 MOD_BUILD_SECONDS=3200
 MOD_BUILD_BASE=0
-[ -z "$MOD_BUILD_SECONDS_OVERRIDE" ] || MOD_BUILD_SECONDS=$MOD_BUILD_SECONDS_OVERRIDE
-[ -z "$MOD_BUILD_BASE_OVERRIDE" ] || MOD_BUILD_BASE=$MOD_BUILD_BASE_OVERRIDE
+if [ -n "${MOD_BUILD_SECONDS_OVERRIDE-}" ]; then MOD_BUILD_SECONDS=$MOD_BUILD_SECONDS_OVERRIDE; fi
+if [ -n "${MOD_BUILD_BASE_OVERRIDE-}" ]; then MOD_BUILD_BASE=$MOD_BUILD_BASE_OVERRIDE; fi
 git -C "$root/source" checkout -q --detach "$commit"
 sudo -n timeout --kill-after=10 "$MOD_BUILD_SECONDS" \
   unshare --net --mount --pid --fork --kill-child --propagation private \
