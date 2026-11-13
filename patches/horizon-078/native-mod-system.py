@@ -360,10 +360,4 @@ replace(
     'entry.name.ends_with(".hmod") || entry.name.ends_with(".hnmod") || entry.name.ends_with(".jar")',
 )
 
-replace(
-    "crates/horizon-client/src/game.rs",
-    'let status = if state.status.is_empty() { "Idle" } else { short(&state.status) };',
-    'let status = if state.status.is_empty() { "Idle" } else { &short(&state.status) };',
-)
-
 print("Applied Horizon native-mod import and dynamic-library loader patches.")
