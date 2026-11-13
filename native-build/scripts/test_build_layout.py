@@ -47,7 +47,10 @@ def main() -> None:
     assert versions["0.7.8"]["hooks"] == 80
     assert versions["0.7.8"]["game"] == "26.3"
     build_script = (ROOT / "native-build/scripts/native_build.sh").read_text()
-    assert '"hooks": 80' in build_script
+    assert "HORIZON_VERSION=0.7.8" in build_script
+    assert "GAME_VERSION=26.3" in build_script
+    assert "HOOKS_API=80" in build_script
+    assert '"hooks": int(hooks_api)' in build_script
     assert "horizon-native-builder" in build_script
 
     workflow = (ROOT / ".github/workflows/svc-client-check.yml").read_text()
