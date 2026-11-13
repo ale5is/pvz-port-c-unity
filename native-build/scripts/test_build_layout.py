@@ -55,8 +55,8 @@ def main() -> None:
 
     base_workflow = (ROOT / ".github/workflows/horizon-mod-build-base.yml").read_text()
     build_workflow = (ROOT / ".github/workflows/horizon-mod-build.yml").read_text()
-    assert "horizon-078-native-base-arm64-v2" in base_workflow
-    assert "horizon-078-native-base-arm64-v2" in build_workflow
+    assert "horizon-078-native-base-arm64-v1" in base_workflow
+    assert "horizon-078-native-base-arm64-v1" in build_workflow
     assert 'MOD_BUILD_SECONDS_OVERRIDE: "14000"' in base_workflow
     assert "create_smoke_request.py" in base_workflow
 
