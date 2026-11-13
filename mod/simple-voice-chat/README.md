@@ -15,6 +15,18 @@ This is the API-80 adaptation of the Simple Voice Chat client for Horizon Androi
 - Opens playback without microphone access; microphone capture starts only after Android grants `RECORD_AUDIO` and stops when leaving the world.
 - Keeps Opus, UDP session, protocol, and audio code in the `svc_client` bundle crate.
 
+## Controls and configuration
+
+- Hold `V` (default) to transmit with push-to-talk; release it to stop.
+- Press `M` to mute or unmute the microphone.
+- `/svc mute`, `/svc unmute`, `/svc toggle`, `/svc status` control and report voice state.
+- `/svc ptt KeyV` changes the push-to-talk key. Key names use Horizon's `KeyA` / `KeyV` format.
+- `/svc volume 0-100` sets received voice volume; `/svc micvolume 0-100` sets microphone gain.
+- Settings are loaded when a world opens and saved under `simple_voice_chat/config.json` beside Horizon's `options.txt`.
+- Android's `RECORD_AUDIO` permission remains a separate requirement. Muting does not revoke the Android permission; denying it prevents microphone capture.
+
+These are command/key controls, not a graphical settings screen. The current port does not yet add a dedicated voice settings page.
+
 ## Validation
 
 The Linux client-crate CI job has passed 24 unit tests covering protocol layouts, Opus encode/decode, audio resampling/mixing, UDP handshake, voice packets, server-address resolution, command filtering, and position refresh.
