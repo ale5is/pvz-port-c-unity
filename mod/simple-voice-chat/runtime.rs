@@ -96,7 +96,13 @@ pub fn on_key(key: &str, pressed: bool) {
             }
         });
     if let Some(code) = code {
-        let changed = locked().on_key(&code, pressed).is_some();
+        let changed = {
+            let mut g = locked();
+            if code == "KeyH" && pressed {
+                g.hud_open = !g.hud_open;
+            }
+            g.on_key(&code, pressed).is_some()
+        };
         if changed {
             save_config();
         }
