@@ -174,13 +174,27 @@ def finish_artifact(ask: str, run: dict, state: dict) -> dict:
         library = archive.read("libhorizon_android.so")
         metadata = json.loads(archive.read("build.json"))
     digest = hashlib.sha256(library).hexdigest()
+    version_info = json.loads((ROOT / "versions.json").read_text())[state["version"]]
+    expected_mods = sorted(
+        {"simple-voice-chat", "horizon-native-builder", *state.get("mod_ids", [])}
+    )
+    actual_mods = [
+        item.get("id") for item in metadata.get("mods", [])
+        if isinstance(item, dict)
+    ]
     if (
         metadata.get("sha256") != digest
         or metadata.get("size") != len(library)
+        or metadata.get("version") != state["version"]
+        or metadata.get("game") != version_info["game"]
+        or metadata.get("hooks") != version_info["hooks"]
         or metadata.get("commit") != state["commit"]
+        or metadata.get("horizon_mixins") != version_info["mixins"]
         or metadata.get("abi") != "arm64-v8a"
+        or metadata.get("profile") != "fast"
+        or actual_mods != expected_mods
     ):
-        raise RuntimeError("Build artifact failed SHA-256 or target verification")
+        raise RuntimeError("Build artifact failed SHA-256, compatibility or mod-set verification")
     folder = DATA / "builds" / ask
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "libhorizon_android.so").write_bytes(library)
@@ -353,8 +367,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         folder.mkdir(parents=True, exist_ok=True)
         (folder / (ask + ".bin")).write_bytes(body)
         state = {
-            "id": ask, "version": version, "commit": commit, "state": "starting",
-            "created": now, "updated": now,
+            "id": ask, "version": version, "commit": commit,
+            "mod_ids": sorted(m["id"] for m in manifests),
+            "state": "starting", "created": now, "updated": now,
         }
         save_state(state)
         inputs = {
