@@ -38,6 +38,8 @@ pub enum Event {
 
 pub struct Session {
     player: u128,
+    secret: Option<[u8; 16]>,
+    authenticated: bool,
     rng: ring::rand::SystemRandom,
     cipher: Option<Cipher>,
     socket: Option<UdpSocket>,
@@ -64,6 +66,8 @@ impl Session {
     pub fn new(player: u128) -> Self {
         Self {
             player,
+            secret: None,
+            authenticated: false,
             rng: ring::rand::SystemRandom::new(),
             cipher: None,
             socket: None,
@@ -137,10 +141,13 @@ impl Session {
         let socket = UdpSocket::bind(if server.is_ipv4() { "0.0.0.0:0" } else { "[::]:0" })?;
         socket.set_nonblocking(true)?;
         self.socket = Some(socket);
+        self.secret = Some(secret);
+        self.authenticated = false;
         self.cipher = Some(Cipher::new(&secret));
         self.server = Some(server);
-        self.send(&ToServer::Authenticate { player: self.player, secret });
         self.state = State::Connecting;
+        self.send(&ToServer::Authenticate { player: self.player, secret });
+        self.last_keep_alive = Instant::now();
         self.last_seen = Instant::now();
         Ok(())
     }
@@ -150,6 +157,8 @@ impl Session {
         self.socket = None;
         self.cipher = None;
         self.server = None;
+        self.secret = None;
+        self.authenticated = false;
         self.state = State::Idle;
         self.events.clear();
     }
@@ -187,7 +196,11 @@ impl Session {
         if self.state == State::Connecting {
             if self.last_keep_alive.elapsed() >= self.keep_alive_every {
                 self.last_keep_alive = Instant::now();
-                self.send(&ToServer::ConnectionCheck);
+                if self.authenticated {
+                    self.send(&ToServer::ConnectionCheck);
+                } else if let Some(secret) = self.secret {
+                    self.send(&ToServer::Authenticate { player: self.player, secret });
+                }
             }
             return;
         }
@@ -256,12 +269,14 @@ impl Session {
         match packet {
             FromServer::AuthenticateAck => {
                 if self.state == State::Connecting {
+                    self.authenticated = true;
                     self.last_keep_alive = Instant::now() - self.keep_alive_every;
                 }
             }
             FromServer::ConnectionCheckAck => {
                 if self.state == State::Connecting {
                     self.state = State::Connected;
+                    self.authenticated = true;
                     self.events.push(Event::Connected);
                 }
             }
