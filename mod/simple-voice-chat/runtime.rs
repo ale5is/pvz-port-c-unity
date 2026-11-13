@@ -217,3 +217,63 @@ pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration)
     }
     let _ = g.on_frame(now);
 }
+
+pub fn register_mod(
+    _game: &mut crate::game::Game<'_>,
+    mods: &mut Vec<crate::game::native_hooks::NativeMod>,
+) {
+    if mods.iter().any(|m| m.id == "simple-voice-chat") {
+        return;
+    }
+    mods.push(crate::game::native_hooks::NativeMod {
+        id: "simple-voice-chat".into(),
+        title: "Simple Voice Chat".into(),
+        description: "Voice chat with nearby players. Configure push-to-talk and mute keys below.".into(),
+        keys: vec![
+            ["ptt".into(), "Push to Talk".into(), "key.keyboard.v".into()],
+            ["mute".into(), "Mute Microphone".into(), "key.keyboard.m".into()],
+        ],
+    });
+}
+
+pub fn settings(
+    _game: &mut crate::game::Game<'_>,
+    mod_id: &str,
+    buttons: &mut Vec<String>,
+) {
+    if mod_id != "simple-voice-chat" {
+        return;
+    }
+    let g = locked();
+    buttons.push(if g.cfg.enabled {
+        "Disable Simple Voice Chat".into()
+    } else {
+        "Enable Simple Voice Chat".into()
+    });
+}
+
+pub fn settings_click(
+    _game: &mut crate::game::Game<'_>,
+    mod_id: &str,
+    button: usize,
+) {
+    if mod_id != "simple-voice-chat" || button != 0 {
+        return;
+    }
+    let enabled = {
+        let mut g = locked();
+        g.cfg.enabled = !g.cfg.enabled;
+        g.ptt_held = false;
+        let enabled = g.cfg.enabled;
+        if !enabled {
+            g.world_close();
+        }
+        enabled
+    };
+    save_config();
+    if enabled {
+        eprintln!("[voice] Simple Voice Chat enabled");
+    } else {
+        eprintln!("[voice] Simple Voice Chat disabled");
+    }
+}
