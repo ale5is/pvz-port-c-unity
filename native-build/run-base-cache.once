@@ -2,3 +2,5 @@ One-time trigger for the trusted Horizon 0.7.8 base cache build.
 Retry after fixing SDK license acceptance.
 Retry after exporting Cargo and Rustup paths inside the sandbox.
 Retry using direct Rust 1.95.0 binaries, no rustup shim.
+
+Build the pinned Horizon 0.7.8 + Simple Voice Chat + Native Mod Builder base (hooks API 80).
