@@ -291,7 +291,10 @@ impl Session {
                     self.events.push(Event::Connected);
                 }
             }
-            FromServer::KeepAlive | FromServer::Ping { .. } => {}
+            FromServer::KeepAlive => self.send(&ToServer::KeepAlive),
+            FromServer::Ping { id, timestamp } => {
+                self.send(&ToServer::Ping { id, timestamp });
+            }
             FromServer::Positional {
                 sender,
                 data,
