@@ -373,7 +373,11 @@ impl Glue {
     }
 
     pub fn ensure_audio(&mut self, now: Instant) -> Vec<String> {
-        if !self.world_active {
+        if !self.world_active
+            || !self.session.as_ref().is_some_and(|session| {
+                session.state() == crate::session::State::Connected
+            })
+        {
             return Vec::new();
         }
         let need_microphone = self.audio_permission_granted && self.mic.is_none();
