@@ -6,6 +6,7 @@ NDK_VERSION=27.2.12479018
 BUILD_TOOLS_VERSION=35.0.0
 ABI=arm64-v8a
 PROFILE=fast
+HORIZON_VERSION=0.7.8
 GAME_VERSION=26.3
 HOOKS_API=80
 NATIVE_CACHE=$HOME/.cache/horizon-native
@@ -78,9 +79,9 @@ export ANDROID_HOME
 library=$build/target/aarch64-linux-android/$PROFILE/libhorizon_android.so
 [ -s "$library" ] || fail "Android ARM64 library was not produced: $library"
 cp "$library" "$out/libhorizon_android.so"
-python3 - "$work/mods" "$out" "$commit" "$MIXINS_REV" "$ABI" "$PROFILE" <<'PY'
+python3 - "$work/mods" "$out" "$commit" "$MIXINS_REV" "$ABI" "$PROFILE" "$HORIZON_VERSION" "$GAME_VERSION" "$HOOKS_API" <<'PY'
 import hashlib, json, pathlib, sys, tomllib
-mods, out, commit, mixins, abi, profile = sys.argv[1:]
+mods, out, commit, mixins, abi, profile, horizon_version, game_version, hooks_api = sys.argv[1:]
 mods, out = pathlib.Path(mods), pathlib.Path(out)
 entries = []
 for folder in sorted(p for p in mods.iterdir() if p.is_dir()):
@@ -88,7 +89,7 @@ for folder in sorted(p for p in mods.iterdir() if p.is_dir()):
     entries.append({"id": value["mod"]["id"], "version": value["mod"]["version"]})
 library = out / "libhorizon_android.so"
 json.dump({
-    "schema": 1, "version": "0.7.8", "game": "26.3", "hooks": 80, "commit": commit,
+    "schema": 1, "version": horizon_version, "game": game_version, "hooks": int(hooks_api), "commit": commit,
     "horizon_mixins": mixins, "abi": abi, "profile": profile,
     "mods": entries,
     "sha256": hashlib.sha256(library.read_bytes()).hexdigest(),
