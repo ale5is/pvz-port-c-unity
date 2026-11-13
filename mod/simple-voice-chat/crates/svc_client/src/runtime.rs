@@ -265,7 +265,7 @@ impl Glue {
                 self.server_addr = Some(target);
                 let mut s = Session::new(player);
                 s.set_max_distance(distance);
-                s.keep_alive_every = Duration::from_millis(keep_alive_ms.clamp(100, 60_000) as u64);
+                s.timeout_after = Duration::from_millis((keep_alive_ms.clamp(100, 60_000) as u64).saturating_mul(10));
                 if let Err(error) = s.on_secret(secret, connection_id, target) {
                     self.connection_stage = "ERROR ABRIR UDP".into();
                     self.last_net_error = format!("no se pudo abrir UDP: {error}");
@@ -775,7 +775,7 @@ mod tests {
             Instant::now(),
         );
         assert!(g.session.is_some());
-        assert_eq!(g.session.as_ref().unwrap().keep_alive_every, Duration::from_millis(2500));
+        assert_eq!(g.session.as_ref().unwrap().timeout_after, Duration::from_millis(25_000));
         assert_eq!(g.server_addr.unwrap().port(), 24454);
     }
 
