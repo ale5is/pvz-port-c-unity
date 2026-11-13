@@ -1,6 +1,6 @@
 [mod]
 id = "simple-voice-chat"
-version = "1.0.1-pavo"
+version = "1.0.2-pavo"
 priority = 100
 
 [compatibility]
@@ -94,3 +94,38 @@ bindings = [
 id = "svc_client"
 path = "crates/svc_client"
 dependent = "horizon-android"
+
+[[injection]]
+id = "register_simple_voice_chat"
+kind = "HEAD"
+hook = "mods"
+hook_version = 1
+helper = "mods.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "mods", ty = "&mut Vec<crate::game::native_hooks::NativeMod>", value = "&mut *mods" },
+]
+
+[[injection]]
+id = "simple_voice_chat_settings"
+kind = "HEAD"
+hook = "settings"
+hook_version = 1
+helper = "settings.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "mod_id", ty = "&str", value = "mod_id" },
+  { name = "buttons", ty = "&mut Vec<String>", value = "&mut *buttons" },
+]
+
+[[injection]]
+id = "simple_voice_chat_settings_click"
+kind = "HEAD"
+hook = "settings_click"
+hook_version = 1
+helper = "settings_click.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "mod_id", ty = "&str", value = "mod_id" },
+  { name = "button", ty = "usize", value = "button" },
+]
