@@ -67,7 +67,7 @@ fn hud(
     let rx_line = format!("MC RX #{}: {} ({}B)", rx_count, last_rx, rx_bytes);
     let error_line = if !net_error.is_empty() {
         format!("NET ERROR: {}", net_error)
-    } else if let Some(error) = udp_error {
+    } else if let Some(error) = udp_error.as_ref() {
         format!("UDP ERROR: {}", error)
     } else {
         "ERROR: -".into()
