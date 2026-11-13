@@ -118,7 +118,7 @@ public final class HorizonActivity extends android.app.NativeActivity {
         System.loadLibrary("horizon_android");
     }
 
-    @Override protected void onWindowFocusChanged(boolean hasFocus) {
+    @Override public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus && nativeBuild != null) NativeMods.started(this);
     }
