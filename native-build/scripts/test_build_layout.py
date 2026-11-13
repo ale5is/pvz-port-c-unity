@@ -45,6 +45,9 @@ def main() -> None:
     workflow = (ROOT / ".github/workflows/svc-client-check.yml").read_text()
     assert "native-mod-system.py upstream/horizon-078" in workflow
     assert "--mods mod" in workflow
+    loader_patch = (ROOT / "patches/horizon-078/native-mod-system.py").read_text()
+    assert "postDelayed(markNativeBuildStarted, 45000)" in loader_patch
+    assert "MAX_STARTS = 2" in loader_patch
 
     sandbox = (ROOT / "native-build/scripts/sandbox_inner.sh").read_text()
     assert "unshare --net" in (ROOT / "native-build/scripts/mod_build_sandbox.sh").read_text()
