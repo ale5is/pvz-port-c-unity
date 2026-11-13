@@ -46,8 +46,8 @@ jobs:
         run: git -C upstream/horizon-078 apply "$GITHUB_WORKSPACE/patches/horizon-078/audio-permission.patch"
       - name: Route raw Simple Voice Chat custom payloads into the existing native hook
         run: git -C upstream/horizon-078 apply "$GITHUB_WORKSPACE/patches/horizon-078/voicechat-packets.patch"
-      - name: Keep the upstream Horizon Android startup path unchanged
-        run: echo "Native mod loader disabled until Android world-entry smoke tests pass"
+      - name: Enable validated .hnmod import and next-start native library loader
+        run: python3 patches/horizon-078/native-mod-system.py upstream/horizon-078
       - name: Install Android NDK
         run: |
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
@@ -72,21 +72,19 @@ jobs:
         run: |
           "$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins" plan --workspace upstream/horizon-078 --mods mod --out "$RUNNER_TEMP/svc-plan.json"
           "$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins" apply --workspace upstream/horizon-078 --mods mod --out "$RUNNER_TEMP/horizon-078-svc"
-      - name: Fix staged Horizon native status string type
+      - name: Verify native builder stays outside the frame loop
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import os
-          path = Path(os.environ["RUNNER_TEMP"]) / "horizon-078-svc/crates/horizon-client/src/game.rs"
-          source = path.read_text()
-          old = 'let status = if state.status.is_empty() { "Idle" } else { short(&state.status) };'
-          new = 'let status = if state.status.is_empty() { "Idle" } else { &short(&state.status) };'
-          if source.count(old) == 1:
-              path.write_text(source.replace(old, new))
-          elif source.count(new) == 1:
-              print("Native status string fix already present")
-          else:
-              raise SystemExit("Expected exactly one staged Horizon status expression")
+          source = Path("mod/native-mod-builder/native_mod_builder.rs").read_text()
+          manifest = Path("mod/native-mod-builder/horizon-mixin.toml").read_text()
+          assert "thread::Builder::new()" in source
+          assert "fn on_frame" not in source
+          assert 'hook = "frame"' not in manifest
+          assert 'hook = "mods"' in manifest
+          assert 'hook = "settings"' in manifest
+          assert 'hook = "settings_click"' in manifest
+          print("Native builder work is user-triggered and has no per-frame hook.")
           PY
       - name: Compile the staged Horizon Android client ARM64
         run: |
