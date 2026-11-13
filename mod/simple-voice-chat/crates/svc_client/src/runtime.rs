@@ -852,10 +852,12 @@ mod tests {
     #[test]
     fn config_round_trip() {
         let dir = std::env::temp_dir().join(format!("svc-test-{}", std::process::id()));
-        let cfg = VoiceConfig { ptt_key: "KeyB".into(), muted: true, volume: 0.5, mic_volume: 0.75 };
+        let cfg = VoiceConfig { ptt_key: "KeyB".into(), mute_key: "KeyN".into(), enabled: false, muted: true, volume: 0.5, mic_volume: 0.75 };
         Glue::save_config(dir.to_str().unwrap(), &cfg);
         let loaded = Glue::load_config(dir.to_str().unwrap());
         assert_eq!(loaded.ptt_key, "KeyB");
+        assert_eq!(loaded.mute_key, "KeyN");
+        assert!(!loaded.enabled);
         assert!(loaded.muted);
         assert_eq!(loaded.volume, 0.5);
         assert_eq!(loaded.mic_volume, 0.75);
