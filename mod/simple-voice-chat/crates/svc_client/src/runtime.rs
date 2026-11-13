@@ -498,6 +498,28 @@ impl Glue {
         None
     }
 
+    pub fn on_key_binding(
+        &mut self,
+        key: &str,
+        pressed: bool,
+        ptt_binding: &str,
+        mute_binding: &str,
+    ) -> Option<String> {
+        if key == ptt_binding {
+            self.ptt_held = pressed;
+            return None;
+        }
+        if pressed && key == mute_binding {
+            self.cfg.muted = !self.cfg.muted;
+            return Some(if self.cfg.muted {
+                "voice muted".into()
+            } else {
+                "voice unmuted".into()
+            });
+        }
+        None
+    }
+
     /// `/svc` and `/vcgroup`: returns the chat reply and any packets to send.
     pub fn on_command(&mut self, command: &str) -> (String, Vec<(String, Vec<u8>)>) {
         let mut sends = Vec::new();
