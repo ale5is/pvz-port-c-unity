@@ -17,7 +17,7 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       MOD_BUILD_BASE_OVERRIDE: "1"
-      MOD_BUILD_SECONDS_OVERRIDE: "3200"
+      MOD_BUILD_SECONDS_OVERRIDE: "14000"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,4 +60,4 @@ jobs:
             /home/runner/modbuild/cargo
             /home/runner/modbuild/base
             /usr/local/lib/android/sdk/ndk/27.2.12479018
-          key: horizon-078-native-base-arm64-v1
+          key: horizon-078-native-base-arm64-v2
