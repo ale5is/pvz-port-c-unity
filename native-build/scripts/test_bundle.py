@@ -8,10 +8,11 @@ import tempfile
 import zipfile
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from mod_build_server import decode_bundle, unpack_request
+from mod_build_server import check_compatibility, decode_bundle, unpack_request
 
 HORIZON = "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29"
 MIXINS = "a2af5c0dd4117d51ecd70066ba7a00b4a2c10dab"
+VERSION = {"horizon": HORIZON, "game": "26.3", "mixins": MIXINS, "hooks": 80}
 MANIFEST = {
     "schema": 1, "id": "test_mod", "version": "1.0.0", "game": "26.3",
     "horizon": HORIZON, "mixins": MIXINS, "hooks": 80,
@@ -39,6 +40,14 @@ def main() -> None:
     assert mod_id == "test_mod"
     assert manifest["horizon"] == HORIZON
     assert "mixins/test_mod/src/lib.rs" in files
+    check_compatibility([manifest], VERSION)
+    wrong_api = dict(manifest, hooks=359)
+    try:
+        check_compatibility([wrong_api], VERSION)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Starling API 359 bundle was accepted for Horizon 0.7.8 API 80")
     with tempfile.TemporaryDirectory() as temp:
         body = len(valid).to_bytes(4, "big") + valid
         result = unpack_request(body, pathlib.Path(temp))
