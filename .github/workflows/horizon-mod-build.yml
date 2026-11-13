@@ -47,7 +47,7 @@ jobs:
             /home/runner/modbuild/cargo
             /home/runner/modbuild/base
             /usr/local/lib/android/sdk/ndk/27.2.12479018
-          key: horizon-078-native-base-arm64-v1
+          key: horizon-078-native-base-arm64-v2
       - name: Require a prepared base cache
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
