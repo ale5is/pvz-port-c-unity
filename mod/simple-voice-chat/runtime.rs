@@ -84,7 +84,10 @@ pub fn on_net(channel: &str, data: &[u8], server_address: Option<&str>) {
     locked().on_net(channel, data, server_address, Instant::now());
 }
 
-pub fn on_key(key: &str, pressed: bool) {
+pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
+    if !game.native_playing() {
+        return;
+    }
     let code = key.strip_prefix("key.keyboard.")
         .and_then(|name| {
             let mut chars = name.chars();
