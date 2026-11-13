@@ -7,7 +7,6 @@ BUILD_TOOLS_VERSION=35.0.0
 ABI=arm64-v8a
 PROFILE=fast
 NATIVE_CACHE=$HOME/.cache/horizon-native
-[ -z "$NATIVE_CACHE_OVERRIDE" ] || NATIVE_CACHE=$NATIVE_CACHE_OVERRIDE
 export NATIVE_CACHE
 fail() { echo "native_build: $*" >&2; exit 1; }
 [ "$#" -eq 3 ] || fail "usage: native_build.sh SOURCE OUT MODS"
