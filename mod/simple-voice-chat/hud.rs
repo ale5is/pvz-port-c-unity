@@ -22,6 +22,8 @@ pub fn svc_hud(
                 "SIN MUNDO"
             } else if !guard.permission_checked {
                 "COMPROBANDO"
+            } else if guard.permission_check_error {
+                "ERROR JNI"
             } else if guard.audio_permission_granted {
                 "CONCEDIDO"
             } else {
@@ -59,6 +61,7 @@ pub fn svc_hud(
             match permission {
                 "CONCEDIDO" => "Permiso microfono: CONCEDIDO",
                 "DENEGADO" => "Permiso microfono: DENEGADO",
+                "ERROR JNI" => "Permiso microfono: ERROR JNI",
                 "SIN MUNDO" => "Permiso microfono: SIN MUNDO",
                 _ => "Permiso microfono: COMPROBANDO",
             },
