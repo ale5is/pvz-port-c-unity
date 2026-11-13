@@ -6,6 +6,9 @@ on:
       - port/horizon-078-hooks-359
     paths:
       - "native-build/**"
+      - "mod/native-mod-builder/**"
+      - "mod/simple-voice-chat/**"
+      - "patches/horizon-078/native-mod-system.py"
       - ".github/workflows/horizon-mod-build*.yml"
       - ".github/workflows/horizon-mod-build-check.yml"
   pull_request:
@@ -34,3 +37,5 @@ jobs:
         run: python -m py_compile native-build/scripts/*.py native-build/gateway/*.py patches/horizon-078/native-mod-system.py
       - name: Test .hnmod validation and path traversal rejection
         run: python native-build/scripts/test_bundle.py
+      - name: Verify built-in mod manifests and performance boundaries
+        run: python native-build/scripts/test_build_layout.py
