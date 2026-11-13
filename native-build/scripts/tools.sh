@@ -19,7 +19,9 @@ export ANDROID_HOME="$SDK"
 export ANDROID_SDK_ROOT="$SDK"
 SDKMANAGER=$(find "$SDK/cmdline-tools" -type f -name sdkmanager | head -n 1)
 [ -n "$SDKMANAGER" ] || { echo "Android sdkmanager not found under $SDK" >&2; exit 1; }
+set +o pipefail
 yes | "$SDKMANAGER" --licenses >/dev/null
+set -o pipefail
 "$SDKMANAGER" "ndk;27.2.12479018" "platforms;android-35" "build-tools;35.0.0"
 ln -sfn "$SDK" "$HOME/android"
 tool="$root/base/mixins-$MIXINS_REV"
