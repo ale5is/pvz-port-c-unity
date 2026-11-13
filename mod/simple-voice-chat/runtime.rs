@@ -106,46 +106,22 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
     let playing = game.native_playing();
     let ptt_binding = game.native_mod_key("simple-voice-chat", "ptt", "key.keyboard.v");
     let mute_binding = game.native_mod_key("simple-voice-chat", "mute", "key.keyboard.m");
-    let code = key.strip_prefix("key.keyboard.")
-        .and_then(|name| {
-            let mut chars = name.chars();
-            let first = chars.next()?;
-            if chars.next().is_none() && first.is_ascii_alphanumeric() {
-                Some(format!("Key{}", first.to_ascii_uppercase()))
-            } else {
-                None
-            }
-        });
-    if let Some(code) = code {
-        let changed = {
-            let mut g = locked();
-            if !g.cfg.enabled {
-                return;
-            }
-            if let Some(binding) = ptt_binding.strip_prefix("key.keyboard.") {
-                if binding.len() == 1 {
-                    g.cfg.ptt_key = format!("Key{}", binding.to_ascii_uppercase());
-                }
-            }
-            if let Some(binding) = mute_binding.strip_prefix("key.keyboard.") {
-                if binding.len() == 1 {
-                    g.cfg.mute_key = format!("Key{}", binding.to_ascii_uppercase());
-                }
-            }
-            if playing && code == "KeyH" && pressed {
-                g.hud_open = !g.hud_open;
-            }
-            // Do not start a new PTT press while a screen has focus, but
-            // always accept releases so opening a menu cannot leave PTT stuck.
-            if playing || !pressed {
-                g.on_key(&code, pressed).is_some()
-            } else {
-                false
-            }
-        };
-        if changed {
-            save_config();
+    let changed = {
+        let mut g = locked();
+        if !g.cfg.enabled {
+            return;
         }
+        if playing && key == "key.keyboard.h" && pressed {
+            g.hud_open = !g.hud_open;
+        }
+        if playing || !pressed {
+            g.on_key_binding(key, pressed, &ptt_binding, &mute_binding).is_some()
+        } else {
+            false
+        }
+    };
+    if changed {
+        save_config();
     }
 }
 
