@@ -38,6 +38,10 @@ pub fn queue_outbound(channel: String, body: Vec<u8>) {
 }
 
 pub fn drain_outbound() -> Vec<(String, Vec<u8>)> {
+    if !locked().cfg.enabled {
+        OUT.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        return Vec::new();
+    }
     std::mem::take(&mut *OUT.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
@@ -50,6 +54,9 @@ pub fn world_open_ready(_game: &mut crate::game::Game<'_>) {
     let mut g = locked();
     if let Some(base) = config_base() {
         g.cfg = svc_client::runtime::Glue::load_config(&base);
+    }
+    if !g.cfg.enabled {
+        return;
     }
     g.world_open();
     #[cfg(not(target_os = "android"))]
@@ -82,7 +89,10 @@ pub fn server_address<'a, 'w>(game: &'a crate::game::Game<'w>) -> Option<&'a str
 }
 
 pub fn on_net(channel: &str, data: &[u8], server_address: Option<&str>) {
-    locked().on_net(channel, data, server_address, Instant::now());
+    let mut g = locked();
+    if g.cfg.enabled {
+        g.on_net(channel, data, server_address, Instant::now());
+    }
 }
 
 pub fn record_net_tx(channel: &str, bytes: usize) {
@@ -94,6 +104,8 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
         return;
     }
     let playing = game.native_playing();
+    let ptt_binding = game.native_mod_key("simple-voice-chat", "ptt", "key.keyboard.v");
+    let mute_binding = game.native_mod_key("simple-voice-chat", "mute", "key.keyboard.m");
     let code = key.strip_prefix("key.keyboard.")
         .and_then(|name| {
             let mut chars = name.chars();
@@ -107,6 +119,19 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
     if let Some(code) = code {
         let changed = {
             let mut g = locked();
+            if !g.cfg.enabled {
+                return;
+            }
+            if let Some(binding) = ptt_binding.strip_prefix("key.keyboard.") {
+                if binding.len() == 1 {
+                    g.cfg.ptt_key = format!("Key{}", binding.to_ascii_uppercase());
+                }
+            }
+            if let Some(binding) = mute_binding.strip_prefix("key.keyboard.") {
+                if binding.len() == 1 {
+                    g.cfg.mute_key = format!("Key{}", binding.to_ascii_uppercase());
+                }
+            }
             if playing && code == "KeyH" && pressed {
                 g.hud_open = !g.hud_open;
             }
@@ -125,6 +150,9 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
 }
 
 pub fn on_command(game: &mut crate::game::Game<'_>, command: &str, ran: &mut bool) {
+    if !locked().cfg.enabled {
+        return;
+    }
     let command = command.trim();
     if !svc_client::runtime::is_voice_command(command) {
         return;
@@ -148,6 +176,12 @@ pub fn on_command(game: &mut crate::game::Game<'_>, command: &str, ran: &mut boo
 }
 
 pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration) {
+    if !locked().cfg.enabled {
+        if locked().is_world_active() {
+            world_closed();
+        }
+        return;
+    }
     // A screen such as inventory, chat or options can make native_playing()
     // false while the world and player are still alive. Keep the SVC session
     // for the lifetime of the player; close it only after the player is gone.
