@@ -14,6 +14,7 @@ except KeyError:
 PY
 )
 mkdir -p "$root" "$root/cargo" "$root/base" "$root/jobs" "$root/patches/horizon-078" "$root/builtin"
+cp "$repo_root/native-build/versions.json" "$root/versions.json"
 if [ ! -d "$root/source/.git" ]; then
   rm -rf "$root/source"
   git init "$root/source"
