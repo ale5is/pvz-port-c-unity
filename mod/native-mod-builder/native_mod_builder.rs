@@ -88,7 +88,9 @@ pub(super) fn settings(
         short(&state.status)
     };
     buttons.push(format!("{action} — {status}"));
-    buttons.push("Revert to original Horizon library on next launch".into());
+    if !state.running {
+        buttons.push("Revert to original Horizon library on next launch".into());
+    }
 }
 
 pub(super) fn settings_click(
