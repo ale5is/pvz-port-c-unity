@@ -6,7 +6,14 @@ mount -t tmpfs -o mode=1777 tmpfs /tmp
 keep=/mnt
 mount -t tmpfs tmpfs "$keep"
 place() { mkdir -p "$keep/$1"; mount --bind "$2" "$keep/$1"; }
-place rustup "$home/.rustup"
+if [ "$base_build" = 1 ]; then
+  place rustup "$home/.rustup"
+else
+  rustup_layer=$job/rustup-overlay
+  mkdir -p "$rustup_layer/upper" "$rustup_layer/work" "$keep/rustup"
+  chown "$uid:$gid" "$rustup_layer/upper"
+  mount -t overlay overlay -o "lowerdir=$home/.rustup,upperdir=$rustup_layer/upper,workdir=$rustup_layer/work" "$keep/rustup"
+fi
 place android "$home/android"
 place java "$java_home"
 place cargo "$root/cargo"
@@ -30,7 +37,7 @@ back() {
   mount --move "$keep/$1" "$home/$2"
   [ "$3" = rw ] || mount -o remount,bind,ro "$home/$2"
 }
-back rustup .rustup ro
+back rustup .rustup rw
 back android android ro
 back java java ro
 back cargo .cargo rw
