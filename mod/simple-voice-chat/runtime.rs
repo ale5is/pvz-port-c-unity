@@ -45,6 +45,7 @@ pub fn world_open_ready(_game: &mut crate::game::Game<'_>) {
     #[cfg(target_os = "android")]
     if let Err(error) = crate::native_ime::request_audio_permission() {
         eprintln!("[voice] microphone permission request failed: {error}");
+        locked().set_audio_permission_error();
     }
     let mut g = locked();
     if let Some(base) = config_base() {
@@ -146,7 +147,10 @@ pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration)
     if g.is_world_active() && g.should_check_audio_permission(now) {
         match crate::native_ime::has_audio_permission() {
             Ok(granted) => g.set_audio_permission(granted),
-            Err(error) => eprintln!("[voice] microphone permission check failed: {error}"),
+            Err(error) => {
+                g.set_audio_permission_error();
+                eprintln!("[voice] microphone permission check failed: {error}");
+            },
         }
     }
     #[cfg(not(target_os = "android"))]
