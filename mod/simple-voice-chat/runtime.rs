@@ -11,9 +11,7 @@ pub use svc_client::runtime::{state, Glue};
 static OUT: Mutex<Vec<(String, Vec<u8>)>> = Mutex::new(Vec::new());
 
 fn config_base() -> String {
-    crate::game::Game::options_path()
-        .parent()
-        .unwrap_or_else(|| std::path::Path::new("."))
+    crate::game::Game::native_config_dir()
         .to_string_lossy()
         .into_owned()
 }
