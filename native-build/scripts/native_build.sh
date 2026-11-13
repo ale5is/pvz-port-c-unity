@@ -34,6 +34,7 @@ find "$work/source" -type l -delete
 echo "$commit" > "$work/source/.horizon-revision"
 git -C "$work/source" apply "$HOME/patches/horizon-078/audio-permission.patch"
 git -C "$work/source" apply "$HOME/patches/horizon-078/voicechat-packets.patch"
+python3 "$HOME/patches/horizon-078/native-mod-system.py" "$work/source"
 mkdir "$work/mods"
 cp -r "$HOME/builtin/simple-voice-chat" "$work/mods/simple-voice-chat"
 for bundle in "$mods_in"/*/; do
