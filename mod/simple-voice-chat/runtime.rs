@@ -90,9 +90,10 @@ pub fn record_net_tx(channel: &str, bytes: usize) {
 }
 
 pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
-    if !game.native_playing() {
+    if game.player.is_none() {
         return;
     }
+    let playing = game.native_playing();
     let code = key.strip_prefix("key.keyboard.")
         .and_then(|name| {
             let mut chars = name.chars();
@@ -106,10 +107,16 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
     if let Some(code) = code {
         let changed = {
             let mut g = locked();
-            if code == "KeyH" && pressed {
+            if playing && code == "KeyH" && pressed {
                 g.hud_open = !g.hud_open;
             }
-            g.on_key(&code, pressed).is_some()
+            // Do not start a new PTT press while a screen has focus, but
+            // always accept releases so opening a menu cannot leave PTT stuck.
+            if playing || !pressed {
+                g.on_key(&code, pressed).is_some()
+            } else {
+                false
+            }
         };
         if changed {
             save_config();
