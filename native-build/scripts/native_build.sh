@@ -6,6 +6,8 @@ NDK_VERSION=27.2.12479018
 BUILD_TOOLS_VERSION=35.0.0
 ABI=arm64-v8a
 PROFILE=fast
+GAME_VERSION=26.3
+HOOKS_API=80
 NATIVE_CACHE=$HOME/.cache/horizon-native
 export NATIVE_CACHE
 export CARGO_HOME="$HOME/.cargo"
@@ -86,7 +88,7 @@ for folder in sorted(p for p in mods.iterdir() if p.is_dir()):
     entries.append({"id": value["mod"]["id"], "version": value["mod"]["version"]})
 library = out / "libhorizon_android.so"
 json.dump({
-    "schema": 1, "version": "0.7.8", "game": "26.3", "commit": commit,
+    "schema": 1, "version": "0.7.8", "game": "26.3", "hooks": 80, "commit": commit,
     "horizon_mixins": mixins, "abi": abi, "profile": profile,
     "mods": entries,
     "sha256": hashlib.sha256(library.read_bytes()).hexdigest(),
