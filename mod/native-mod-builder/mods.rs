@@ -1,4 +1,4 @@
-fn mods(
+fn append_builder(
     game: &mut crate::game::Game<'_>,
     mods: &mut Vec<crate::game::native_hooks::NativeMod>,
 ) {

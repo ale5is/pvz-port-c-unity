@@ -13,7 +13,7 @@ name = "native_mod_builder"
 source = "native_mod_builder.rs"
 
 [[injection]]
-id = "mods"
+id = "append_builder"
 kind = "HEAD"
 hook = "mods"
 hook_version = 1
