@@ -24,6 +24,7 @@ git -C "$root/source" checkout -q --detach FETCH_HEAD
 [ "$(git -C "$root/source" rev-parse HEAD)" = "$commit" ]
 cp "$repo_root/patches/horizon-078/audio-permission.patch" "$root/patches/horizon-078/"
 cp "$repo_root/patches/horizon-078/voicechat-packets.patch" "$root/patches/horizon-078/"
+cp "$repo_root/patches/horizon-078/native-mod-system.py" "$root/patches/horizon-078/"
 rm -rf "$root/builtin/simple-voice-chat"
 cp -r "$repo_root/mod/simple-voice-chat" "$root/builtin/simple-voice-chat"
 echo "$commit" > "$root/HORIZON_COMMIT"
