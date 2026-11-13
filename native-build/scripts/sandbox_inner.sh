@@ -47,7 +47,7 @@ chown "$uid:$gid" "$home" "$home/.cache" "$home/job"
 cd /tmp
 exec setpriv --reuid="$uid" --regid="$gid" --clear-groups --no-new-privs \
   --bounding-set=-all --inh-caps=-all \
-  env -i HOME="$home" USER="$(id -nu "$uid")" PATH=/usr/bin:/bin \
+  env -i HOME="$home" USER="$(id -nu "$uid")" PATH="$home/.cargo/bin:/usr/bin:/bin" CARGO_HOME="$home/.cargo" RUSTUP_HOME="$home/.rustup" \
   ANDROID_HOME="$home/android" JAVA_HOME="$home/java" NATIVE_CACHE="$home/.cache/horizon-native" \
   CARGO_NET_OFFLINE=true \
   bash -c '. "$HOME/.cargo/env"; exec bash "$HOME/scripts/native_build.sh" "$HOME/source" "$HOME/job/out" "$HOME/job/mods"'
