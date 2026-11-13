@@ -41,6 +41,9 @@ def main() -> None:
     versions = __import__("json").loads((ROOT / "native-build/versions.json").read_text())
     assert versions["0.7.8"]["hooks"] == 80
     assert versions["0.7.8"]["game"] == "26.3"
+    build_script = (ROOT / "native-build/scripts/native_build.sh").read_text()
+    assert '"hooks": 80' in build_script
+    assert "horizon-native-builder" in build_script
 
     workflow = (ROOT / ".github/workflows/svc-client-check.yml").read_text()
     assert "native-mod-system.py upstream/horizon-078" in workflow
