@@ -8,7 +8,9 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Mutex, OnceLock};
-use std::time::Instant;
+use std::time::{Duration, Instant};
+
+const SECRET_TIMEOUT: Duration = Duration::from_secs(12);
 
 use crate::protocol as proto;
 use crate::session::{Event, Session};
@@ -65,6 +67,7 @@ pub struct Glue {
     pub last_rx_bytes: usize,
     pub connection_stage: String,
     pub last_net_error: String,
+    secret_sent_at: Option<Instant>,
     /// Live microphone capture; None until start_audio succeeds.
     pub mic: Option<crate::audio_io::MicStream>,
     /// Live speaker output; None until start_audio succeeds.
@@ -102,6 +105,7 @@ impl Default for Glue {
             last_rx_bytes: 0,
             connection_stage: "SIN INICIAR".into(),
             last_net_error: String::new(),
+            secret_sent_at: None,
             mic: None,
             speaker: None,
             codec: None,
@@ -158,6 +162,7 @@ impl Glue {
         self.last_rx_bytes = 0;
         self.connection_stage = "SOLICITUD EN COLA".into();
         self.last_net_error.clear();
+        self.secret_sent_at = None;
     }
 
     /// The world closed: the socket dies with it.
@@ -173,6 +178,7 @@ impl Glue {
         self.last_audio_attempt = None;
         self.pending_sends.clear();
         self.reconnect_pending = false;
+        self.secret_sent_at = None;
     }
 
     pub fn is_world_active(&self) -> bool {
@@ -185,12 +191,14 @@ impl Glue {
     }
 
     /// Record a custom payload after it has been handed to Horizon's packet sender.
-    pub fn record_tx(&mut self, channel: &str, bytes: usize) {
+    pub fn record_tx(&mut self, channel: &str, bytes: usize, now: Instant) {
         self.net_tx_count = self.net_tx_count.saturating_add(1);
         self.last_tx_channel = channel.to_string();
         self.last_tx_bytes = bytes;
         if channel == proto::REQUEST_SECRET {
             self.connection_stage = "SOLICITUD ENVIADA".into();
+            self.last_net_error.clear();
+            self.secret_sent_at = Some(now);
         }
     }
 
@@ -215,6 +223,7 @@ impl Glue {
         self.last_net_error.clear();
         match parsed {
             proto::ServerMessage::Secret { secret, port, player, distance, voice_host, .. } => {
+                self.secret_sent_at = None;
                 self.connection_stage = "SECRETO RECIBIDO".into();
                 let host = if voice_host.is_empty() {
                     let Some(address) = hint.and_then(server_host) else {
@@ -413,7 +422,19 @@ impl Glue {
     }
 
     /// One frame: drive the session, hand back the voice events it queued.
-    pub fn on_frame(&mut self, _now: Instant) -> Vec<Event> {
+    pub fn on_frame(&mut self, now: Instant) -> Vec<Event> {
+        if self.session.is_none() {
+            if self.connection_stage == "SOLICITUD ENVIADA"
+                && self.secret_sent_at.is_some_and(|sent| now.saturating_duration_since(sent) >= SECRET_TIMEOUT)
+            {
+                self.connection_stage = "TIMEOUT SECRET".into();
+                self.last_net_error = format!(
+                    "no se recibio voicechat:secret despues de {} segundos",
+                    SECRET_TIMEOUT.as_secs()
+                );
+            }
+            return Vec::new();
+        }
         let Some(s) = &mut self.session else { return Vec::new() };
         s.tick();
         let events = s.pump();
