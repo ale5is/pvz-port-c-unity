@@ -668,14 +668,32 @@ mod tests {
     }
 
     #[test]
+    fn voice_settings_commands_clamp_and_update() {
+        let mut g = glue();
+        let (reply, _) = g.on_command("svc volume 140");
+        assert_eq!(reply, "voice output volume: 100%");
+        assert_eq!(g.cfg.volume, 1.0);
+        let (reply, _) = g.on_command("svc micvolume 35");
+        assert_eq!(reply, "microphone gain: 35%");
+        assert!((g.cfg.mic_volume - 0.35).abs() < 0.001);
+        let (reply, _) = g.on_command("svc toggle");
+        assert_eq!(reply, "voice muted");
+        assert!(g.cfg.muted);
+        let (reply, _) = g.on_command("svc ptt KeyB");
+        assert_eq!(reply, "push-to-talk key set to KeyB");
+        assert_eq!(g.cfg.ptt_key, "KeyB");
+    }
+
+    #[test]
     fn config_round_trip() {
         let dir = std::env::temp_dir().join(format!("svc-test-{}", std::process::id()));
-        let cfg = VoiceConfig { ptt_key: "KeyB".into(), muted: true, volume: 0.5 };
+        let cfg = VoiceConfig { ptt_key: "KeyB".into(), muted: true, volume: 0.5, mic_volume: 0.75 };
         Glue::save_config(dir.to_str().unwrap(), &cfg);
         let loaded = Glue::load_config(dir.to_str().unwrap());
         assert_eq!(loaded.ptt_key, "KeyB");
         assert!(loaded.muted);
         assert_eq!(loaded.volume, 0.5);
+        assert_eq!(loaded.mic_volume, 0.75);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
