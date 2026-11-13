@@ -61,6 +61,7 @@ hook = "command"
 hook_version = 1
 helper = "command_hook.rs"
 bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
   { name = "command", ty = "&str", value = "command" },
   { name = "ran", ty = "&mut bool", value = "&mut *ran" },
 ]
