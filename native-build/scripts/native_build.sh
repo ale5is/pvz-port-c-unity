@@ -37,10 +37,11 @@ git -C "$work/source" apply "$HOME/patches/horizon-078/voicechat-packets.patch"
 python3 "$HOME/patches/horizon-078/native-mod-system.py" "$work/source"
 mkdir "$work/mods"
 cp -r "$HOME/builtin/simple-voice-chat" "$work/mods/simple-voice-chat"
+cp -r "$HOME/builtin/native-mod-builder" "$work/mods/native-mod-builder"
 for bundle in "$mods_in"/*/; do
   [ -d "$bundle" ] || continue
   id=$(basename "$bundle")
-  [ "$id" != simple-voice-chat ] || fail "simple-voice-chat is a reserved bundle id"
+  case "$id" in simple-voice-chat|native-mod-builder) fail "$id is a reserved built-in bundle id" ;; esac
   [ -f "$bundle/horizon-mixin.toml" ] || fail "$id has no horizon-mixin.toml"
   [ ! -e "$work/mods/$id" ] || fail "duplicate mod id: $id"
   cp -r "$bundle" "$work/mods/$id"
