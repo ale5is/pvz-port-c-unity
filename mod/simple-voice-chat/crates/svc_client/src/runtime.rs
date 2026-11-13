@@ -66,6 +66,7 @@ pub struct Glue {
     last_audio_attempt: Option<Instant>,
     pub audio_permission_granted: bool,
     pub permission_checked: bool,
+    pub permission_check_error: bool,
     pub hud_open: bool,
     last_permission_check: Option<Instant>,
     world_active: bool,
@@ -91,6 +92,7 @@ impl Default for Glue {
             last_audio_attempt: None,
             audio_permission_granted: false,
             permission_checked: false,
+            permission_check_error: false,
             hud_open: false,
             last_permission_check: None,
             world_active: false,
@@ -121,6 +123,7 @@ impl Glue {
     pub fn world_open(&mut self) {
         self.world_active = true;
         self.permission_checked = false;
+        self.permission_check_error = false;
         self.last_permission_check = None;
         self.last_audio_attempt = None;
         self.session = None;
@@ -260,6 +263,7 @@ impl Glue {
 
     pub fn set_audio_permission(&mut self, granted: bool) {
         self.permission_checked = true;
+        self.permission_check_error = false;
         if self.audio_permission_granted != granted {
             self.audio_permission_granted = granted;
             self.last_audio_attempt = None;
@@ -267,6 +271,11 @@ impl Glue {
                 self.mic = None;
             }
         }
+    }
+
+    pub fn set_audio_permission_error(&mut self) {
+        self.permission_checked = true;
+        self.permission_check_error = true;
     }
 
     pub fn should_check_audio_permission(&mut self, now: Instant) -> bool {
