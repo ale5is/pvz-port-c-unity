@@ -60,6 +60,18 @@ def main() -> None:
         result = unpack_request(body, pathlib.Path(temp))
         assert result[0]["id"] == "test_mod"
         assert (pathlib.Path(temp) / "test_mod/horizon-mixin.toml").is_file()
+    with tempfile.TemporaryDirectory() as temp:
+        smoke_request = pathlib.Path(temp) / "smoke.bin"
+        import subprocess
+        subprocess.run(
+            [sys.executable, str(pathlib.Path(__file__).with_name("create_smoke_request.py")), str(smoke_request)],
+            check=True,
+        )
+        smoke_mods = pathlib.Path(temp) / "smoke-mods"
+        smoke_manifests = unpack_request(smoke_request.read_bytes(), smoke_mods)
+        check_compatibility(smoke_manifests, VERSION)
+        assert smoke_manifests[0]["id"] == "native_build_smoke"
+        assert (smoke_mods / "native_build_smoke" / "mods.rs").is_file()
     try:
         decode_bundle(archive(("mixins/test_mod/../../escape.rs", b"bad")))
     except ValueError:
