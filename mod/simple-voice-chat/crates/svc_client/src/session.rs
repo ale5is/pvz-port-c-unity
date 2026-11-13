@@ -436,6 +436,16 @@ mod tests {
         assert_eq!(s.pump(), vec![Event::Connected]);
         assert_eq!(s.state(), State::Connected);
 
+        srv.send_packet(&FromServer::KeepAlive);
+        assert!(s.pump().is_empty());
+        assert!(matches!(srv.recv_packet(), ToServer::KeepAlive));
+        srv.send_packet(&FromServer::Ping { id: 33, timestamp: 44 });
+        assert!(s.pump().is_empty());
+        assert!(matches!(
+            srv.recv_packet(),
+            ToServer::Ping { id: 33, timestamp: 44 }
+        ));
+
         // The clocks: keep-alive every frame, ping with the wall clock.
         s.keep_alive_every = Duration::ZERO;
         s.ping_every = Duration::ZERO;
