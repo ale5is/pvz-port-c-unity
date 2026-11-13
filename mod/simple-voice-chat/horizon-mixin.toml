@@ -50,6 +50,7 @@ hook = "key"
 hook_version = 1
 helper = "key.rs"
 bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "self" },
   { name = "key", ty = "&str", value = "key" },
   { name = "pressed", ty = "bool", value = "pressed" },
 ]
