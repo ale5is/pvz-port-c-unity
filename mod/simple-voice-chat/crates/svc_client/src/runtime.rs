@@ -872,6 +872,23 @@ mod tests {
     }
 
     #[test]
+    fn horizon_key_bindings_drive_push_to_talk_and_mute() {
+        let mut g = Glue::default();
+        assert_eq!(
+            g.on_key_binding("key.keyboard.space", true, "key.keyboard.space", "key.keyboard.n"),
+            None
+        );
+        assert!(g.ptt_held);
+        g.on_key_binding("key.keyboard.space", false, "key.keyboard.space", "key.keyboard.n");
+        assert!(!g.ptt_held);
+        assert_eq!(
+            g.on_key_binding("key.keyboard.n", true, "key.keyboard.space", "key.keyboard.n"),
+            Some("voice muted".into())
+        );
+        assert!(g.cfg.muted);
+    }
+
+    #[test]
     fn config_round_trip() {
         let dir = std::env::temp_dir().join(format!("svc-test-{}", std::process::id()));
         let cfg = VoiceConfig { ptt_key: "KeyB".into(), mute_key: "KeyN".into(), enabled: false, muted: true, volume: 0.5, mic_volume: 0.75 };
