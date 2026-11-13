@@ -41,8 +41,20 @@ def main() -> None:
                 raise SystemExit(f"native build did not produce {name}")
             shutil.copy2(source, output / name)
     metadata = json.loads((output / "build.json").read_text())
-    if metadata.get("commit") != commit or metadata.get("abi") != "arm64-v8a":
-        raise SystemExit("built library metadata does not match the requested target")
+    expected = versions["0.7.8"]
+    required_mods = {"simple-voice-chat", "horizon-native-builder"}
+    actual_mods = {item.get("id") for item in metadata.get("mods", [])}
+    if (
+        metadata.get("version") != "0.7.8"
+        or metadata.get("game") != expected["game"]
+        or metadata.get("hooks") != expected["hooks"]
+        or metadata.get("commit") != commit
+        or metadata.get("horizon_mixins") != expected["mixins"]
+        or metadata.get("abi") != "arm64-v8a"
+        or metadata.get("profile") != "fast"
+        or not required_mods.issubset(actual_mods)
+    ):
+        raise SystemExit("built library metadata does not match the requested target or built-in mods")
 
 
 if __name__ == "__main__":
