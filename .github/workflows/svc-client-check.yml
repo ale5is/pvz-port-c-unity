@@ -76,7 +76,8 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          path = Path("$RUNNER_TEMP/horizon-078-svc/crates/horizon-client/src/game.rs")
+          import os
+          path = Path(os.environ["RUNNER_TEMP"]) / "horizon-078-svc/crates/horizon-client/src/game.rs"
           source = path.read_text()
           old = 'let status = if state.status.is_empty() { "Idle" } else { short(&state.status) };'
           new = 'let status = if state.status.is_empty() { "Idle" } else { &short(&state.status) };'
