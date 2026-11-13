@@ -32,7 +32,8 @@ def main() -> None:
     prepare = (ROOT / "native-build/scripts/prepare.sh").read_text()
     assert 'cp -r "$HOME/builtin/simple-voice-chat"' in build
     assert 'cp -r "$HOME/builtin/native-mod-builder"' in build
-    assert "native-mod-builder) fail" in build
+    assert "native-mod-builder|horizon-native-builder)" in build
+    assert '"$work/mods/horizon-native-builder"' in build
     assert 'cp -r "$repo_root/mod/native-mod-builder"' in prepare
 
     sandbox = (ROOT / "native-build/scripts/sandbox_inner.sh").read_text()
