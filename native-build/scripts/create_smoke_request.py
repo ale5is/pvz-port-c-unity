@@ -31,7 +31,7 @@ def main() -> None:
         '[[injection]]\nid = "smoke_mod_list"\nkind = "HEAD"\n'
         'hook = "mods"\nhook_version = 1\nhelper = "mods.rs"\n'
         'bindings = [\n'
-        '  { name = "game", ty = "&mut crate::game::Game<\\'_>", value = "&mut *self" },\n'
+        '  { name = "game", ty = "&mut crate::game::Game<\'_>", value = "&mut *self" },\n'
         '  { name = "mods", ty = "&mut Vec<crate::game::native_hooks::NativeMod>", value = "&mut *mods" },\n'
         ']\n'
     )
@@ -40,7 +40,7 @@ def main() -> None:
         archive.writestr("mixins/" + MOD_ID + "/horizon-mixin.toml", mixin)
         archive.writestr(
             "mixins/" + MOD_ID + "/mods.rs",
-            "fn smoke_mod_list(\\n    _game: &mut crate::game::Game<'_>,\\n    _mods: &mut Vec<crate::game::native_hooks::NativeMod>,\\n) {}\\n",
+            "fn smoke_mod_list(\n    _game: &mut crate::game::Game<'_>,\n    _mods: &mut Vec<crate::game::native_hooks::NativeMod>,\n) {}\n",
         )
     data = bundle_path.read_bytes()
     output.write_bytes(len(data).to_bytes(4, "big") + data)
