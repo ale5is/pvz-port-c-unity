@@ -12,7 +12,7 @@ import tempfile
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = pathlib.Path.home() / "modbuild"
 sys.path.insert(0, str(HERE))
-from mod_build_server import unpack_request
+from mod_build_server import check_compatibility, unpack_request
 
 
 def main() -> None:
@@ -28,13 +28,8 @@ def main() -> None:
         out = job / "out"
         out.mkdir()
         manifests = unpack_request(request.read_bytes(), mods)
-        if any(
-            item.get("horizon") != commit
-            or item.get("game") != "26.3"
-            or item.get("mixins") != "a2af5c0dd4117d51ecd70066ba7a00b4a2c10dab"
-            for item in manifests
-        ):
-            raise SystemExit("one or more native mods target a different Horizon, Minecraft or mixins revision")
+        versions = json.loads((ROOT / "versions.json").read_text())
+        check_compatibility(manifests, versions["0.7.8"])
         subprocess.run(
             ["bash", str(HERE / "mod_build_sandbox.sh"), str(ROOT), commit, str(job)],
             check=True,
