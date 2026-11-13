@@ -1,0 +1,79 @@
+name: Horizon native mod build
+run-name: Horizon native mod build ${{ inputs.request_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Horizon version
+        required: true
+        type: choice
+        options:
+          - "0.7.8"
+      request_id:
+        description: One-time request identifier from the build gateway
+        required: true
+        type: string
+      request_url:
+        description: HTTPS URL from which this runner downloads the validated mod bundle request
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      MOD_BUILD_SECONDS_OVERRIDE: "3200"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Restore the pinned Horizon base cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            /home/runner/.rustup
+            /home/runner/modbuild/cargo
+            /home/runner/modbuild/base
+            /usr/local/lib/android/sdk/ndk/27.2.12479018
+          key: horizon-078-native-base-arm64-v1
+      - name: Require a prepared base cache
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          echo "::error::The trusted base cache is missing. Run horizon-mod-build-base.yml first."
+          exit 1
+      - name: Prepare pinned Horizon source and built-in SVC mod
+        run: bash native-build/scripts/prepare.sh "${{ inputs.version }}"
+      - name: Verify toolchain and install Android build packages
+        run: bash native-build/scripts/tools.sh
+      - name: Free temporary runner disk space
+        run: bash native-build/scripts/room.sh
+      - name: Download mod request from the gateway
+        env:
+          REQUEST_URL: ${{ inputs.request_url }}
+        run: |
+          case "$REQUEST_URL" in https://*) ;; *) echo "::error::Only HTTPS request URLs are accepted"; exit 1;; esac
+          curl --fail --location --retry 3 --connect-timeout 20 "$REQUEST_URL" -o "$RUNNER_TEMP/horizon-mod-request.bin"
+          test -s "$RUNNER_TEMP/horizon-mod-request.bin"
+          test "$(stat -c %s "$RUNNER_TEMP/horizon-mod-request.bin")" -le 33554432
+      - name: Build Horizon with the requested native mods in an isolated sandbox
+        run: |
+          commit=$(cat "$HOME/modbuild/HORIZON_COMMIT")
+          python3 native-build/scripts/mod_build_once.py \
+            "$RUNNER_TEMP/horizon-mod-request.bin" \
+            "$commit" \
+            "$RUNNER_TEMP/horizon-native-result"
+      - name: Upload the verified ARM64 library and metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: horizon-native-build-${{ inputs.request_id }}
+          path: |
+            ${{ runner.temp }}/horizon-native-result/libhorizon_android.so
+            ${{ runner.temp }}/horizon-native-result/build.json
+          if-no-files-found: error
+          retention-days: 1
