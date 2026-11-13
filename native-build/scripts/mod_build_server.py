@@ -12,7 +12,7 @@ MAX_BODY = 32 << 20
 MAX_MODS = 16
 MAX_ENTRIES = 512
 MAX_EXPANDED = 64 << 20
-MAX_FILE = 16 << 20
+MAX_FILE = 64 << 20
 ID = re.compile(r"^[a-z0-9_]{1,64}$")
 REV = re.compile(r"^[0-9a-f]{40}$")
 
