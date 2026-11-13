@@ -243,6 +243,7 @@ pub enum ServerMessage {
     /// connection. An empty `voice_host` means the game server's own address.
     Secret {
         secret: [u8; 16],
+        connection_id: u128,
         port: u16,
         player: u128,
         codec: u8,
@@ -293,6 +294,7 @@ pub fn read(channel: &str, data: &[u8]) -> Option<Read<ServerMessage>> {
     let parsed = match channel {
         SECRET => (|| {
             let secret: [u8; 16] = r.fixed()?;
+            let connection_id = r.uuid()?;
             let port = r.int()?.try_into().map_err(|_| Malformed)?;
             let player = r.uuid()?;
             let codec = r.byte()?;
@@ -304,6 +306,7 @@ pub fn read(channel: &str, data: &[u8]) -> Option<Read<ServerMessage>> {
             let recording_allowed = r.flag()?;
             Ok(ServerMessage::Secret {
                 secret,
+                connection_id,
                 port,
                 player,
                 codec,
@@ -393,16 +396,13 @@ pub enum ToServer {
         sequence: i64,
         whispering: bool,
     },
-    Authenticate {
-        player: u128,
-        secret: [u8; 16],
-    },
+    Authenticate,
     Ping {
         id: u128,
         timestamp: i64,
     },
     KeepAlive,
-    ConnectionCheck,
+    ConnectionCheck { nonce: [u8; 16] },
 }
 
 impl ToServer {
@@ -414,14 +414,10 @@ impl ToServer {
                 sequence,
                 whispering,
             } => o.byte(1).bytes(data).long(*sequence).flag(*whispering),
-            Self::Authenticate { player, secret } => {
-                o.byte(5).uuid(*player);
-                o.0.extend_from_slice(secret);
-                &mut o
-            }
+            Self::Authenticate => o.byte(5),
             Self::Ping { id, timestamp } => o.byte(7).uuid(*id).long(*timestamp),
             Self::KeepAlive => o.byte(8),
-            Self::ConnectionCheck => o.byte(9),
+            Self::ConnectionCheck { nonce } => { o.byte(9); o.0.extend_from_slice(nonce); &mut o },
         };
         o.done()
     }
@@ -444,7 +440,7 @@ pub enum FromServer<'a> {
         data: &'a [u8],
         sequence: i64,
     },
-    AuthenticateAck,
+    AuthenticateAck { nonce: [u8; 16] },
     Ping {
         id: u128,
         timestamp: i64,
@@ -484,7 +480,7 @@ impl<'a> FromServer<'a> {
                     sequence,
                 }
             }
-            6 => Self::AuthenticateAck,
+            6 => Self::AuthenticateAck { nonce: r.fixed()? },
             7 => Self::Ping {
                 id: r.uuid()?,
                 timestamp: r.long()?,
@@ -510,7 +506,7 @@ impl FromServer<'_> {
                 o.byte(3).uuid(*sender).uuid(0).bytes(data).long(*sequence).byte(0);
                 &mut o
             }
-            Self::AuthenticateAck => o.byte(6),
+            Self::AuthenticateAck { nonce } => { o.byte(6); o.0.extend_from_slice(nonce); &mut o },
             Self::Ping { id, timestamp } => o.byte(7).uuid(*id).long(*timestamp),
             Self::KeepAlive => o.byte(8),
             Self::ConnectionCheckAck => o.byte(10),
@@ -529,14 +525,10 @@ impl ToServer {
                 sequence: r.long()?,
                 whispering: r.flag()?,
             },
-            5 => {
-                let player = r.uuid()?;
-                let secret: [u8; 16] = r.take(16)?.try_into().unwrap();
-                Self::Authenticate { player, secret }
-            }
+            5 => Self::Authenticate,
             7 => Self::Ping { id: r.uuid()?, timestamp: r.long()? },
             8 => Self::KeepAlive,
-            9 => Self::ConnectionCheck,
+            9 => Self::ConnectionCheck { nonce: r.fixed()? },
             _ => return Err(Malformed),
         })
     }
@@ -586,10 +578,10 @@ impl Cipher {
     }
 }
 
-/// The datagram the client sends: magic, the player's UUID in clear (so the
-/// server finds their key), then the sealed packet.
-pub fn client_datagram(player: u128, sealed: &[u8]) -> Vec<u8> {
-    Out::default().byte(MAGIC).uuid(player).bytes(sealed).done()
+/// The datagram the client sends: magic, the connection UUID in clear (so the
+/// server finds the matching connection secret), then the sealed packet.
+pub fn client_datagram(connection_id: u128, sealed: &[u8]) -> Vec<u8> {
+    Out::default().byte(MAGIC).uuid(connection_id).bytes(sealed).done()
 }
 
 /// The datagram the server sends: magic, then the sealed packet.
@@ -642,6 +634,7 @@ mod tests {
         let server_shape: Vec<u8> = key
             .iter()
             .copied()
+            .chain(0xCDu128.to_be_bytes())
             .chain(24454i32.to_be_bytes())
             .chain(0xABu128.to_be_bytes())
             .chain([0u8])
@@ -660,6 +653,7 @@ mod tests {
             msg,
             Some(Ok(ServerMessage::Secret {
                 secret: key,
+                connection_id: 0xCD,
                 port: 24454,
                 player: 0xAB,
                 codec: 0,
