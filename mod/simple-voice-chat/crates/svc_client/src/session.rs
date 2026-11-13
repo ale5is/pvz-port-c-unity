@@ -8,7 +8,6 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use crate::protocol::{client_datagram, server_datagram, Cipher, FromServer, ToServer};
 
 pub const KEEP_ALIVE_EVERY: Duration = Duration::from_millis(1000);
-pub const PING_EVERY: Duration = Duration::from_millis(15_000);
 /// Without server traffic for this long the connection is dead.
 pub const TIMEOUT_AFTER: Duration = Duration::from_millis(15_000);
 
@@ -51,10 +50,8 @@ pub struct Session {
     positions: HashMap<u128, [f64; 3]>,
     max_distance: f64,
     pub keep_alive_every: Duration,
-    pub ping_every: Duration,
     pub timeout_after: Duration,
     last_keep_alive: Instant,
-    last_ping: Instant,
     last_seen: Instant,
     events: Vec<Event>,
     udp_tx_count: u64,
@@ -79,10 +76,8 @@ impl Session {
             positions: HashMap::new(),
             max_distance: 48.0,
             keep_alive_every: KEEP_ALIVE_EVERY,
-            ping_every: PING_EVERY,
             timeout_after: TIMEOUT_AFTER,
             last_keep_alive: Instant::now(),
-            last_ping: Instant::now(),
             last_seen: Instant::now(),
             events: Vec::new(),
             udp_tx_count: 0,
@@ -198,17 +193,6 @@ impl Session {
         }
         if self.state != State::Connected {
             return;
-        }
-        if self.last_keep_alive.elapsed() >= self.keep_alive_every {
-            self.last_keep_alive = Instant::now();
-            self.send(&ToServer::KeepAlive);
-        }
-        if self.last_ping.elapsed() >= self.ping_every {
-            self.last_ping = Instant::now();
-            self.send(&ToServer::Ping {
-                id: self.player,
-                timestamp: unix_ms(),
-            });
         }
     }
 
@@ -327,13 +311,6 @@ fn volume(d: f64, max: f64) -> f32 {
     (1.0 - d / max).clamp(0.0, 1.0) as f32
 }
 
-fn unix_ms() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -436,18 +413,7 @@ mod tests {
             ToServer::Ping { id: 33, timestamp: 44 }
         ));
 
-        // The clocks: keep-alive every frame, ping with the wall clock.
-        s.keep_alive_every = Duration::ZERO;
-        s.ping_every = Duration::ZERO;
-        s.tick();
-        assert!(matches!(srv.recv_packet(), ToServer::KeepAlive));
-        match srv.recv_packet() {
-            ToServer::Ping { id, timestamp } => {
-                assert_eq!(id, player);
-                assert!(timestamp > 0);
-            }
-            other => panic!("expected Ping, got {other:?}"),
-        }
+        // The client answers server keep-alive and ping packets above; it does not send them periodically.
 
         // The mic goes out sealed, sequence starting at one.
         s.push_mic(&[1, 2, 3]);
