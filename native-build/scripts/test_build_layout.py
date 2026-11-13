@@ -38,6 +38,10 @@ def main() -> None:
     assert '"$work/mods/horizon-native-builder"' in build
     assert 'cp -r "$repo_root/mod/native-mod-builder"' in prepare
     assert 'cp "$repo_root/native-build/versions.json" "$root/versions.json"' in prepare
+    smoke = (ROOT / "native-build/scripts/create_smoke_request.py").read_text()
+    assert '"hooks": 80' in smoke
+    assert 'hook = "mods"' in smoke
+    assert "smoke_mod_list" in smoke
 
     versions = __import__("json").loads((ROOT / "native-build/versions.json").read_text())
     assert versions["0.7.8"]["hooks"] == 80
