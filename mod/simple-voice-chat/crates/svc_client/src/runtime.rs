@@ -239,7 +239,7 @@ impl Glue {
         self.last_net_error.clear();
         self.push_net_event(format!("RX PARSE OK {}", channel));
         match parsed {
-            proto::ServerMessage::Secret { secret, connection_id, port, player, distance, keep_alive_ms, voice_host, .. } => {
+            proto::ServerMessage::Secret { secret, port, player, distance, keep_alive_ms, voice_host, .. } => {
                 self.secret_sent_at = None;
                 self.connection_stage = "SECRETO RECIBIDO".into();
                 let host = if voice_host.is_empty() {
@@ -266,7 +266,7 @@ impl Glue {
                 let mut s = Session::new(player);
                 s.set_max_distance(distance);
                 s.timeout_after = Duration::from_millis((keep_alive_ms.clamp(100, 60_000) as u64).saturating_mul(10));
-                if let Err(error) = s.on_secret(secret, connection_id, target) {
+                if let Err(error) = s.on_secret(secret, target) {
                     self.connection_stage = "ERROR ABRIR UDP".into();
                     self.last_net_error = format!("no se pudo abrir UDP: {error}");
                     self.notes.push(format!("[voice] could not open UDP session: {error}"));
@@ -707,12 +707,11 @@ mod tests {
 
     use std::time::Instant;
 
-    fn secret_bytes(player: u128, connection_id: u128, port: u16, distance: f64) -> Vec<u8> {
+    fn secret_bytes(player: u128, port: u16, distance: f64) -> Vec<u8> {
         let mut out = Vec::new();
         // The secret reply body: fixed secret, port, player uuid, codec, mtu,
         // distance, keep-alive, groups flag, voice host, recording flag.
         out.extend_from_slice(&[0u8; 16]);
-        out.extend_from_slice(&connection_id.to_be_bytes());
         out.extend_from_slice(&(port as i32).to_be_bytes());
         out.extend_from_slice(&player.to_be_bytes());
         out.push(0);
@@ -766,7 +765,7 @@ mod tests {
         let (channel, body) = Glue::handshake();
         assert_eq!(channel, "voicechat:request_secret");
         assert!(!body.is_empty());
-        let body = secret_bytes(7, 0xCC, 24454, 48.0);
+        let body = secret_bytes(7, 24454, 48.0);
         eprintln!("parse: {:?}", proto::read("voicechat:secret", &body));
         g.on_net(
             "voicechat:secret",
