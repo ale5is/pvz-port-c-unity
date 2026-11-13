@@ -72,6 +72,21 @@ jobs:
         run: |
           "$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins" plan --workspace upstream/horizon-078 --mods mod --out "$RUNNER_TEMP/svc-plan.json"
           "$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins" apply --workspace upstream/horizon-078 --mods mod --out "$RUNNER_TEMP/horizon-078-svc"
+      - name: Fix staged Horizon native status string type
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("$RUNNER_TEMP/horizon-078-svc/crates/horizon-client/src/game.rs")
+          source = path.read_text()
+          old = 'let status = if state.status.is_empty() { "Idle" } else { short(&state.status) };'
+          new = 'let status = if state.status.is_empty() { "Idle" } else { &short(&state.status) };'
+          if source.count(old) == 1:
+              path.write_text(source.replace(old, new))
+          elif source.count(new) == 1:
+              print("Native status string fix already present")
+          else:
+              raise SystemExit("Expected exactly one staged Horizon status expression")
+          PY
       - name: Compile the staged Horizon Android client ARM64
         run: |
           cd "$RUNNER_TEMP/horizon-078-svc"
