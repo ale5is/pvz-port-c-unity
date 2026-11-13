@@ -141,13 +141,15 @@ pub fn on_command(game: &mut crate::game::Game<'_>, command: &str, ran: &mut boo
 }
 
 pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration) {
-    // world_lifecycle is authoritative-server-only in Horizon. A remote client
-    // never receives it, so mirror the actual client play state here as well.
-    let playing = game.native_playing();
+    // A screen such as inventory, chat or options can make native_playing()
+    // false while the world and player are still alive. Keep the SVC session
+    // for the lifetime of the player; close it only after the player is gone.
+    // Remote clients do not receive native world-lifecycle callbacks.
+    let world_present = game.player.is_some();
     let active = locked().is_world_active();
-    if playing && !active {
+    if world_present && !active {
         world_open_ready(game);
-    } else if !playing && active {
+    } else if !world_present && active {
         world_closed();
     }
 
