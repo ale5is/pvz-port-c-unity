@@ -57,6 +57,14 @@ pub struct Glue {
     pub reconnect_pending: bool,
     /// Mod-channel packets waiting for the frame helper to send.
     pub pending_sends: Vec<(String, Vec<u8>)>,
+    pub net_tx_count: u64,
+    pub net_rx_count: u64,
+    pub last_tx_channel: String,
+    pub last_rx_channel: String,
+    pub last_tx_bytes: usize,
+    pub last_rx_bytes: usize,
+    pub connection_stage: String,
+    pub last_net_error: String,
     /// Live microphone capture; None until start_audio succeeds.
     pub mic: Option<crate::audio_io::MicStream>,
     /// Live speaker output; None until start_audio succeeds.
@@ -86,6 +94,14 @@ impl Default for Glue {
             notes: Vec::new(),
             reconnect_pending: false,
             pending_sends: Vec::new(),
+            net_tx_count: 0,
+            net_rx_count: 0,
+            last_tx_channel: "-".into(),
+            last_rx_channel: "-".into(),
+            last_tx_bytes: 0,
+            last_rx_bytes: 0,
+            connection_stage: "SIN INICIAR".into(),
+            last_net_error: String::new(),
             mic: None,
             speaker: None,
             codec: None,
@@ -134,6 +150,14 @@ impl Glue {
         self.reconnect_pending = false;
         self.notes.clear();
         self.pending_sends.clear();
+        self.net_tx_count = 0;
+        self.net_rx_count = 0;
+        self.last_tx_channel = "-".into();
+        self.last_rx_channel = "-".into();
+        self.last_tx_bytes = 0;
+        self.last_rx_bytes = 0;
+        self.connection_stage = "SOLICITUD EN COLA".into();
+        self.last_net_error.clear();
     }
 
     /// The world closed: the socket dies with it.
@@ -160,14 +184,42 @@ impl Glue {
         (proto::REQUEST_SECRET.to_string(), proto::request_secret())
     }
 
+    /// Record a custom payload after it has been handed to Horizon's packet sender.
+    pub fn record_tx(&mut self, channel: &str, bytes: usize) {
+        self.net_tx_count = self.net_tx_count.saturating_add(1);
+        self.last_tx_channel = channel.to_string();
+        self.last_tx_bytes = bytes;
+        if channel == proto::REQUEST_SECRET {
+            self.connection_stage = "SOLICITUD ENVIADA".into();
+        }
+    }
+
     /// A message arrived from the server on one of our channels.
     pub fn on_net(&mut self, channel: &str, data: &[u8], hint: Option<&str>, now: Instant) {
-        let Some(parsed) = proto::read(channel, data) else { return };
-        let Ok(msg) = parsed else { return };
-        match msg {
+        self.net_rx_count = self.net_rx_count.saturating_add(1);
+        self.last_rx_channel = channel.to_string();
+        self.last_rx_bytes = data.len();
+        let parsed = match proto::read(channel, data) {
+            Some(Ok(message)) => message,
+            Some(Err(_)) => {
+                self.connection_stage = "PAYLOAD INVALIDO".into();
+                self.last_net_error = format!("{}: datos malformados ({} B)", channel, data.len());
+                return;
+            }
+            None => {
+                self.connection_stage = "CANAL NO RECONOCIDO".into();
+                self.last_net_error = format!("canal no soportado: {}", channel);
+                return;
+            }
+        };
+        self.last_net_error.clear();
+        match parsed {
             proto::ServerMessage::Secret { secret, port, player, distance, voice_host, .. } => {
+                self.connection_stage = "SECRETO RECIBIDO".into();
                 let host = if voice_host.is_empty() {
                     let Some(address) = hint.and_then(server_host) else {
+                        self.connection_stage = "ERROR DIRECCION SERVIDOR".into();
+                        self.last_net_error = "no se pudo resolver la direccion del servidor Minecraft".into();
                         self.notes.push("[voice] could not determine the game server address".into());
                         return;
                     };
@@ -178,6 +230,8 @@ impl Glue {
                 let target = match socket_of(&host, port) {
                     Ok(address) => address,
                     Err(error) => {
+                        self.connection_stage = "ERROR DNS UDP".into();
+                        self.last_net_error = format!("no se pudo resolver servidor UDP: {error}");
                         self.notes.push(format!("[voice] could not resolve voice server: {error}"));
                         return;
                     }
@@ -186,9 +240,12 @@ impl Glue {
                 let mut s = Session::new(player);
                 s.set_max_distance(distance);
                 if let Err(error) = s.on_secret(secret, target) {
+                    self.connection_stage = "ERROR ABRIR UDP".into();
+                    self.last_net_error = format!("no se pudo abrir UDP: {error}");
                     self.notes.push(format!("[voice] could not open UDP session: {error}"));
                     return;
                 }
+                self.connection_stage = "AUTH UDP ENVIADA".into();
                 self.session = Some(s);
             }
             proto::ServerMessage::State(st) => self.see_state(&st, now),
@@ -361,8 +418,17 @@ impl Glue {
         s.tick();
         let events = s.pump();
         for e in &events {
-            if let Event::Dropped(_) = e {
-                self.reconnect_pending = true;
+            match e {
+                Event::Connected => {
+                    self.connection_stage = "UDP CONECTADO".into();
+                    self.last_net_error.clear();
+                }
+                Event::Dropped(reason) => {
+                    self.reconnect_pending = true;
+                    self.connection_stage = "UDP DESCONECTADO".into();
+                    self.last_net_error = format!("conexion UDP perdida: {reason}");
+                }
+                Event::Voice { .. } => {}
             }
         }
         self.pump_speaker(&events);
