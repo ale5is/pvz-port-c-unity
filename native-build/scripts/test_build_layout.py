@@ -27,6 +27,8 @@ def main() -> None:
     assert "Game::native_config_dir()" in source
     assert "std::env::current_dir()" not in source
     assert "fn on_frame" not in source
+    assert "disable_compiled_build()" in source
+    assert 'native.join("current")' in source
 
     build = (ROOT / "native-build/scripts/native_build.sh").read_text()
     prepare = (ROOT / "native-build/scripts/prepare.sh").read_text()
@@ -35,6 +37,14 @@ def main() -> None:
     assert "native-mod-builder|horizon-native-builder)" in build
     assert '"$work/mods/horizon-native-builder"' in build
     assert 'cp -r "$repo_root/mod/native-mod-builder"' in prepare
+
+    versions = __import__("json").loads((ROOT / "native-build/versions.json").read_text())
+    assert versions["0.7.8"]["hooks"] == 80
+    assert versions["0.7.8"]["game"] == "26.3"
+
+    workflow = (ROOT / ".github/workflows/svc-client-check.yml").read_text()
+    assert "native-mod-system.py upstream/horizon-078" in workflow
+    assert "--mods mod" in workflow
 
     sandbox = (ROOT / "native-build/scripts/sandbox_inner.sh").read_text()
     assert "unshare --net" in (ROOT / "native-build/scripts/mod_build_sandbox.sh").read_text()
