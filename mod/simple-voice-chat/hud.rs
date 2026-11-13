@@ -1,13 +1,7 @@
-use horizon_client::{
-    extras::Corner,
-    extras_hud::Corners,
-    hud::HudBatch,
-};
-
 fn hud(
     game: &mut crate::game::Game<'_>,
-    batch: &mut HudBatch,
-    corners: &mut Corners,
+    batch: &mut horizon_client::hud::HudBatch,
+    corners: &mut horizon_client::extras_hud::Corners,
 ) {
     let (open, connected, permission, mic, speaker, ptt, ptt_held, muted) = {
         let guard = crate::game::simple_voice_chat::state()
@@ -41,7 +35,7 @@ fn hud(
         return;
     }
 
-    let corner = Corner::TopLeft;
+    let corner = horizon_client::extras::Corner::TopLeft;
     if !game.native_corner_shown(corner) {
         return;
     }
