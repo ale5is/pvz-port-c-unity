@@ -10,7 +10,9 @@ NATIVE_CACHE=$HOME/.cache/horizon-native
 export NATIVE_CACHE
 export CARGO_HOME="$HOME/.cargo"
 export RUSTUP_HOME="$HOME/.rustup"
-export PATH="$CARGO_HOME/bin:/usr/bin:/bin"
+TOOLCHAIN_BIN="$RUSTUP_HOME/toolchains/1.95.0-x86_64-unknown-linux-gnu/bin"
+export PATH="$TOOLCHAIN_BIN:$CARGO_HOME/bin:/usr/bin:/bin"
+export RUSTC="$TOOLCHAIN_BIN/rustc"
 command -v cargo >/dev/null || { echo "native_build: cargo is missing from the isolated toolchain" >&2; exit 1; }
 fail() { echo "native_build: $*" >&2; exit 1; }
 [ "$#" -eq 3 ] || fail "usage: native_build.sh SOURCE OUT MODS"
