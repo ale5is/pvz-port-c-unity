@@ -3,10 +3,14 @@ fn hud(
     batch: &mut horizon_client::hud::HudBatch,
     corners: &mut horizon_client::extras_hud::Corners,
 ) {
-    let (open, connected, permission, mic, speaker, ptt, ptt_held, muted) = {
+    let (open, connected, permission, mic, speaker, ptt, ptt_held, muted,
+        stage, tx_count, rx_count, last_tx, last_rx, tx_bytes, rx_bytes,
+        net_error, udp_counts, udp_error) = {
         let guard = crate::game::simple_voice_chat::state()
             .lock()
             .unwrap_or_else(|error| error.into_inner());
+        let udp_counts = guard.session.as_ref().map(|session| session.udp_counts());
+        let udp_error = guard.session.as_ref().and_then(|session| session.last_udp_error()).map(str::to_string);
         (
             guard.hud_open,
             guard.session.as_ref().is_some_and(|session| {
@@ -28,6 +32,16 @@ fn hud(
             guard.cfg.ptt_key.clone(),
             guard.ptt_held,
             guard.cfg.muted,
+            guard.connection_stage.clone(),
+            guard.net_tx_count,
+            guard.net_rx_count,
+            guard.last_tx_channel.clone(),
+            guard.last_rx_channel.clone(),
+            guard.last_tx_bytes,
+            guard.last_rx_bytes,
+            guard.last_net_error.clone(),
+            udp_counts,
+            udp_error,
         )
     };
 
@@ -45,38 +59,32 @@ fn hud(
         ptt,
         if ptt_held { "TRANSMITIENDO" } else { "ESPERANDO" }
     );
-    let lines = [
-        ("SIMPLE VOICE CHAT  [H]", 0xFFFFFF),
-        (
-            if connected { "Conexion: CONECTADO" } else { "Conexion: DESCONECTADO" },
-            if connected { 0x55FF55 } else { 0xFF5555 },
-        ),
-        (
-            match permission {
-                "CONCEDIDO" => "Permiso microfono: CONCEDIDO",
-                "DENEGADO" => "Permiso microfono: DENEGADO",
-                "ERROR JNI" => "Permiso microfono: ERROR JNI",
-                "SIN MUNDO" => "Permiso microfono: SIN MUNDO",
-                _ => "Permiso microfono: COMPROBANDO",
-            },
-            if permission == "CONCEDIDO" { 0x55FF55 } else { 0xFFAA00 },
-        ),
-        (
-            if mic { "Captura: ACTIVA" } else { "Captura: INACTIVA" },
-            if mic { 0x55FF55 } else { 0xFFAA00 },
-        ),
-        (
-            if speaker { "Salida de audio: ACTIVA" } else { "Salida de audio: INACTIVA" },
-            if speaker { 0x55FF55 } else { 0xFFAA00 },
-        ),
-        (
-            ptt_line.as_str(),
-            if ptt_held { 0x55FF55 } else { 0xFFFFFF },
-        ),
-        (
-            if muted { "Microfono: SILENCIADO" } else { "Microfono: HABILITADO" },
-            if muted { 0xFF5555 } else { 0x55FF55 },
-        ),
+    let udp_line = match udp_counts {
+        Some((tx, rx, invalid)) => format!("UDP TX/RX/ERR: {}/{}/{}", tx, rx, invalid),
+        None => "UDP: ESPERANDO SECRET".into(),
+    };
+    let tx_line = format!("MC TX #{}: {} ({}B)", tx_count, last_tx, tx_bytes);
+    let rx_line = format!("MC RX #{}: {} ({}B)", rx_count, last_rx, rx_bytes);
+    let error_line = if !net_error.is_empty() {
+        format!("NET ERROR: {}", net_error)
+    } else if let Some(error) = udp_error {
+        format!("UDP ERROR: {}", error)
+    } else {
+        "ERROR: -".into()
+    };
+    let lines: Vec<(String, u32)> = vec![
+        ("SIMPLE VOICE CHAT [H]".into(), 0xFFFFFF),
+        (format!("Conexion: {}", if connected { "CONECTADO" } else { "DESCONECTADO" }), if connected { 0x55FF55 } else { 0xFF5555 }),
+        (format!("Etapa: {}", stage), if connected { 0x55FF55 } else { 0xFFAA00 }),
+        (format!("Permiso microfono: {}", permission), if permission == "CONCEDIDO" { 0x55FF55 } else { 0xFFAA00 }),
+        (format!("Captura: {}", if mic { "ACTIVA" } else { "INACTIVA" }), if mic { 0x55FF55 } else { 0xFFAA00 }),
+        (format!("Salida audio: {}", if speaker { "ACTIVA" } else { "INACTIVA" }), if speaker { 0x55FF55 } else { 0xFFAA00 }),
+        (ptt_line, if ptt_held { 0x55FF55 } else { 0xFFFFFF }),
+        (format!("Microfono: {}", if muted { "SILENCIADO" } else { "HABILITADO" }), if muted { 0xFF5555 } else { 0x55FF55 }),
+        (tx_line, 0xFFFFFF),
+        (rx_line, 0xFFFFFF),
+        (udp_line, 0xFFFFFF),
+        (error_line, if net_error.is_empty() && udp_error.is_none() { 0x55FF55 } else { 0xFF5555 }),
     ];
 
     let width = lines
