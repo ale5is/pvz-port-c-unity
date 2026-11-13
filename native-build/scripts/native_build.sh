@@ -8,6 +8,10 @@ ABI=arm64-v8a
 PROFILE=fast
 NATIVE_CACHE=$HOME/.cache/horizon-native
 export NATIVE_CACHE
+export CARGO_HOME="$HOME/.cargo"
+export RUSTUP_HOME="$HOME/.rustup"
+export PATH="$CARGO_HOME/bin:/usr/bin:/bin"
+command -v cargo >/dev/null || { echo "native_build: cargo is missing from the isolated toolchain" >&2; exit 1; }
 fail() { echo "native_build: $*" >&2; exit 1; }
 [ "$#" -eq 3 ] || fail "usage: native_build.sh SOURCE OUT MODS"
 src=$(cd "$1" && pwd)
