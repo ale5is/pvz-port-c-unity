@@ -56,6 +56,10 @@ pub struct Session {
     last_ping: Instant,
     last_seen: Instant,
     events: Vec<Event>,
+    udp_tx_count: u64,
+    udp_rx_count: u64,
+    udp_invalid_count: u64,
+    last_udp_error: Option<String>,
 }
 
 impl Session {
@@ -79,11 +83,21 @@ impl Session {
             last_ping: Instant::now(),
             last_seen: Instant::now(),
             events: Vec::new(),
+            udp_tx_count: 0,
+            udp_rx_count: 0,
+            udp_invalid_count: 0,
+            last_udp_error: None,
         }
     }
 
     pub fn state(&self) -> State {
         self.state
+    }
+    pub fn udp_counts(&self) -> (u64, u64, u64) {
+        (self.udp_tx_count, self.udp_rx_count, self.udp_invalid_count)
+    }
+    pub fn last_udp_error(&self) -> Option<&str> {
+        self.last_udp_error.as_deref()
     }
     pub fn muted(&self) -> bool {
         self.muted
@@ -155,7 +169,10 @@ impl Session {
             return;
         };
         let datagram = client_datagram(self.player, &sealed);
-        let _ = socket.send_to(&datagram, server);
+        match socket.send_to(&datagram, server) {
+            Ok(_) => self.udp_tx_count = self.udp_tx_count.saturating_add(1),
+            Err(error) => self.last_udp_error = Some(format!("UDP send_to: {error}")),
+        }
     }
 
     /// One 20 ms Opus frame from the mic; an empty frame stops the stream.
@@ -202,7 +219,13 @@ impl Session {
             }
         }
         for d in &datagrams {
+            self.udp_rx_count = self.udp_rx_count.saturating_add(1);
             self.ingest(d);
+        }
+        if self.state == State::Connecting && self.last_seen.elapsed() >= TIMEOUT_AFTER {
+            self.state = State::Idle;
+            self.last_udp_error = Some("timeout esperando AuthenticateAck".into());
+            self.events.push(Event::Dropped("authenticate timeout"));
         }
         if self.state == State::Connected && self.last_seen.elapsed() >= TIMEOUT_AFTER {
             self.state = State::Idle;
@@ -216,16 +239,28 @@ impl Session {
             let Some(cipher) = self.cipher.as_ref() else { return };
             let sealed = match server_datagram(datagram) {
                 Ok(s) => s,
-                Err(_) => return,
+                Err(_) => {
+                    self.udp_invalid_count = self.udp_invalid_count.saturating_add(1);
+                    self.last_udp_error = Some("datagrama UDP con cabecera invalida".into());
+                    return;
+                }
             };
             match cipher.open(sealed) {
                 Some(p) => p,
-                None => return,
+                None => {
+                    self.udp_invalid_count = self.udp_invalid_count.saturating_add(1);
+                    self.last_udp_error = Some("fallo de autenticacion AES-GCM en UDP".into());
+                    return;
+                }
             }
         };
         let packet = match FromServer::read(&plain) {
             Ok(p) => p,
-            Err(_) => return,
+            Err(_) => {
+                self.udp_invalid_count = self.udp_invalid_count.saturating_add(1);
+                self.last_udp_error = Some("paquete UDP no reconocido".into());
+                return;
+            }
         };
         self.last_seen = Instant::now();
         match packet {
