@@ -95,7 +95,7 @@ pub fn on_key(key: &str, pressed: bool) {
     }
 }
 
-pub fn on_command(command: &str, ran: &mut bool) {
+pub fn on_command(game: &mut crate::game::Game<'_>, command: &str, ran: &mut bool) {
     let command = command.trim();
     if !svc_client::runtime::is_voice_command(command) {
         return;
@@ -108,7 +108,7 @@ pub fn on_command(command: &str, ran: &mut bool) {
     };
     svc_client::runtime::Glue::save_config(&config_base(), &cfg);
     if !feedback.is_empty() {
-        eprintln!("{feedback}");
+        game.system_message(crate::text::Text::literal(feedback));
     }
     for (channel, body) in outbound {
         queue_outbound(channel, body);
