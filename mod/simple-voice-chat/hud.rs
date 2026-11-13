@@ -5,7 +5,7 @@ fn hud(
 ) {
     let (open, connected, permission, mic, speaker, ptt, ptt_held, muted,
         stage, tx_count, rx_count, last_tx, last_rx, tx_bytes, rx_bytes,
-        net_error, udp_counts, udp_error) = {
+        net_error, history, udp_counts, udp_error) = {
         let guard = crate::game::simple_voice_chat::state()
             .lock()
             .unwrap_or_else(|error| error.into_inner());
@@ -40,6 +40,7 @@ fn hud(
             guard.last_tx_bytes,
             guard.last_rx_bytes,
             guard.last_net_error.clone(),
+            guard.net_history.clone(),
             udp_counts,
             udp_error,
         )
@@ -72,7 +73,7 @@ fn hud(
     } else {
         "ERROR: -".into()
     };
-    let lines: Vec<(String, u32)> = vec![
+    let mut lines: Vec<(String, u32)> = vec![
         ("SIMPLE VOICE CHAT [H]".into(), 0xFFFFFF),
         (format!("Conexion: {}", if connected { "CONECTADO" } else { "DESCONECTADO" }), if connected { 0x55FF55 } else { 0xFF5555 }),
         (format!("Etapa: {}", stage), if connected { 0x55FF55 } else { 0xFFAA00 }),
@@ -86,6 +87,14 @@ fn hud(
         (udp_line, 0xFFFFFF),
         (error_line, if net_error.is_empty() && udp_error.is_none() { 0x55FF55 } else { 0xFF5555 }),
     ];
+    lines.extend(
+        history
+            .iter()
+            .rev()
+            .take(4)
+            .rev()
+            .map(|event| (format!("NET: {}", event), 0xAAAAAA)),
+    );
 
     let width = lines
         .iter()
