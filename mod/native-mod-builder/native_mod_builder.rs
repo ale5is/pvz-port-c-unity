@@ -12,6 +12,10 @@ use std::{
 
 const BUILDER_ID: &str = "horizon-native-builder";
 const GAME_VERSION: &str = "0.7.8";
+const MINECRAFT_VERSION: &str = "26.3";
+const HORIZON_REVISION: &str = "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29";
+const MIXINS_REVISION: &str = "a2af5c0dd4117d51ecd70066ba7a00b4a2c10dab";
+const HOOKS_API: u64 = 80;
 const NATIVE_MODS_DIR: &str = "horizon-native-mods";
 const REQUEST_LIMIT: usize = 32 << 20;
 const MAX_MODS: usize = 16;
@@ -330,6 +334,23 @@ fn compile_installed() -> Result<String, String> {
         .filter(|size| *size > 0 && *size <= 256 << 20)
         .ok_or("Build server returned an invalid library size.")?;
     let build_info = finished["build"].clone();
+    let mods = build_info["mods"].as_array().ok_or("Build metadata has no mod list.")?;
+    let mod_ids: HashSet<&str> = mods
+        .iter()
+        .filter_map(|item| item["id"].as_str())
+        .collect();
+    if build_info["version"].as_str() != Some(GAME_VERSION)
+        || build_info["game"].as_str() != Some(MINECRAFT_VERSION)
+        || build_info["hooks"].as_u64() != Some(HOOKS_API)
+        || build_info["commit"].as_str() != Some(HORIZON_REVISION)
+        || build_info["horizon_mixins"].as_str() != Some(MIXINS_REVISION)
+        || build_info["abi"].as_str() != Some("arm64-v8a")
+        || build_info["profile"].as_str() != Some("fast")
+        || !mod_ids.contains("simple-voice-chat")
+        || !mod_ids.contains("horizon-native-builder")
+    {
+        return Err("Build metadata does not match Horizon 0.7.8 / Minecraft 26.3 / hooks API 80.".into());
+    }
     let native = home.join("native");
     let name = format!("compiled-{job}");
     let folder = native.join(&name);
