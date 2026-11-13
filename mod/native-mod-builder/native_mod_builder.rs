@@ -5,7 +5,6 @@ use std::{
     fs::{self, File},
     io::{Read, Write},
     net::IpAddr,
-    path::PathBuf,
     sync::{Mutex, OnceLock, PoisonError},
     thread,
     time::{Duration, Instant},

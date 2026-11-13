@@ -216,7 +216,11 @@ final class NativeMods {
     }
 }
 ''')
-write_new("packaging/android/java/dev/horizon/android/HorizonActivity.java", activity)
+activity_path = ROOT / "packaging/android/java/dev/horizon/android/HorizonActivity.java"
+activity_source = activity_path.read_text(encoding="utf-8")
+if 'static { System.loadLibrary("horizon_android"); }' not in activity_source:
+    raise SystemExit("HorizonActivity.java no longer matches the expected 0.7.8 bootstrap")
+activity_path.write_text(activity, encoding="utf-8")
 
 replace(
     "crates/horizon-client/src/content_files.rs",
