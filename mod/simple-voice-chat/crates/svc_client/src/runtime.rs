@@ -67,6 +67,8 @@ pub struct Glue {
     pub last_rx_bytes: usize,
     pub connection_stage: String,
     pub last_net_error: String,
+    /// Bounded diagnostic history of Minecraft custom payload traffic.
+    pub net_history: Vec<String>,
     secret_sent_at: Option<Instant>,
     /// Live microphone capture; None until start_audio succeeds.
     pub mic: Option<crate::audio_io::MicStream>,
@@ -105,6 +107,7 @@ impl Default for Glue {
             last_rx_bytes: 0,
             connection_stage: "SIN INICIAR".into(),
             last_net_error: String::new(),
+            net_history: Vec::new(),
             secret_sent_at: None,
             mic: None,
             speaker: None,
@@ -121,6 +124,14 @@ impl Default for Glue {
 }
 
 impl Glue {
+    fn push_net_event(&mut self, event: String) {
+        const MAX_NET_HISTORY: usize = 8;
+        if self.net_history.len() == MAX_NET_HISTORY {
+            self.net_history.remove(0);
+        }
+        self.net_history.push(event);
+    }
+
     pub fn config_path(base: &str) -> String {
         format!("{}/simple_voice_chat/config.json", base)
     }
@@ -162,6 +173,7 @@ impl Glue {
         self.last_rx_bytes = 0;
         self.connection_stage = "SOLICITUD EN COLA".into();
         self.last_net_error.clear();
+        self.net_history.clear();
         self.secret_sent_at = None;
     }
 
@@ -195,6 +207,7 @@ impl Glue {
         self.net_tx_count = self.net_tx_count.saturating_add(1);
         self.last_tx_channel = channel.to_string();
         self.last_tx_bytes = bytes;
+        self.push_net_event(format!("TX {} ({} B)", channel, bytes));
         if channel == proto::REQUEST_SECRET {
             self.connection_stage = "SOLICITUD ENVIADA".into();
             self.last_net_error.clear();
@@ -207,20 +220,24 @@ impl Glue {
         self.net_rx_count = self.net_rx_count.saturating_add(1);
         self.last_rx_channel = channel.to_string();
         self.last_rx_bytes = data.len();
+        self.push_net_event(format!("RX {} ({} B)", channel, data.len()));
         let parsed = match proto::read(channel, data) {
             Some(Ok(message)) => message,
             Some(Err(_)) => {
                 self.connection_stage = "PAYLOAD INVALIDO".into();
                 self.last_net_error = format!("{}: datos malformados ({} B)", channel, data.len());
+                self.push_net_event(format!("RX INVALIDO {}", channel));
                 return;
             }
             None => {
                 self.connection_stage = "CANAL NO RECONOCIDO".into();
                 self.last_net_error = format!("canal no soportado: {}", channel);
+                self.push_net_event(format!("RX SIN SOPORTE {}", channel));
                 return;
             }
         };
         self.last_net_error.clear();
+        self.push_net_event(format!("RX PARSE OK {}", channel));
         match parsed {
             proto::ServerMessage::Secret { secret, port, player, distance, voice_host, .. } => {
                 self.secret_sent_at = None;
