@@ -54,6 +54,7 @@ pub struct Session {
     max_distance: f64,
     pub keep_alive_every: Duration,
     pub ping_every: Duration,
+    pub timeout_after: Duration,
     last_keep_alive: Instant,
     last_ping: Instant,
     last_seen: Instant,
@@ -83,6 +84,7 @@ impl Session {
             max_distance: 48.0,
             keep_alive_every: KEEP_ALIVE_EVERY,
             ping_every: PING_EVERY,
+            timeout_after: TIMEOUT_AFTER,
             last_keep_alive: Instant::now(),
             last_ping: Instant::now(),
             last_seen: Instant::now(),
@@ -236,12 +238,12 @@ impl Session {
             self.udp_rx_count = self.udp_rx_count.saturating_add(1);
             self.ingest(d);
         }
-        if self.state == State::Connecting && self.last_seen.elapsed() >= TIMEOUT_AFTER {
+        if self.state == State::Connecting && self.last_seen.elapsed() >= self.timeout_after {
             self.state = State::Idle;
             self.last_udp_error = Some("timeout esperando AuthenticateAck".into());
             self.events.push(Event::Dropped("authenticate timeout"));
         }
-        if self.state == State::Connected && self.last_seen.elapsed() >= TIMEOUT_AFTER {
+        if self.state == State::Connected && self.last_seen.elapsed() >= self.timeout_after {
             self.state = State::Idle;
             self.events.push(Event::Dropped("timeout"));
         }
