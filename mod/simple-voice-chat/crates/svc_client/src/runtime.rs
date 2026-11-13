@@ -724,6 +724,27 @@ mod tests {
     }
 
     #[test]
+    fn network_history_records_payloads_and_is_bounded() {
+        let mut g = glue();
+        g.world_open();
+        let now = Instant::now();
+        g.record_tx(proto::REQUEST_SECRET, 4, now);
+        let states = 0i32.to_be_bytes();
+        g.on_net(proto::STATES, &states, None, now);
+
+        assert!(g.net_history.iter().any(|line| line == "TX voicechat:request_secret (4 B)"));
+        assert!(g.net_history.iter().any(|line| line == "RX voicechat:states (4 B)"));
+        assert!(g.net_history.iter().any(|line| line == "RX PARSE OK voicechat:states"));
+
+        for index in 0..12 {
+            g.record_tx(&format!("test:{index}"), index, now);
+        }
+        assert_eq!(g.net_history.len(), 8);
+        assert!(g.net_history.first().unwrap().contains("test:4"));
+        assert!(g.net_history.last().unwrap().contains("test:11"));
+    }
+
+    #[test]
     fn missing_secret_reply_is_reported_after_timeout() {
         let mut g = glue();
         g.world_open();
