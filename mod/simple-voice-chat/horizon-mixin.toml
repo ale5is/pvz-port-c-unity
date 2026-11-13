@@ -77,6 +77,18 @@ bindings = [
   { name = "elapsed", ty = "std::time::Duration", value = "elapsed" },
 ]
 
+[[injection]]
+id = "hud"
+kind = "HEAD"
+hook = "hud"
+hook_version = 1
+helper = "hud.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "batch", ty = "&mut horizon_client::hud::HudBatch", value = "&mut *batch" },
+  { name = "corners", ty = "&mut horizon_client::extras_hud::Corners", value = "&mut *corners" },
+]
+
 [[crate]]
 id = "svc_client"
 path = "crates/svc_client"
