@@ -25,7 +25,7 @@ import sys
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(ROOT / "scripts"))
-from mod_build_server import unpack_request
+from mod_build_server import check_compatibility, unpack_request
 
 TOKEN = os.environ.get("GITHUB_TOKEN", "")
 REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "ale5is/pvz-port-c-unity")
@@ -346,13 +346,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         with tempfile.TemporaryDirectory(prefix="horizon-validate-") as temp:
             try:
                 manifests = unpack_request(body, pathlib.Path(temp) / "mods")
-                if any(
-                    m.get("horizon") != commit
-                    or m.get("game") != version_info["game"]
-                    or m.get("mixins") != version_info["mixins"]
-                    for m in manifests
-                ):
-                    return self.reply(400, {"error": "one or more mods target a different Horizon, Minecraft or mixins revision"})
+                check_compatibility(manifests, version_info)
             except Exception as error:
                 return self.reply(400, {"error": str(error)})
         folder = DATA / "requests"
