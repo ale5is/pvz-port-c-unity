@@ -137,6 +137,16 @@ pub fn on_command(game: &mut crate::game::Game<'_>, command: &str, ran: &mut boo
 }
 
 pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration) {
+    // world_lifecycle is authoritative-server-only in Horizon. A remote client
+    // never receives it, so mirror the actual client play state here as well.
+    let playing = game.native_playing();
+    let active = locked().is_world_active();
+    if playing && !active {
+        world_open_ready(game);
+    } else if !playing && active {
+        world_closed();
+    }
+
     let (listener, players) = game.native_voice_positions();
     let now = Instant::now();
     let mut g = locked();
