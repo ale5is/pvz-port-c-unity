@@ -270,7 +270,6 @@ impl Session {
             FromServer::AuthenticateAck => {
                 if self.state == State::Connecting {
                     self.authenticated = true;
-                    self.last_keep_alive = Instant::now() - self.keep_alive_every;
                 }
             }
             FromServer::ConnectionCheckAck => {
