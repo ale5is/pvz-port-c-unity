@@ -46,18 +46,21 @@ pub fn drain_outbound() -> Vec<(String, Vec<u8>)> {
 }
 
 pub fn world_open_ready(_game: &mut crate::game::Game<'_>) {
+    {
+        let mut g = locked();
+        if let Some(base) = config_base() {
+            g.cfg = svc_client::runtime::Glue::load_config(&base);
+        }
+        if !g.cfg.enabled {
+            return;
+        }
+    }
     #[cfg(target_os = "android")]
     if let Err(error) = crate::native_ime::request_audio_permission() {
         eprintln!("[voice] microphone permission request failed: {error}");
         locked().set_audio_permission_error();
     }
     let mut g = locked();
-    if let Some(base) = config_base() {
-        g.cfg = svc_client::runtime::Glue::load_config(&base);
-    }
-    if !g.cfg.enabled {
-        return;
-    }
     g.world_open();
     #[cfg(not(target_os = "android"))]
     g.set_audio_permission(true);
