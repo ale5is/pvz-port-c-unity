@@ -80,12 +80,18 @@ replace(manifest, meta, replacement, expected=2)
 activity = r'''package dev.horizon.android;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.system.Os;
 import java.io.File;
 
 /** NativeActivity bootstrap and SAF result callback. */
 public final class HorizonActivity extends android.app.NativeActivity {
     private File nativeBuild;
+    private final Handler nativeBuildHandler = new Handler(Looper.getMainLooper());
+    private final Runnable markNativeBuildStarted = () -> {
+        if (nativeBuild != null) NativeMods.started(this);
+    };
     private native void nativeDocumentResult(int request, int result, String uri);
 
     @Override protected void onCreate(Bundle state) {
@@ -120,7 +126,10 @@ public final class HorizonActivity extends android.app.NativeActivity {
 
     @Override public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus && nativeBuild != null) NativeMods.started(this);
+        nativeBuildHandler.removeCallbacks(markNativeBuildStarted);
+        if (hasFocus && nativeBuild != null) {
+            nativeBuildHandler.postDelayed(markNativeBuildStarted, 45000);
+        }
     }
 
     @Override protected void onActivityResult(int request, int result, android.content.Intent data) {
