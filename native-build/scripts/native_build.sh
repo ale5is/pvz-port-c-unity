@@ -78,7 +78,7 @@ for folder in sorted(p for p in mods.iterdir() if p.is_dir()):
     entries.append({"id": value["mod"]["id"], "version": value["mod"]["version"]})
 library = out / "libhorizon_android.so"
 json.dump({
-    "schema": 1, "version": "0.7.8", "commit": commit,
+    "schema": 1, "version": "0.7.8", "game": "26.3", "commit": commit,
     "horizon_mixins": mixins, "abi": abi, "profile": profile,
     "mods": entries,
     "sha256": hashlib.sha256(library.read_bytes()).hexdigest(),
