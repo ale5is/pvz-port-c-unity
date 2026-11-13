@@ -32,17 +32,6 @@ bindings = [
 ]
 
 [[injection]]
-id = "voicechat_packet"
-kind = "HEAD"
-hook = "handle_packet"
-hook_version = 1
-helper = "net_packet.rs"
-bindings = [
-  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
-  { name = "packet", ty = "&horizon_protocol::packets::play::Clientbound", value = "&packet" },
-]
-
-[[injection]]
 id = "net_from_server"
 kind = "HEAD"
 hook = "net_from_server"
