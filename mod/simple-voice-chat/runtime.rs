@@ -10,6 +10,18 @@ pub use svc_client::runtime::{state, Glue};
 
 static OUT: Mutex<Vec<(String, Vec<u8>)>> = Mutex::new(Vec::new());
 
+fn config_base() -> String {
+    crate::game::Game::options_path()
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."))
+        .to_string_lossy()
+        .into_owned()
+}
+
+fn save_config() {
+    let cfg = locked().cfg.clone();
+    svc_client::runtime::Glue::save_config(&config_base(), &cfg);
+}
 fn locked() -> std::sync::MutexGuard<'static, Glue> {
     state().lock().unwrap_or_else(|e| e.into_inner())
 }
@@ -24,12 +36,14 @@ pub fn drain_outbound() -> Vec<(String, Vec<u8>)> {
     std::mem::take(&mut *OUT.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
-pub fn world_open_ready() {
+pub fn world_open_ready(_game: &mut crate::game::Game<'_>) {
     #[cfg(target_os = "android")]
     if let Err(error) = crate::native_ime::request_audio_permission() {
         eprintln!("[voice] microphone permission request failed: {error}");
     }
+    let base = config_base();
     let mut g = locked();
+    g.cfg = svc_client::runtime::Glue::load_config(&base);
     g.world_open();
     #[cfg(not(target_os = "android"))]
     g.set_audio_permission(true);
@@ -49,7 +63,7 @@ pub fn world_lifecycle(
 ) {
     use crate::game::native_lifecycle::WorldPhase::{WorldCloseFailed, WorldCloseFinal, WorldOpenFailed, WorldOpenReady};
     match phase {
-        WorldOpenReady => world_open_ready(),
+        WorldOpenReady => world_open_ready(_game),
         WorldOpenFailed | WorldCloseFinal | WorldCloseFailed => world_closed(),
     }
 }
@@ -76,7 +90,10 @@ pub fn on_key(key: &str, pressed: bool) {
             }
         });
     if let Some(code) = code {
-        locked().on_key(&code, pressed);
+        let changed = locked().on_key(&code, pressed).is_some();
+        if changed {
+            save_config();
+        }
     }
 }
 
@@ -86,7 +103,12 @@ pub fn on_command(command: &str, ran: &mut bool) {
         return;
     }
     let command = command.strip_prefix('/').unwrap_or(command);
-    let (feedback, outbound) = locked().on_command(command);
+    let (feedback, outbound, cfg) = {
+        let mut g = locked();
+        let (feedback, outbound) = g.on_command(command);
+        (feedback, outbound, g.cfg.clone())
+    };
+    svc_client::runtime::Glue::save_config(&config_base(), &cfg);
     if !feedback.is_empty() {
         eprintln!("{feedback}");
     }
