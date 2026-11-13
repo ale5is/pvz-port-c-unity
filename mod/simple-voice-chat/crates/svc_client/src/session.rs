@@ -409,6 +409,12 @@ mod tests {
             }
             other => panic!("expected Authenticate, got {other:?}"),
         }
+        s.keep_alive_every = Duration::ZERO;
+        s.tick();
+        assert!(matches!(
+            srv.recv_packet(),
+            ToServer::Authenticate { player: 11, secret: [7; 16] }
+        ));
         srv.send_packet(&FromServer::AuthenticateAck);
         assert!(s.pump().is_empty());
         assert_eq!(s.state(), State::Connecting);
