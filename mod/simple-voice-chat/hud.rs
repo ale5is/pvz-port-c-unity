@@ -4,7 +4,7 @@ use horizon_client::{
     hud::HudBatch,
 };
 
-pub fn svc_hud(
+fn hud(
     game: &mut crate::game::Game<'_>,
     batch: &mut HudBatch,
     corners: &mut Corners,
