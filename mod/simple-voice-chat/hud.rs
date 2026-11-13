@@ -44,6 +44,11 @@ pub fn svc_hud(
         return;
     }
 
+    let ptt_line = format!(
+        "PTT {}: {}",
+        ptt,
+        if ptt_held { "TRANSMITIENDO" } else { "ESPERANDO" }
+    );
     let lines = [
         ("SIMPLE VOICE CHAT  [H]", 0xFFFFFF),
         (
@@ -68,7 +73,7 @@ pub fn svc_hud(
             if speaker { 0x55FF55 } else { 0xFFAA00 },
         ),
         (
-            if ptt_held { "PTT: TRANSMITIENDO" } else { "PTT: ESPERANDO" },
+            ptt_line.as_str(),
             if ptt_held { 0x55FF55 } else { 0xFFFFFF },
         ),
         (
@@ -95,6 +100,4 @@ pub fn svc_hud(
             true,
         );
     }
-
-    let _ = ptt;
 }
