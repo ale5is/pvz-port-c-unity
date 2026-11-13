@@ -37,6 +37,7 @@ def main() -> None:
     assert "native-mod-builder|horizon-native-builder)" in build
     assert '"$work/mods/horizon-native-builder"' in build
     assert 'cp -r "$repo_root/mod/native-mod-builder"' in prepare
+    assert 'cp "$repo_root/native-build/versions.json" "$root/versions.json"' in prepare
 
     versions = __import__("json").loads((ROOT / "native-build/versions.json").read_text())
     assert versions["0.7.8"]["hooks"] == 80
