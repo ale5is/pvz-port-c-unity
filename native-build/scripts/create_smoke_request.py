@@ -23,21 +23,24 @@ def main() -> None:
         "game": "26.3",
         "horizon": HORIZON,
         "mixins": MIXINS,
-        "hooks": 0,
+        "hooks": 80,
     }
     mixin = (
         '[mod]\nid = "' + MOD_ID + '"\nversion = "1.0.0"\npriority = 1\n'
         '[compatibility]\nhorizon_revision = "' + HORIZON + '"\n'
-        '[[module]]\nid = "native_build_smoke"\n'
-        'file = "crates/horizon-client/src/game.rs"\n'
-        'name = "native_build_smoke"\nsource = "native_build_smoke.rs"\n'
+        '[[injection]]\nid = "smoke_mod_list"\nkind = "HEAD"\n'
+        'hook = "mods"\nhook_version = 1\nhelper = "mods.rs"\n'
+        'bindings = [\n'
+        '  { name = "game", ty = "&mut crate::game::Game<\\'_>", value = "&mut *self" },\n'
+        '  { name = "mods", ty = "&mut Vec<crate::game::native_hooks::NativeMod>", value = "&mut *mods" },\n'
+        ']\n'
     )
     with zipfile.ZipFile(bundle_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("horizon-native.json", json.dumps(manifest, separators=(",", ":")))
         archive.writestr("mixins/" + MOD_ID + "/horizon-mixin.toml", mixin)
         archive.writestr(
-            "mixins/" + MOD_ID + "/native_build_smoke.rs",
-            "pub(super) const NATIVE_BUILD_SMOKE_TEST: bool = true;\n",
+            "mixins/" + MOD_ID + "/mods.rs",
+            "fn smoke_mod_list(\\n    _game: &mut crate::game::Game<'_>,\\n    _mods: &mut Vec<crate::game::native_hooks::NativeMod>,\\n) {}\\n",
         )
     data = bundle_path.read_bytes()
     output.write_bytes(len(data).to_bytes(4, "big") + data)
