@@ -95,10 +95,11 @@ fn open_in<T: cpal::SizedSample>(
     conv: impl Fn(T) -> i16 + Send + 'static,
     health: Arc<StreamHealth>,
 ) -> Result<cpal::Stream, String> {
+    let callback_health = health.clone();
     dev.build_input_stream(
         &cfg.config(),
         move |data: &[T], _: &cpal::InputCallbackInfo| {
-            health.callback();
+            callback_health.callback();
             let mut q = q.lock().unwrap();
             for s in data {
                 q.push_back(conv(*s));
