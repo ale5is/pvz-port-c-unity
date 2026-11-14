@@ -704,6 +704,18 @@ mod tests {
     }
 
     #[test]
+    fn microphone_permission_is_requested_once_per_world() {
+        let mut glue = Glue::default();
+        assert!(!glue.take_permission_request());
+        glue.world_open();
+        assert!(glue.take_permission_request());
+        assert!(!glue.take_permission_request());
+        glue.world_close();
+        glue.world_open();
+        assert!(glue.take_permission_request());
+    }
+
+    #[test]
     fn audio_requires_an_active_world_and_permission() {
         let mut glue = Glue::default();
         glue.set_audio_permission(true);
