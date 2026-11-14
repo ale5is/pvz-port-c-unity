@@ -194,4 +194,8 @@ replace(
     "Open system Files > Horizon Android.",
     "Open system Files > PavoHorizon.",
 )
+launcher = (ROOT / "crates/horizon-client/src/android/launcher_pages.rs").read_text(encoding="utf-8")
+if "Starling" in launcher or "starling" in launcher:
+    raise SystemExit("launcher still contains an upstream Starling migration reference")
+
 print("Applied PavoHorizon app label, startup microphone permission and launcher branding.")
