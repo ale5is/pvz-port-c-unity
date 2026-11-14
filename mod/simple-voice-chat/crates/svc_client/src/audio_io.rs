@@ -5,6 +5,8 @@
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Instant;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
@@ -12,6 +14,42 @@ pub const SAMPLE_RATE: u32 = 48_000;
 pub const FRAME_SAMPLES: usize = 960;
 
 type Queue = Arc<Mutex<VecDeque<i16>>>;
+
+struct StreamHealth {
+    started: Instant,
+    last_callback_ms: AtomicU64,
+    error: Mutex<Option<String>>,
+}
+
+impl StreamHealth {
+    fn new() -> Arc<Self> {
+        Arc::new(Self {
+            started: Instant::now(),
+            last_callback_ms: AtomicU64::new(0),
+            error: Mutex::new(None),
+        })
+    }
+
+    fn callback(&self) {
+        self.last_callback_ms.store(
+            self.started.elapsed().as_millis().min(u64::MAX as u128) as u64,
+            Ordering::Relaxed,
+        );
+    }
+
+    fn fail(&self, error: String) {
+        *self.error.lock().unwrap_or_else(|e| e.into_inner()) = Some(error);
+    }
+
+    fn is_healthy(&self) -> bool {
+        if self.error.lock().unwrap_or_else(|e| e.into_inner()).is_some() {
+            return false;
+        }
+        let elapsed = self.started.elapsed().as_millis().min(u64::MAX as u128) as u64;
+        let last = self.last_callback_ms.load(Ordering::Relaxed);
+        elapsed.saturating_sub(last) <= 3_000
+    }
+}
 
 /// Average interleaved multi-channel samples down to mono.
 pub fn mono_of(interleaved: &[i16], channels: usize) -> Vec<i16> {
@@ -55,10 +93,12 @@ fn open_in<T: cpal::SizedSample>(
     cfg: &cpal::SupportedStreamConfig,
     q: Queue,
     conv: impl Fn(T) -> i16 + Send + 'static,
+    health: Arc<StreamHealth>,
 ) -> Result<cpal::Stream, String> {
     dev.build_input_stream(
         &cfg.config(),
         move |data: &[T], _: &cpal::InputCallbackInfo| {
+            health.callback();
             let mut q = q.lock().unwrap();
             for s in data {
                 q.push_back(conv(*s));
@@ -69,7 +109,10 @@ fn open_in<T: cpal::SizedSample>(
                 q.pop_front();
             }
         },
-        move |_| {},
+        {
+            let health = health.clone();
+            move |error| health.fail(error.to_string())
+        },
         None,
     )
     .map_err(|e| e.to_string())
@@ -105,6 +148,7 @@ pub struct MicStream {
     src_ch: usize,
     mono: Vec<i16>,
     need: usize,
+    health: Arc<StreamHealth>,
 }
 
 impl MicStream {
@@ -115,15 +159,16 @@ impl MicStream {
             .default_input_config()
             .map_err(|e| format!("input config: {}", e))?;
         let queue: Queue = Arc::new(Mutex::new(VecDeque::new()));
+        let health = StreamHealth::new();
         let stream = match cfg.sample_format() {
-            cpal::SampleFormat::I16 => open_in::<i16>(&dev, &cfg, queue.clone(), |s| s)?,
+            cpal::SampleFormat::I16 => open_in::<i16>(&dev, &cfg, queue.clone(), |s| s, health.clone())?,
             cpal::SampleFormat::F32 => {
                 open_in::<f32>(&dev, &cfg, queue.clone(), |s| {
                     (s.clamp(-1.0, 1.0) * 32767.0) as i16
-                })?
+                }, health.clone())?
             }
             cpal::SampleFormat::U16 => {
-                open_in::<u16>(&dev, &cfg, queue.clone(), |s| (s as i32 - 32768) as i16)?
+                open_in::<u16>(&dev, &cfg, queue.clone(), |s| (s as i32 - 32768) as i16, health.clone())?
             }
             other => return Err(format!("unsupported mic sample format {:?}", other)),
         };
@@ -135,7 +180,12 @@ impl MicStream {
             src_ch: cfg.channels() as usize,
             mono: Vec::new(),
             need: ((FRAME_SAMPLES as u64 * cfg.sample_rate().0 as u64 + 47_999) / 48_000) as usize,
+            health,
         })
+    }
+
+    pub fn is_healthy(&self) -> bool {
+        self.health.is_healthy()
     }
 
     /// The next 20 ms frame at 48 kHz mono, or None until enough audio is in.
