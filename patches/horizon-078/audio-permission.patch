@@ -53,17 +53,4 @@ diff --git a/crates/horizon-client/src/android/native_ime.rs b/crates/horizon-cl
 +        .map_err(|error| error.to_string())
 +}
 +
-+pub(crate) fn request_audio_permission() -> Result<(), String> {
-+    let ui = UI
-+        .get()
-+        .ok_or_else(|| "Android activity is not initialized".to_string())?;
-+    let mut env = ui
-+        .vm
-+        .attach_current_thread()
-+        .map_err(|error| error.to_string())?;
-+    env.call_method(&ui.activity, "requestAudioPermission", "()V", &[])
-+        .map_err(|error| error.to_string())?;
-+    Ok(())
-+}
-+
  impl Ui {
