@@ -928,20 +928,22 @@ mod tests {
     #[test]
     fn mute_releases_capture_without_closing_voice_session() {
         let mut g = Glue::default();
+        g.session = Some(Session::new(123));
         g.ptt_held = true;
         g.set_muted(true);
         assert!(g.cfg.muted);
         assert!(!g.ptt_held);
         assert!(g.mic.is_none());
-        assert!(g.session.is_none(), "muting must not close the voice session");
+        assert!(g.session.is_some(), "muting must preserve the voice session");
         g.set_muted(false);
         assert!(!g.cfg.muted);
+        assert!(g.session.is_some(), "unmuting must preserve the voice session");
     }
 
     #[test]
     fn commands_reply_and_send() {
         let mut g = glue();
-        let (reply, sends) = g.on_command("svc mute");
+        let (reply, _sends) = g.on_command("svc mute");
         assert_eq!(reply, "voice muted");
         assert!(g.cfg.muted);
         let (reply, sends) = g.on_command("vcgroup create den");
@@ -970,6 +972,7 @@ mod tests {
     #[test]
     fn horizon_key_bindings_drive_ptt_mute_players_and_mute_all() {
         let mut g = Glue::default();
+        g.session = Some(Session::new(456));
         assert_eq!(
             g.on_key_binding("key.keyboard.space", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.b", "key.keyboard.n"),
             None
@@ -991,7 +994,7 @@ mod tests {
         );
         assert!(g.cfg.muted_players);
         assert!(!g.cfg.muted);
-        assert!(g.session.is_none(), "muting other players must not disconnect");
+        assert!(g.session.is_some(), "muting other players must preserve the voice session");
         assert_eq!(
             g.on_key_binding("key.keyboard.n", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.b", "key.keyboard.n"),
             Some("microphone and other players muted".into())
