@@ -30,8 +30,11 @@ pub struct VoiceConfig {
     /// The key that opens the mic while held (`KeyV`).
     pub ptt_key: String,
     pub mute_key: String,
+    pub mute_players_key: String,
+    pub mute_all_key: String,
     pub enabled: bool,
     pub muted: bool,
+    pub muted_players: bool,
     /// Master playback volume, 0..=1.
     pub volume: f32,
     /// Microphone capture gain, 0..=1.
@@ -40,7 +43,7 @@ pub struct VoiceConfig {
 
 impl Default for VoiceConfig {
     fn default() -> Self {
-        Self { ptt_key: "KeyV".into(), mute_key: "KeyM".into(), enabled: true, muted: false, volume: 1.0, mic_volume: 1.0 }
+        Self { ptt_key: "KeyV".into(), mute_key: "KeyM".into(), mute_players_key: "KeyM".into(), mute_all_key: "KeyN".into(), enabled: true, muted: false, muted_players: false, volume: 1.0, mic_volume: 1.0 }
     }
 }
 
@@ -211,6 +214,20 @@ impl Glue {
         }
     }
 
+    pub fn set_players_muted(&mut self, muted: bool) {
+        self.cfg.muted_players = muted;
+        if muted {
+            self.speaker = None;
+        } else {
+            self.last_audio_attempt = None;
+        }
+    }
+
+    pub fn set_all_muted(&mut self, muted: bool) {
+        self.set_muted(muted);
+        self.set_players_muted(muted);
+    }
+
     /// The handshake request: the channel and body for `native_net_send_to_server`.
     pub fn handshake() -> (String, Vec<u8>) {
         (proto::REQUEST_SECRET.to_string(), proto::request_secret())
@@ -344,7 +361,7 @@ impl Glue {
                 Err(e) => notes.push(format!("[voice] no microphone: {}", e)),
             }
         }
-        if self.speaker.is_none() {
+        if !self.cfg.muted_players && self.speaker.is_none() {
             match crate::audio_io::Speaker::open() {
                 Ok(s) => self.speaker = Some(s),
                 Err(e) => notes.push(format!("[voice] no speaker: {}", e)),
@@ -395,7 +412,7 @@ impl Glue {
             return Vec::new();
         }
         let need_microphone = self.audio_permission_granted && !self.cfg.muted && self.mic.is_none();
-        let need_output = self.speaker.is_none() || self.codec.is_none();
+        let need_output = (!self.cfg.muted_players && self.speaker.is_none()) || self.codec.is_none();
         if !need_microphone && !need_output {
             return Vec::new();
         }
@@ -442,6 +459,9 @@ impl Glue {
     /// The playback side: decode voice events and play them, applying the
     /// positional volume and the user's master volume.
     fn pump_speaker(&mut self, events: &[crate::session::Event]) {
+        if self.cfg.muted_players {
+            return;
+        }
         let Some(spk) = &self.speaker else { return };
         for e in events {
             if let crate::session::Event::Voice { data, volume, .. } = e {
@@ -516,18 +536,31 @@ impl Glue {
         key: &str,
         pressed: bool,
         ptt_binding: &str,
-        mute_binding: &str,
+        mute_players_binding: &str,
+        mute_all_binding: &str,
     ) -> Option<String> {
         if key == ptt_binding {
             self.ptt_held = pressed;
             return None;
         }
-        if pressed && key == mute_binding {
-            self.set_muted(!self.cfg.muted);
-            return Some(if self.cfg.muted {
-                "voice muted".into()
+        if !pressed {
+            return None;
+        }
+        if key == mute_players_binding {
+            self.set_players_muted(!self.cfg.muted_players);
+            return Some(if self.cfg.muted_players {
+                "other players muted".into()
             } else {
-                "voice unmuted".into()
+                "other players unmuted".into()
+            });
+        }
+        if key == mute_all_binding {
+            let muted = !(self.cfg.muted && self.cfg.muted_players);
+            self.set_all_muted(muted);
+            return Some(if muted {
+                "microphone and other players muted".into()
+            } else {
+                "microphone and other players unmuted".into()
             });
         }
         None
@@ -558,6 +591,22 @@ impl Glue {
             "toggle" => {
                 self.set_muted(!self.cfg.muted);
                 (if self.cfg.muted { "voice muted" } else { "voice unmuted" }.into(), sends)
+            }
+            "muteplayers" => {
+                self.set_players_muted(true);
+                ("other players muted".into(), sends)
+            }
+            "unmuteplayers" => {
+                self.set_players_muted(false);
+                ("other players unmuted".into(), sends)
+            }
+            "muteall" => {
+                self.set_all_muted(true);
+                ("microphone and other players muted".into(), sends)
+            }
+            "unmuteall" => {
+                self.set_all_muted(false);
+                ("microphone and other players unmuted".into(), sends)
             }
             "ptt" => {
                 if let Some(k) = rest.first() {
