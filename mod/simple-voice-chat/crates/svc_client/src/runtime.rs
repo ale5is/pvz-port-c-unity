@@ -199,6 +199,18 @@ impl Glue {
         self.world_active
     }
 
+    /// Mute by releasing the capture stream, not merely discarding encoded audio.
+    /// Playback and the UDP voice session remain active.
+    pub fn set_muted(&mut self, muted: bool) {
+        self.cfg.muted = muted;
+        if muted {
+            self.ptt_held = false;
+            self.mic = None;
+        } else {
+            self.last_audio_attempt = None;
+        }
+    }
+
     /// The handshake request: the channel and body for `native_net_send_to_server`.
     pub fn handshake() -> (String, Vec<u8>) {
         (proto::REQUEST_SECRET.to_string(), proto::request_secret())
@@ -382,7 +394,7 @@ impl Glue {
         {
             return Vec::new();
         }
-        let need_microphone = self.audio_permission_granted && self.mic.is_none();
+        let need_microphone = self.audio_permission_granted && !self.cfg.muted && self.mic.is_none();
         let need_output = self.speaker.is_none() || self.codec.is_none();
         if !need_microphone && !need_output {
             return Vec::new();
@@ -412,10 +424,11 @@ impl Glue {
             if !talking {
                 continue;
             }
-            let adjusted: Vec<i16> = frame
-                .iter()
-                .map(|sample| (*sample as f32 * self.cfg.mic_volume).clamp(-32768.0, 32767.0) as i16)
-                .collect();
+            let mut adjusted = frame;
+            for sample in &mut adjusted {
+                *sample = (*sample as f32 * self.cfg.mic_volume)
+                    .clamp(-32768.0, 32767.0) as i16;
+            }
             let packet = match self.codec.as_mut().map(|c| c.encode(&adjusted)) {
                 Some(Ok(p)) => p,
                 _ => break,
@@ -488,7 +501,7 @@ impl Glue {
             return None;
         }
         if pressed && code.eq_ignore_ascii_case(&self.cfg.mute_key) {
-            self.cfg.muted = !self.cfg.muted;
+            self.set_muted(!self.cfg.muted);
             return Some(if self.cfg.muted {
                 "voice muted".into()
             } else {
@@ -535,11 +548,11 @@ impl Glue {
         }
         match sub {
             "mute" => {
-                self.cfg.muted = true;
+                self.set_muted(true);
                 ("voice muted".into(), sends)
             }
             "unmute" => {
-                self.cfg.muted = false;
+                self.set_muted(false);
                 ("voice unmuted".into(), sends)
             }
             "toggle" => {
@@ -840,6 +853,19 @@ mod tests {
         assert!(!g.ptt_held);
         assert_eq!(g.on_key("KeyM", true), Some("voice muted".into()));
         assert!(g.cfg.muted);
+    }
+
+    #[test]
+    fn mute_releases_capture_without_closing_voice_session() {
+        let mut g = Glue::default();
+        g.ptt_held = true;
+        g.set_muted(true);
+        assert!(g.cfg.muted);
+        assert!(!g.ptt_held);
+        assert!(g.mic.is_none());
+        assert!(g.session.is_none(), "muting must not close the voice session");
+        g.set_muted(false);
+        assert!(!g.cfg.muted);
     }
 
     #[test]
