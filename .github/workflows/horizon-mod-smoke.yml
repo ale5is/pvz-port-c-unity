@@ -1,0 +1,74 @@
+name: Horizon native .hnmod smoke build
+
+on:
+  push:
+    branches:
+      - port/horizon-078-hooks-359
+    paths:
+      - "native-build/run-native-smoke.once"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      MOD_BUILD_SECONDS_OVERRIDE: "3200"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate native bundle tools
+        run: |
+          bash -n native-build/scripts/*.sh
+          python3 -m py_compile native-build/scripts/*.py native-build/gateway/*.py
+          python3 native-build/scripts/test_bundle.py
+          python3 native-build/scripts/test_build_layout.py
+      - name: Restore the trusted Horizon 0.7.8 base cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            /home/runner/.rustup
+            /home/runner/modbuild/cargo
+            /home/runner/modbuild/base
+            /usr/local/lib/android/sdk/ndk/27.2.12479018
+          key: horizon-078-native-base-arm64-v1
+      - name: Require the trusted base cache
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          echo "::error::The trusted base cache is missing. Complete horizon-mod-build-base.yml first."
+          exit 1
+      - name: Prepare pinned Horizon and built-in mods
+        run: bash native-build/scripts/prepare.sh 0.7.8
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Verify the Android toolchain
+        run: bash native-build/scripts/tools.sh
+      - name: Free temporary runner disk space
+        run: bash native-build/scripts/room.sh
+      - name: Build a real native .hnmod smoke package
+        run: |
+          python3 native-build/scripts/create_smoke_request.py "$RUNNER_TEMP/horizon-native-smoke.bin"
+          commit=$(cat "$HOME/modbuild/HORIZON_COMMIT")
+          python3 native-build/scripts/mod_build_once.py \
+            "$RUNNER_TEMP/horizon-native-smoke.bin" \
+            "$commit" \
+            "$RUNNER_TEMP/horizon-native-smoke-result"
+      - name: Upload verified native smoke build
+        uses: actions/upload-artifact@v4
+        with:
+          name: horizon-native-smoke-build
+          path: |
+            ${{ runner.temp }}/horizon-native-smoke-result/libhorizon_android.so
+            ${{ runner.temp }}/horizon-native-smoke-result/build.json
+          if-no-files-found: error
+          retention-days: 7
