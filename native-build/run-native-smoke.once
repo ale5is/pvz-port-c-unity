@@ -1,1 +1,3 @@
 One-time end-to-end smoke build for a user .hnmod bundle through the pinned Horizon 0.7.8 native build worker.
+
+Retry smoke compile after correcting helper parameter names.
