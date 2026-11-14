@@ -123,7 +123,7 @@ pub(super) fn settings_click(
     let result = app_home().and_then(|home| {
         let installed = match installed_mods(&home) {
             Ok(installed) => installed,
-            Err(error) if button == 1 => {
+            Err(_) if button == 1 => {
                 disable_compiled_build();
                 return Ok(());
             }
