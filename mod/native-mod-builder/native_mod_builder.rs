@@ -76,6 +76,7 @@ pub(super) fn settings(
         return;
     }
     let state = state_lock();
+    let running = state.running;
     let action = if state.running {
         "Build running"
     } else if state.error.is_some() {
@@ -105,7 +106,9 @@ pub(super) fn settings(
             }
         }
     }
-    buttons.push("Revert to original Horizon library on next launch".into());
+    if !running {
+        buttons.push("Revert to original Horizon library on next launch".into());
+    }
 }
 
 pub(super) fn settings_click(
@@ -131,6 +134,10 @@ pub(super) fn settings_click(
         };
         let revert_button = installed.len() + 1;
         if button == revert_button {
+            if state_lock().running {
+                set_status("Wait for the current native build to finish before reverting.");
+                return Ok(());
+            }
             disable_compiled_build();
             return Ok(());
         }
