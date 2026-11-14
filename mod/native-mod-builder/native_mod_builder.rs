@@ -93,7 +93,7 @@ pub(super) fn settings(
 
     if let Ok(home) = app_home() {
         if let Ok(installed) = installed_mods(&home) {
-            if let Ok(disabled) = enabled_mod_ids(&home) {
+            if let Ok(enabled) = enabled_mod_ids(&home) {
                 for item in installed {
                     let state = if enabled.contains(&item.id) {
                         "Included in build"
