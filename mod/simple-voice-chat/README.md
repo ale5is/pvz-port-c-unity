@@ -25,7 +25,7 @@ This is the API-80 adaptation of the Simple Voice Chat client for Horizon Androi
 - Settings are loaded when a world opens and saved under `config/simple_voice_chat/config.json` using Horizon's shared native config directory.
 - The Options > Mods Yes/No switch is the source of truth for enabling the native mod. Turning it off closes UDP and releases microphone/speaker streams; turning it back on starts a fresh voice-secret handshake in the current world.
 - The mod's settings page contains a manual **Reconnect to voice server** action. It closes the old session and requests a fresh secret from the connected Minecraft server.
-- The Android microphone prompt is deferred until after the first world frame, rather than being opened from the world-open lifecycle callback. Permission status is then polled asynchronously; microphone capture remains closed until permission is granted.
+- Android requests `RECORD_AUDIO` once from `HorizonActivity.onCreate`, after the native activity has initialized and while the player is still at app startup, before entering a world. The permission result is asynchronous; denying it never blocks world loading, and microphone capture remains closed until permission is granted. The game checks permission state while a world is active, so granting it later in Android Settings also takes effect.
 - Android's `RECORD_AUDIO` permission remains separate from the mod switch. Muting does not revoke the Android permission; denying it prevents microphone capture.
 
 Command replies are shown in the in-game system chat. Key bindings and reconnection are available from the native mod settings page; enable/disable is controlled by the Mods list's Yes/No switch.
