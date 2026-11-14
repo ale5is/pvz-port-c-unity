@@ -18,6 +18,8 @@ on:
 permissions:
   contents: read
 
+# Keep Android packaging validation in sync with the native SVC audio recovery code.
+
 concurrency:
   group: pavorizon-android-${{ github.ref }}
   cancel-in-progress: true
