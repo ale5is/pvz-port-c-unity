@@ -5,6 +5,7 @@ use std::{
     fs::{self, File},
     io::{Read, Write},
     net::IpAddr,
+    path::PathBuf,
     sync::{Mutex, OnceLock, PoisonError},
     thread,
     time::{Duration, Instant},
@@ -80,7 +81,7 @@ pub(super) fn settings(
     } else if state.error.is_some() {
         "Retry compilation"
     } else {
-        "Compile installed native mods"
+        "Compile enabled native mods"
     };
     let status = if state.status.is_empty() {
         "Idle".to_owned()
@@ -88,9 +89,28 @@ pub(super) fn settings(
         short(&state.status)
     };
     buttons.push(format!("{action} — {status}"));
-    if !state.running {
-        buttons.push("Revert to original Horizon library on next launch".into());
+    drop(state);
+
+    match app_home().and_then(|home| installed_mods(&home)) {
+        Ok(installed) if installed.is_empty() => {
+            buttons.push("No .hnmod packages imported yet".into());
+        }
+        Ok(installed) => {
+            let disabled = app_home()
+                .and_then(|home| disabled_mod_ids(&home))
+                .unwrap_or_default();
+            for item in installed {
+                let state = if disabled.contains(&item.id) {
+                    "Excluded from build"
+                } else {
+                    "Included in build"
+                };
+                buttons.push(format!("{} — {state}", item.id));
+            }
+        }
+        Err(error) => buttons.push(format!("Cannot read native mods: {}", short(&error))),
     }
+    buttons.push("Revert to original Horizon library on next launch".into());
 }
 
 pub(super) fn settings_click(
@@ -101,11 +121,106 @@ pub(super) fn settings_click(
     if mod_id != BUILDER_ID {
         return;
     }
-    match button {
-        0 => start_compile(),
-        1 => disable_compiled_build(),
-        _ => {}
+    if button == 0 {
+        start_compile();
+        return;
     }
+    let result = app_home().and_then(|home| {
+        let installed = installed_mods(&home)?;
+        let revert_button = installed.len() + 1;
+        if button == revert_button {
+            disable_compiled_build();
+            return Ok(());
+        }
+        if button > 0 && button <= installed.len() {
+            let item = &installed[button - 1];
+            let disabled = disabled_mod_ids(&home)?;
+            let enable = disabled.contains(&item.id);
+            set_mod_enabled(&home, &item.id, enable)?;
+            set_status(format!(
+                "{} {} for the next native build.",
+                item.id,
+                if enable { "included" } else { "excluded" }
+            ));
+        }
+        Ok(())
+    });
+    if let Err(error) = result {
+        let mut state = state_lock();
+        state.error = Some(error.clone());
+        state.status = format!("Native mod selection failed: {error}");
+    }
+}
+
+#[derive(Clone)]
+struct InstalledMod {
+    id: String,
+    path: PathBuf,
+}
+
+fn installed_mods(home: &std::path::Path) -> Result<Vec<InstalledMod>, String> {
+    let folder = home.join(NATIVE_MODS_DIR);
+    fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+    let entries = fs::read_dir(&folder)
+        .map_err(|e| format!("Cannot read {}: {e}", folder.display()))?;
+    let mut installed = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let kind = entry.file_type().map_err(|e| e.to_string())?;
+        if !kind.is_file() || kind.is_symlink() {
+            continue;
+        }
+        let path = entry.path();
+        if !path.extension().is_some_and(|ext| ext.to_string_lossy().eq_ignore_ascii_case("hnmod")) {
+            continue;
+        }
+        let bundle = horizon_mods::index::native::Bundle::read(&path)
+            .map_err(|e| format!("{}: {e}", path.display()))?;
+        installed.push(InstalledMod {
+            id: bundle.manifest.id,
+            path,
+        });
+    }
+    installed.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(installed)
+}
+
+fn disabled_mod_ids(home: &std::path::Path) -> Result<HashSet<String>, String> {
+    let path = home.join(NATIVE_MODS_DIR).join("disabled.txt");
+    match fs::read_to_string(path) {
+        Ok(contents) => Ok(contents
+            .lines()
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned)
+            .collect()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(HashSet::new()),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+fn set_mod_enabled(
+    home: &std::path::Path,
+    id: &str,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut disabled = disabled_mod_ids(home)?;
+    if enabled {
+        disabled.remove(id);
+    } else {
+        disabled.insert(id.to_owned());
+    }
+    let mut ids: Vec<_> = disabled.into_iter().collect();
+    ids.sort();
+    let path = home.join(NATIVE_MODS_DIR).join("disabled.txt");
+    let temporary = home.join(NATIVE_MODS_DIR).join("disabled.txt.part");
+    let contents = if ids.is_empty() {
+        String::new()
+    } else {
+        format!("{}\\n", ids.join("\\n"))
+    };
+    fs::write(&temporary, contents).map_err(|e| e.to_string())?;
+    fs::rename(&temporary, &path).map_err(|e| e.to_string())
 }
 
 fn app_home() -> Result<std::path::PathBuf, String> {
@@ -220,29 +335,19 @@ fn service_error(error: ureq::Error) -> String {
 }
 
 fn bundles_body(home: &std::path::Path) -> Result<Vec<u8>, String> {
-    let folder = home.join(NATIVE_MODS_DIR);
-    fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
-    let entries = fs::read_dir(&folder)
-        .map_err(|e| format!("Cannot read {}: {e}", folder.display()))?;
+    let disabled = disabled_mod_ids(home)?;
+    let installed = installed_mods(home)?;
     let mut mods = Vec::new();
-    for entry in entries {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let kind = entry.file_type().map_err(|e| e.to_string())?;
-        if !kind.is_file() || kind.is_symlink() {
+    for item in installed {
+        if disabled.contains(&item.id) {
             continue;
         }
-        let path = entry.path();
-        if !path.extension().is_some_and(|ext| ext == "hnmod") {
-            continue;
-        }
-        let bundle = horizon_mods::index::native::Bundle::read(&path)
-            .map_err(|e| format!("{}: {e}", path.display()))?;
-        let bytes = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-        mods.push((bundle.manifest.id, bytes));
+        let bytes = fs::read(&item.path)
+            .map_err(|e| format!("{}: {e}", item.path.display()))?;
+        mods.push((item.id, bytes));
     }
-    mods.sort_by(|a, b| a.0.cmp(&b.0));
     if mods.is_empty() {
-        return Err("No .hnmod packages found in horizon-native-mods.".into());
+        return Err("No enabled .hnmod packages found in horizon-native-mods.".into());
     }
     if mods.len() > MAX_MODS {
         return Err(format!("At most {MAX_MODS} native mods can be compiled together."));
