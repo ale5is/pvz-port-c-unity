@@ -336,16 +336,18 @@ fn service_error(error: ureq::Error) -> String {
     }
 }
 
-fn bundles_body(home: &std::path::Path) -> Result<Vec<u8>, String> {
+fn bundles_body(home: &std::path::Path) -> Result<(Vec<u8>, HashSet<String>), String> {
     let disabled = disabled_mod_ids(home)?;
     let installed = installed_mods(home)?;
     let mut mods = Vec::new();
+    let mut selected = HashSet::new();
     for item in installed {
         if disabled.contains(&item.id) {
             continue;
         }
         let bytes = fs::read(&item.path)
             .map_err(|e| format!("{}: {e}", item.path.display()))?;
+        selected.insert(item.id.clone());
         mods.push((item.id, bytes));
     }
     if mods.is_empty() {
@@ -369,7 +371,7 @@ fn bundles_body(home: &std::path::Path) -> Result<Vec<u8>, String> {
             return Err("Combined native mods exceed the 32 MiB build request limit.".into());
         }
     }
-    Ok(body)
+    Ok((body, selected))
 }
 
 fn compile_installed() -> Result<String, String> {
@@ -379,7 +381,7 @@ fn compile_installed() -> Result<String, String> {
         .ok()
         .filter(|s| !s.is_empty())
         .ok_or("Android did not provide the APK install stamp; cannot safely activate a build.")?;
-    let body = bundles_body(&home)?;
+    let (body, selected_mod_ids) = bundles_body(&home)?;
     let agent = ureq::AgentBuilder::new()
         .timeout_connect(Duration::from_secs(20))
         .timeout_read(Duration::from_secs(45))
@@ -444,10 +446,13 @@ fn compile_installed() -> Result<String, String> {
         .ok_or("Build server returned an invalid library size.")?;
     let build_info = finished["build"].clone();
     let mods = build_info["mods"].as_array().ok_or("Build metadata has no mod list.")?;
-    let mod_ids: HashSet<&str> = mods
+    let actual_mod_ids: HashSet<String> = mods
         .iter()
-        .filter_map(|item| item["id"].as_str())
+        .filter_map(|item| item["id"].as_str().map(str::to_owned))
         .collect();
+    let mut expected_mod_ids = selected_mod_ids;
+    expected_mod_ids.insert("simple-voice-chat".into());
+    expected_mod_ids.insert("horizon-native-builder".into());
     if build_info["version"].as_str() != Some(GAME_VERSION)
         || build_info["game"].as_str() != Some(MINECRAFT_VERSION)
         || build_info["hooks"].as_u64() != Some(HOOKS_API)
@@ -455,10 +460,10 @@ fn compile_installed() -> Result<String, String> {
         || build_info["horizon_mixins"].as_str() != Some(MIXINS_REVISION)
         || build_info["abi"].as_str() != Some("arm64-v8a")
         || build_info["profile"].as_str() != Some("fast")
-        || !mod_ids.contains("simple-voice-chat")
-        || !mod_ids.contains("horizon-native-builder")
+        || actual_mod_ids.len() != mods.len()
+        || actual_mod_ids != expected_mod_ids
     {
-        return Err("Build metadata does not match Horizon 0.7.8 / Minecraft 26.3 / hooks API 80.".into());
+        return Err("Build metadata does not exactly match the selected mods and Horizon 0.7.8 / Minecraft 26.3 / hooks API 80.".into());
     }
     let native = home.join("native");
     let name = format!("compiled-{job}");
