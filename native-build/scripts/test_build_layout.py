@@ -33,6 +33,8 @@ def main() -> None:
     assert "set_mod_enabled" in source
     assert "!enabled.contains(&item.id)" in source
     assert "Compile enabled native mods" in source
+    assert 'join("enabled.txt")' in source
+    assert "if !running" in source
     assert "selected_mod_ids" in source
     assert "actual_mod_ids != expected_mod_ids" in source
     assert 'expected_mod_ids.insert("simple-voice-chat".into())' in source
