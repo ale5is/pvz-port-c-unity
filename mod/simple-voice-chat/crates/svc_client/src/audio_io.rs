@@ -63,6 +63,11 @@ fn open_in<T: cpal::SizedSample>(
             for s in data {
                 q.push_back(conv(*s));
             }
+            // Bound queued capture data if the game thread is paused.
+            const MAX_CAPTURE_SAMPLES: usize = SAMPLE_RATE as usize * 2;
+            while q.len() > MAX_CAPTURE_SAMPLES {
+                q.pop_front();
+            }
         },
         move |_| {},
         None,
