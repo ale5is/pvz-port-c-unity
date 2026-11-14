@@ -23,9 +23,12 @@ This is the API-80 adaptation of the Simple Voice Chat client for Horizon Androi
 - `/svc ptt KeyV` changes the push-to-talk key. Key names use Horizon's `KeyA` / `KeyV` format.
 - `/svc volume 0-100` sets received voice volume; `/svc micvolume 0-100` sets microphone gain.
 - Settings are loaded when a world opens and saved under `config/simple_voice_chat/config.json` using Horizon's shared native config directory.
-- Android's `RECORD_AUDIO` permission remains a separate requirement. Muting does not revoke the Android permission; denying it prevents microphone capture.
+- The Options > Mods Yes/No switch is the source of truth for enabling the native mod. Turning it off closes UDP and releases microphone/speaker streams; turning it back on starts a fresh voice-secret handshake in the current world.
+- The mod's settings page contains a manual **Reconnect to voice server** action. It closes the old session and requests a fresh secret from the connected Minecraft server.
+- The Android microphone prompt is deferred until after the first world frame, rather than being opened from the world-open lifecycle callback. Permission status is then polled asynchronously; microphone capture remains closed until permission is granted.
+- Android's `RECORD_AUDIO` permission remains separate from the mod switch. Muting does not revoke the Android permission; denying it prevents microphone capture.
 
-Command replies are shown in the in-game system chat. These are command/key controls, not a graphical settings screen. Horizon's native-mod API does not provide a generic settings-page widget for native mods; a custom screen would require a separate UI mixin.
+Command replies are shown in the in-game system chat. Key bindings and reconnection are available from the native mod settings page; enable/disable is controlled by the Mods list's Yes/No switch.
 
 ## Validation
 
