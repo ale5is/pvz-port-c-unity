@@ -29,9 +29,9 @@ def main() -> None:
     assert "fn on_frame" not in source
     assert "disable_compiled_build()" in source
     assert 'native.join("current")' in source
-    assert "disabled_mod_ids" in source
+    assert "enabled_mod_ids" in source
     assert "set_mod_enabled" in source
-    assert "disabled.contains(&item.id)" in source
+    assert "!enabled.contains(&item.id)" in source
     assert "Compile enabled native mods" in source
     assert "selected_mod_ids" in source
     assert "actual_mod_ids != expected_mod_ids" in source
