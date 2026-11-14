@@ -82,7 +82,6 @@ pub struct Glue {
     pub audio_permission_granted: bool,
     pub permission_checked: bool,
     pub permission_check_error: bool,
-    permission_request_sent: bool,
     pub hud_open: bool,
     last_permission_check: Option<Instant>,
     world_active: bool,
@@ -119,7 +118,6 @@ impl Default for Glue {
             audio_permission_granted: false,
             permission_checked: false,
             permission_check_error: false,
-            permission_request_sent: false,
             hud_open: false,
             last_permission_check: None,
             world_active: false,
@@ -159,7 +157,6 @@ impl Glue {
         self.world_active = true;
         self.permission_checked = false;
         self.permission_check_error = false;
-        self.permission_request_sent = false;
         self.last_permission_check = None;
         self.last_audio_attempt = None;
         self.session = None;
@@ -348,15 +345,6 @@ impl Glue {
             }
         }
         notes
-    }
-
-    /// Claim the one runtime permission request for this world.
-    pub fn take_permission_request(&mut self) -> bool {
-        if !self.world_active || self.permission_request_sent {
-            return false;
-        }
-        self.permission_request_sent = true;
-        true
     }
 
     pub fn set_audio_permission(&mut self, granted: bool) {
@@ -701,18 +689,6 @@ mod tests {
 
     fn glue() -> Glue {
         Glue::default()
-    }
-
-    #[test]
-    fn microphone_permission_is_requested_once_per_world() {
-        let mut glue = Glue::default();
-        assert!(!glue.take_permission_request());
-        glue.world_open();
-        assert!(glue.take_permission_request());
-        assert!(!glue.take_permission_request());
-        glue.world_close();
-        glue.world_open();
-        assert!(glue.take_permission_request());
     }
 
     #[test]
