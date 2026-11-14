@@ -232,35 +232,50 @@ pub fn settings(
         return;
     }
     let g = locked();
-    buttons.push(if g.cfg.enabled {
-        "Disable Simple Voice Chat".into()
-    } else {
-        "Enable Simple Voice Chat".into()
-    });
+    buttons.push(format!(
+        "Simple Voice Chat: {}",
+        if g.cfg.enabled { "YES" } else { "NO" }
+    ));
+    buttons.push("Reconnect to voice server".into());
+    buttons.push(format!("Connection: {}", g.connection_stage));
 }
 
 pub fn settings_click(
-    _game: &mut crate::game::Game<'_>,
+    game: &mut crate::game::Game<'_>,
     mod_id: &str,
     button: usize,
 ) {
-    if mod_id != "simple-voice-chat" || button != 0 {
+    if mod_id != "simple-voice-chat" {
+        return;
+    }
+    if button == 1 {
+        let enabled = locked().cfg.enabled;
+        if enabled && game.player.is_some() {
+            world_closed();
+            world_open_ready(game);
+            eprintln!("[voice] manual reconnect requested");
+        }
+        return;
+    }
+    if button != 0 {
         return;
     }
     let enabled = {
         let mut g = locked();
         g.cfg.enabled = !g.cfg.enabled;
         g.ptt_held = false;
-        let enabled = g.cfg.enabled;
-        if !enabled {
-            g.world_close();
-        }
-        enabled
+        g.cfg.enabled
     };
     save_config();
     if enabled {
+        if game.player.is_some() {
+            world_closed();
+            world_open_ready(game);
+        }
         eprintln!("[voice] Simple Voice Chat enabled");
     } else {
+        world_closed();
+        OUT.lock().unwrap_or_else(|e| e.into_inner()).clear();
         eprintln!("[voice] Simple Voice Chat disabled");
     }
 }
