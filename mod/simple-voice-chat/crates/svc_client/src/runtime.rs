@@ -416,19 +416,27 @@ impl Glue {
         {
             return Vec::new();
         }
+        let mut notes = Vec::new();
+        let stalled_mic = self.mic.as_ref().is_some_and(|mic| !mic.is_healthy());
+        if stalled_mic {
+            self.mic = None;
+            self.last_audio_attempt = None;
+            notes.push("[voice] microphone capture stopped; restarting audio input".into());
+        }
         let need_microphone = self.audio_permission_granted && !self.cfg.muted && self.mic.is_none();
         let need_output = (!self.cfg.muted_players && self.speaker.is_none()) || self.codec.is_none();
         if !need_microphone && !need_output {
-            return Vec::new();
+            return notes;
         }
         if self
             .last_audio_attempt
             .is_some_and(|last| now.saturating_duration_since(last) < std::time::Duration::from_secs(5))
         {
-            return Vec::new();
+            return notes;
         }
         self.last_audio_attempt = Some(now);
-        self.start_audio(self.audio_permission_granted)
+        notes.extend(self.start_audio(self.audio_permission_granted));
+        notes
     }
 
     /// The microphone side: when talking, turn captured audio into Opus
