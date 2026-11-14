@@ -3,3 +3,5 @@ One-time end-to-end smoke build for a user .hnmod bundle through the pinned Hori
 Retry smoke compile after correcting helper parameter names.
 
 End-to-end retry after native-mod selection and exact manifest verification changes.
+
+Final retry: compile selected .hnmod set with opt-in defaults and exact metadata validation.
