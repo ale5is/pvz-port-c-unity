@@ -971,35 +971,43 @@ mod tests {
     fn horizon_key_bindings_drive_ptt_mute_players_and_mute_all() {
         let mut g = Glue::default();
         assert_eq!(
-            g.on_key_binding("key.keyboard.space", true, "key.keyboard.space", "key.keyboard.k", "key.keyboard.m", "key.keyboard.n"),
+            g.on_key_binding("key.keyboard.space", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.b", "key.keyboard.n"),
             None
         );
         assert!(g.ptt_held);
-        g.on_key_binding("key.keyboard.space", false, "key.keyboard.space", "key.keyboard.k", "key.keyboard.m", "key.keyboard.n");
+        g.on_key_binding("key.keyboard.space", false, "key.keyboard.space", "key.keyboard.m", "key.keyboard.b", "key.keyboard.n");
         assert!(!g.ptt_held);
         assert_eq!(
-            g.on_key_binding("key.keyboard.m", true, "key.keyboard.space", "key.keyboard.k", "key.keyboard.m", "key.keyboard.n"),
+            g.on_key_binding("key.keyboard.m", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.b", "key.keyboard.n"),
+            Some("microphone muted".into())
+        );
+        assert!(g.cfg.muted);
+        assert!(!g.cfg.muted_players);
+        g.on_key_binding("key.keyboard.m", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.b", "key.keyboard.n");
+        assert!(!g.cfg.muted);
+        assert_eq!(
+            g.on_key_binding("key.keyboard.b", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.b", "key.keyboard.n"),
             Some("other players muted".into())
         );
         assert!(g.cfg.muted_players);
         assert!(!g.cfg.muted);
         assert!(g.session.is_none(), "muting other players must not disconnect");
         assert_eq!(
-            g.on_key_binding("key.keyboard.n", true, "key.keyboard.space", "key.keyboard.k", "key.keyboard.m", "key.keyboard.n"),
+            g.on_key_binding("key.keyboard.n", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.b", "key.keyboard.n"),
             Some("microphone and other players muted".into())
         );
         assert!(g.cfg.muted);
         assert!(g.cfg.muted_players);
         assert!(!g.ptt_held);
         assert_eq!(
-            g.on_key_binding("key.keyboard.n", true, "key.keyboard.space", "key.keyboard.k", "key.keyboard.m", "key.keyboard.n"),
+            g.on_key_binding("key.keyboard.n", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.b", "key.keyboard.n"),
             Some("microphone and other players unmuted".into())
         );
         assert!(!g.cfg.muted);
         assert!(!g.cfg.muted_players);
         g.set_push_to_talk(false);
         assert!(!g.cfg.push_to_talk);
-        assert_eq!(g.on_key_binding("key.keyboard.space", true, "key.keyboard.space", "key.keyboard.k", "key.keyboard.m", "key.keyboard.n"), None);
+        assert_eq!(g.on_key_binding("key.keyboard.space", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.b", "key.keyboard.n"), None);
         assert!(!g.ptt_held, "PTT key must be ignored in always-on mode");
     }
 
