@@ -121,7 +121,14 @@ pub(super) fn settings_click(
         return;
     }
     let result = app_home().and_then(|home| {
-        let installed = installed_mods(&home)?;
+        let installed = match installed_mods(&home) {
+            Ok(installed) => installed,
+            Err(error) if button == 1 => {
+                disable_compiled_build();
+                return Ok(());
+            }
+            Err(error) => return Err(error),
+        };
         let revert_button = installed.len() + 1;
         if button == revert_button {
             disable_compiled_build();
@@ -212,7 +219,7 @@ fn set_mod_enabled(
     let contents = if ids.is_empty() {
         String::new()
     } else {
-        format!("{}\\n", ids.join("\\n"))
+        format!("{}\n", ids.join("\n"))
     };
     fs::write(&temporary, contents).map_err(|e| e.to_string())?;
     fs::rename(&temporary, &path).map_err(|e| e.to_string())
