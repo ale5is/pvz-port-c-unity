@@ -120,13 +120,14 @@ jobs:
         working-directory: ${{ runner.temp }}/horizon-078-svc
         run: |
           python3 tools/android_build.py --abi arm64-v8a --ndk-version 27.2.12479018 --build-tools-version 35.0.0 --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME" --gradle "$(command -v gradle)" --public --release-candidate --profile fast --dev-build pavo --dev-version-code "$GITHUB_RUN_NUMBER"
-          sha256sum .local/android/apk/arm64-v8a/horizon-android-public.apk > .local/android/apk/arm64-v8a/SHA256SUMS.txt
-      - name: Upload Horizon APK
+          cp .local/android/apk/arm64-v8a/horizon-android-public.apk .local/android/apk/arm64-v8a/PavoHorizon.apk
+          sha256sum .local/android/apk/arm64-v8a/PavoHorizon.apk > .local/android/apk/arm64-v8a/SHA256SUMS.txt
+      - name: Upload PavoHorizon APK
         uses: actions/upload-artifact@v4
         with:
-          name: horizon-0.7.8-svc-arm64-apk
+          name: pavorizon-0.7.8-svc-arm64-apk
           path: |
-            ${{ runner.temp }}/horizon-078-svc/.local/android/apk/arm64-v8a/horizon-android-public.apk
+            ${{ runner.temp }}/horizon-078-svc/.local/android/apk/arm64-v8a/PavoHorizon.apk
             ${{ runner.temp }}/horizon-078-svc/.local/android/apk/arm64-v8a/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 14
