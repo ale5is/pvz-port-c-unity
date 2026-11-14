@@ -35,6 +35,6 @@ Command replies are shown in the in-game system chat. Key bindings and reconnect
 
 ## Validation
 
-The Linux client-crate CI job has passed 24 unit tests covering protocol layouts, Opus encode/decode, audio resampling/mixing, UDP handshake, voice packets, server-address resolution, command filtering, and position refresh.
+The Linux client-crate CI job has passed 29 unit tests. The suite covers protocol layouts, Opus encode/decode, audio resampling/mixing, UDP handshake, voice packets, server-address resolution, command filtering, position refresh, configurable PTT, independent microphone/player mute, and preservation of the voice session while muting.
 
-The crate's Android ARM64 cross-compile has passed. The repository also includes `patches/horizon-078/audio-permission.patch`, which adds `RECORD_AUDIO`, a runtime permission request, and a permission check before CPAL opens the microphone. The patched full Horizon Android build and on-device audio/UDP tests are still required before calling this port release-ready.
+The staged Horizon 0.7.8 Android ARM64 client compilation has passed in CI, including the SVC integration and native-mod builder checks. Packaging the installable APK is currently blocked because the repository secret `PAVO_ANDROID_DEBUG_KEYSTORE_BASE64` has not been configured. The workflow deliberately refuses to sign with a temporary key, so future APKs can update the same installation. After adding that persistent signing key, the APK packaging step and on-device audio/UDP tests must still pass before this port can be called release-ready.
