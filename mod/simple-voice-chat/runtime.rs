@@ -107,7 +107,8 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
     }
     let playing = game.native_playing();
     let ptt_binding = game.native_mod_key("simple-voice-chat", "ptt", "key.keyboard.v");
-    let mute_players_binding = game.native_mod_key("simple-voice-chat", "mute_players", "key.keyboard.m");
+    let mute_mic_binding = game.native_mod_key("simple-voice-chat", "mute_mic", "key.keyboard.m");
+    let mute_players_binding = game.native_mod_key("simple-voice-chat", "mute_players", "key.keyboard.b");
     let mute_all_binding = game.native_mod_key("simple-voice-chat", "mute_all", "key.keyboard.n");
     let changed = {
         let mut g = locked();
@@ -118,7 +119,7 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
             g.hud_open = !g.hud_open;
         }
         if playing || !pressed {
-            g.on_key_binding(key, pressed, &ptt_binding, &mute_players_binding, &mute_all_binding).is_some()
+            g.on_key_binding(key, pressed, &ptt_binding, &mute_mic_binding, &mute_players_binding, &mute_all_binding).is_some()
         } else {
             false
         }
@@ -220,7 +221,8 @@ pub fn register_mod(
         description: "Voice chat with nearby players. Configure push-to-talk and mute keys below.".into(),
         keys: vec![
             ["ptt".into(), "Push to Talk".into(), "key.keyboard.v".into()],
-            ["mute_players".into(), "Mute Other Players".into(), "key.keyboard.m".into()],
+            ["mute_mic".into(), "Mute My Microphone".into(), "key.keyboard.m".into()],
+            ["mute_players".into(), "Mute Other Players".into(), "key.keyboard.b".into()],
             ["mute_all".into(), "Mute Microphone + Players".into(), "key.keyboard.n".into()],
         ],
     });
@@ -235,6 +237,16 @@ pub fn settings(
         return;
     }
     let g = locked();
+    buttons.push(if g.cfg.push_to_talk {
+        "Microphone mode: Push to Talk".into()
+    } else {
+        "Microphone mode: Always On".into()
+    });
+    buttons.push(if g.cfg.muted {
+        "Unmute my microphone".into()
+    } else {
+        "Mute my microphone".into()
+    });
     buttons.push(if g.cfg.muted_players {
         "Unmute other players".into()
     } else {
@@ -256,17 +268,30 @@ pub fn settings_click(
     if mod_id != "simple-voice-chat" {
         return;
     }
-    if button == 0 || button == 1 {
+    if button <= 3 {
         let (description, cfg) = {
             let mut g = locked();
-            if button == 0 {
-                let muted = !g.cfg.muted_players;
-                g.set_players_muted(muted);
-                (if muted { "other players muted" } else { "other players unmuted" }, g.cfg.clone())
-            } else {
-                let muted = !(g.cfg.muted && g.cfg.muted_players);
-                g.set_all_muted(muted);
-                (if muted { "microphone and other players muted" } else { "microphone and other players unmuted" }, g.cfg.clone())
+            match button {
+                0 => {
+                    let enabled = !g.cfg.push_to_talk;
+                    g.set_push_to_talk(enabled);
+                    (if enabled { "push-to-talk mode enabled" } else { "always-on microphone enabled" }, g.cfg.clone())
+                }
+                1 => {
+                    let muted = !g.cfg.muted;
+                    g.set_muted(muted);
+                    (if muted { "microphone muted" } else { "microphone unmuted" }, g.cfg.clone())
+                }
+                2 => {
+                    let muted = !g.cfg.muted_players;
+                    g.set_players_muted(muted);
+                    (if muted { "other players muted" } else { "other players unmuted" }, g.cfg.clone())
+                }
+                _ => {
+                    let muted = !(g.cfg.muted && g.cfg.muted_players);
+                    g.set_all_muted(muted);
+                    (if muted { "microphone and other players muted" } else { "microphone and other players unmuted" }, g.cfg.clone())
+                }
             }
         };
         if let Some(base) = config_base() {
@@ -275,7 +300,7 @@ pub fn settings_click(
         eprintln!("[voice] {description}; connection remains active");
         return;
     }
-    if button != 2 {
+    if button != 4 {
         return;
     }
     if !game.native_on("simple-voice-chat") || game.player.is_none() {
