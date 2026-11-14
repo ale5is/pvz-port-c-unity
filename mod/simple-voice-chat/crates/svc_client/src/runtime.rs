@@ -33,6 +33,8 @@ pub struct VoiceConfig {
     pub enabled: bool,
     pub muted: bool,
     pub muted_players: bool,
+    /// true: transmit only while the PTT key is held; false: transmit whenever unmuted.
+    pub push_to_talk: bool,
     /// Master playback volume, 0..=1.
     pub volume: f32,
     /// Microphone capture gain, 0..=1.
@@ -41,7 +43,7 @@ pub struct VoiceConfig {
 
 impl Default for VoiceConfig {
     fn default() -> Self {
-        Self { ptt_key: "KeyV".into(), mute_key: "KeyM".into(), enabled: true, muted: false, muted_players: false, volume: 1.0, mic_volume: 1.0 }
+        Self { ptt_key: "KeyV".into(), mute_key: "KeyM".into(), enabled: true, muted: false, muted_players: false, push_to_talk: true, volume: 1.0, mic_volume: 1.0 }
     }
 }
 
@@ -210,6 +212,11 @@ impl Glue {
         } else {
             self.last_audio_attempt = None;
         }
+    }
+
+    pub fn set_push_to_talk(&mut self, enabled: bool) {
+        self.cfg.push_to_talk = enabled;
+        self.ptt_held = false;
     }
 
     pub fn set_players_muted(&mut self, muted: bool) {
@@ -428,7 +435,7 @@ impl Glue {
     /// packets on the session; always drain the capture so it stays fresh.
     fn pump_mic(&mut self) {
         let talking = !self.cfg.muted
-            && self.ptt_held
+            && (!self.cfg.push_to_talk || self.ptt_held)
             && self
                 .session
                 .as_ref()
@@ -534,15 +541,22 @@ impl Glue {
         key: &str,
         pressed: bool,
         ptt_binding: &str,
+        mute_mic_binding: &str,
         mute_players_binding: &str,
         mute_all_binding: &str,
     ) -> Option<String> {
         if key == ptt_binding {
-            self.ptt_held = pressed;
+            if self.cfg.push_to_talk {
+                self.ptt_held = pressed;
+            }
             return None;
         }
         if !pressed {
             return None;
+        }
+        if key == mute_mic_binding {
+            self.set_muted(!self.cfg.muted);
+            return Some(if self.cfg.muted { "microphone muted".into() } else { "microphone unmuted".into() });
         }
         if key == mute_players_binding {
             self.set_players_muted(!self.cfg.muted_players);
@@ -605,6 +619,15 @@ impl Glue {
             "unmuteall" => {
                 self.set_all_muted(false);
                 ("microphone and other players unmuted".into(), sends)
+            }
+            "mode" => {
+                match rest.first().copied() {
+                    Some("ptt") => self.set_push_to_talk(true),
+                    Some("always") => self.set_push_to_talk(false),
+                    Some(_) => return ("usage: /svc mode ptt|always".into(), sends),
+                    None => return (format!("microphone mode: {}", if self.cfg.push_to_talk { "push-to-talk" } else { "always-on" }), sends),
+                }
+                (format!("microphone mode: {}", if self.cfg.push_to_talk { "push-to-talk" } else { "always-on" }), sends)
             }
             "ptt" => {
                 if let Some(k) = rest.first() {
@@ -948,38 +971,42 @@ mod tests {
     fn horizon_key_bindings_drive_ptt_mute_players_and_mute_all() {
         let mut g = Glue::default();
         assert_eq!(
-            g.on_key_binding("key.keyboard.space", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.n"),
+            g.on_key_binding("key.keyboard.space", true, "key.keyboard.space", "key.keyboard.k", "key.keyboard.m", "key.keyboard.n"),
             None
         );
         assert!(g.ptt_held);
-        g.on_key_binding("key.keyboard.space", false, "key.keyboard.space", "key.keyboard.m", "key.keyboard.n");
+        g.on_key_binding("key.keyboard.space", false, "key.keyboard.space", "key.keyboard.k", "key.keyboard.m", "key.keyboard.n");
         assert!(!g.ptt_held);
         assert_eq!(
-            g.on_key_binding("key.keyboard.m", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.n"),
+            g.on_key_binding("key.keyboard.m", true, "key.keyboard.space", "key.keyboard.k", "key.keyboard.m", "key.keyboard.n"),
             Some("other players muted".into())
         );
         assert!(g.cfg.muted_players);
         assert!(!g.cfg.muted);
         assert!(g.session.is_none(), "muting other players must not disconnect");
         assert_eq!(
-            g.on_key_binding("key.keyboard.n", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.n"),
+            g.on_key_binding("key.keyboard.n", true, "key.keyboard.space", "key.keyboard.k", "key.keyboard.m", "key.keyboard.n"),
             Some("microphone and other players muted".into())
         );
         assert!(g.cfg.muted);
         assert!(g.cfg.muted_players);
         assert!(!g.ptt_held);
         assert_eq!(
-            g.on_key_binding("key.keyboard.n", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.n"),
+            g.on_key_binding("key.keyboard.n", true, "key.keyboard.space", "key.keyboard.k", "key.keyboard.m", "key.keyboard.n"),
             Some("microphone and other players unmuted".into())
         );
         assert!(!g.cfg.muted);
         assert!(!g.cfg.muted_players);
+        g.set_push_to_talk(false);
+        assert!(!g.cfg.push_to_talk);
+        assert_eq!(g.on_key_binding("key.keyboard.space", true, "key.keyboard.space", "key.keyboard.k", "key.keyboard.m", "key.keyboard.n"), None);
+        assert!(!g.ptt_held, "PTT key must be ignored in always-on mode");
     }
 
     #[test]
     fn config_round_trip() {
         let dir = std::env::temp_dir().join(format!("svc-test-{}", std::process::id()));
-        let cfg = VoiceConfig { ptt_key: "KeyB".into(), mute_key: "KeyN".into(), enabled: false, muted: true, muted_players: true, volume: 0.5, mic_volume: 0.75 };
+        let cfg = VoiceConfig { ptt_key: "KeyB".into(), mute_key: "KeyN".into(), enabled: false, muted: true, muted_players: true, push_to_talk: false, volume: 0.5, mic_volume: 0.75 };
         Glue::save_config(dir.to_str().unwrap(), &cfg);
         let loaded = Glue::load_config(dir.to_str().unwrap());
         assert_eq!(loaded.ptt_key, "KeyB");
@@ -987,6 +1014,7 @@ mod tests {
         assert!(!loaded.enabled);
         assert!(loaded.muted);
         assert!(loaded.muted_players);
+        assert!(!loaded.push_to_talk);
         assert_eq!(loaded.volume, 0.5);
         assert_eq!(loaded.mic_volume, 0.75);
         let _ = std::fs::remove_dir_all(&dir);
