@@ -183,19 +183,6 @@ pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration)
         session.set_positions(listener, players);
     }
     #[cfg(target_os = "android")]
-    let request_permission = g.is_world_active() && g.take_permission_request();
-
-    #[cfg(target_os = "android")]
-    if request_permission {
-        drop(g);
-        if let Err(error) = crate::native_ime::request_audio_permission() {
-            eprintln!("[voice] microphone permission request failed: {error}");
-            locked().set_audio_permission_error();
-        }
-        g = locked();
-    }
-
-    #[cfg(target_os = "android")]
     if g.is_world_active() && g.should_check_audio_permission(now) {
         match crate::native_ime::has_audio_permission() {
             Ok(granted) => g.set_audio_permission(granted),
