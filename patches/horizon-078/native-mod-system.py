@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import os
 import sys
 
 ROOT = Path(sys.argv[1]).resolve()
 
 def replace(path, old, new, expected=1):
+    if os.environ.get("HORIZON_ENABLE_NATIVE_RUNTIME") != "1" and path in {
+        "crates/horizon-client/src/android_main.rs",
+        "packaging/android/AndroidManifest.xml",
+    }:
+        return
     file = ROOT / path
     source = file.read_text(encoding="utf-8")
     count = source.count(old)
@@ -13,6 +19,8 @@ def replace(path, old, new, expected=1):
     file.write_text(source.replace(old, new), encoding="utf-8")
 
 def write_new(path, content):
+    if os.environ.get("HORIZON_ENABLE_NATIVE_RUNTIME") != "1" and path.endswith("/NativeMods.java"):
+        return
     file = ROOT / path
     if file.exists():
         raise SystemExit(f"Refusing to overwrite existing {path}")
@@ -225,11 +233,12 @@ final class NativeMods {
     }
 }
 ''')
-activity_path = ROOT / "packaging/android/java/dev/horizon/android/HorizonActivity.java"
-activity_source = activity_path.read_text(encoding="utf-8")
-if 'static { System.loadLibrary("horizon_android"); }' not in activity_source:
-    raise SystemExit("HorizonActivity.java no longer matches the expected 0.7.8 bootstrap")
-activity_path.write_text(activity, encoding="utf-8")
+if os.environ.get("HORIZON_ENABLE_NATIVE_RUNTIME") == "1":
+    activity_path = ROOT / "packaging/android/java/dev/horizon/android/HorizonActivity.java"
+    activity_source = activity_path.read_text(encoding="utf-8")
+    if 'static { System.loadLibrary("horizon_android"); }' not in activity_source:
+        raise SystemExit("HorizonActivity.java no longer matches the expected 0.7.8 bootstrap")
+    activity_path.write_text(activity, encoding="utf-8")
 
 replace(
     "crates/horizon-client/src/content_files.rs",
