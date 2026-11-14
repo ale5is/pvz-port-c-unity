@@ -30,8 +30,6 @@ pub struct VoiceConfig {
     /// The key that opens the mic while held (`KeyV`).
     pub ptt_key: String,
     pub mute_key: String,
-    pub mute_players_key: String,
-    pub mute_all_key: String,
     pub enabled: bool,
     pub muted: bool,
     pub muted_players: bool,
@@ -43,7 +41,7 @@ pub struct VoiceConfig {
 
 impl Default for VoiceConfig {
     fn default() -> Self {
-        Self { ptt_key: "KeyV".into(), mute_key: "KeyM".into(), mute_players_key: "KeyM".into(), mute_all_key: "KeyN".into(), enabled: true, muted: false, muted_players: false, volume: 1.0, mic_volume: 1.0 }
+        Self { ptt_key: "KeyV".into(), mute_key: "KeyM".into(), enabled: true, muted: false, muted_players: false, volume: 1.0, mic_volume: 1.0 }
     }
 }
 
@@ -355,7 +353,7 @@ impl Glue {
     /// Open playback and codec; open the microphone only after permission is granted.
     pub fn start_audio(&mut self, allow_microphone: bool) -> Vec<String> {
         let mut notes = Vec::new();
-        if allow_microphone && self.mic.is_none() {
+        if allow_microphone && !self.cfg.muted && self.mic.is_none() {
             match crate::audio_io::MicStream::open() {
                 Ok(m) => self.mic = Some(m),
                 Err(e) => notes.push(format!("[voice] no microphone: {}", e)),
@@ -947,32 +945,48 @@ mod tests {
     }
 
     #[test]
-    fn horizon_key_bindings_drive_push_to_talk_and_mute() {
+    fn horizon_key_bindings_drive_ptt_mute_players_and_mute_all() {
         let mut g = Glue::default();
         assert_eq!(
-            g.on_key_binding("key.keyboard.space", true, "key.keyboard.space", "key.keyboard.n"),
+            g.on_key_binding("key.keyboard.space", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.n"),
             None
         );
         assert!(g.ptt_held);
-        g.on_key_binding("key.keyboard.space", false, "key.keyboard.space", "key.keyboard.n");
+        g.on_key_binding("key.keyboard.space", false, "key.keyboard.space", "key.keyboard.m", "key.keyboard.n");
         assert!(!g.ptt_held);
         assert_eq!(
-            g.on_key_binding("key.keyboard.n", true, "key.keyboard.space", "key.keyboard.n"),
-            Some("voice muted".into())
+            g.on_key_binding("key.keyboard.m", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.n"),
+            Some("other players muted".into())
+        );
+        assert!(g.cfg.muted_players);
+        assert!(!g.cfg.muted);
+        assert!(g.session.is_none(), "muting other players must not disconnect");
+        assert_eq!(
+            g.on_key_binding("key.keyboard.n", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.n"),
+            Some("microphone and other players muted".into())
         );
         assert!(g.cfg.muted);
+        assert!(g.cfg.muted_players);
+        assert!(!g.ptt_held);
+        assert_eq!(
+            g.on_key_binding("key.keyboard.n", true, "key.keyboard.space", "key.keyboard.m", "key.keyboard.n"),
+            Some("microphone and other players unmuted".into())
+        );
+        assert!(!g.cfg.muted);
+        assert!(!g.cfg.muted_players);
     }
 
     #[test]
     fn config_round_trip() {
         let dir = std::env::temp_dir().join(format!("svc-test-{}", std::process::id()));
-        let cfg = VoiceConfig { ptt_key: "KeyB".into(), mute_key: "KeyN".into(), enabled: false, muted: true, volume: 0.5, mic_volume: 0.75 };
+        let cfg = VoiceConfig { ptt_key: "KeyB".into(), mute_key: "KeyN".into(), enabled: false, muted: true, muted_players: true, volume: 0.5, mic_volume: 0.75 };
         Glue::save_config(dir.to_str().unwrap(), &cfg);
         let loaded = Glue::load_config(dir.to_str().unwrap());
         assert_eq!(loaded.ptt_key, "KeyB");
         assert_eq!(loaded.mute_key, "KeyN");
         assert!(!loaded.enabled);
         assert!(loaded.muted);
+        assert!(loaded.muted_players);
         assert_eq!(loaded.volume, 0.5);
         assert_eq!(loaded.mic_volume, 0.75);
         let _ = std::fs::remove_dir_all(&dir);
