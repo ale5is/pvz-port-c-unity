@@ -523,7 +523,7 @@ impl Glue {
             return None;
         }
         if pressed && key == mute_binding {
-            self.cfg.muted = !self.cfg.muted;
+            self.set_muted(!self.cfg.muted);
             return Some(if self.cfg.muted {
                 "voice muted".into()
             } else {
@@ -556,7 +556,7 @@ impl Glue {
                 ("voice unmuted".into(), sends)
             }
             "toggle" => {
-                self.cfg.muted = !self.cfg.muted;
+                self.set_muted(!self.cfg.muted);
                 (if self.cfg.muted { "voice muted" } else { "voice unmuted" }.into(), sends)
             }
             "ptt" => {
