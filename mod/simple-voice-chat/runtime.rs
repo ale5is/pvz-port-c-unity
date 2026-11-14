@@ -155,9 +155,13 @@ pub fn on_command(game: &mut crate::game::Game<'_>, command: &str, ran: &mut boo
 
 pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration) {
     let enabled = game.native_on("simple-voice-chat");
-    locked().cfg.enabled = enabled;
+    let active = {
+        let mut g = locked();
+        g.cfg.enabled = enabled;
+        g.is_world_active()
+    };
     if !enabled {
-        if locked().is_world_active() {
+        if active {
             world_closed();
         } else {
             OUT.lock().unwrap_or_else(|e| e.into_inner()).clear();
@@ -169,7 +173,6 @@ pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration)
     // for the lifetime of the player; close it only after the player is gone.
     // Remote clients do not receive native world-lifecycle callbacks.
     let world_present = game.player.is_some();
-    let active = locked().is_world_active();
     if world_present && !active {
         world_open_ready(game);
     } else if !world_present && active {
