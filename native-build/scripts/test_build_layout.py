@@ -34,6 +34,7 @@ def main() -> None:
     assert "!enabled.contains(&item.id)" in source
     assert "Compile enabled native mods" in source
     assert 'join("enabled.txt")' in source
+    assert "Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(HashSet::new())" in source
     assert "if !running" in source
     assert "selected_mod_ids" in source
     assert "actual_mod_ids != expected_mod_ids" in source
