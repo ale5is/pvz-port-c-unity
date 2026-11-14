@@ -45,12 +45,15 @@ pub fn drain_outbound() -> Vec<(String, Vec<u8>)> {
     std::mem::take(&mut *OUT.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
-pub fn world_open_ready(_game: &mut crate::game::Game<'_>) {
+pub fn world_open_ready(game: &mut crate::game::Game<'_>) {
     {
         let mut g = locked();
         if let Some(base) = config_base() {
             g.cfg = svc_client::runtime::Glue::load_config(&base);
         }
+        // The Mods list is the source of truth. A stale config flag must not
+        // override the native mod's Yes/No switch.
+        g.cfg.enabled = game.native_on("simple-voice-chat");
         if !g.cfg.enabled {
             return;
         }
@@ -65,6 +68,7 @@ pub fn world_open_ready(_game: &mut crate::game::Game<'_>) {
 
 pub fn world_closed() {
     locked().world_close();
+    OUT.lock().unwrap_or_else(|e| e.into_inner()).clear();
 }
 
 pub fn world_lifecycle(
@@ -98,7 +102,7 @@ pub fn record_net_tx(channel: &str, bytes: usize) {
 }
 
 pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
-    if game.player.is_none() {
+    if !game.native_on("simple-voice-chat") || game.player.is_none() {
         return;
     }
     let playing = game.native_playing();
@@ -124,7 +128,7 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
 }
 
 pub fn on_command(game: &mut crate::game::Game<'_>, command: &str, ran: &mut bool) {
-    if !locked().cfg.enabled {
+    if !game.native_on("simple-voice-chat") || !locked().cfg.enabled {
         return;
     }
     let command = command.trim();
@@ -150,9 +154,13 @@ pub fn on_command(game: &mut crate::game::Game<'_>, command: &str, ran: &mut boo
 }
 
 pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration) {
-    if !locked().cfg.enabled {
+    let enabled = game.native_on("simple-voice-chat");
+    locked().cfg.enabled = enabled;
+    if !enabled {
         if locked().is_world_active() {
             world_closed();
+        } else {
+            OUT.lock().unwrap_or_else(|e| e.into_inner()).clear();
         }
         return;
     }
@@ -231,13 +239,7 @@ pub fn settings(
     if mod_id != "simple-voice-chat" {
         return;
     }
-    let g = locked();
-    buttons.push(format!(
-        "Simple Voice Chat: {}",
-        if g.cfg.enabled { "YES" } else { "NO" }
-    ));
     buttons.push("Reconnect to voice server".into());
-    buttons.push(format!("Connection: {}", g.connection_stage));
 }
 
 pub fn settings_click(
@@ -245,37 +247,14 @@ pub fn settings_click(
     mod_id: &str,
     button: usize,
 ) {
-    if mod_id != "simple-voice-chat" {
+    if mod_id != "simple-voice-chat" || button != 0 {
         return;
     }
-    if button == 1 {
-        let enabled = locked().cfg.enabled;
-        if enabled && game.player.is_some() {
-            world_closed();
-            world_open_ready(game);
-            eprintln!("[voice] manual reconnect requested");
-        }
+    if !game.native_on("simple-voice-chat") || game.player.is_none() {
+        eprintln!("[voice] reconnect is available only when Simple Voice Chat is enabled in Mods and a world is open");
         return;
     }
-    if button != 0 {
-        return;
-    }
-    let enabled = {
-        let mut g = locked();
-        g.cfg.enabled = !g.cfg.enabled;
-        g.ptt_held = false;
-        g.cfg.enabled
-    };
-    save_config();
-    if enabled {
-        if game.player.is_some() {
-            world_closed();
-            world_open_ready(game);
-        }
-        eprintln!("[voice] Simple Voice Chat enabled");
-    } else {
-        world_closed();
-        OUT.lock().unwrap_or_else(|e| e.into_inner()).clear();
-        eprintln!("[voice] Simple Voice Chat disabled");
-    }
+    world_closed();
+    world_open_ready(game);
+    eprintln!("[voice] manual reconnect requested");
 }
