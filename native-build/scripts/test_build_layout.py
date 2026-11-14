@@ -29,6 +29,10 @@ def main() -> None:
     assert "fn on_frame" not in source
     assert "disable_compiled_build()" in source
     assert 'native.join("current")' in source
+    assert "disabled_mod_ids" in source
+    assert "set_mod_enabled" in source
+    assert "disabled.contains(&item.id)" in source
+    assert "Compile enabled native mods" in source
 
     build = (ROOT / "native-build/scripts/native_build.sh").read_text()
     prepare = (ROOT / "native-build/scripts/prepare.sh").read_text()
