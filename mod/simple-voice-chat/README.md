@@ -18,13 +18,14 @@ This is the API-80 adaptation of the Simple Voice Chat client for Horizon Androi
 ## Controls and configuration
 
 - Hold `V` (default) to transmit with push-to-talk; release it to stop.
-- Press `M` to mute or unmute the microphone.
+- Press `M` to mute or unmute other players (incoming voice only); your microphone remains active.
+- Press `N` to mute or unmute both your microphone and incoming player audio. Neither key disconnects the UDP voice session; only disabling the mod in Mods closes it.
 - `/svc mute`, `/svc unmute`, `/svc toggle`, `/svc status` control and report voice state.
 - `/svc ptt KeyV` changes the push-to-talk key. Key names use Horizon's `KeyA` / `KeyV` format.
 - `/svc volume 0-100` sets received voice volume; `/svc micvolume 0-100` sets microphone gain.
 - Settings are loaded when a world opens and saved under `config/simple_voice_chat/config.json` using Horizon's shared native config directory.
 - The Options > Mods Yes/No switch is the source of truth for enabling the native mod. Turning it off closes UDP and releases microphone/speaker streams; turning it back on starts a fresh voice-secret handshake in the current world.
-- The mod's settings page has an independent **Mute microphone / Unmute microphone** button and a manual **Reconnect to voice server** action. Muting drops the CPAL capture stream and clears PTT, but leaves speaker playback and the UDP session connected. Unmuting lets the frame loop reopen capture after permission is confirmed.
+- The mod's settings page has independent **Mute other players** and **Mute microphone + players** controls, plus a manual **Reconnect to voice server** action. Muting other players releases speaker output while keeping the UDP session active. Muting everything also releases microphone capture and clears PTT. Unmuting reopens the required audio devices when the session is connected.
 - Android requests `RECORD_AUDIO` once from `HorizonActivity.onCreate`, after the native activity has initialized and while the player is still at app startup, before entering a world. The permission result is asynchronous; denying it never blocks world loading, and microphone capture remains closed until permission is granted. The game checks permission state while a world is active, so granting it later in Android Settings also takes effect.
 - Android's `RECORD_AUDIO` permission remains separate from the mod switch. Muting closes the app's active capture stream but does not revoke Android permission; denying it prevents microphone capture.
 
