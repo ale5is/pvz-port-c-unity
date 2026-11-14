@@ -18,6 +18,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: pavorizon-android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linux-tests:
     runs-on: ubuntu-latest
