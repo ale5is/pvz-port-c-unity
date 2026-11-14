@@ -116,12 +116,29 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - name: Restore persistent PavoHorizon signing key when configured
+        working-directory: ${{ runner.temp }}/horizon-078-svc
+        env:
+          PAVO_ANDROID_DEBUG_KEYSTORE_BASE64: ${{ secrets.PAVO_ANDROID_DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p .local/android
+          if [ -n "$PAVO_ANDROID_DEBUG_KEYSTORE_BASE64" ]; then
+            printf '%s' "$PAVO_ANDROID_DEBUG_KEYSTORE_BASE64" | base64 --decode > .local/android/debug.keystore
+            chmod 600 .local/android/debug.keystore
+            "$JAVA_HOME/bin/keytool" -list -keystore .local/android/debug.keystore -storepass android -alias androiddebugkey >/dev/null
+            echo "PAVO_SIGNING_MODE=persistent" >> "$GITHUB_ENV"
+          else
+            echo "::warning::PAVO_ANDROID_DEBUG_KEYSTORE_BASE64 is not configured; this APK will use a temporary key and cannot update a differently signed installation."
+            echo "PAVO_SIGNING_MODE=temporary" >> "$GITHUB_ENV"
+          fi
       - name: Build installable Horizon 0.7.8 SVC APK
         working-directory: ${{ runner.temp }}/horizon-078-svc
         run: |
           python3 tools/android_build.py --abi arm64-v8a --ndk-version 27.2.12479018 --build-tools-version 35.0.0 --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME" --gradle "$(command -v gradle)" --public --release-candidate --profile fast --dev-build pavo --dev-version-code "$GITHUB_RUN_NUMBER"
           cp .local/android/apk/arm64-v8a/horizon-android-public.apk .local/android/apk/arm64-v8a/PavoHorizon.apk
           sha256sum .local/android/apk/arm64-v8a/PavoHorizon.apk > .local/android/apk/arm64-v8a/SHA256SUMS.txt
+          printf 'signing_mode=%s\\n' "$PAVO_SIGNING_MODE" > .local/android/apk/arm64-v8a/SIGNING-INFO.txt
+          "$JAVA_HOME/bin/keytool" -list -v -keystore .local/android/debug.keystore -storepass android -alias androiddebugkey | grep 'SHA256:' >> .local/android/apk/arm64-v8a/SIGNING-INFO.txt
       - name: Upload PavoHorizon APK
         uses: actions/upload-artifact@v4
         with:
@@ -129,5 +146,6 @@ jobs:
           path: |
             ${{ runner.temp }}/horizon-078-svc/.local/android/apk/arm64-v8a/PavoHorizon.apk
             ${{ runner.temp }}/horizon-078-svc/.local/android/apk/arm64-v8a/SHA256SUMS.txt
+            ${{ runner.temp }}/horizon-078-svc/.local/android/apk/arm64-v8a/SIGNING-INFO.txt
           if-no-files-found: error
           retention-days: 14
