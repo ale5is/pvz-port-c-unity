@@ -207,6 +207,9 @@ pub fn register_mod(
     if mods.iter().any(|m| m.id == "simple-voice-chat") {
         return;
     }
+    if let Some(base) = config_base() {
+        locked().cfg = svc_client::runtime::Glue::load_config(&base);
+    }
     mods.push(crate::game::native_hooks::NativeMod {
         id: "simple-voice-chat".into(),
         title: "Simple Voice Chat".into(),
@@ -226,6 +229,12 @@ pub fn settings(
     if mod_id != "simple-voice-chat" {
         return;
     }
+    let muted = locked().cfg.muted;
+    buttons.push(if muted {
+        "Unmute microphone".into()
+    } else {
+        "Mute microphone".into()
+    });
     buttons.push("Reconnect to voice server".into());
 }
 
@@ -234,7 +243,26 @@ pub fn settings_click(
     mod_id: &str,
     button: usize,
 ) {
-    if mod_id != "simple-voice-chat" || button != 0 {
+    if mod_id != "simple-voice-chat" {
+        return;
+    }
+    if button == 0 {
+        let (muted, cfg) = {
+            let mut g = locked();
+            let muted = !g.cfg.muted;
+            g.set_muted(muted);
+            (muted, g.cfg.clone())
+        };
+        if let Some(base) = config_base() {
+            svc_client::runtime::Glue::save_config(&base, &cfg);
+        }
+        eprintln!(
+            "[voice] microphone {} without disabling the voice session",
+            if muted { "muted" } else { "unmuted" }
+        );
+        return;
+    }
+    if button != 1 {
         return;
     }
     if !game.native_on("simple-voice-chat") || game.player.is_none() {
