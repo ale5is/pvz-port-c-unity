@@ -91,24 +91,19 @@ pub(super) fn settings(
     buttons.push(format!("{action} — {status}"));
     drop(state);
 
-    match app_home().and_then(|home| installed_mods(&home)) {
-        Ok(installed) if installed.is_empty() => {
-            buttons.push("No .hnmod packages imported yet".into());
-        }
-        Ok(installed) => {
-            let disabled = app_home()
-                .and_then(|home| disabled_mod_ids(&home))
-                .unwrap_or_default();
-            for item in installed {
-                let state = if disabled.contains(&item.id) {
-                    "Excluded from build"
-                } else {
-                    "Included in build"
-                };
-                buttons.push(format!("{} — {state}", item.id));
+    if let Ok(home) = app_home() {
+        if let Ok(installed) = installed_mods(&home) {
+            if let Ok(disabled) = disabled_mod_ids(&home) {
+                for item in installed {
+                    let state = if disabled.contains(&item.id) {
+                        "Excluded from build"
+                    } else {
+                        "Included in build"
+                    };
+                    buttons.push(format!("{} — {state}", item.id));
+                }
             }
         }
-        Err(error) => buttons.push(format!("Cannot read native mods: {}", short(&error))),
     }
     buttons.push("Revert to original Horizon library on next launch".into());
 }
