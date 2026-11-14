@@ -41,9 +41,11 @@ def main() -> None:
         archive.writestr(
             "mixins/" + MOD_ID + "/mods.rs",
             """fn smoke_mod_list(
-    _game: &mut crate::game::Game<'_>,
-    _mods: &mut Vec<crate::game::native_hooks::NativeMod>,
-) {}
+    game: &mut crate::game::Game<'_>,
+    mods: &mut Vec<crate::game::native_hooks::NativeMod>,
+) {
+    let _ = (game, mods);
+}
 """,
         )
     data = bundle_path.read_bytes()
