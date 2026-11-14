@@ -107,7 +107,8 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
     }
     let playing = game.native_playing();
     let ptt_binding = game.native_mod_key("simple-voice-chat", "ptt", "key.keyboard.v");
-    let mute_binding = game.native_mod_key("simple-voice-chat", "mute", "key.keyboard.m");
+    let mute_players_binding = game.native_mod_key("simple-voice-chat", "mute_players", "key.keyboard.m");
+    let mute_all_binding = game.native_mod_key("simple-voice-chat", "mute_all", "key.keyboard.n");
     let changed = {
         let mut g = locked();
         if !g.cfg.enabled {
@@ -117,7 +118,7 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
             g.hud_open = !g.hud_open;
         }
         if playing || !pressed {
-            g.on_key_binding(key, pressed, &ptt_binding, &mute_binding).is_some()
+            g.on_key_binding(key, pressed, &ptt_binding, &mute_players_binding, &mute_all_binding).is_some()
         } else {
             false
         }
@@ -219,7 +220,8 @@ pub fn register_mod(
         description: "Voice chat with nearby players. Configure push-to-talk and mute keys below.".into(),
         keys: vec![
             ["ptt".into(), "Push to Talk".into(), "key.keyboard.v".into()],
-            ["mute".into(), "Mute Microphone".into(), "key.keyboard.m".into()],
+            ["mute_players".into(), "Mute Other Players".into(), "key.keyboard.m".into()],
+            ["mute_all".into(), "Mute Microphone + Players".into(), "key.keyboard.n".into()],
         ],
     });
 }
@@ -232,11 +234,16 @@ pub fn settings(
     if mod_id != "simple-voice-chat" {
         return;
     }
-    let muted = locked().cfg.muted;
-    buttons.push(if muted {
-        "Unmute microphone".into()
+    let g = locked();
+    buttons.push(if g.cfg.muted_players {
+        "Unmute other players".into()
     } else {
-        "Mute microphone".into()
+        "Mute other players".into()
+    });
+    buttons.push(if g.cfg.muted && g.cfg.muted_players {
+        "Unmute microphone + players".into()
+    } else {
+        "Mute microphone + players".into()
     });
     buttons.push("Reconnect to voice server".into());
 }
@@ -249,23 +256,26 @@ pub fn settings_click(
     if mod_id != "simple-voice-chat" {
         return;
     }
-    if button == 0 {
-        let (muted, cfg) = {
+    if button == 0 || button == 1 {
+        let (description, cfg) = {
             let mut g = locked();
-            let muted = !g.cfg.muted;
-            g.set_muted(muted);
-            (muted, g.cfg.clone())
+            if button == 0 {
+                let muted = !g.cfg.muted_players;
+                g.set_players_muted(muted);
+                (if muted { "other players muted" } else { "other players unmuted" }, g.cfg.clone())
+            } else {
+                let muted = !(g.cfg.muted && g.cfg.muted_players);
+                g.set_all_muted(muted);
+                (if muted { "microphone and other players muted" } else { "microphone and other players unmuted" }, g.cfg.clone())
+            }
         };
         if let Some(base) = config_base() {
             svc_client::runtime::Glue::save_config(&base, &cfg);
         }
-        eprintln!(
-            "[voice] microphone {} without disabling the voice session",
-            if muted { "muted" } else { "unmuted" }
-        );
+        eprintln!("[voice] {description}; connection remains active");
         return;
     }
-    if button != 1 {
+    if button != 2 {
         return;
     }
     if !game.native_on("simple-voice-chat") || game.player.is_none() {
