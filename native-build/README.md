@@ -23,9 +23,10 @@ Regular Fabric `.jar` mods and content `.hmod` files are not converted into nati
    `files/horizon-native-mods/`.
 2. Put the gateway's public HTTPS base URL, without a trailing slash, in
    `files/horizon-native-mods/build-server.txt`.
-3. Open **Options → Mods → Native Mod Builder** and choose **Compile installed native mods**.
-4. Horizon uploads the packages, shows the build status, verifies the returned SHA-256 and build
-   metadata, then stores the ARM64 library under `files/native/`.
+3. Open **Options → Mods → Native Mod Builder**. Each imported `.hnmod` starts excluded; tap a mod's row to include or exclude it, then choose **Compile enabled native mods**.
+4. Horizon uploads only the selected packages, shows the build status, verifies the returned
+   SHA-256 and exact build metadata (including the selected mod IDs), then stores the ARM64
+   library under `files/native/`.
 5. Restart Horizon to load the compiled library.
 
 The second button, **Revert to original Horizon library on next launch**, removes the active-build
