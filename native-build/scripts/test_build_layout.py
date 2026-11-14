@@ -33,6 +33,10 @@ def main() -> None:
     assert "set_mod_enabled" in source
     assert "disabled.contains(&item.id)" in source
     assert "Compile enabled native mods" in source
+    assert "selected_mod_ids" in source
+    assert "actual_mod_ids != expected_mod_ids" in source
+    assert 'expected_mod_ids.insert("simple-voice-chat".into())' in source
+    assert 'expected_mod_ids.insert("horizon-native-builder".into())' in source
 
     build = (ROOT / "native-build/scripts/native_build.sh").read_text()
     prepare = (ROOT / "native-build/scripts/prepare.sh").read_text()
