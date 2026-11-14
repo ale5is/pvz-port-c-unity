@@ -93,12 +93,12 @@ pub(super) fn settings(
 
     if let Ok(home) = app_home() {
         if let Ok(installed) = installed_mods(&home) {
-            if let Ok(disabled) = disabled_mod_ids(&home) {
+            if let Ok(disabled) = enabled_mod_ids(&home) {
                 for item in installed {
-                    let state = if disabled.contains(&item.id) {
-                        "Excluded from build"
-                    } else {
+                    let state = if enabled.contains(&item.id) {
                         "Included in build"
+                    } else {
+                        "Excluded from build"
                     };
                     buttons.push(format!("{} — {state}", item.id));
                 }
@@ -136,13 +136,13 @@ pub(super) fn settings_click(
         }
         if button > 0 && button <= installed.len() {
             let item = &installed[button - 1];
-            let disabled = disabled_mod_ids(&home)?;
-            let enable = disabled.contains(&item.id);
-            set_mod_enabled(&home, &item.id, enable)?;
+            let enabled = enabled_mod_ids(&home)?;
+            let include = !enabled.contains(&item.id);
+            set_mod_enabled(&home, &item.id, include)?;
             set_status(format!(
                 "{} {} for the next native build.",
                 item.id,
-                if enable { "included" } else { "excluded" }
+                if include { "included" } else { "excluded" }
             ));
         }
         Ok(())
@@ -187,8 +187,8 @@ fn installed_mods(home: &std::path::Path) -> Result<Vec<InstalledMod>, String> {
     Ok(installed)
 }
 
-fn disabled_mod_ids(home: &std::path::Path) -> Result<HashSet<String>, String> {
-    let path = home.join(NATIVE_MODS_DIR).join("disabled.txt");
+fn enabled_mod_ids(home: &std::path::Path) -> Result<HashSet<String>, String> {
+    let path = home.join(NATIVE_MODS_DIR).join("enabled.txt");
     match fs::read_to_string(path) {
         Ok(contents) => Ok(contents
             .lines()
@@ -206,16 +206,16 @@ fn set_mod_enabled(
     id: &str,
     enabled: bool,
 ) -> Result<(), String> {
-    let mut disabled = disabled_mod_ids(home)?;
+    let mut selected = enabled_mod_ids(home)?;
     if enabled {
-        disabled.remove(id);
+        selected.insert(id.to_owned());
     } else {
-        disabled.insert(id.to_owned());
+        selected.remove(id);
     }
-    let mut ids: Vec<_> = disabled.into_iter().collect();
+    let mut ids: Vec<_> = selected.into_iter().collect();
     ids.sort();
-    let path = home.join(NATIVE_MODS_DIR).join("disabled.txt");
-    let temporary = home.join(NATIVE_MODS_DIR).join("disabled.txt.part");
+    let path = home.join(NATIVE_MODS_DIR).join("enabled.txt");
+    let temporary = home.join(NATIVE_MODS_DIR).join("enabled.txt.part");
     let contents = if ids.is_empty() {
         String::new()
     } else {
@@ -337,12 +337,12 @@ fn service_error(error: ureq::Error) -> String {
 }
 
 fn bundles_body(home: &std::path::Path) -> Result<(Vec<u8>, HashSet<String>), String> {
-    let disabled = disabled_mod_ids(home)?;
+    let enabled = enabled_mod_ids(home)?;
     let installed = installed_mods(home)?;
     let mut mods = Vec::new();
     let mut selected = HashSet::new();
     for item in installed {
-        if disabled.contains(&item.id) {
+        if !enabled.contains(&item.id) {
             continue;
         }
         let bytes = fs::read(&item.path)
