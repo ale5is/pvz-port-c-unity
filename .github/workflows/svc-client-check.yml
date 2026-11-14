@@ -120,20 +120,33 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Restore persistent PavoHorizon signing key when configured
+      - name: Restore persistent PavoHorizon signing key or create a temporary CI key
         working-directory: ${{ runner.temp }}/horizon-078-svc
         env:
           PAVO_ANDROID_DEBUG_KEYSTORE_BASE64: ${{ secrets.PAVO_ANDROID_DEBUG_KEYSTORE_BASE64 }}
         run: |
           mkdir -p .local/android
-          if [ -z "$PAVO_ANDROID_DEBUG_KEYSTORE_BASE64" ]; then
-            echo "::error::Configure the repository Actions secret PAVO_ANDROID_DEBUG_KEYSTORE_BASE64 before building. Refusing to create an APK with a temporary signature that cannot be reused for updates."
-            exit 1
+          if [ -n "$PAVO_ANDROID_DEBUG_KEYSTORE_BASE64" ]; then
+            printf '%s' "$PAVO_ANDROID_DEBUG_KEYSTORE_BASE64" | base64 --decode > .local/android/debug.keystore
+            chmod 600 .local/android/debug.keystore
+            "$JAVA_HOME/bin/keytool" -list -keystore .local/android/debug.keystore -storepass android -alias androiddebugkey >/dev/null
+            echo "PAVO_SIGNING_MODE=persistent" >> "$GITHUB_ENV"
+            echo "Using the repository's persistent PavoHorizon signing key."
+          else
+            "$JAVA_HOME/bin/keytool" -genkeypair -v \
+              -keystore .local/android/debug.keystore \
+              -storetype JKS \
+              -storepass android \
+              -keypass android \
+              -alias androiddebugkey \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=PavoHorizon CI Temporary, OU=Android, O=PavoHorizon, L=Buenos Aires, ST=Buenos Aires, C=AR"
+            chmod 600 .local/android/debug.keystore
+            echo "PAVO_SIGNING_MODE=temporary" >> "$GITHUB_ENV"
+            echo "::warning::No persistent signing secret configured. This APK is installable for testing, but future builds cannot update it in place."
           fi
-          printf '%s' "$PAVO_ANDROID_DEBUG_KEYSTORE_BASE64" | base64 --decode > .local/android/debug.keystore
-          chmod 600 .local/android/debug.keystore
-          "$JAVA_HOME/bin/keytool" -list -keystore .local/android/debug.keystore -storepass android -alias androiddebugkey >/dev/null
-          echo "PAVO_SIGNING_MODE=persistent" >> "$GITHUB_ENV"
       - name: Build installable Horizon 0.7.8 SVC APK
         working-directory: ${{ runner.temp }}/horizon-078-svc
         run: |
