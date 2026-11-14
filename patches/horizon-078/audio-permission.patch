@@ -8,7 +8,7 @@ diff --git a/packaging/android/AndroidManifest.xml b/packaging/android/AndroidMa
 diff --git a/packaging/android/java/dev/horizon/android/HorizonActivity.java b/packaging/android/java/dev/horizon/android/HorizonActivity.java
 --- a/packaging/android/java/dev/horizon/android/HorizonActivity.java
 +++ b/packaging/android/java/dev/horizon/android/HorizonActivity.java
-@@ -5,6 +5,25 @@
+@@ -5,6 +5,23 @@
      static { System.loadLibrary("horizon_android"); }
      private native void nativeDocumentResult(int request, int result, String uri);
  
@@ -19,8 +19,6 @@ diff --git a/packaging/android/java/dev/horizon/android/HorizonActivity.java b/p
 +    }
 +
 +    public void requestAudioPermission() {
-+        // Do not open Android's permission dialog inside Horizon's world-open
-+        // callback. Let the current native frame return first.
 +        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
 +            if (android.os.Build.VERSION.SDK_INT >= 23 &&
 +                    checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
