@@ -107,30 +107,30 @@ replace_once(
 
 replace_once(
     "crates/horizon-client/src/game/no_resources.rs",
-    "    EventLoop::new()?.run_app(&mut app)?;\\n",
-    "    #[cfg(target_os = \\"android\\")]\\n"
-    "    {\\n"
-    "        use winit::platform::android::EventLoopBuilderExtAndroid;\\n"
-    "        let mut builder = EventLoop::builder();\\n"
-    "        builder.with_android_app(crate::android::android_app());\\n"
-    "        builder.build()?.run_app(&mut app)?;\\n"
-    "    }\\n"
-    "    #[cfg(not(target_os = \\"android\\"))]\\n"
-    "    EventLoop::new()?.run_app(&mut app)?;\\n",
+    "    EventLoop::new()?.run_app(&mut app)?;\n",
+    "    #[cfg(target_os = \"android\")]\n"
+    "    {\n"
+    "        use winit::platform::android::EventLoopBuilderExtAndroid;\n"
+    "        let mut builder = EventLoop::builder();\n"
+    "        builder.with_android_app(crate::android::android_app());\n"
+    "        builder.build()?.run_app(&mut app)?;\n"
+    "    }\n"
+    "    #[cfg(not(target_os = \"android\"))]\n"
+    "    EventLoop::new()?.run_app(&mut app)?;\n",
 )
 
 replace_once(
     "crates/horizon-client/src/game/resource_loader.rs",
-    "    let result = EventLoop::new()?.run_app(&mut app);\\n",
-    "    #[cfg(target_os = \\"android\\")]\\n"
-    "    let result = {\\n"
-    "        use winit::platform::android::EventLoopBuilderExtAndroid;\\n"
-    "        let mut builder = EventLoop::builder();\\n"
-    "        builder.with_android_app(crate::android::android_app());\\n"
-    "        builder.build()?.run_app(&mut app)\\n"
-    "    };\\n"
-    "    #[cfg(not(target_os = \\"android\\"))]\\n"
-    "    let result = EventLoop::new()?.run_app(&mut app);\\n",
+    "    let result = EventLoop::new()?.run_app(&mut app);\n",
+    "    #[cfg(target_os = \"android\")]\n"
+    "    let result = {\n"
+    "        use winit::platform::android::EventLoopBuilderExtAndroid;\n"
+    "        let mut builder = EventLoop::builder();\n"
+    "        builder.with_android_app(crate::android::android_app());\n"
+    "        builder.build()?.run_app(&mut app)\n"
+    "    };\n"
+    "    #[cfg(not(target_os = \"android\"))]\n"
+    "    let result = EventLoop::new()?.run_app(&mut app);\n",
 )
 
 replace_once(
