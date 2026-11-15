@@ -1,10 +1,11 @@
-name: PavoHorizonNightly Android core validation
+name: PavoHorizonNightly Android core and APK
 
 on:
   push:
     branches: [pavohorizonnightly]
     paths:
       - "tools/pavohorizonnightly/android_bootstrap.py"
+      - "tools/pavohorizonnightly/AndroidManifest.xml"
       - ".github/workflows/pavohorizonnightly-android-core.yml"
   workflow_dispatch:
 
@@ -18,7 +19,7 @@ concurrency:
 jobs:
   android-core:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 150
     env:
       HORIZON_REV: 9ade5838fb9c2e89c85a914016adcc8ab5faa4b3
       CARGO_BUILD_JOBS: 2
@@ -37,7 +38,7 @@ jobs:
           sdk="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$sdk" --licenses > /dev/null || true
           for attempt in 1 2 3; do
-            if "$sdk" --install "platforms;android-36" "ndk;28.2.13676358"; then
+            if "$sdk" --install "platforms;android-36" "build-tools;35.0.0" "ndk;28.2.13676358"; then
               exit 0
             fi
             rm -rf "$ANDROID_HOME/.temp" "$ANDROID_HOME/ndk/28.2.13676358"
@@ -57,7 +58,7 @@ jobs:
           git -C horizon checkout --detach "$HORIZON_REV"
           test "$(git -C horizon rev-parse HEAD)" = "$HORIZON_REV"
 
-      - name: Inject minimal NativeActivity bootstrap
+      - name: Inject NativeActivity bootstrap
         run: |
           python3 tools/pavohorizonnightly/android_bootstrap.py "$GITHUB_WORKSPACE/horizon"
           git -C horizon diff --check
@@ -79,13 +80,49 @@ jobs:
           test -s target/aarch64-linux-android/release/libhorizon_android.so
           file target/aarch64-linux-android/release/libhorizon_android.so
 
-      - name: Upload Android native library
+      - name: Package signed ARM64 APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          bt="$ANDROID_HOME/build-tools/35.0.0"
+          android_jar="$ANDROID_HOME/platforms/android-36/android.jar"
+          out="$GITHUB_WORKSPACE/dist"
+          mkdir -p "$out/apk/lib/arm64-v8a"
+          cp horizon/target/aarch64-linux-android/release/libhorizon_android.so "$out/apk/lib/arm64-v8a/"
+          "$bt/aapt2" link -o "$out/base.apk" \
+            --manifest tools/pavohorizonnightly/AndroidManifest.xml \
+            -I "$android_jar" --min-sdk-version 26 --target-sdk-version 35 \
+            --version-code 1 --version-name "0.1.0-nightly" --debug-mode
+          cp "$out/base.apk" "$out/unsigned.apk"
+          (cd "$out/apk" && zip -q -r "$out/unsigned.apk" lib)
+          "$bt/zipalign" -P 16 -f 4 "$out/unsigned.apk" "$out/aligned.apk"
+          key="$RUNNER_TEMP/pavohorizonnightly-debug.keystore"
+          keytool -genkeypair -keystore "$key" -storepass android -keypass android \
+            -alias pavohorizonnightly -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=PavoHorizonNightly" -noprompt
+          "$bt/apksigner" sign --ks "$key" --ks-pass pass:android \
+            --key-pass pass:android --ks-key-alias pavohorizonnightly \
+            --out "$out/PavoHorizonNightly.apk" "$out/aligned.apk"
+          "$bt/apksigner" verify --verbose "$out/PavoHorizonNightly.apk"
+          "$bt/aapt" dump badging "$out/PavoHorizonNightly.apk" | tee "$out/badging.txt"
+          "$bt/aapt" dump permissions "$out/PavoHorizonNightly.apk" | tee "$out/permissions.txt"
+          grep -F "package: name='dev.pavo.horizonnightly'" "$out/badging.txt"
+          grep -F "PavoHorizonNightly" "$out/badging.txt"
+          grep -F "android.permission.RECORD_AUDIO" "$out/permissions.txt"
+          sha256sum "$out/PavoHorizonNightly.apk" | tee "$out/SHA256SUMS.txt"
+          ls -lh "$out/PavoHorizonNightly.apk"
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: pavohorizonnightly-android-arm64-native
-          path: horizon/target/aarch64-linux-android/release/libhorizon_android.so
+          name: pavohorizonnightly-arm64-apk
+          path: |
+            dist/PavoHorizonNightly.apk
+            dist/SHA256SUMS.txt
+            dist/badging.txt
+            dist/permissions.txt
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
       - name: Upload Android core diagnostics
         if: always()
