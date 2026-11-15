@@ -8,14 +8,14 @@
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <application
         android:label="PavoHorizonNightly"
-        android:hasCode="false"
+        android:hasCode="true"
         android:isGame="true"
         android:allowBackup="false"
         android:extractNativeLibs="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
         <activity
-            android:name="android.app.NativeActivity"
+            android:name="dev.pavo.horizonnightly.HorizonActivity"
             android:label="PavoHorizonNightly"
             android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout|uiMode|density|locale|navigation|touchscreen|keyboard"
             android:screenOrientation="sensorLandscape"
