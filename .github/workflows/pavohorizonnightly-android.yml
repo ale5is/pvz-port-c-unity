@@ -78,8 +78,8 @@ jobs:
             {
               echo "### Android integration merge blocked"
               echo
-              printf "Horizon: `%s`\n" "$HORIZON_REV"
-              printf "Starling: `%s`\n" "$STARLING_REV"
+              echo "Horizon: $HORIZON_REV"
+              echo "Starling: $STARLING_REV"
               echo
               echo "Conflicting paths: $(wc -l < "$report/conflicts.txt")"
               echo
