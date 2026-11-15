@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1]).resolve()
+
+def replace_once(path, old, new):
+    file = root / path
+    source = file.read_text()
+    count = source.count(old)
+    if count != 1:
+        raise SystemExit(f"{path}: expected one match, found {count}: {old!r}")
+    file.write_text(source.replace(old, new))
+
+replace_once(
+    "Cargo.toml",
+    '    "crates/horizon-client",\n',
+    '    "crates/horizon-client",\n    "crates/horizon-android",\n',
+)
+
+replace_once(
+    "crates/horizon-client/Cargo.toml",
+    '[target.\'cfg(windows)\'.dependencies]\n',
+    '[target.\'cfg(target_os = "android")\'.dependencies]\n'
+    'winit = { version = "0.30.13", features = ["android-native-activity"] }\n\n'
+    '[target.\'cfg(windows)\'.dependencies]\n',
+)
+
+replace_once(
+    "crates/horizon-client/src/lib.rs",
+    "extern crate self as horizon_client;\n",
+    "extern crate self as horizon_client;\n"
+    '#[cfg(target_os = "android")]\n'
+    "pub mod android;\n",
+)
+
+(root / "crates/horizon-client/src/android.rs").write_text(r'''use std::{path::PathBuf, sync::OnceLock};
+use winit::platform::android::activity::AndroidApp;
+
+static APP: OnceLock<AndroidApp> = OnceLock::new();
+
+pub fn main(app: AndroidApp) {
+    let private: PathBuf = app
+        .internal_data_path()
+        .unwrap_or_else(|| PathBuf::from("/data/local/tmp/pavohorizonnightly"));
+    let _ = std::fs::create_dir_all(&private);
+    let _ = std::env::set_current_dir(&private);
+    let _ = APP.set(app);
+    crate::entry::main();
+}
+
+pub fn android_app() -> AndroidApp {
+    APP.get()
+        .expect("android_main must initialize AndroidApp before the game")
+        .clone()
+}
+''')
+
+(root / "crates/horizon-client/src/android_lib.rs").write_text(r'''#![cfg(target_os = "android")]
+
+use winit::platform::android::activity::AndroidApp;
+
+#[global_allocator]
+static ALLOCATOR: horizon_threads::GameAllocator = horizon_threads::GAME_ALLOCATOR;
+
+#[unsafe(no_mangle)]
+fn android_main(app: AndroidApp) {
+    horizon_client::android::main(app);
+}
+''')
+
+(root / "crates/horizon-android").mkdir(parents=True, exist_ok=True)
+(root / "crates/horizon-android/Cargo.toml").write_text(r'''[package]
+name = "horizon-android"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+path = "../horizon-client/src/android_lib.rs"
+
+[target.'cfg(target_os = "android")'.dependencies]
+horizon-client = { path = "../horizon-client", default-features = false }
+horizon-threads = { path = "../horizon-threads" }
+winit = { version = "0.30.13", features = ["android-native-activity"] }
+
+[lints]
+workspace = true
+''')
+
+replace_once(
+    "crates/horizon-client/src/game/loading_screen.rs",
+    "    let result = EventLoop::new()?.run_app(&mut split);\n",
+    "    #[cfg(target_os = \"android\")]\n"
+    "    let result = {\n"
+    "        use winit::platform::android::EventLoopBuilderExtAndroid;\n"
+    "        let mut builder = EventLoop::builder();\n"
+    "        builder.with_android_app(crate::android::android_app());\n"
+    "        builder.build()?.run_app(&mut split)\n"
+    "    };\n"
+    "    #[cfg(not(target_os = \"android\"))]\n"
+    "    let result = EventLoop::new()?.run_app(&mut split);\n",
+)
+
+print("Android bootstrap injected:")
+for item in (
+    "crates/horizon-android/Cargo.toml",
+    "crates/horizon-client/src/android.rs",
+    "crates/horizon-client/src/android_lib.rs",
+    "crates/horizon-client/src/game/loading_screen.rs",
+):
+    print(item)
