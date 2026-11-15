@@ -6,6 +6,7 @@ on:
     paths:
       - "tools/pavohorizonnightly/android_bootstrap.py"
       - "tools/pavohorizonnightly/AndroidManifest.xml"
+      - "tools/pavohorizonnightly/HorizonActivity.java"
       - ".github/workflows/pavohorizonnightly-android-core.yml"
   workflow_dispatch:
 
