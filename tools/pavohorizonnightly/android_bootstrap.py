@@ -108,7 +108,7 @@ replace_once(
 
 replace_once(
     "crates/horizon-client-input/Cargo.toml",
-    'arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }\\n',
+    'arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }\n',
     "",
 )
 with (root / "crates/horizon-client-input/Cargo.toml").open("a") as file:
