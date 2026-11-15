@@ -66,9 +66,9 @@ jobs:
       - name: Compile Android client library
         run: |
           set -o pipefail
+          cd horizon
           cargo ndk -t arm64-v8a --platform 26 check \
-            --manifest-path horizon/Cargo.toml \
-            -p horizon-android --no-default-features 2>&1 | tee android-core-check.log
+            -p horizon-android --no-default-features 2>&1 | tee ../android-core-check.log
 
       - name: Upload Android core diagnostics
         if: always()
