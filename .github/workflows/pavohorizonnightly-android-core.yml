@@ -80,6 +80,18 @@ jobs:
           test -s target/aarch64-linux-android/release/libhorizon_android.so
           file target/aarch64-linux-android/release/libhorizon_android.so
 
+      - name: Compile Android activity from the base port
+        shell: bash
+        run: |
+          set -euo pipefail
+          bt="$ANDROID_HOME/build-tools/35.0.0"
+          android_jar="$ANDROID_HOME/platforms/android-36/android.jar"
+          mkdir -p dist/activity-classes dist/apk
+          javac -source 8 -target 8 -classpath "$android_jar" \
+            -d dist/activity-classes tools/pavohorizonnightly/HorizonActivity.java
+          "$bt/d8" --lib "$android_jar" --output dist/apk dist/activity-classes/dev/pavo/horizonnightly/HorizonActivity.class
+          test -s dist/apk/classes.dex
+
       - name: Package signed ARM64 APK
         shell: bash
         run: |
@@ -94,7 +106,7 @@ jobs:
             -I "$android_jar" --min-sdk-version 26 --target-sdk-version 35 \
             --version-code 1 --version-name "0.1.0-nightly" --debug-mode
           cp "$out/base.apk" "$out/unsigned.apk"
-          (cd "$out/apk" && zip -q -r "$out/unsigned.apk" lib)
+          (cd "$out/apk" && zip -q -r "$out/unsigned.apk" lib classes.dex)
           "$bt/zipalign" -P 16 -f 4 "$out/unsigned.apk" "$out/aligned.apk"
           key="$RUNNER_TEMP/pavohorizonnightly-debug.keystore"
           keytool -genkeypair -keystore "$key" -storepass android -keypass android \
