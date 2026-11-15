@@ -70,11 +70,30 @@ jobs:
           cargo ndk -t arm64-v8a --platform 26 check \
             -p horizon-android --no-default-features 2>&1 | tee ../android-core-check.log
 
+      - name: Build Android shared library
+        run: |
+          set -o pipefail
+          cd horizon
+          cargo ndk -t arm64-v8a --platform 26 build \
+            -p horizon-android --no-default-features --release 2>&1 | tee ../android-native-build.log
+          test -s target/aarch64-linux-android/release/libhorizon_android.so
+          file target/aarch64-linux-android/release/libhorizon_android.so
+
+      - name: Upload Android native library
+        uses: actions/upload-artifact@v4
+        with:
+          name: pavohorizonnightly-android-arm64-native
+          path: horizon/target/aarch64-linux-android/release/libhorizon_android.so
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload Android core diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pavohorizonnightly-android-core-diagnostics
-          path: android-core-check.log
+          path: |
+            android-core-check.log
+            android-native-build.log
           if-no-files-found: ignore
           retention-days: 14
