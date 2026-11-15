@@ -189,6 +189,53 @@ replace_once(
 """,
 )
 
+replace_once(
+    "crates/horizon-client-input/src/keybinds.rs",
+    """pub fn learn_layout(event: &winit::event::KeyEvent) {
+    use winit::keyboard::{Key, PhysicalKey};
+    use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
+    let PhysicalKey::Code(code) = event.physical_key else {
+        return;
+    };
+    let Some(name) = key_name(code) else {
+        return;
+    };
+    let learn = horizon_client_core::key_display::learn_layout;
+    match event.key_without_modifiers() {
+        Key::Character(text) => learn(name, &text),
+        Key::Dead(Some(c)) => learn(name, c.encode_utf8(&mut [0; 4])),
+        _ => {}
+    }
+}
+""",
+    """pub fn learn_layout(event: &winit::event::KeyEvent) {
+    use winit::keyboard::PhysicalKey;
+    let PhysicalKey::Code(code) = event.physical_key else {
+        return;
+    };
+    let Some(name) = key_name(code) else {
+        return;
+    };
+    let learn = horizon_client_core::key_display::learn_layout;
+    #[cfg(target_os = "android")]
+    match &event.logical_key {
+        winit::keyboard::Key::Character(text) => learn(name, text),
+        winit::keyboard::Key::Dead(Some(c)) => learn(name, c.encode_utf8(&mut [0; 4])),
+        _ => {}
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
+        match event.key_without_modifiers() {
+            winit::keyboard::Key::Character(text) => learn(name, &text),
+            winit::keyboard::Key::Dead(Some(c)) => learn(name, c.encode_utf8(&mut [0; 4])),
+            _ => {}
+        }
+    }
+}
+""",
+)
+
 print("Android bootstrap injected:")
 for item in (
     "crates/horizon-android/Cargo.toml",
