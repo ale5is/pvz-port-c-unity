@@ -3,7 +3,8 @@ fn hud(
     batch: &mut horizon_client::hud::HudBatch,
     corners: &mut horizon_client::extras_hud::Corners,
 ) {
-    let (open, connected, permission, mic, speaker, ptt, ptt_held, muted,
+    let (ptt, muted) = crate::game::simple_voice_chat::hud_audio_settings();
+    let (open, connected, permission, mic, speaker, ptt_held,
         stage, tx_count, rx_count, last_tx, last_rx, tx_bytes, rx_bytes,
         net_error, history, udp_counts, udp_error) = {
         let guard = crate::game::simple_voice_chat::state()
@@ -29,9 +30,7 @@ fn hud(
             },
             guard.mic.is_some(),
             guard.speaker.is_some(),
-            guard.cfg.ptt_key.clone(),
             guard.ptt_held,
-            guard.cfg.muted,
             guard.connection_stage.clone(),
             guard.net_tx_count,
             guard.net_rx_count,
