@@ -1,0 +1,79 @@
+name: PavoHorizonNightly Android baseline check
+
+on:
+  push:
+    branches: [pavohorizonnightly-android]
+    paths:
+      - "scripts/**"
+      - "mod/**"
+      - "android/**"
+      - ".github/workflows/pavohorizonnightly-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pavohorizonnightly-android
+  cancel-in-progress: true
+
+jobs:
+  android-arm64-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Install Android SDK and NDK
+        shell: bash
+        run: |
+          sdk="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdk" --licenses >/dev/null || true
+          for attempt in 1 2 3; do
+            if "$sdk" --install "platforms;android-36" "build-tools;35.0.0" "ndk;28.2.13676358"; then
+              exit 0
+            fi
+            rm -rf "$ANDROID_HOME/.temp" "$ANDROID_HOME/ndk/28.2.13676358"
+            sleep 10
+          done
+          exit 1
+
+      - name: Install pinned Rust toolchain and cargo-ndk
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal --target aarch64-linux-android
+          rustup default 1.95.0
+          cargo install cargo-ndk --version 3.5.4 --locked
+
+      - name: Fetch pinned Horizon Android source
+        run: |
+          git clone --filter=blob:none https://github.com/starling-client/starling.git "$RUNNER_TEMP/horizon"
+          git -C "$RUNNER_TEMP/horizon" checkout --detach 68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29
+          test "$(git -C "$RUNNER_TEMP/horizon" rev-parse HEAD)" = "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29"
+
+      - name: Apply Pavo SVC Android port and type-check ARM64
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 scripts/build_android_port.py \
+            --horizon-source "$RUNNER_TEMP/horizon" \
+            --abi arm64-v8a \
+            --sdk "$ANDROID_HOME" \
+            --java-home "$JAVA_HOME" \
+            --check-only \
+            --trust-native-code 2>&1 | tee android-arm64-check.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pavohorizonnightly-android-check-log
+          path: android-arm64-check.log
+          if-no-files-found: ignore
+          retention-days: 14
