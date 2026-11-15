@@ -9,6 +9,7 @@ use std::time::Instant;
 pub use svc_client::runtime::{state, Glue};
 
 static OUT: Mutex<Vec<(String, Vec<u8>)>> = Mutex::new(Vec::new());
+static LAST_POSITION_UPDATE: Mutex<Option<Instant>> = Mutex::new(None);
 
 fn config_base() -> Option<String> {
     match crate::game::Game::native_config_dir() {
@@ -30,6 +31,23 @@ fn save_config() {
 fn locked() -> std::sync::MutexGuard<'static, Glue> {
     state().lock().unwrap_or_else(|e| e.into_inner())
 }
+
+fn should_update_voice_positions(now: Instant, connected: bool) -> bool {
+    let mut last = LAST_POSITION_UPDATE
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    if !connected {
+        *last = None;
+        return false;
+    }
+    if last.map_or(true, |previous| now.duration_since(previous) >= std::time::Duration::from_millis(50)) {
+        *last = Some(now);
+        true
+    } else {
+        false
+    }
+}
+
 
 pub fn hud_audio_settings() -> (String, bool) {
     let guard = locked();
@@ -72,6 +90,7 @@ pub fn world_open_ready(game: &mut crate::game::Game<'_>) {
 }
 
 pub fn world_closed() {
+    *LAST_POSITION_UPDATE.lock().unwrap_or_else(|error| error.into_inner()) = None;
     locked().world_close();
     OUT.lock().unwrap_or_else(|e| e.into_inner()).clear();
 }
@@ -186,12 +205,20 @@ pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration)
         world_closed();
     }
 
-    let (listener, players) = game.native_voice_positions();
     let now = Instant::now();
-    let mut g = locked();
-    if let (Some(listener), Some(session)) = (listener, g.session.as_mut()) {
-        session.set_positions(listener, players);
+    let connected = locked()
+        .session
+        .as_ref()
+        .is_some_and(|session| session.state() == svc_client::session::State::Connected);
+    if should_update_voice_positions(now, connected) {
+        let (listener, players) = game.native_voice_positions();
+        if let Some(listener) = listener {
+            if let Some(session) = locked().session.as_mut() {
+                session.set_positions(listener, players);
+            }
+        }
     }
+    let mut g = locked();
     #[cfg(target_os = "android")]
     if g.is_world_active() && g.should_check_audio_permission(now) {
         match crate::native_ime::has_audio_permission() {
