@@ -1,66 +1,38 @@
-# Estado del port
+# PavoHorizonNightly — estado del port
 
 ## Objetivo
 
-Backport completo de Native Hooks API 359 de Starling a la base Android Horizon 0.7.8, manteniendo el comportamiento Android 0.7.8. El objetivo no es adaptar solo Simple Voice Chat: es ofrecer compatibilidad general con mods que usen API 359.
+- Horizon Nightly: `9ade5838fb9c2e89c85a914016adcc8ab5faa4b3`
+- horizon-mixins: `5a64af938ec86b00d53d16a408aabc0038fb3e57`
+- Rama de trabajo: `pavohorizonnightly`
+- APK previsto: `PavoHorizonNightly.apk`
+- Identificador Android previsto: `dev.pavo.horizonnightly`
+- Arquitectura inicial: ARM64 (`arm64-v8a`), perfil optimizado `fast`
 
-## Trabajo realizado
+## Simple Voice Chat
 
-- [x] Crear rama aislada `port/horizon-078-hooks-359`; `main` permanece intacta.
-- [x] Fijar revisiones exactas de Horizon 0.7.8 y Starling API 359.
-- [x] Guardar snapshots de ambos catálogos y de ambos archivos `native_hooks.rs`.
-- [x] Añadir comparador reproducible de catálogos.
-- [x] Añadir submódulos Git con el árbol fuente completo de Horizon 0.7.8 y Starling API 359.
-- [x] Añadir workflow de GitHub Actions para verificar los commits fijados y comparar las declaraciones nativas.
-- [x] Comparar los catálogos: 108 compartidos, 278 añadidos, ninguno eliminado; los hooks compartidos conservan versión y destino.
-- [x] Comparar declaraciones `native_*`: 219 métodos antiguos, 498 actuales, 283 nombres nuevos. Cuatro helpers antiguos ya no aparecen con el mismo nombre.
-- [x] Registrar el único cambio textual detectado en la firma compartida de `dispense_item`.
+- El bundle se adaptó a la estructura de Horizon Nightly.
+- Se validaron los nueve hooks requeridos.
+- CI de compatibilidad: [run 43751754439](https://github.com/ale5is/pvz-port-c-unity/actions/runs/43751754439), resultado satisfactorio.
+- Esta validación compila y prueba el mod contra `horizon-client`; **no equivale a una compilación Android ni a una prueba en un teléfono**.
 
-## Revisiones fijadas
+## Port Android
 
-| Fuente | Commit |
-|---|---|
-| Horizon Android 0.7.8 | `68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29` |
-| Starling API 359 | `c4e44c1e0df785373572a479a9adb4fb99eff7fb` |
+- Starling es la referencia para la capa Android, el empaquetado NativeActivity y la entrada JNI.
+- La rama `starling` está sincronizada con Horizon en una revisión anterior (la documentación de Starling registra la sincronización del 2 de noviembre de 2026).
+- Se probó la integración temporal de Starling sobre el commit Nightly objetivo, sin modificar la rama estable.
+- La fusión directa detectó **129 archivos en conflicto**, incluidos `Cargo.toml`, `Cargo.lock`, `horizon-client`, `horizon-client-render` y `horizon-client-input`.
+- No se aplicó una resolución masiva automática: podría reemplazar código reciente del motor, controles o renderizador y causar regresiones.
+- El SDK Android, NDK y toolchain Rust ARM64 se instalaron correctamente en CI. La compilación se detuvo en la etapa de integración, antes de compilar la biblioteca nativa o empaquetar el APK.
 
-Los submódulos están en `upstream/horizon-078` y `upstream/starling-api359`. Clonar con:
+## Rendimiento y estado de entrega
 
-```sh
-git clone --recurse-submodules https://github.com/ale5is/pvz-port-c-unity.git
-git checkout port/horizon-078-hooks-359
-git submodule update --init --recursive
-```
+- No hay todavía un APK Nightly.
+- No se ha probado el port Android en un dispositivo.
+- No se ha medido FPS, frametime, memoria ni temperatura frente a la versión estable.
+- No afirmar que el rendimiento se conserva hasta completar la compilación, las pruebas funcionales y una comparación en el mismo dispositivo.
+- La rama estable y su APK no se modifican.
 
-## Avance específico: Simple Voice Chat en Horizon 0.7.8
+## Siguiente trabajo
 
-Este trabajo es una adaptación del mod a los hooks API 80 de Horizon 0.7.8; no equivale al backport general de API 359.
-
-- [x] Empaquetar el mod como bundle válido de `horizon-mixins`.
-- [x] Conectar lifecycle, red, input, comandos y frame con los hooks API 80.
-- [x] Obtener la dirección real del servidor de Minecraft cuando el servidor de voz no envía un host separado.
-- [x] Evitar que el hook del mod consuma comandos ajenos a `/svc` y `/vcgroup`.
-- [x] Añadir puente de posiciones usando las entidades de jugadores que Horizon 0.7.8 ya rastrea; actualiza listener y jugadores cada frame para audio de proximidad.
-- [x] Pasar 24 pruebas Linux del crate del cliente: protocolo, Opus, audio, handshake UDP, host, comandos y actualización de posiciones.
-- [ ] Confirmar compilación del bundle transformado dentro del workspace Horizon 0.7.8.
-- [x] Compilar el crate SVC aislado para Android ARM64 con NDK.
-- [ ] Compilar el cliente Horizon Android completo para ARM64.
-- [x] Preparar parche para declarar `RECORD_AUDIO`, solicitar permiso al entrar al mundo y comprobar el permiso antes de abrir CPAL.
-- [ ] Compilar el APK Horizon Android con el parche de manifiesto/Java.
-- [ ] Probar micrófono, reproducción, UDP y audio de proximidad en un dispositivo Android.
-
-## Pendiente: backport real
-
-- [ ] Extraer los cambios de implementación de los 278 hooks nuevos.
-- [ ] Portar los 283 métodos nativos nuevos y los tipos auxiliares que requieren.
-- [ ] Portar los puntos de llamada del motor por subsistemas: lifecycle, input, render, entidades, inventario, mundo, red y eventos.
-- [ ] Portar las modificaciones de `game.rs` sin reemplazar cambios Android específicos de 0.7.8.
-- [ ] Portar el registro y generador del catálogo, y alinear `horizon-mixins` con las macros/contratos de API 359.
-- [ ] Ejecutar pruebas de cada grupo y resolver errores de compilación.
-- [ ] Compilar APK ARM64 conservando paquete, JNI, permisos y ciclo de vida de Horizon 0.7.8.
-- [ ] Integrar Simple Voice Chat, validar micrófono, audio de salida, Opus y UDP.
-
-## Estado de validación
-
-La auditoría y los árboles fuente completos están guardados. El crate de Simple Voice Chat pasó 24 pruebas Linux; la integración con el código de Horizon 0.7.8 y la compilación ARM64 se validan por separado. **El backport general de API 359 no está implementado; todavía no hay APK funcional ni prueba en dispositivo.**
-
-No se debe cambiar `mod/horizon-native.json` a API 359 ni declarar compatibilidad hasta que el runtime implemente realmente el catálogo y las pruebas pasen.
+Resolver de forma selectiva la integración Android sobre Nightly, conservando las implementaciones actuales del motor cuando no sean necesarias para Android. Después: compilar ARM64 con Simple Voice Chat, verificar firma/paquete/permisos, instalar y probar arranque, mundo local, servidor, controles, micrófono y audio; finalmente medir rendimiento frente a la versión estable.
