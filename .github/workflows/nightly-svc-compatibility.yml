@@ -44,6 +44,7 @@ jobs:
           git -C "$RUNNER_TEMP/horizon-nightly" fetch --depth=1 origin "$HORIZON_REV"
           git -C "$RUNNER_TEMP/horizon-nightly" checkout --detach FETCH_HEAD
           test "$(git -C "$RUNNER_TEMP/horizon-nightly" rev-parse HEAD)" = "$HORIZON_REV"
+          find "$RUNNER_TEMP/horizon-nightly" -type l -delete
 
       - name: Adapt the existing voice bundle to Nightly's crate layout
         run: |
