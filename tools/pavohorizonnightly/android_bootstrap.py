@@ -105,6 +105,84 @@ replace_once(
     "    let result = EventLoop::new()?.run_app(&mut split);\n",
 )
 
+
+replace_once(
+    "crates/horizon-client-input/Cargo.toml",
+    'arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }\\n',
+    "",
+)
+with (root / "crates/horizon-client-input/Cargo.toml").open("a") as file:
+    file.write(
+        '\\n[target.\\'cfg(not(target_os = "android"))\\'.dependencies]\\n'
+        'arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }\\n'
+    )
+
+replace_once(
+    "crates/horizon-client-input/src/clipboard.rs",
+    "    system: Option<arboard::Clipboard>,\\n",
+    '    #[cfg(not(target_os = "android"))]\\n    system: Option<arboard::Clipboard>,\\n',
+)
+replace_once(
+    "crates/horizon-client-input/src/clipboard.rs",
+    "    fn system(&mut self) -> Option<&mut arboard::Clipboard> {\\n",
+    '    #[cfg(not(target_os = "android"))]\\n    fn system(&mut self) -> Option<&mut arboard::Clipboard> {\\n',
+)
+replace_once(
+    "crates/horizon-client-input/src/clipboard.rs",
+    '''    fn get(&mut self) -> String {
+        let Some(system) = self.system() else {
+            return self.copied.clone().unwrap_or_default();
+        };
+        match system.get_text() {
+            Ok(text) => text,
+            Err(arboard::Error::ContentNotAvailable) => String::new(),
+            Err(_) => {
+                // A lost connection (a restarted compositor): reconnect next time.
+                self.system = None;
+                String::new()
+            }
+        }
+    }
+''',
+    '''    fn get(&mut self) -> String {
+        #[cfg(target_os = "android")]
+        {
+            return self.copied.clone().unwrap_or_default();
+        }
+        #[cfg(not(target_os = "android"))]
+        {
+            let Some(system) = self.system() else {
+                return self.copied.clone().unwrap_or_default();
+            };
+            match system.get_text() {
+                Ok(text) => text,
+                Err(arboard::Error::ContentNotAvailable) => String::new(),
+                Err(_) => {
+                    self.system = None;
+                    String::new()
+                }
+            }
+        }
+    }
+''',
+)
+replace_once(
+    "crates/horizon-client-input/src/clipboard.rs",
+    '''        if let Some(system) = self.system()
+            && system.set_text(text.to_owned()).is_err()
+        {
+            self.system = None;
+        }
+''',
+    '''        #[cfg(not(target_os = "android"))]
+        if let Some(system) = self.system()
+            && system.set_text(text.to_owned()).is_err()
+        {
+            self.system = None;
+        }
+''',
+)
+
 print("Android bootstrap injected:")
 for item in (
     "crates/horizon-android/Cargo.toml",
