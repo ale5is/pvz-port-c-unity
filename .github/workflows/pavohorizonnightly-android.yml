@@ -1,0 +1,193 @@
+name: PavoHorizonNightly Android ARM64
+
+on:
+  push:
+    branches: [pavohorizonnightly]
+    paths:
+      - ".github/workflows/pavohorizonnightly-android.yml"
+      - "mod/simple-voice-chat/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pavohorizonnightly-android
+  cancel-in-progress: true
+
+jobs:
+  android-arm64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      HORIZON_REV: 9ade5838fb9c2e89c85a914016adcc8ab5faa4b3
+      STARLING_REV: 5432370d573642041585c69b40fb045b27133488
+      MIXINS_REV: 5a64af938ec86b00d53d16a408aabc0038fb3e57
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Install Android SDK and NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            "build-tools;35.0.0" "platforms;android-36" "ndk;28.2.13676358" > /dev/null
+
+      - name: Install Rust ARM64 toolchain
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal --target aarch64-linux-android
+          rustup default 1.95.0
+          cargo install cargo-ndk --version 3.5.4 --locked
+          rustc --version
+          cargo ndk --version
+
+      - name: Fetch Horizon Nightly and Starling Android integration
+        id: merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/horizon"
+          report="$RUNNER_TEMP/port-report"
+          mkdir -p "$report"
+
+          git clone --filter=blob:none https://github.com/horizon-rust/horizon.git "$work"
+          git -C "$work" checkout --detach "$HORIZON_REV"
+          test "$(git -C "$work" rev-parse HEAD)" = "$HORIZON_REV"
+
+          git -C "$work" fetch --no-tags https://github.com/starling-client/starling.git "$STARLING_REV"
+          git -C "$work" config user.name "PavoHorizonNightly CI"
+          git -C "$work" config user.email "actions@users.noreply.github.com"
+
+          set +e
+          git -C "$work" merge --no-commit --no-ff FETCH_HEAD > "$report/merge.log" 2>&1
+          result=$?
+          set -e
+
+          if [ "$result" -ne 0 ]; then
+            git -C "$work" diff --name-only --diff-filter=U > "$report/conflicts.txt" || true
+            {
+              echo "### Android integration merge blocked"
+              echo
+              echo "Horizon: `$HORIZON_REV`"
+              echo "Starling: `$STARLING_REV`"
+              echo
+              echo "Conflicting paths: $(wc -l < "$report/conflicts.txt")"
+              echo
+              echo 'See the `pavohorizonnightly-port-diagnostics` artifact.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          git -C "$work" commit --no-edit -m "Temporary PavoHorizonNightly Android integration"
+          echo "merge_sha=$(git -C "$work" rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "Android integration merged cleanly at $(git -C "$work" rev-parse --short HEAD)" | tee "$report/merge-result.txt"
+
+      - name: Prepare isolated PavoHorizonNightly and Simple Voice Chat
+        if: success()
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/horizon"
+          bundle="$RUNNER_TEMP/mods/simple-voice-chat"
+          mkdir -p "$RUNNER_TEMP/mods"
+          cp -R mod/simple-voice-chat "$bundle"
+
+          python3 - "$work" "$bundle" "$MIXINS_REV" <<'PY'
+          from pathlib import Path
+          import sys
+
+          root = Path(sys.argv[1])
+          bundle = Path(sys.argv[2])
+          mixins = sys.argv[3]
+
+          build = root / "packaging/android/build_apk.py"
+          source = build.read_text()
+          replacements = {
+              'APPLICATION_ID = "io.github.juanluci.starling"':
+                  'APPLICATION_ID = "dev.pavo.horizonnightly"',
+              'LABEL = "Starling"': 'LABEL = "PavoHorizonNightly"',
+              'VERSION_NAME = "0.8.0"': 'VERSION_NAME = "0.8.0-nightly"',
+          }
+          for old, new in replacements.items():
+              if source.count(old) != 1:
+                  raise SystemExit(f"Expected exactly one branding token: {old}")
+              source = source.replace(old, new)
+          build.write_text(source)
+
+          native = root / "packaging/android/native_build.sh"
+          source = native.read_text()
+          old = "MIXINS_REV=ddd9700b21997c95d95ac6ee5ecafe3830cf622a"
+          if source.count(old) != 1:
+              raise SystemExit("Unexpected native_build.sh mixins pin")
+          native.write_text(source.replace(old, f"MIXINS_REV={mixins}"))
+
+          manifest = bundle / "horizon-mixin.toml"
+          source = manifest.read_text()
+          old = 'dependent = "horizon-android"'
+          if source.count(old) != 1:
+              raise SystemExit("Expected one horizon-android dependent in SVC manifest")
+          manifest.write_text(source.replace(old, 'dependent = "horizon-client"'))
+          PY
+
+          git -C "$work" add packaging/android/build_apk.py packaging/android/native_build.sh
+          git -C "$work" commit -m "Brand isolated PavoHorizonNightly Android build"
+
+      - name: Build optimized ARM64 APK with Simple Voice Chat
+        if: success()
+        env:
+          ABI: arm64-v8a
+          PROFILE: fast
+          NATIVE_CACHE: ${{ runner.temp }}/native-cache
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/native-out"
+          bash "$RUNNER_TEMP/horizon/packaging/android/native_build.sh" \
+            "$RUNNER_TEMP/horizon" "$RUNNER_TEMP/native-out" \
+            "$RUNNER_TEMP/mods/simple-voice-chat"
+
+          apk=$(find "$RUNNER_TEMP/native-out" -maxdepth 1 -type f -name 'starling-*.apk' -print -quit)
+          test -n "$apk"
+          mkdir -p dist
+          cp "$apk" dist/PavoHorizonNightly.apk
+
+          build_tools="$ANDROID_HOME/build-tools/35.0.0"
+          "$build_tools/apksigner" verify dist/PavoHorizonNightly.apk
+          "$build_tools/aapt" dump badging dist/PavoHorizonNightly.apk > "$RUNNER_TEMP/port-report/badging.txt"
+          "$build_tools/aapt" dump permissions dist/PavoHorizonNightly.apk > "$RUNNER_TEMP/port-report/permissions.txt"
+          grep -F "package: name='dev.pavo.horizonnightly'" "$RUNNER_TEMP/port-report/badging.txt"
+          grep -F "PavoHorizonNightly" "$RUNNER_TEMP/port-report/badging.txt"
+          grep -F "android.permission.RECORD_AUDIO" "$RUNNER_TEMP/port-report/permissions.txt"
+
+          sha256sum dist/PavoHorizonNightly.apk > dist/SHA256SUMS.txt
+          cp "$RUNNER_TEMP/horizon/LICENCE" dist/LICENCE.txt 2>/dev/null || cp "$RUNNER_TEMP/horizon/LICENSE" dist/LICENSE.txt
+          printf 'Horizon revision: %s\nStarling integration: %s\nMixins: %s\nMerge commit: %s\nProfile: fast\nABI: arm64-v8a\nPackage: dev.pavo.horizonnightly\n' \
+            "$HORIZON_REV" "$STARLING_REV" "$MIXINS_REV" "$(git -C "$RUNNER_TEMP/horizon" rev-parse HEAD)" > dist/BUILD.txt
+          cat dist/SHA256SUMS.txt
+          ls -lh dist/PavoHorizonNightly.apk
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pavohorizonnightly-arm64-apk
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload port diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pavohorizonnightly-port-diagnostics
+          path: ${{ runner.temp }}/port-report/
+          if-no-files-found: ignore
+          retention-days: 14
