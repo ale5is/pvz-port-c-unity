@@ -1,0 +1,66 @@
+name: PavoHorizonNightly Android core validation
+
+on:
+  push:
+    branches: [pavohorizonnightly]
+    paths:
+      - "tools/pavohorizonnightly/android_bootstrap.py"
+      - ".github/workflows/pavohorizonnightly-android-core.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pavohorizonnightly-android-core
+  cancel-in-progress: true
+
+jobs:
+  android-core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      HORIZON_REV: 9ade5838fb9c2e89c85a914016adcc8ab5faa4b3
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+    steps:
+      - name: Install Android SDK and NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            "platforms;android-36" "ndk;28.2.13676358" > /dev/null
+
+      - name: Install Rust ARM64 toolchain
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal --target aarch64-linux-android
+          rustup default 1.95.0
+          cargo install cargo-ndk --version 3.5.4 --locked
+
+      - name: Fetch exact Horizon Nightly source
+        run: |
+          git clone --filter=blob:none https://github.com/horizon-rust/horizon.git horizon
+          git -C horizon checkout --detach "$HORIZON_REV"
+          test "$(git -C horizon rev-parse HEAD)" = "$HORIZON_REV"
+
+      - name: Inject minimal NativeActivity bootstrap
+        run: |
+          python3 tools/pavohorizonnightly/android_bootstrap.py "$GITHUB_WORKSPACE/horizon"
+          git -C horizon diff --check
+          git -C horizon diff --stat
+
+      - name: Compile Android client library
+        env:
+          ABI: arm64-v8a
+        run: |
+          set -o pipefail
+          cargo ndk -t arm64-v8a --platform 26 check \
+            --manifest-path horizon/Cargo.toml \
+            -p horizon-android --no-default-features 2>&1 | tee android-core-check.log
+
+      - name: Upload Android core diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pavohorizonnightly-android-core-diagnostics
+          path: android-core-check.log
+          if-no-files-found: ignore
+          retention-days: 14
