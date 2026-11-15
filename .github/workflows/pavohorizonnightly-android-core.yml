@@ -120,6 +120,8 @@ jobs:
           "$bt/aapt" dump permissions "$out/PavoHorizonNightly.apk" | tee "$out/permissions.txt"
           grep -F "package: name='dev.pavo.horizonnightly'" "$out/badging.txt"
           grep -F "PavoHorizonNightly" "$out/badging.txt"
+          grep -F "launchable-activity: name='dev.pavo.horizonnightly.HorizonActivity'" "$out/badging.txt"
+          unzip -l "$out/PavoHorizonNightly.apk" | grep -F "classes.dex"
           grep -F "android.permission.RECORD_AUDIO" "$out/permissions.txt"
           sha256sum "$out/PavoHorizonNightly.apk" | tee "$out/SHA256SUMS.txt"
           ls -lh "$out/PavoHorizonNightly.apk"
