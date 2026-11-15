@@ -112,10 +112,10 @@ replace_once(
     "",
 )
 with (root / "crates/horizon-client-input/Cargo.toml").open("a") as file:
-    file.write(
-        '\\n[target.\\'cfg(not(target_os = "android"))\\'.dependencies]\\n'
-        'arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }\\n'
-    )
+    file.write("""
+[target.'cfg(not(target_os = "android"))'.dependencies]
+arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }
+""")
 
 replace_once(
     "crates/horizon-client-input/src/clipboard.rs",
@@ -129,7 +129,7 @@ replace_once(
 )
 replace_once(
     "crates/horizon-client-input/src/clipboard.rs",
-    '''    fn get(&mut self) -> String {
+    """    fn get(&mut self) -> String {
         let Some(system) = self.system() else {
             return self.copied.clone().unwrap_or_default();
         };
@@ -143,8 +143,8 @@ replace_once(
             }
         }
     }
-''',
-    '''    fn get(&mut self) -> String {
+""",
+    """    fn get(&mut self) -> String {
         #[cfg(target_os = "android")]
         {
             return self.copied.clone().unwrap_or_default();
@@ -164,23 +164,23 @@ replace_once(
             }
         }
     }
-''',
+""",
 )
 replace_once(
     "crates/horizon-client-input/src/clipboard.rs",
-    '''        if let Some(system) = self.system()
+    """        if let Some(system) = self.system()
             && system.set_text(text.to_owned()).is_err()
         {
             self.system = None;
         }
-''',
-    '''        #[cfg(not(target_os = "android"))]
+""",
+    """        #[cfg(not(target_os = "android"))]
         if let Some(system) = self.system()
             && system.set_text(text.to_owned()).is_err()
         {
             self.system = None;
         }
-''',
+""",
 )
 
 print("Android bootstrap injected:")
