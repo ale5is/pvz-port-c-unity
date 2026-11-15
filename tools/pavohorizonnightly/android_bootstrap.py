@@ -119,13 +119,19 @@ arboard = { version = "3.6.1", default-features = false, features = ["wayland-da
 
 replace_once(
     "crates/horizon-client-input/src/clipboard.rs",
-    "    system: Option<arboard::Clipboard>,\\n",
-    '    #[cfg(not(target_os = "android"))]\\n    system: Option<arboard::Clipboard>,\\n',
+    """    system: Option<arboard::Clipboard>,
+""",
+    """    #[cfg(not(target_os = "android"))]
+    system: Option<arboard::Clipboard>,
+""",
 )
 replace_once(
     "crates/horizon-client-input/src/clipboard.rs",
-    "    fn system(&mut self) -> Option<&mut arboard::Clipboard> {\\n",
-    '    #[cfg(not(target_os = "android"))]\\n    fn system(&mut self) -> Option<&mut arboard::Clipboard> {\\n',
+    """    fn system(&mut self) -> Option<&mut arboard::Clipboard> {
+""",
+    """    #[cfg(not(target_os = "android"))]
+    fn system(&mut self) -> Option<&mut arboard::Clipboard> {
+""",
 )
 replace_once(
     "crates/horizon-client-input/src/clipboard.rs",
