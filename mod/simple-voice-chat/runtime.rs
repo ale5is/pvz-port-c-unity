@@ -31,6 +31,11 @@ fn locked() -> std::sync::MutexGuard<'static, Glue> {
     state().lock().unwrap_or_else(|e| e.into_inner())
 }
 
+pub fn hud_audio_settings() -> (String, bool) {
+    let guard = locked();
+    (guard.cfg.ptt_key.clone(), guard.cfg.muted)
+}
+
 pub fn queue_outbound(channel: String, body: Vec<u8>) {
     OUT.lock()
         .unwrap_or_else(|e| e.into_inner())
