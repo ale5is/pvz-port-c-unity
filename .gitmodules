@@ -1,3 +1,6 @@
-[submodule "upstream/horizon-android-078"]
-	path = upstream/horizon-android-078
-	url = https://github.com/horizon-rust/horizon.git
+[submodule "upstream/horizon-078"]
+	path = upstream/horizon-078
+	url = https://github.com/starling-client/starling.git
+[submodule "upstream/starling-api359"]
+	path = upstream/starling-api359
+	url = https://github.com/starling-client/starling.git
