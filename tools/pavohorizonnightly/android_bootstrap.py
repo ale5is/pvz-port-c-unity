@@ -146,52 +146,52 @@ arboard = { version = "3.6.1", default-features = false, features = ["wayland-da
 
 replace_once(
     "crates/horizon-client-input/src/clipboard.rs",
-    """    system: Option<arboard::Clipboard>,
+    "    system: RefCell<Option<arboard::Clipboard>>,\n",
+    "    #[cfg(not(target_os = \"android\"))]\n"
+    "    system: RefCell<Option<arboard::Clipboard>>,\n",
+)
+replace_once(
+    "crates/horizon-client-input/src/clipboard.rs",
+    """    fn system(&self) -> RefMut<'_, Option<arboard::Clipboard>> {
 """,
     """    #[cfg(not(target_os = "android"))]
-    system: Option<arboard::Clipboard>,
+    fn system(&self) -> RefMut<'_, Option<arboard::Clipboard>> {
 """,
 )
 replace_once(
     "crates/horizon-client-input/src/clipboard.rs",
-    """    fn system(&mut self) -> Option<&mut arboard::Clipboard> {
-""",
-    """    #[cfg(not(target_os = "android"))]
-    fn system(&mut self) -> Option<&mut arboard::Clipboard> {
-""",
-)
-replace_once(
-    "crates/horizon-client-input/src/clipboard.rs",
-    """    fn get(&mut self) -> String {
-        let Some(system) = self.system() else {
-            return self.copied.clone().unwrap_or_default();
+    """    pub fn text(&self) -> String {
+        let mut system = self.system();
+        let Some(board) = system.as_mut() else {
+            return self.copied().unwrap_or_default();
         };
-        match system.get_text() {
+        match board.get_text() {
             Ok(text) => text,
             Err(arboard::Error::ContentNotAvailable) => String::new(),
             Err(_) => {
                 // A lost connection (a restarted compositor): reconnect next time.
-                self.system = None;
+                *system = None;
                 String::new()
             }
         }
     }
 """,
-    """    fn get(&mut self) -> String {
+    """    pub fn text(&self) -> String {
         #[cfg(target_os = "android")]
         {
-            return self.copied.clone().unwrap_or_default();
+            return self.copied().unwrap_or_default();
         }
         #[cfg(not(target_os = "android"))]
         {
-            let Some(system) = self.system() else {
-                return self.copied.clone().unwrap_or_default();
+            let mut system = self.system();
+            let Some(board) = system.as_mut() else {
+                return self.copied().unwrap_or_default();
             };
-            match system.get_text() {
+            match board.get_text() {
                 Ok(text) => text,
                 Err(arboard::Error::ContentNotAvailable) => String::new(),
                 Err(_) => {
-                    self.system = None;
+                    *system = None;
                     String::new()
                 }
             }
@@ -201,17 +201,21 @@ replace_once(
 )
 replace_once(
     "crates/horizon-client-input/src/clipboard.rs",
-    """        if let Some(system) = self.system()
-            && system.set_text(text.to_owned()).is_err()
+    """        let mut system = self.system();
+        if let Some(board) = system.as_mut()
+            && board.set_text(text.to_owned()).is_err()
         {
-            self.system = None;
+            *system = None;
         }
 """,
     """        #[cfg(not(target_os = "android"))]
-        if let Some(system) = self.system()
-            && system.set_text(text.to_owned()).is_err()
         {
-            self.system = None;
+            let mut system = self.system();
+            if let Some(board) = system.as_mut()
+                && board.set_text(text.to_owned()).is_err()
+            {
+                *system = None;
+            }
         }
 """,
 )
