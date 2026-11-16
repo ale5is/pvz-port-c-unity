@@ -1,0 +1,110 @@
+name: PavoHorizonNightly - Jade native mixin compatibility
+
+on:
+  push:
+    branches:
+      - pavohorizonnightly
+    paths:
+      - "sources/jade-horizon"
+      - "sources/jade-horizon/**"
+      - ".gitmodules"
+      - ".github/workflows/nightly-jade-compatibility.yml"
+  pull_request:
+    paths:
+      - "sources/jade-horizon"
+      - "sources/jade-horizon/**"
+      - ".gitmodules"
+      - ".github/workflows/nightly-jade-compatibility.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pavohorizonnightly-jade-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  jade-native-api:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      HORIZON_REV: 9f42064c11efe7ef3e5ed2baad7ddc2a3b36eea0
+      MIXINS_REV: 5a64af938ec86b00d53d16a408aabc0038fb3e57
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@1.95.0
+
+      - name: Install Horizon build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libasound2-dev libudev-dev libx11-dev libxkbcommon-dev
+
+      - name: Verify pinned Jade source and licence
+        run: |
+          set -euo pipefail
+          test -f sources/jade-horizon/mixins/jade/horizon-mixin.toml
+          test -f sources/jade-horizon/LICENSE
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          meta = json.loads(Path("sources/jade-horizon/horizon-native.json").read_text())
+          assert meta["id"] == "jade"
+          assert meta["version"] == "26.3.8"
+          assert meta["hooks"] == 411
+          assert meta["horizon"] == "6560641ba51a452f6bc2407baa4eb1b3be517ca8"
+          assert meta["mixins"] == "5a64af938ec86b00d53d16a408aabc0038fb3e57"
+          print("Jade source:", meta)
+          print("Target Horizon revision:", "${{ env.HORIZON_REV }}")
+          PY
+
+      - name: Fetch exact Horizon Nightly source
+        run: |
+          git init "$RUNNER_TEMP/horizon"
+          git -C "$RUNNER_TEMP/horizon" remote add origin https://github.com/horizon-rust/horizon.git
+          git -C "$RUNNER_TEMP/horizon" fetch --depth=1 origin "$HORIZON_REV"
+          git -C "$RUNNER_TEMP/horizon" checkout --detach FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/horizon" rev-parse HEAD)" = "$HORIZON_REV"
+
+      - name: Fetch pinned horizon-mixins compiler
+        run: |
+          git init "$RUNNER_TEMP/horizon-mixins"
+          git -C "$RUNNER_TEMP/horizon-mixins" remote add origin https://github.com/horizon-rust/horizon-mixins.git
+          git -C "$RUNNER_TEMP/horizon-mixins" fetch --depth=1 origin "$MIXINS_REV"
+          git -C "$RUNNER_TEMP/horizon-mixins" checkout --detach FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/horizon-mixins" rev-parse HEAD)" = "$MIXINS_REV"
+          cargo build --locked --manifest-path "$RUNNER_TEMP/horizon-mixins/Cargo.toml" -p horizon-mixins-cli
+
+      - name: Plan and apply Jade mixins to the pinned Nightly
+        run: |
+          set -euo pipefail
+          cli="$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins"
+          "$cli" plan --workspace "$RUNNER_TEMP/horizon" --mods "$GITHUB_WORKSPACE/sources/jade-horizon/mixins" --out "$RUNNER_TEMP/jade-plan.json"
+          "$cli" apply --workspace "$RUNNER_TEMP/horizon" --mods "$GITHUB_WORKSPACE/sources/jade-horizon/mixins" --out "$RUNNER_TEMP/horizon-jade"
+
+      - name: Compile Jade-modified Horizon client
+        run: |
+          set -o pipefail
+          "$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins" check \
+            --workspace "$RUNNER_TEMP/horizon" \
+            --mods "$GITHUB_WORKSPACE/sources/jade-horizon/mixins" \
+            --out "$RUNNER_TEMP/horizon-jade" \
+            --trust-native-mods \
+            --package horizon-client 2>&1 | tee "$RUNNER_TEMP/jade-check.log"
+
+      - name: Upload Jade compatibility diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pavohorizonnightly-jade-compatibility
+          path: |
+            ${{ runner.temp }}/jade-plan.json
+            ${{ runner.temp }}/jade-check.log
+          if-no-files-found: ignore
+          retention-days: 14
