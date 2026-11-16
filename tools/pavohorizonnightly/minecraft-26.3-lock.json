@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "minecraft": {
+    "version": "26.3",
+    "manifest": {
+      "url": "https://piston-meta.mojang.com/v1/packages/11f1aefe473eefba0af62e3286c33b692807b2eb/26.3.json",
+      "sha1": "11f1aefe473eefba0af62e3286c33b692807b2eb",
+      "accepted_sha1": [
+        "4fe1aa1ef8da1cb95c5bad1fb98890ca56dd8ca3",
+        "702fe59163c6ee6578607daa85811d9bc9c7cc40",
+        "61fff1316bd50312624a858bbb5eb18fa45208ed",
+        "5df1795e16eea19d75b923d66ecca9ce183353c5"
+      ]
+    },
+    "client": {
+      "sha1": "e877b6a07acd633fb3bb475002175cec036e7b87"
+    },
+    "server": {
+      "sha1": "33680f5f2ac32864d6d7cf5e56a705fdb3e05f4c"
+    },
+    "java_major": 25
+  },
+  "android_runtime": {
+    "abi": "arm64-v8a",
+    "url": "https://github.com/AngelAuraMC/angelauramc-openjdk-build/releases/download/download_jre25/jre25-android-arm64.tar.xz",
+    "sha256": "d3eb7afe2240c26728a1bb440502c5f18ac3883e932d202dd7f0c9bcbbce4c37",
+    "size": 38031580
+  },
+  "sources": {
+    "research_repository": "https://github.com/starling-client/starling",
+    "research_branch": "starling",
+    "research_lock_path": "research-lock.json"
+  }
+}
