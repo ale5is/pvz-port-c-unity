@@ -54,6 +54,14 @@ jobs:
         with:
           gradle-version: "8.14"
 
+      - name: Expose installed Gradle to Horizon build
+        shell: bash
+        run: |
+          GRADLE_BIN="$(find "$RUNNER_TEMP/.gradle-actions/gradle-installations/installs" -type f -path '*/bin/gradle' -print -quit)"
+          test -n "$GRADLE_BIN"
+          echo "$(dirname "$GRADLE_BIN")" >> "$GITHUB_PATH"
+          "$GRADLE_BIN" --version
+
       - name: Install Android SDK, NDK and build tools
         uses: android-actions/setup-android@v3
         with:
