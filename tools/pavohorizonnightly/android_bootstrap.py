@@ -367,9 +367,12 @@ replace_once(
 
 replace_once(
     "crates/horizon-mod-package/src/local_control/unix.rs",
-    '    #[cfg(target_os = "linux")]\\n    let uid = rustix::net::sockopt::socket_peercred(stream)?.uid.as_raw();\\n',
-    '    #[cfg(any(target_os = "linux", target_os = "android"))]\\n'
-    '    let uid = rustix::net::sockopt::socket_peercred(stream)?.uid.as_raw();\\n',
+    """    #[cfg(target_os = "linux")]
+    let uid = rustix::net::sockopt::socket_peercred(stream)?.uid.as_raw();
+""",
+    """    #[cfg(any(target_os = "linux", target_os = "android"))]
+    let uid = rustix::net::sockopt::socket_peercred(stream)?.uid.as_raw();
+""",
 )
 
 print("Android bootstrap injected:")
