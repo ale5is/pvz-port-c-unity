@@ -306,6 +306,60 @@ replace_once(
 """,
 )
 
+replace_once(
+    "crates/horizon-client/src/game/runtime/window_handler.rs",
+    "            use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;\n",
+    "            #[cfg(not(target_os = \"android\"))]\n"
+    "            use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;\n",
+)
+replace_once(
+    "crates/horizon-client/src/game/runtime/window_handler.rs",
+    """            let layout_key = horizon_client::keybinds::layout_key_name(
+                event.physical_key,
+                &event.key_without_modifiers(),
+            );
+""",
+    """            #[cfg(target_os = "android")]
+            let layout_key = horizon_client::keybinds::layout_key_name(
+                event.physical_key,
+                &event.logical_key,
+            );
+            #[cfg(not(target_os = "android"))]
+            let layout_key = horizon_client::keybinds::layout_key_name(
+                event.physical_key,
+                &event.key_without_modifiers(),
+            );
+""",
+)
+
+replace_once(
+    "crates/horizon-mod-package/src/lib.rs",
+    '    any(target_os = "linux", target_os = "macos", windows)\n',
+    '    any(target_os = "linux", target_os = "macos", target_os = "android", windows)\n',
+)
+
+replace_once(
+    "crates/horizon-android/Cargo.toml",
+    'horizon-client = { path = "../horizon-client", default-features = false }\n',
+    'horizon-client = { path = "../horizon-client", default-features = false }\n'
+    'horizon-game = { path = "../horizon-game", default-features = false }\n'
+    'horizon-official = { path = "../horizon-official" }\n',
+)
+
+replace_once(
+    "crates/horizon-client/src/android_lib.rs",
+    """pub fn android_main(app: AndroidApp) {
+    horizon_client::android::main(app);
+}
+""",
+    """pub fn android_main(app: AndroidApp) {
+    horizon_client::android::main(app);
+    horizon_official::register();
+    horizon_game::main();
+}
+""",
+)
+
 print("Android bootstrap injected:")
 for item in (
     "crates/horizon-android/Cargo.toml",
