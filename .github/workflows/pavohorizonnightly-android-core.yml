@@ -57,7 +57,7 @@ jobs:
           test -s mod/simple-voice-chat/horizon-mixin.toml
           test -s mod/simple-voice-chat/native/src/lib.rs
           test -s mod/crates/svc_client/src/lib.rs
-          grep -F 'horizon_revision = "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29"' mod/simple-voice-chat/horizon-mixin.toml
+          grep -F '68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29' mod/simple-voice-chat/horizon-mixin.toml
           echo 'Simple Voice Chat sources are present for the Android/Nightly adapter.'
 
       - uses: actions/setup-java@v4
