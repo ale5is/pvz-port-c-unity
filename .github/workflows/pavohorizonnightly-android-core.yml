@@ -10,7 +10,7 @@ on:
       - "tools/pavohorizonnightly/minecraft-26.3-lock.json"
       - "tools/pavohorizonnightly/verify_minecraft_lock.py"
       - ".gitmodules"
-      - "upstream/horizon-android-078"
+      - "upstream/horizon-078"
       - ".github/workflows/pavohorizonnightly-android-core.yml"
   workflow_dispatch:
 
@@ -38,7 +38,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base=upstream/horizon-android-078
+          base=upstream/horizon-078
           expected=68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29
           test "$(git -C "$base" rev-parse HEAD)" = "$expected"
           for file in \\
