@@ -64,6 +64,9 @@ jobs:
           git -C horizon checkout --detach "$HORIZON_REV"
           test "$(git -C horizon rev-parse HEAD)" = "$HORIZON_REV"
 
+      - name: Fetch Android build dependencies for the Winit input hook
+        run: cargo fetch --manifest-path horizon/Cargo.toml --target aarch64-linux-android
+
       - name: Inject NativeActivity bootstrap
         run: |
           python3 tools/pavohorizonnightly/android_bootstrap.py "$GITHUB_WORKSPACE/horizon"
