@@ -9,3 +9,5 @@ path = "src/lib.rs"
 
 [dependencies]
 horizon-mod-api = { path = ".horizon/sdk/api/crates/horizon-mod-api" }
+svc_client = { path = "../crates/svc_client" }
+serde_json = "1"

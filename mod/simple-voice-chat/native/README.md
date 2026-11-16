@@ -1,29 +1,34 @@
 # Simple Voice Chat — Horizon Nightly native adapter
 
-This is the first isolated port of the integration boundary to Horizon's current
-native mod API. It intentionally does not replace the existing Android launcher,
-the legacy mod bundle, or the Opus/UDP/audio implementation.
+This is the native Horizon API adapter for the existing Pavo Simple Voice Chat
+client core. It keeps the original Android launcher separate and does not alter
+the stable branch.
 
-## Implemented in this stage
+## Connected components
 
-- Uses the current `horizon-mod.toml` + `Cargo.toml` native package layout.
-- Pins the exact Horizon Nightly and `horizon-mixins` revisions used for API builds.
-- Declares the Simple Voice Chat raw plugin channels without adding a custom
-  negotiation envelope, preserving compatibility with vanilla-shaped SVC servers.
-- Receives server play custom payloads through `Hooks::client_packet`.
-- Registers PTT and the three mute controls through the current key-mapping registrar.
-- Exposes bounded queues through `take_incoming()` and `take_controls()` for the
-  existing `svc_client` runtime.
+- Current native package layout: `horizon-mod.toml`, `Cargo.toml`, `src/lib.rs`.
+- Exact Horizon Nightly and `horizon-mixins` revision pins.
+- Original `voicechat:` raw plugin channels, with no extra packet envelope.
+- Server custom-payload receive path through `Hooks::client_packet`.
+- Client custom-payload sends through `ClientHost::send_payload_to_server`.
+- World/session lifecycle through `ClientHost::client_session`.
+- UDP session, Opus, capture and playback through the existing `svc_client` crate.
+- PTT, microphone mute, player mute, all-mute and HUD Controls bindings.
+- `/svc` and `/vcgroup` local commands.
+- Local/remote player position refresh for positional audio.
+- Mod-scoped configuration storage.
 
-## Not yet implemented
+## Android permission and packaging
 
-This adapter is an API boundary, not a complete working voice mod. The next
-integration stage must connect these queues to `svc_client::runtime::Glue`,
-drive its world/session lifecycle, send its pending custom payloads through
-`ClientHost::send_payload_to_server`, restore local/remote player position
-updates, surface command replies and HUD state, and bridge Android microphone
-permission. Until those are implemented and tested, this package must not be
-installed as the playable SVC mod.
+The adapter requests no Android permission itself. The Android launcher must
+declare and request `RECORD_AUDIO` before microphone capture; the audio backend
+will report a device-open failure when permission or a device is unavailable.
+The launcher, installer, touch controls and Minecraft asset download flow remain
+a separate integration stage.
 
-The legacy `horizon-mixin.toml` adapter remains untouched as a reference while
-the new native package is validated independently.
+## Validation
+
+The native API boundary passed `cargo check` and its two queue/catalogue tests
+against the pinned Horizon Nightly revision. The full SVC runtime connection,
+Android ARM64 build, server interoperability and on-device audio still require
+their own CI and runtime validation before release.
