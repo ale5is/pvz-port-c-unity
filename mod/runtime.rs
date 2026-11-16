@@ -96,6 +96,12 @@ pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration)
     }
 }
 
+pub fn on_key(code: &str, pressed: bool) {
+    if let Some(feedback) = locked().on_key(code, pressed) {
+        eprintln!("{feedback}");
+    }
+}
+
 pub fn on_command(command: &str, ran: &mut bool) {
     let head = command.split_whitespace().next().unwrap_or("");
     if head != "svc" && head != "vcgroup" {
@@ -110,4 +116,3 @@ pub fn on_command(command: &str, ran: &mut bool) {
     }
     *ran = true;
 }
-
