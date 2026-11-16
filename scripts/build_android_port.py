@@ -104,6 +104,8 @@ def main():
     parser.add_argument("--profile", choices=["fast", "release", "dev"], default="fast")
     parser.add_argument("--check-only", action="store_true", help="Run cargo check for the Android ABI instead of producing an APK")
     parser.add_argument("--trust-native-code", action="store_true", help="Allow Cargo to compile and execute the reviewed native mod build scripts")
+    parser.add_argument("--jade-source", type=Path, help="Pinned Jade-Horizon source checkout; adds Jade adapted to the pinned Horizon API")
+    parser.add_argument("--public", action="store_true", help="Build a distributable APK with generated tables only and Mojang resources downloaded by the app")
     args = parser.parse_args()
 
     source = args.horizon_source.expanduser().resolve()
@@ -124,6 +126,30 @@ def main():
         shutil.rmtree(mods_root)
     mods_root.mkdir(parents=True, exist_ok=True)
     shutil.copytree(ROOT / "mod", bundle)
+    if args.jade_source is not None:
+        jade_source = args.jade_source.expanduser().resolve()
+        jade_bundle_source = jade_source / "mixins" / "jade"
+        jade_manifest = jade_bundle_source / "horizon-mixin.toml"
+        jade_native = jade_source / "horizon-native.json"
+        jade_license = jade_source / "LICENSE"
+        if not jade_manifest.is_file() or not jade_native.is_file() or not jade_license.is_file():
+            raise SystemExit("The selected Jade source is incomplete; expected mixins/jade, horizon-native.json and LICENSE.")
+        jade_bundle = mods_root / "jade"
+        shutil.copytree(jade_bundle_source, jade_bundle)
+        shutil.copy2(jade_license, jade_bundle / "LICENSE")
+        manifest_text = jade_manifest.read_text(encoding="utf-8")
+        original_horizon = "6560641ba51a452f6bc2407baa4eb1b3be517ca8"
+        if original_horizon not in manifest_text:
+            raise SystemExit("Jade manifest no longer matches the reviewed upstream pin; inspect before adapting.")
+        manifest_text = manifest_text.replace(original_horizon, HORIZON_REV)
+        (jade_bundle / "horizon-mixin.toml").write_text(manifest_text, encoding="utf-8")
+        native = __import__("json").loads(jade_native.read_text(encoding="utf-8"))
+        native["horizon"] = HORIZON_REV
+        native["mixins"] = MIXINS_REV
+        native["hooks"] = 80
+        (jade_bundle / "horizon-native.json").write_text(
+            __import__("json").dumps(native, indent=2) + "\\n", encoding="utf-8"
+        )
     run([
         mixins, "apply",
         "--workspace", source,
@@ -146,6 +172,8 @@ def main():
         command.append("--check")
     else:
         command.extend(["--profile", args.profile])
+        if args.public:
+            command.append("--public")
         if not (stage / ".local/horizon-client/26.3/horizon-resources.json").is_file():
             raise SystemExit(
                 "Prepared engine data is missing. Run tools/android_prepare.py in the Horizon source checkout, "
@@ -153,7 +181,8 @@ def main():
             )
     run(command, cwd=stage)
     if not args.check_only:
-        apk = stage / ".local/android/apk" / args.abi / "horizon-android.apk"
+        apk_name = "horizon-android-public.apk" if args.public else "horizon-android.apk"
+        apk = stage / ".local/android/apk" / args.abi / apk_name
         print(f"APK: {apk}", flush=True)
 
 if __name__ == "__main__":
