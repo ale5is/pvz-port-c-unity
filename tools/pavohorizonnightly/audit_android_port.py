@@ -15,9 +15,9 @@ def exported_modules(path: Path) -> set[str]:
     source = path.read_text(encoding="utf-8")
     found = set(re.findall(r"(?m)^\s*pub\s+mod\s+([A-Za-z_]\w*)\s*;", source))
     # Public grouped and single re-exports, including aliases, are part of the usable API.
-    for statement in re.findall(r"(?m)^\\s*pub\\s+use\\s+([^;{}]+);", source):
+    for statement in re.findall(r"(?m)^\s*pub\s+use\s+([^;{}]+);", source):
         item = statement.strip()
-        match = re.match(r"(?:.*::)?([A-Za-z_]\\w*)(?:\\s+as\\s+([A-Za-z_]\\w*))?$", item)
+        match = re.match(r"(?:.*::)?([A-Za-z_]\w*)(?:\s+as\s+([A-Za-z_]\w*))?$", item)
         if match:
             found.add(match.group(2) or match.group(1))
     for body in re.findall(r"pub\s+use\s+horizon_client_render::\s*\{(.*?)\};", source, re.S):
@@ -66,7 +66,7 @@ def main() -> None:
 
     result = {
         "base_revision": "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29",
-        "nightly_revision": "85b5bcca7c79bb470b90bdb5914b413aa66fe7ae",
+        "nightly_revision": "9f42064c11efe7ef3e5ed2baad7ddc2a3b36eea0",
         "android_source_files_scanned": len(old_files),
         "client_exports": len(client_exports),
         "render_exports": len(render_exports),
