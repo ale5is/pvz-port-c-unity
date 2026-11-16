@@ -14,7 +14,12 @@ RENDER = Path("horizon/crates/horizon-client-render/src")
 def exported_modules(path: Path) -> set[str]:
     source = path.read_text(encoding="utf-8")
     found = set(re.findall(r"(?m)^\s*pub\s+mod\s+([A-Za-z_]\w*)\s*;", source))
-    # Public grouped re-exports, including aliases, are part of the usable API.
+    # Public grouped and single re-exports, including aliases, are part of the usable API.
+    for statement in re.findall(r"(?m)^\\s*pub\\s+use\\s+([^;{}]+);", source):
+        item = statement.strip()
+        match = re.match(r"(?:.*::)?([A-Za-z_]\\w*)(?:\\s+as\\s+([A-Za-z_]\\w*))?$", item)
+        if match:
+            found.add(match.group(2) or match.group(1))
     for body in re.findall(r"pub\s+use\s+horizon_client_render::\s*\{(.*?)\};", source, re.S):
         for item in body.split(","):
             item = item.strip()
