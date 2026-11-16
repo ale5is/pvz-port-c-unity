@@ -90,6 +90,7 @@ def expose_pinned_jade_hooks(source):
             if not name or not method or method not in implementation:
                 raise SystemExit(f"Jade hook implementation is absent in pinned Horizon: {name}")
             if name not in known:
+                hook["version"] = int(hook.get("version", 1))
                 additions.append(hook)
                 known.add(name)
 
