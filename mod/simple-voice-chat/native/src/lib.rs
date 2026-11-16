@@ -4,7 +4,7 @@
 //! session and audio devices remain in the shared svc_client crate.
 
 use mod_api::{
-    self, ClientHost, ClientPacketEvent, ClientTickPostEvent, Command, CommandEvent,
+    self, prelude::*, ClientHost, ClientPacketEvent, ClientTickPostEvent, Command, CommandEvent,
     ConfigPath, Flow, GuiRenderPostEvent, Hooks, KeyConflictContext, KeyRegistration,
     PayloadBytes, PayloadId, Registrar, RegistrationContext, RegisterClientCommandsEvent,
 };
@@ -298,7 +298,7 @@ impl Hooks for SimpleVoiceChat {
         if !glue.is_world_active() {
             glue.world_open();
             glue.cfg = load_config(host);
-            glue.set_audio_permission(true);
+            glue.set_audio_permission(false);
             let (channel, bytes) = Glue::handshake();
             glue.pending_sends.push((channel, bytes));
         }
