@@ -1,8 +1,79 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import os
+import shutil
 import sys
 
 root = Path(sys.argv[1]).resolve()
+
+def patch_winit(root):
+    cargo_home = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo"))
+    sources = sorted((cargo_home / "registry" / "src").glob("*/winit-0.30.13"))
+    if not sources:
+        raise SystemExit("winit 0.30.13 source is missing; run cargo fetch before Android bootstrap")
+
+    target = root / "target" / "pavohorizonnightly-winit"
+    shutil.rmtree(target, ignore_errors=True)
+    shutil.copytree(
+        sources[0],
+        target,
+        ignore=shutil.ignore_patterns(".cargo-ok", ".cargo-checksum.json"),
+    )
+
+    def patch(path, old, new):
+        file = target / path
+        source = file.read_text()
+        if new.strip() in source:
+            return
+        count = source.count(old)
+        if count != 1:
+            raise SystemExit(f"winit/{path}: expected one patch point, found {count}")
+        file.write_text(source.replace(old, new))
+
+    patch(
+        "src/platform/android.rs",
+        """/// Re-export of the `android_activity` API
+""",
+        """/// Horizon input hook: events the application consumes before winit translates them.
+#[cfg(android_platform)]
+pub type InputHook = fn(&activity::input::InputEvent<'_>) -> Option<activity::InputStatus>;
+
+#[cfg(android_platform)]
+pub fn set_input_hook(hook: InputHook) {
+    crate::platform_impl::set_input_hook(hook);
+}
+
+/// Re-export of the `android_activity` API
+""",
+    )
+    patch(
+        "src/platform_impl/android/mod.rs",
+        """static HAS_FOCUS: AtomicBool = AtomicBool::new(true);
+""",
+        """static HAS_FOCUS: AtomicBool = AtomicBool::new(true);
+static INPUT_HOOK: std::sync::OnceLock<crate::platform::android::InputHook> =
+    std::sync::OnceLock::new();
+
+pub(crate) fn set_input_hook(hook: crate::platform::android::InputHook) {
+    let _ = INPUT_HOOK.set(hook);
+}
+""",
+    )
+    patch(
+        "src/platform_impl/android/mod.rs",
+        """        F: FnMut(event::Event<T>, &RootAEL),
+    {
+        let mut input_status = InputStatus::Handled;
+""",
+        """        F: FnMut(event::Event<T>, &RootAEL),
+    {
+        if let Some(status) = INPUT_HOOK.get().and_then(|hook| hook(event)) {
+            return status;
+        }
+        let mut input_status = InputStatus::Handled;
+""",
+    )
+
 
 def replace_once(path, old, new):
     file = root / path
@@ -27,6 +98,13 @@ replace_once(
 )
 
 replace_once(
+    "Cargo.toml",
+    'naga = { path = "third_party/naga" }\n',
+    'naga = { path = "third_party/naga" }\n'
+    'winit = { path = "target/pavohorizonnightly-winit" }\n',
+)
+
+replace_once(
     "crates/horizon-client/src/lib.rs",
     "extern crate self as horizon_client;\n",
     "extern crate self as horizon_client;\n"
@@ -45,13 +123,91 @@ pub fn main(app: AndroidApp) {
         .unwrap_or_else(|| PathBuf::from("/data/local/tmp/pavohorizonnightly"));
     let _ = std::fs::create_dir_all(&private);
     let _ = std::env::set_current_dir(&private);
-    let _ = APP.set(app);
+    let _ = APP.set(app.clone());
+    winit::platform::android::set_input_hook(input::hook);
 }
 
 pub fn android_app() -> AndroidApp {
     APP.get()
         .expect("android_main must initialize AndroidApp before the game")
         .clone()
+}
+
+mod input {
+    use horizon_client_render::android_runtime::{self, InputMode};
+    use winit::event::{DeviceEvent, ElementState};
+    use winit::platform::android::activity::{
+        InputStatus,
+        input::{Axis, InputEvent, KeyAction},
+    };
+
+    const SOURCE_GAMEPAD: u32 = 0x0000_0400;
+    const SOURCE_JOYSTICK: u32 = 0x0100_0000;
+    const SOURCE_TOUCHSCREEN: u32 = 0x0000_1000;
+    const SOURCE_MOUSE: u32 = 0x0000_2000;
+
+    fn is_gamepad(source: u32) -> bool {
+        source & SOURCE_GAMEPAD != 0 || source & SOURCE_JOYSTICK != 0
+    }
+
+    pub(super) fn hook(event: &InputEvent<'_>) -> Option<InputStatus> {
+        match event {
+            InputEvent::KeyEvent(key) => {
+                let source = u32::from(key.source());
+                if is_gamepad(source) {
+                    let state = match key.action() {
+                        KeyAction::Down => ElementState::Pressed,
+                        KeyAction::Up => ElementState::Released,
+                        _ => return Some(InputStatus::Handled),
+                    };
+                    let event = DeviceEvent::Button {
+                        button: u32::from(key.key_code()),
+                        state,
+                    };
+                    android_runtime::gamepad_event(key.device_id(), &event);
+                    return Some(InputStatus::Handled);
+                }
+                if matches!(key.action(), KeyAction::Down) {
+                    android_runtime::note_input(InputMode::KeyboardMouse);
+                }
+                None
+            }
+            InputEvent::MotionEvent(motion) => {
+                let source = u32::from(motion.source());
+                if is_gamepad(source) {
+                    if motion.pointer_count() > 0 {
+                        let pointer = motion.pointer_at_index(0);
+                        for (axis, kind) in [
+                            (0, Axis::X),
+                            (1, Axis::Y),
+                            (11, Axis::Z),
+                            (14, Axis::Rz),
+                            (15, Axis::HatX),
+                            (16, Axis::HatY),
+                            (17, Axis::Ltrigger),
+                            (18, Axis::Rtrigger),
+                            (22, Axis::Gas),
+                            (23, Axis::Brake),
+                        ] {
+                            let event = DeviceEvent::Motion {
+                                axis,
+                                value: pointer.axis_value(kind) as f64,
+                            };
+                            android_runtime::gamepad_event(motion.device_id(), &event);
+                        }
+                    }
+                    return Some(InputStatus::Handled);
+                }
+                if source & SOURCE_TOUCHSCREEN != 0 {
+                    android_runtime::note_input(InputMode::Touch);
+                } else if source & SOURCE_MOUSE != 0 {
+                    android_runtime::note_input(InputMode::KeyboardMouse);
+                }
+                None
+            }
+            _ => None,
+        }
+    }
 }
 ''')
 
@@ -381,6 +537,23 @@ replace_once(
 """,
 )
 
+replace_once(
+    "crates/horizon-client/src/game/interface/pad/mod.rs",
+    """        pub(super) fn read(&mut self) -> PadState {
+            PadState::default()
+        }""",
+    """        pub(super) fn read(&mut self) -> PadState {
+            #[cfg(target_os = "android")]
+            {
+                horizon_client_render::android_runtime::pad_state()
+            }
+            #[cfg(not(target_os = "android"))]
+            {
+                PadState::default()
+            }
+        }""",
+)
+
 print("Android bootstrap injected:")
 for item in (
     "crates/horizon-android/Cargo.toml",
@@ -389,3 +562,5 @@ for item in (
     "crates/horizon-client/src/game/runtime/loading_screen.rs",
 ):
     print(item)
+
+patch_winit(root)
