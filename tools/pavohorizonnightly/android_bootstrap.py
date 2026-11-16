@@ -114,8 +114,8 @@ replace_once(
 
 replace_once(
     "crates/horizon-client-render/src/android_runtime.rs",
-    "use crate::android_gamepad::{Devices, InputMode, Selection};\\n",
-    "use crate::android_gamepad::{Devices, Selection};\\n"
+    "use crate::android_gamepad::{Devices, InputMode, Selection};\n",
+    "use crate::android_gamepad::{Devices, Selection};\n"
     "pub use crate::android_gamepad::InputMode;\\n",
 )
 
