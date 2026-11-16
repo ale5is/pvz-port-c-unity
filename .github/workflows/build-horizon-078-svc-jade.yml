@@ -1,0 +1,108 @@
+name: Build Horizon 0.7.8 SVC + Jade Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-horizon-078-svc-jade.yml"
+      - "scripts/build_android_port.py"
+      - "mod/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: horizon-078-svc-jade-android
+  cancel-in-progress: false
+
+jobs:
+  build-arm64-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout Pavo port (main)
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned Horizon 0.7.8 source
+        uses: actions/checkout@v4
+        with:
+          repository: starling-client/starling
+          ref: 68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29
+          path: horizon-source
+
+      - name: Checkout pinned Jade-Horizon source
+        uses: actions/checkout@v4
+        with:
+          repository: Joeypc6/Jade-Horizon
+          ref: 4ee222801ca156b508344ef3b2d739a0b0f2de6c
+          path: jade-source
+
+      - name: Install Rust 1.95.0 and Android target
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+          targets: aarch64-linux-android
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install JDK 17 for Android packaging
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Gradle 8.14
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14"
+
+      - name: Install Android SDK, NDK and build tools
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Accept licenses and install pinned Android toolchain
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager --install "ndk;28.2.13676358" "build-tools;35.0.0" "platforms;android-36"
+
+      - name: Prepare pinned Minecraft 26.3 engine tables
+        run: |
+          python horizon-source/tools/android_prepare.py
+
+      - name: Apply API-80 SVC and Jade bundles and build public ARM64 APK
+        run: |
+          python scripts/build_android_port.py \
+            --horizon-source horizon-source \
+            --jade-source jade-source \
+            --abi arm64-v8a \
+            --sdk "$ANDROID_HOME" \
+            --java-home "$JAVA_HOME" \
+            --ndk-version 28.2.13676358 \
+            --build-tools-version 35.0.0 \
+            --profile release \
+            --public \
+            --trust-native-code
+
+      - name: Name APK and calculate SHA-256
+        run: |
+          mkdir -p dist
+          cp .build/horizon-078-android/.local/android/apk/arm64-v8a/horizon-android-public.apk dist/PavoHorizon-0.7.8-SVC-Jade-arm64-v8a.apk
+          cd dist
+          sha256sum PavoHorizon-0.7.8-SVC-Jade-arm64-v8a.apk > SHA256SUMS.txt
+          printf '%s\n' "Built from commit: $GITHUB_SHA" "Horizon: 68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29" "Jade-Horizon: 4ee222801ca156b508344ef3b2d739a0b0f2de6c" "Architecture: arm64-v8a" "Build: public release candidate; debug signing key" > BUILD-INFO.txt
+
+      - name: Upload Android APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PavoHorizon-0.7.8-SVC-Jade-arm64-v8a
+          path: |
+            dist/PavoHorizon-0.7.8-SVC-Jade-arm64-v8a.apk
+            dist/SHA256SUMS.txt
+            dist/BUILD-INFO.txt
+          if-no-files-found: error
+          retention-days: 14
