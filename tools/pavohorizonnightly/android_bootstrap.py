@@ -333,13 +333,13 @@ replace_once(
 
 replace_once(
     "crates/horizon-mod-package/src/lib.rs",
-    '    feature = "runtime-process",\n    any(target_os = "linux", target_os = "macos", windows)\n))\npub mod holder;\n',
+    '    feature = "runtime-process",\n    any(target_os = "linux", target_os = "macos", windows)\n))]\npub mod holder;\n',
     '    feature = "runtime-process",\n    any(target_os = "linux", target_os = "macos", target_os = "android", windows)\n))\npub mod holder;\n',
 )
 
 replace_once(
     "crates/horizon-mod-package/src/lib.rs",
-    '    feature = "runtime-process",\n    any(target_os = "linux", target_os = "macos", windows)\n))\npub mod local_control;\n',
+    '    feature = "runtime-process",\n    any(target_os = "linux", target_os = "macos", target_os = "android", windows)\n))]\npub mod local_control;\n',
     '    feature = "runtime-process",\n    any(target_os = "linux", target_os = "macos", target_os = "android", windows)\n))\npub mod local_control;\n',
 )
 
