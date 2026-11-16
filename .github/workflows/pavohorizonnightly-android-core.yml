@@ -9,6 +9,8 @@ on:
       - "tools/pavohorizonnightly/HorizonActivity.java"
       - "tools/pavohorizonnightly/minecraft-26.3-lock.json"
       - "tools/pavohorizonnightly/verify_minecraft_lock.py"
+      - ".gitmodules"
+      - "upstream/horizon-android-078"
       - ".github/workflows/pavohorizonnightly-android-core.yml"
   workflow_dispatch:
 
@@ -29,6 +31,27 @@ jobs:
       CARGO_INCREMENTAL: 0
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Verify original Horizon Android 0.7.8 launcher base
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=upstream/horizon-android-078
+          expected=68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29
+          test "$(git -C "$base" rev-parse HEAD)" = "$expected"
+          for file in \\
+            crates/horizon-client/src/android_main.rs \\
+            crates/horizon-client/src/android/launcher.rs \\
+            crates/horizon-client/src/android/game_launch.rs \\
+            crates/horizon-client/src/official_install.rs; do
+            test -s "$base/$file"
+            printf '%s  %s\\n' "$(sha256sum "$base/$file" | cut -d' ' -f1)" "$file"
+          done
+          printf 'Android source files: '
+          find "$base/crates/horizon-client/src/android" -maxdepth 1 -type f | wc -l
+          printf 'Pinned launcher base: %s\\n' "$(git -C "$base" rev-parse --short HEAD)"
 
       - uses: actions/setup-java@v4
         with:
