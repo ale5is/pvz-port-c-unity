@@ -365,6 +365,13 @@ replace_once(
 """,
 )
 
+replace_once(
+    "crates/horizon-mod-package/src/local_control/unix.rs",
+    '    #[cfg(target_os = "linux")]\\n    let uid = rustix::net::sockopt::socket_peercred(stream)?.uid.as_raw();\\n',
+    '    #[cfg(any(target_os = "linux", target_os = "android"))]\\n'
+    '    let uid = rustix::net::sockopt::socket_peercred(stream)?.uid.as_raw();\\n',
+)
+
 print("Android bootstrap injected:")
 for item in (
     "crates/horizon-android/Cargo.toml",
