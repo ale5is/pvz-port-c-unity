@@ -371,11 +371,12 @@ fn voice_socket(voice_host: &str, hint: Option<&str>, port: u16) -> SocketAddr {
     if let Ok(port_override) = voice_host.parse::<u16>() {
         return socket_of(fallback, port_override);
     }
-    if let Some((host, port_text)) = voice_host.rsplit_once(':')
-        && (host.starts_with('[') || !host.contains(':'))
-        && let Ok(port_override) = port_text.parse::<u16>()
-    {
-        return socket_of(host, port_override);
+    if let Some((host, port_text)) = voice_host.rsplit_once(':') {
+        if host.starts_with('[') || !host.contains(':') {
+            if let Ok(port_override) = port_text.parse::<u16>() {
+                return socket_of(host, port_override);
+            }
+        }
     }
     socket_of(voice_host, port)
 }
