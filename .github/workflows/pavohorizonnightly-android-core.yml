@@ -54,11 +54,18 @@ jobs:
           printf 'Android source files: '
           find "$base/crates/horizon-client/src/android" -maxdepth 1 -type f | wc -l
           printf 'Pinned launcher base: %s\n' "$(git -C "$base" rev-parse --short HEAD)"
-          test -s mod/simple-voice-chat/horizon-mixin.toml
-          test -s mod/simple-voice-chat/native/src/lib.rs
+          test -s sources/simple-voice-chat/README.md
+          test -s sources/simple-voice-chat/compatibility.json
           test -s mod/crates/svc_client/src/lib.rs
-          grep -F '68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29' mod/simple-voice-chat/horizon-mixin.toml
-          echo 'Simple Voice Chat sources are present for the Android/Nightly adapter.'
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          meta = json.loads(Path("sources/simple-voice-chat/compatibility.json").read_text())
+          assert meta["game"] == "26.3"
+          assert meta["hooks"] == 359
+          print("Simple Voice Chat source metadata:", meta["game"], "hooks", meta["hooks"], "revision", meta["horizon_revision"])
+          PY
+          echo 'Simple Voice Chat source exists; Android audio and launcher integration remains a separate porting task.'
 
       - uses: actions/setup-java@v4
         with:
