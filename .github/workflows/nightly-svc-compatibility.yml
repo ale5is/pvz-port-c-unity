@@ -41,8 +41,9 @@ jobs:
 
       - name: Attach the pinned API source to the native mod package
         run: |
-          mkdir -p mod/simple-voice-chat/native/.horizon/sdk
-          ln -s "$RUNNER_TEMP/horizon-nightly" mod/simple-voice-chat/native/.horizon/sdk/api
+          mkdir -p mod/simple-voice-chat/native/.horizon/sdk/api
+          cp -a "$RUNNER_TEMP/horizon-nightly/." mod/simple-voice-chat/native/.horizon/sdk/api/
+          test -f mod/simple-voice-chat/native/.horizon/sdk/api/Cargo.toml
           test -f mod/simple-voice-chat/native/.horizon/sdk/api/crates/horizon-mod-api/Cargo.toml
 
       - name: Check the native adapter against the pinned Nightly API

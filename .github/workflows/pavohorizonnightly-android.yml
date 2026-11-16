@@ -1,11 +1,6 @@
 name: PavoHorizonNightly Android ARM64
 
 on:
-  push:
-    branches: [pavohorizonnightly]
-    paths:
-      - ".github/workflows/pavohorizonnightly-android.yml"
-      - "mod/simple-voice-chat/**"
   workflow_dispatch:
 
 permissions:
