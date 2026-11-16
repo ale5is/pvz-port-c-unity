@@ -1,0 +1,13 @@
+id = "simple_voice_chat"
+name = "Simple Voice Chat"
+version = "1.0.2"
+description = "Native Horizon adapter for the Simple Voice Chat client."
+authors = ["ale5is"]
+api = "0.2"
+side = "client"
+capabilities = []
+
+[native]
+game = "26.3"
+horizon = "85b5bcca7c79bb470b90bdb5914b413aa66fe7ae"
+mixins = "e59da9094f0c2fdda6c627fe9eff22dec6a906f0"

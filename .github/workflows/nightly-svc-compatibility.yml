@@ -1,4 +1,4 @@
-name: PavoHorizonNightly - Simple Voice Chat compatibility
+name: PavoHorizonNightly - Simple Voice Chat native API compatibility
 
 on:
   push:
@@ -16,99 +16,36 @@ permissions:
   contents: read
 
 concurrency:
-  group: pavohorizonnightly-svc-${{ github.ref }}
+  group: pavohorizonnightly-svc-native-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  nightly-svc:
+  native-api:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
       HORIZON_REV: 85b5bcca7c79bb470b90bdb5914b413aa66fe7ae
-      MIXINS_REV: e59da9094f0c2fdda6c627fe9eff22dec6a906f0
       CARGO_INCREMENTAL: 0
     steps:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@1.95.0
 
-      - name: Install Linux audio build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libasound2-dev libudev-dev
-
-      - name: Fetch the pinned Horizon Nightly source
+      - name: Fetch the exact Horizon Nightly SDK source
         run: |
           git init "$RUNNER_TEMP/horizon-nightly"
           git -C "$RUNNER_TEMP/horizon-nightly" remote add origin https://github.com/horizon-rust/horizon.git
           git -C "$RUNNER_TEMP/horizon-nightly" fetch --depth=1 origin "$HORIZON_REV"
           git -C "$RUNNER_TEMP/horizon-nightly" checkout --detach FETCH_HEAD
           test "$(git -C "$RUNNER_TEMP/horizon-nightly" rev-parse HEAD)" = "$HORIZON_REV"
-          find "$RUNNER_TEMP/horizon-nightly" -type l -delete
 
-      - name: Adapt the existing voice bundle to Nightly's crate layout
+      - name: Attach the pinned API source to the native mod package
         run: |
-          mkdir -p "$RUNNER_TEMP/mods"
-          cp -R mod/simple-voice-chat "$RUNNER_TEMP/mods/simple-voice-chat"
-          curl -fsSL https://raw.githubusercontent.com/starling-client/starling/starling/packaging/android/native_mod_adapt.py -o "$RUNNER_TEMP/native_mod_adapt.py"
-          python3 "$RUNNER_TEMP/native_mod_adapt.py" "$RUNNER_TEMP/horizon-nightly" "$RUNNER_TEMP/mods"
-          python3 - "$RUNNER_TEMP/mods/simple-voice-chat/horizon-mixin.toml" "$HORIZON_REV" <<'PY'
-          from pathlib import Path
-          import re
-          import sys
+          mkdir -p mod/simple-voice-chat/native/.horizon/sdk
+          ln -s "$RUNNER_TEMP/horizon-nightly" mod/simple-voice-chat/native/.horizon/sdk/api
+          test -f mod/simple-voice-chat/native/.horizon/sdk/api/crates/horizon-mod-api/Cargo.toml
 
-          path = Path(sys.argv[1])
-          revision = sys.argv[2]
-          source = path.read_text()
-          source, pins = re.subn(
-              r'(?m)^horizon_revision = "[0-9a-f]+"$',
-              f'horizon_revision = "{revision}"',
-              source,
-          )
-          if pins != 1:
-              raise SystemExit(f"Expected one Horizon revision pin, found {pins}")
-          source, dependencies = re.subn(
-              r'(?m)^dependent = "horizon-android"$',
-              'dependent = "horizon-client"',
-              source,
-          )
-          if dependencies != 1:
-              raise SystemExit(f"Expected one horizon-android dependency target, found {dependencies}")
-          path.write_text(source)
-          print("Nightly pin and dependent package updated in the isolated test copy.")
-          PY
-
-      - name: Build the Horizon-pinned horizon-mixins CLI
+      - name: Check the native adapter against the pinned Nightly API
         run: |
-          git init "$RUNNER_TEMP/horizon-mixins"
-          git -C "$RUNNER_TEMP/horizon-mixins" remote add origin https://github.com/horizon-rust/horizon-mixins.git
-          git -C "$RUNNER_TEMP/horizon-mixins" fetch --depth=1 origin "$MIXINS_REV"
-          git -C "$RUNNER_TEMP/horizon-mixins" checkout --detach FETCH_HEAD
-          cargo fetch --locked --manifest-path "$RUNNER_TEMP/horizon-mixins/Cargo.toml"
-          cargo build --locked --manifest-path "$RUNNER_TEMP/horizon-mixins/Cargo.toml" -p horizon-mixins-cli
-
-      - name: Fetch Nightly workspace dependencies
-        working-directory: ${{ runner.temp }}/horizon-nightly
-        run: cargo fetch --locked
-
-      - name: Validate named hooks and apply the voice bundle
-        run: |
-          CLI="$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins"
-          "$CLI" plan \
-            --workspace "$RUNNER_TEMP/horizon-nightly" \
-            --mods "$RUNNER_TEMP/mods" \
-            --out "$RUNNER_TEMP/pavohorizonnightly-plan.json"
-          "$CLI" apply \
-            --workspace "$RUNNER_TEMP/horizon-nightly" \
-            --mods "$RUNNER_TEMP/mods" \
-            --out "$RUNNER_TEMP/pavohorizonnightly-stage"
-
-      - name: Compile and test the adapted Simple Voice Chat bundle against Nightly
-        run: |
-          "$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins" check \
-            --workspace "$RUNNER_TEMP/horizon-nightly" \
-            --mods "$RUNNER_TEMP/mods" \
-            --out "$RUNNER_TEMP/pavohorizonnightly-check" \
-            --trust-native-mods \
-            --package horizon-client \
-            --target-dir "$RUNNER_TEMP/pavohorizonnightly-target"
+          cargo check --manifest-path mod/simple-voice-chat/native/Cargo.toml
+          cargo test --manifest-path mod/simple-voice-chat/native/Cargo.toml
