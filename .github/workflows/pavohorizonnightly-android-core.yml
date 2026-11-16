@@ -5,6 +5,7 @@ on:
     branches: [pavohorizonnightly]
     paths:
       - "tools/pavohorizonnightly/android_bootstrap.py"
+      - "tools/pavohorizonnightly/audit_android_port.py"
       - "tools/pavohorizonnightly/AndroidManifest.xml"
       - "tools/pavohorizonnightly/HorizonActivity.java"
       - "tools/pavohorizonnightly/minecraft-26.3-lock.json"
@@ -104,6 +105,9 @@ jobs:
           git clone --filter=blob:none https://github.com/horizon-rust/horizon.git horizon
           git -C horizon checkout --detach "$HORIZON_REV"
           test "$(git -C horizon rev-parse HEAD)" = "$HORIZON_REV"
+
+      - name: Audit Android 0.7.8 frontend API compatibility against Nightly
+        run: python3 tools/pavohorizonnightly/audit_android_port.py
 
       - name: Fetch Android build dependencies for the Winit input hook
         run: cargo fetch --manifest-path horizon/Cargo.toml --target aarch64-linux-android
@@ -207,6 +211,14 @@ jobs:
             dist/SHA256SUMS.txt
             dist/badging.txt
             dist/permissions.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Android launcher API audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: pavohorizonnightly-android-launcher-api-audit
+          path: dist/android-port-api-audit.json
           if-no-files-found: error
           retention-days: 30
 
