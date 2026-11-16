@@ -366,6 +366,12 @@ replace_once(
 )
 
 replace_once(
+    "crates/horizon-official/Cargo.toml",
+    'horizon-game = { path = "../horizon-game" }\n',
+    'horizon-game = { path = "../horizon-game", default-features = false }\n',
+)
+
+replace_once(
     "crates/horizon-mod-package/src/local_control/unix.rs",
     """    #[cfg(target_os = "linux")]
     let uid = rustix::net::sockopt::socket_peercred(stream)?.uid.as_raw();
