@@ -95,7 +95,7 @@ def expose_pinned_jade_hooks(source):
 
     if additions:
         registry["hooks"].extend(additions)
-        registry_path.write_text(json.dumps(registry, indent=2) + "\\n", encoding="utf-8")
+        registry_path.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
     print("Pinned Horizon hook registry: added " + ", ".join(x["name"] for x in additions), flush=True)
 
 
