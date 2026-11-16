@@ -70,6 +70,14 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager --install "ndk;28.2.13676358" "build-tools;35.0.0" "platforms;android-36"
 
+      - name: Seed Horizon with Mojang's exact pinned 26.3 manifest
+        run: |
+          mkdir -p horizon-source/.local/android/minecraft
+          curl --fail --location --retry 5 \
+            https://piston-meta.mojang.com/v1/packages/11f1aefe473eefba0af62e3286c33b692807b2eb/26.3.json \
+            --output horizon-source/.local/android/minecraft/manifest.json
+          echo "11f1aefe473eefba0af62e3286c33b692807b2eb  horizon-source/.local/android/minecraft/manifest.json" | sha1sum --check
+
       - name: Prepare pinned Minecraft 26.3 engine tables
         run: |
           python horizon-source/tools/android_prepare.py
