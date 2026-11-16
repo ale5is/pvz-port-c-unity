@@ -57,6 +57,48 @@ def verify_source(source):
         if not marker.is_file() or marker.read_text(encoding="utf-8").strip() != HORIZON_REV:
             raise SystemExit("Use a git checkout at the exact v0.7.8 commit, or add a verified .horizon-revision marker.")
 
+def expose_pinned_jade_hooks(source):
+    import json
+
+    registry_path = source / "native-hooks.json"
+    native_hooks = source / "crates/horizon-client/src/game/native_hooks.rs"
+    if not registry_path.is_file() or not native_hooks.is_file():
+        raise SystemExit("Horizon native hook registry or implementation file is missing.")
+
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    if not isinstance(registry.get("hooks"), list):
+        raise SystemExit("Unexpected Horizon native-hooks.json schema.")
+
+    fragments = [
+        "screen_mouse_scrolled.json",
+        "screen_key_input.json",
+        "client_resources_reloaded.json",
+        "native_perform_console_command.json",
+    ]
+    known = {item.get("name") for item in registry["hooks"]}
+    implementation = native_hooks.read_text(encoding="utf-8")
+    additions = []
+    for filename in fragments:
+        path = source / "tools/native-hook-fragments" / filename
+        if not path.is_file():
+            raise SystemExit(f"Missing pinned Horizon hook fragment: {path}")
+        fragment = json.loads(path.read_text(encoding="utf-8"))
+        for hook in fragment.get("hooks", []):
+            name = hook.get("name")
+            target = hook.get("target", "")
+            method = target.rsplit("::", 1)[-1]
+            if not name or not method or method not in implementation:
+                raise SystemExit(f"Jade hook implementation is absent in pinned Horizon: {name}")
+            if name not in known:
+                additions.append(hook)
+                known.add(name)
+
+    if additions:
+        registry["hooks"].extend(additions)
+        registry_path.write_text(json.dumps(registry, indent=2) + "\\n", encoding="utf-8")
+    print("Pinned Horizon hook registry: added " + ", ".join(x["name"] for x in additions), flush=True)
+
+
 def copy_prepared_data(source, stage):
     prepared = source / ".local/horizon-client"
     if prepared.is_dir():
@@ -111,6 +153,8 @@ def main():
     source = args.horizon_source.expanduser().resolve()
     stage = args.out.expanduser().resolve()
     verify_source(source)
+    if args.jade_source is not None:
+        expose_pinned_jade_hooks(source)
     if args.sdk is None or not args.sdk.is_dir():
         raise SystemExit("Pass --sdk or set ANDROID_HOME to the installed Android SDK.")
     if args.java_home is None or not args.java_home.is_dir():
