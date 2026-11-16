@@ -47,7 +47,7 @@ hook = "key"
 hook_version = 1
 helper = "key.rs"
 bindings = [
-  { name = "key", ty = "&str", value = "key" },
+  { name = "key_name", ty = "&str", value = "key" },
   { name = "pressed", ty = "bool", value = "pressed" },
 ]
 
