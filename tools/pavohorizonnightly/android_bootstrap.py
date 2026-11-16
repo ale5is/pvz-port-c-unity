@@ -92,7 +92,7 @@ workspace = true
 ''')
 
 replace_once(
-    "crates/horizon-client/src/game/loading_screen.rs",
+    "crates/horizon-client/src/game/runtime/loading_screen.rs",
     "    let result = EventLoop::new()?.run_app(&mut split);\n",
     "    #[cfg(target_os = \"android\")]\n"
     "    let result = {\n"
@@ -106,7 +106,7 @@ replace_once(
 )
 
 replace_once(
-    "crates/horizon-client/src/game/no_resources.rs",
+    "crates/horizon-client/src/game/runtime/no_resources.rs",
     "    EventLoop::new()?.run_app(&mut app)?;\n",
     "    #[cfg(target_os = \"android\")]\n"
     "    {\n"
@@ -120,7 +120,7 @@ replace_once(
 )
 
 replace_once(
-    "crates/horizon-client/src/game/resource_loader.rs",
+    "crates/horizon-client/src/game/runtime/resource_loader.rs",
     "    let result = EventLoop::new()?.run_app(&mut app);\n",
     "    #[cfg(target_os = \"android\")]\n"
     "    let result = {\n"
@@ -268,6 +268,6 @@ for item in (
     "crates/horizon-android/Cargo.toml",
     "crates/horizon-client/src/android.rs",
     "crates/horizon-client/src/android_lib.rs",
-    "crates/horizon-client/src/game/loading_screen.rs",
+    "crates/horizon-client/src/game/runtime/loading_screen.rs",
 ):
     print(item)
