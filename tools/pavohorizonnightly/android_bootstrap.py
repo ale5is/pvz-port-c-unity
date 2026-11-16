@@ -46,7 +46,6 @@ pub fn main(app: AndroidApp) {
     let _ = std::fs::create_dir_all(&private);
     let _ = std::env::set_current_dir(&private);
     let _ = APP.set(app);
-    crate::entry::main();
 }
 
 pub fn android_app() -> AndroidApp {
