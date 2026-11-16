@@ -54,8 +54,8 @@ jobs:
 
       - name: Install Rust ARM64 toolchain
         run: |
-          rustup toolchain install 1.95.0 --profile minimal --target aarch64-linux-android
-          rustup default 1.95.0
+          rustup toolchain install 1.97.0 --profile minimal --target aarch64-linux-android
+          rustup default 1.97.0
           cargo install cargo-ndk --version 3.5.4 --locked
 
       - name: Fetch exact Horizon Nightly source
