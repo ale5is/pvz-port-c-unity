@@ -7,6 +7,8 @@ on:
       - "tools/pavohorizonnightly/android_bootstrap.py"
       - "tools/pavohorizonnightly/AndroidManifest.xml"
       - "tools/pavohorizonnightly/HorizonActivity.java"
+      - "tools/pavohorizonnightly/minecraft-26.3-lock.json"
+      - "tools/pavohorizonnightly/verify_minecraft_lock.py"
       - ".github/workflows/pavohorizonnightly-android-core.yml"
   workflow_dispatch:
 
@@ -32,6 +34,9 @@ jobs:
         with:
           distribution: temurin
           java-version: "25"
+
+      - name: Verify pinned Minecraft 26.3 metadata against Mojang
+        run: python3 tools/pavohorizonnightly/verify_minecraft_lock.py --network
 
       - name: Install Android SDK and NDK
         shell: bash
