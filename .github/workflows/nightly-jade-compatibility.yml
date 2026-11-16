@@ -85,19 +85,36 @@ jobs:
           test "$(git -C "$RUNNER_TEMP/horizon-mixins" rev-parse HEAD)" = "$MIXINS_REV"
           cargo build --locked --manifest-path "$RUNNER_TEMP/horizon-mixins/Cargo.toml" -p horizon-mixins-cli
 
+      - name: Prepare isolated Jade compatibility probe
+        run: |
+          set -euo pipefail
+          cp -a "$GITHUB_WORKSPACE/sources/jade-horizon/mixins" "$RUNNER_TEMP/jade-mixins"
+          python3 - "$RUNNER_TEMP/jade-mixins/jade/horizon-mixin.toml" "$HORIZON_REV" <<'PY'
+          import sys
+          from pathlib import Path
+          path = Path(sys.argv[1])
+          target = sys.argv[2]
+          content = path.read_text()
+          old = 'horizon_revision = "6560641ba51a452f6bc2407baa4eb1b3be517ca8"'
+          new = f'horizon_revision = "{target}"'
+          assert content.count(old) == 1, "Jade revision pin changed; inspect before probing"
+          path.write_text(content.replace(old, new))
+          print(f"Compatibility probe only: staged manifest revision set to {target}")
+          PY
+
       - name: Plan and apply Jade mixins to the pinned Nightly
         run: |
           set -euo pipefail
           cli="$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins"
-          "$cli" plan --workspace "$RUNNER_TEMP/horizon" --mods "$GITHUB_WORKSPACE/sources/jade-horizon/mixins" --out "$RUNNER_TEMP/jade-plan.json"
-          "$cli" apply --workspace "$RUNNER_TEMP/horizon" --mods "$GITHUB_WORKSPACE/sources/jade-horizon/mixins" --out "$RUNNER_TEMP/horizon-jade"
+          "$cli" plan --workspace "$RUNNER_TEMP/horizon" --mods "$RUNNER_TEMP/jade-mixins" --out "$RUNNER_TEMP/jade-plan.json"
+          "$cli" apply --workspace "$RUNNER_TEMP/horizon" --mods "$RUNNER_TEMP/jade-mixins" --out "$RUNNER_TEMP/horizon-jade"
 
       - name: Compile Jade-modified Horizon client
         run: |
           set -o pipefail
           "$RUNNER_TEMP/horizon-mixins/target/debug/horizon-mixins" check \
             --workspace "$RUNNER_TEMP/horizon" \
-            --mods "$GITHUB_WORKSPACE/sources/jade-horizon/mixins" \
+            --mods "$RUNNER_TEMP/jade-mixins" \
             --out "$RUNNER_TEMP/horizon-jade" \
             --trust-native-mods \
             --package horizon-client 2>&1 | tee "$RUNNER_TEMP/jade-check.log"
