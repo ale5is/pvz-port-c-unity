@@ -100,6 +100,11 @@ jobs:
 
       - name: Package signed ARM64 APK
         shell: bash
+        env:
+          PAVO_ANDROID_KEYSTORE_BASE64: ${{ secrets.PAVO_ANDROID_KEYSTORE_BASE64 }}
+          PAVO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.PAVO_ANDROID_KEYSTORE_PASSWORD }}
+          PAVO_ANDROID_KEY_ALIAS: ${{ secrets.PAVO_ANDROID_KEY_ALIAS }}
+          PAVO_ANDROID_KEY_PASSWORD: ${{ secrets.PAVO_ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           bt="$ANDROID_HOME/build-tools/35.0.0"
@@ -110,19 +115,37 @@ jobs:
           "$bt/aapt2" link -o "$out/base.apk" \
             --manifest tools/pavohorizonnightly/AndroidManifest.xml \
             -I "$android_jar" --min-sdk-version 26 --target-sdk-version 35 \
-            --version-code 1 --version-name "0.1.0-nightly" --debug-mode
+            --version-code 1 --version-name "0.1.0-nightly"
           cp "$out/base.apk" "$out/unsigned.apk"
           (cd "$out/apk" && zip -q -r "$out/unsigned.apk" lib classes.dex)
           "$bt/zipalign" -P 16 -f 4 "$out/unsigned.apk" "$out/aligned.apk"
-          key="$RUNNER_TEMP/pavohorizonnightly-debug.keystore"
-          keytool -genkeypair -keystore "$key" -storepass android -keypass android \
-            -alias pavohorizonnightly -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=PavoHorizonNightly" -noprompt
-          "$bt/apksigner" sign --ks "$key" --ks-pass pass:android \
-            --key-pass pass:android --ks-key-alias pavohorizonnightly \
+          key="$RUNNER_TEMP/pavohorizonnightly.keystore"
+          if [[ -n "${PAVO_ANDROID_KEYSTORE_BASE64:-}" ]]; then
+            : "${PAVO_ANDROID_KEYSTORE_PASSWORD:?Falta PAVO_ANDROID_KEYSTORE_PASSWORD}"
+            : "${PAVO_ANDROID_KEY_ALIAS:?Falta PAVO_ANDROID_KEY_ALIAS}"
+            : "${PAVO_ANDROID_KEY_PASSWORD:?Falta PAVO_ANDROID_KEY_PASSWORD}"
+            printf '%s' "$PAVO_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$key"
+            storepass="$PAVO_ANDROID_KEYSTORE_PASSWORD"
+            keypass="$PAVO_ANDROID_KEY_PASSWORD"
+            keyalias="$PAVO_ANDROID_KEY_ALIAS"
+          else
+            keytool -genkeypair -keystore "$key" -storepass android -keypass android \
+              -alias pavohorizonnightly -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=PavoHorizonNightly" -noprompt
+            storepass="android"
+            keypass="android"
+            keyalias="pavohorizonnightly"
+            echo "::warning::Se usó una clave temporal. Las próximas APK no podrán instalarse como actualización sin desinstalar la anterior."
+          fi
+          "$bt/apksigner" sign --ks "$key" --ks-pass "pass:$storepass" \
+            --key-pass "pass:$keypass" --ks-key-alias "$keyalias" \
             --out "$out/PavoHorizonNightly.apk" "$out/aligned.apk"
           "$bt/apksigner" verify --verbose "$out/PavoHorizonNightly.apk"
           "$bt/aapt" dump badging "$out/PavoHorizonNightly.apk" | tee "$out/badging.txt"
+          if grep -F "application-debuggable" "$out/badging.txt"; then
+            echo "La APK no debe estar marcada como debuggable" >&2
+            exit 1
+          fi
           "$bt/aapt" dump permissions "$out/PavoHorizonNightly.apk" | tee "$out/permissions.txt"
           grep -F "package: name='dev.pavo.horizonnightly'" "$out/badging.txt"
           grep -F "PavoHorizonNightly" "$out/badging.txt"
