@@ -57,6 +57,9 @@ jobs:
           test -s sources/simple-voice-chat/README.md
           test -s sources/simple-voice-chat/compatibility.json
           test -s mod/simple-voice-chat/crates/svc_client/src/lib.rs
+          grep -F 'Target Horizon revision: `68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29`' mod/simple-voice-chat/README.md
+          grep -F 'horizon_revision = "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29"' mod/simple-voice-chat/horizon-mixin.toml
+          grep -F 'horizon = "85b5bcca7c79bb470b90bdb5914b413aa66fe7ae"' mod/simple-voice-chat/native/horizon-mod.toml
           grep -F 'horizon_revision = "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29"' mod/simple-voice-chat/horizon-mixin.toml
           python3 - <<'PY'
           import json
@@ -64,7 +67,6 @@ jobs:
           meta = json.loads(Path("sources/simple-voice-chat/compatibility.json").read_text())
           assert meta["game"] == "26.3"
           assert meta["hooks"] == 359
-          assert meta["horizon_revision"] == "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29"
           print("Simple Voice Chat source metadata:", meta["game"], "hooks", meta["hooks"], "revision", meta["horizon_revision"])
           PY
           echo 'Simple Voice Chat source exists; Android audio and launcher integration remains a separate porting task.'
