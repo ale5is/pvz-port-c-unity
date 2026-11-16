@@ -360,6 +360,12 @@ replace_once(
 """,
 )
 
+replace_once(
+    "crates/horizon-mod-package/src/lib.rs",
+    '    any(target_os = "linux", target_os = "macos", windows)\n',
+    '    any(target_os = "linux", target_os = "macos", target_os = "android", windows)\n',
+)
+
 print("Android bootstrap injected:")
 for item in (
     "crates/horizon-android/Cargo.toml",
