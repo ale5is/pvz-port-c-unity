@@ -31,12 +31,6 @@ jobs:
           ref: 68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29
           path: horizon-source
 
-      - name: Checkout pinned Jade-Horizon source
-        uses: actions/checkout@v4
-        with:
-          repository: Joeypc6/Jade-Horizon
-          ref: 4ee222801ca156b508344ef3b2d739a0b0f2de6c
-          path: jade-source
 
       - name: Install Rust 1.95.0 and Android target
         uses: dtolnay/rust-toolchain@master
@@ -86,7 +80,6 @@ jobs:
         run: |
           python scripts/build_android_port.py \
             --horizon-source horizon-source \
-            --jade-source jade-source \
             --abi arm64-v8a \
             --sdk "$ANDROID_HOME" \
             --java-home "$JAVA_HOME" \
@@ -102,7 +95,7 @@ jobs:
           cp .build/horizon-078-android/.local/android/apk/arm64-v8a/horizon-android-public.apk dist/PavoHorizon-0.7.8-SVC-Jade-arm64-v8a.apk
           cd dist
           sha256sum PavoHorizon-0.7.8-SVC-Jade-arm64-v8a.apk > SHA256SUMS.txt
-          printf '%s\n' "Built from commit: $GITHUB_SHA" "Horizon: 68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29" "Jade-Horizon: 4ee222801ca156b508344ef3b2d739a0b0f2de6c" "Architecture: arm64-v8a" "Build: public release candidate; debug signing key" > BUILD-INFO.txt
+          printf '%s\n' "Built from commit: $GITHUB_SHA" "Horizon: 68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29" "Jade API-80 adaptation: block tooltip; upstream reference 9f63f5c78c5e4938d4544c9567e06feb45649656" "Architecture: arm64-v8a" "Build: public release candidate; debug signing key" > BUILD-INFO.txt
 
       - name: Upload Android APK artifact
         uses: actions/upload-artifact@v4

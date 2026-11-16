@@ -77,3 +77,21 @@ bindings = [
 id = "svc_client"
 path = "crates/svc_client"
 dependent = "horizon-android"
+
+[[module]]
+id = "jade_core"
+file = "crates/horizon-client/src/game.rs"
+name = "jade"
+source = "jade.rs"
+visibility = "pub"
+
+[[injection]]
+id = "jade_hud"
+kind = "HEAD"
+hook = "hud"
+hook_version = 1
+helper = "jade_hud.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "batch", ty = "&mut horizon_client::hud::HudBatch", value = "&mut *batch" },
+]
