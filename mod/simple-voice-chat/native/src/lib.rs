@@ -158,20 +158,20 @@ fn update_player_positions(host: &dyn ClientHost, glue: &mut Glue) {
     };
     let Some(listener) = host
         .local_player()
-        .and_then(|player| host.entity_position(player.entity()))
+        .and_then(|player| player.entity().position(host))
     else {
         return;
     };
 
     let min = listener.map(|axis| axis - 256.0);
     let max = listener.map(|axis| axis + 256.0);
-    let entities = host.level_entities_in(level, min, max).unwrap_or_default();
+    let entities = level.entities_in(host, min, max).unwrap_or_default();
     let positions = entities
         .into_iter()
         .filter_map(|entity| {
-            let name = host.entity_name(entity)?;
+            let name = entity.name(host)?;
             let uuid = *glue.uuid_by_name.get(&name)?;
-            let position = host.entity_position(entity)?;
+            let position = entity.position(host)?;
             Some((uuid, position))
         })
         .collect::<Vec<_>>();
