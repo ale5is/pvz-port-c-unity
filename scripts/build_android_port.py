@@ -68,7 +68,7 @@ def verify_jade_compatibility(jade_source):
 
     native = json.loads(native_path.read_text(encoding="utf-8"))
     manifest = manifest_path.read_text(encoding="utf-8")
-    revision_match = re.search(r'^horizon_revision\\s*=\\s*"([0-9a-f]+)"', manifest, re.MULTILINE)
+    revision_match = re.search(r'^horizon_revision\s*=\s*"([0-9a-f]+)"', manifest, re.MULTILINE)
     manifest_revision = revision_match.group(1) if revision_match else "missing"
     native_revision = native.get("horizon", "missing")
     native_hooks = native.get("hooks", "missing")
