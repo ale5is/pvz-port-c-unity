@@ -66,14 +66,18 @@ jobs:
 
       - name: Fetch exact Horizon Nightly source
         run: |
+          set -euo pipefail
           git init "$RUNNER_TEMP/horizon"
           git -C "$RUNNER_TEMP/horizon" remote add origin https://github.com/horizon-rust/horizon.git
           git -C "$RUNNER_TEMP/horizon" fetch --depth=1 origin "$HORIZON_REV"
           git -C "$RUNNER_TEMP/horizon" checkout --detach FETCH_HEAD
           test "$(git -C "$RUNNER_TEMP/horizon" rev-parse HEAD)" = "$HORIZON_REV"
+          find "$RUNNER_TEMP/horizon" -type l -delete
+          cargo fetch --locked --manifest-path "$RUNNER_TEMP/horizon/Cargo.toml"
 
       - name: Fetch pinned horizon-mixins compiler
         run: |
+          set -euo pipefail
           git init "$RUNNER_TEMP/horizon-mixins"
           git -C "$RUNNER_TEMP/horizon-mixins" remote add origin https://github.com/horizon-rust/horizon-mixins.git
           git -C "$RUNNER_TEMP/horizon-mixins" fetch --depth=1 origin "$MIXINS_REV"
