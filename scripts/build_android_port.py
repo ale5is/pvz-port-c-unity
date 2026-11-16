@@ -170,6 +170,7 @@ def main():
     parser.add_argument("--java-home", type=Path, default=Path(os.environ["JAVA_HOME"]) if os.environ.get("JAVA_HOME") else None)
     parser.add_argument("--ndk-version", default="28.2.13676358")
     parser.add_argument("--build-tools-version", default="35.0.0")
+    parser.add_argument("--gradle", type=Path, help="Explicit Gradle 8.14 executable")
     parser.add_argument("--profile", choices=["fast", "release", "dev"], default="fast")
     parser.add_argument("--check-only", action="store_true", help="Run cargo check for the Android ABI instead of producing an APK")
     parser.add_argument("--trust-native-code", action="store_true", help="Allow Cargo to compile and execute the reviewed native mod build scripts")
@@ -239,6 +240,11 @@ def main():
         "--ndk-version", args.ndk_version,
         "--build-tools-version", args.build_tools_version,
     ]
+    if args.gradle is not None:
+        gradle = args.gradle.expanduser().resolve()
+        if not gradle.is_file():
+            raise SystemExit(f"Gradle executable does not exist: {gradle}")
+        command.extend(["--gradle", gradle])
     if args.check_only:
         command.append("--check")
     else:

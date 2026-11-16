@@ -60,6 +60,7 @@ jobs:
           GRADLE_BIN="$(find "$RUNNER_TEMP/.gradle-actions/gradle-installations/installs" -type f -path '*/bin/gradle' -print -quit)"
           test -n "$GRADLE_BIN"
           echo "$(dirname "$GRADLE_BIN")" >> "$GITHUB_PATH"
+          echo "GRADLE_BIN=$GRADLE_BIN" >> "$GITHUB_ENV"
           "$GRADLE_BIN" --version
 
       - name: Install Android SDK, NDK and build tools
