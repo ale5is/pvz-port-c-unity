@@ -118,10 +118,16 @@ def main():
 
     mixins = install_mixins()
     stage.parent.mkdir(parents=True, exist_ok=True)
+    mods_root = stage.parent / "mod-bundles"
+    bundle = mods_root / "simple-voice-chat"
+    if mods_root.exists():
+        shutil.rmtree(mods_root)
+    mods_root.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(ROOT / "mod", bundle)
     run([
         mixins, "apply",
         "--workspace", source,
-        "--mods", ROOT / "mod",
+        "--mods", mods_root,
         "--out", stage
     ])
     copy_prepared_data(source, stage)
