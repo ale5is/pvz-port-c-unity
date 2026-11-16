@@ -1,0 +1,49 @@
+name: Publish PavoHorizon 0.7.8 SVC release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-horizon-078-svc-release.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the verified Android ARM64 artifact from build #207
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/artifact" "$RUNNER_TEMP/unpacked"
+          gh run download 43613060886 \
+            --repo "$GITHUB_REPOSITORY" \
+            --name pavorizon-0.7.8-svc-arm64-apk \
+            --dir "$RUNNER_TEMP/artifact"
+          unzip -q "$RUNNER_TEMP/artifact"/*.zip -d "$RUNNER_TEMP/unpacked"
+
+      - name: Verify APK checksum
+        run: |
+          APK="$RUNNER_TEMP/unpacked/PavoHorizon.apk"
+          test -s "$APK"
+          printf '%s  %s\n' \
+            '402fb3b95203c8251380982da86bfe72577a598f1b9ef61a180d2df1681c830f' \
+            "$APK" | sha256sum --check -
+
+      - name: Publish GitHub prerelease with APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "$RUNNER_TEMP/unpacked"
+          gh release create v0.7.8-svc-android \
+            PavoHorizon.apk SHA256SUMS.txt SIGNING-INFO.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --target bf7fc9dc0f729cdda3d056ae9efe0d3e82000dbb \
+            --title "PavoHorizon 0.7.8 + Simple Voice Chat (Android ARM64)" \
+            --prerelease \
+            --notes "Android ARM64 build from successful GitHub Actions run #207 (commit bf7fc9dc0f729cdda3d056ae9efe0d3e82000dbb). Includes the Horizon 0.7.8 Android port and the SVC API-80 integration work. This release is a test build: successful CI packaging does not establish end-to-end voice functionality on a physical device. The native loader was disabled in this build; verify runtime mod loading and audio before treating voice chat as operational."
