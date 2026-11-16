@@ -72,11 +72,11 @@ jobs:
 
       - name: Seed Horizon with Mojang's exact pinned 26.3 manifest
         run: |
-          mkdir -p horizon-source/.local/android/minecraft
+          mkdir -p horizon-source/.local/minecraft/26.3
           curl --fail --location --retry 5 \
             https://piston-meta.mojang.com/v1/packages/11f1aefe473eefba0af62e3286c33b692807b2eb/26.3.json \
-            --output horizon-source/.local/android/minecraft/manifest.json
-          echo "11f1aefe473eefba0af62e3286c33b692807b2eb  horizon-source/.local/android/minecraft/manifest.json" | sha1sum --check
+            --output horizon-source/.local/minecraft/26.3/manifest.json
+          echo "11f1aefe473eefba0af62e3286c33b692807b2eb  horizon-source/.local/minecraft/26.3/manifest.json" | sha1sum --check
 
       - name: Prepare pinned Minecraft 26.3 engine tables
         run: |
