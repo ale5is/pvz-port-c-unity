@@ -56,7 +56,7 @@ jobs:
           printf 'Pinned launcher base: %s\n' "$(git -C "$base" rev-parse --short HEAD)"
           test -s sources/simple-voice-chat/README.md
           test -s sources/simple-voice-chat/compatibility.json
-          test -s mod/crates/svc_client/src/lib.rs
+          test -s mod/simple-voice-chat/crates/svc_client/src/lib.rs
           python3 - <<'PY'
           import json
           from pathlib import Path
