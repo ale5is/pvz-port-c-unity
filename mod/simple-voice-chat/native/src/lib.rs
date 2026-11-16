@@ -92,7 +92,8 @@ struct SimpleVoiceChat;
 #[mod_api::horizon_mod]
 impl Hooks for SimpleVoiceChat {
     fn register(&self, registrar: &mut dyn Registrar, _: &RegistrationContext) {
-        let mut payloads = registrar.payload_handlers().registrar("1");
+        let mut payload_event = registrar.payload_handlers();
+        let mut payloads = payload_event.registrar("1");
         for channel in CHANNELS {
             payloads.play_raw(PayloadId((*channel).into()), None);
         }
