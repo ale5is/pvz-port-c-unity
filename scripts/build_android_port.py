@@ -148,7 +148,7 @@ def main():
         native["mixins"] = MIXINS_REV
         native["hooks"] = 80
         (jade_bundle / "horizon-native.json").write_text(
-            __import__("json").dumps(native, indent=2) + "\\n", encoding="utf-8"
+            __import__("json").dumps(native, indent=2) + "\n", encoding="utf-8"
         )
     run([
         mixins, "apply",
@@ -157,6 +157,19 @@ def main():
         "--out", stage
     ])
     copy_prepared_data(source, stage)
+    if args.jade_source is not None:
+        notices = stage / "THIRD_PARTY_NOTICES.md"
+        jade_license_text = (args.jade_source.expanduser().resolve() / "LICENSE").read_text(encoding="utf-8")
+        with notices.open("a", encoding="utf-8") as stream:
+            stream.write(
+                "\n\n## Jade for Horizon (unofficial port)\n\n"
+                "Upstream: https://github.com/Joeypc6/Jade-Horizon\n"
+                "Source revision: 4ee222801ca156b508344ef3b2d739a0b0f2de6c\n"
+                "Jade by Snownee; unofficial Horizon port. Licensed CC BY-NC-SA 4.0. "
+                "Non-commercial use only; adaptations must retain the same licence.\n\n"
+            )
+            stream.write(jade_license_text)
+            stream.write("\n")
     patch_android_microphone(stage)
 
     command = [
