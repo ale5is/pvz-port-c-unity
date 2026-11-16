@@ -60,11 +60,8 @@ pub fn android_app() -> AndroidApp {
 
 use winit::platform::android::activity::AndroidApp;
 
-#[global_allocator]
-static ALLOCATOR: horizon_threads::GameAllocator = horizon_threads::GAME_ALLOCATOR;
-
 #[unsafe(no_mangle)]
-fn android_main(app: AndroidApp) {
+pub fn android_main(app: AndroidApp) {
     horizon_client::android::main(app);
 }
 ''')
@@ -84,7 +81,6 @@ path = "../horizon-client/src/android_lib.rs"
 
 [target.'cfg(target_os = "android")'.dependencies]
 horizon-client = { path = "../horizon-client", default-features = false }
-horizon-threads = { path = "../horizon-threads" }
 winit = { version = "0.30.13", features = ["android-native-activity"] }
 
 [lints]
