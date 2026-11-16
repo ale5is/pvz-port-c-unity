@@ -263,6 +263,49 @@ replace_once(
 """,
 )
 
+replace_once(
+    "crates/horizon-client-input/src/clipboard.rs",
+    "use std::cell::{RefCell, RefMut};\n",
+    "use std::cell::RefCell;\n"
+    '#[cfg(not(target_os = "android"))]\n'
+    "use std::cell::RefMut;\n",
+)
+
+replace_once(
+    "crates/horizon-client-input/src/keybinds.rs",
+    """pub fn raw_key_code(physical: winit::keyboard::PhysicalKey) -> u32 {
+    use winit::keyboard::{NativeKeyCode, PhysicalKey};
+    use winit::platform::scancode::PhysicalKeyExtScancode;
+    match physical {
+        PhysicalKey::Unidentified(native) => match native {
+            NativeKeyCode::Android(c) | NativeKeyCode::Xkb(c) => c,
+            NativeKeyCode::MacOS(c) | NativeKeyCode::Windows(c) => c.into(),
+            NativeKeyCode::Unidentified => 0,
+        },
+        PhysicalKey::Code(_) => physical.to_scancode().unwrap_or(0),
+    }
+}
+""",
+    """pub fn raw_key_code(physical: winit::keyboard::PhysicalKey) -> u32 {
+    use winit::keyboard::{NativeKeyCode, PhysicalKey};
+    match physical {
+        PhysicalKey::Unidentified(native) => match native {
+            NativeKeyCode::Android(c) | NativeKeyCode::Xkb(c) => c,
+            NativeKeyCode::MacOS(c) | NativeKeyCode::Windows(c) => c.into(),
+            NativeKeyCode::Unidentified => 0,
+        },
+        #[cfg(target_os = "android")]
+        PhysicalKey::Code(_) => 0,
+        #[cfg(not(target_os = "android"))]
+        PhysicalKey::Code(_) => {
+            use winit::platform::scancode::PhysicalKeyExtScancode;
+            physical.to_scancode().unwrap_or(0)
+        }
+    }
+}
+""",
+)
+
 print("Android bootstrap injected:")
 for item in (
     "crates/horizon-android/Cargo.toml",
