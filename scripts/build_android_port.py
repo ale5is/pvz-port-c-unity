@@ -161,6 +161,71 @@ def patch_android_microphone(stage):
         raise SystemExit(f"Missing microphone permission adapter: {source}")
     shutil.copy2(source, java)
 
+def patch_android_identity(stage):
+    import re
+
+    manifest = stage / "packaging/android/AndroidManifest.xml"
+    manifest_text = manifest.read_text(encoding="utf-8")
+    manifest_text, label_count = re.subn(
+        r'android:label="Horizon Android"',
+        'android:label="PavoHorizon"',
+        manifest_text,
+        count=1,
+    )
+    if label_count != 1:
+        raise SystemExit("Could not uniquely locate the Horizon Android application label.")
+    manifest.write_text(manifest_text, encoding="utf-8")
+
+    gradle = stage / "packaging/android/build.gradle"
+    gradle_text = gradle.read_text(encoding="utf-8")
+    old_app_id = "applicationId providers.gradleProperty('appId').getOrElse('dev.horizon.android')"
+    new_app_id = "applicationId providers.gradleProperty('appId').getOrElse('com.ale5is.pavohorizon')"
+    if old_app_id not in gradle_text:
+        raise SystemExit("Could not locate the default Android application ID.")
+    gradle.write_text(gradle_text.replace(old_app_id, new_app_id, 1), encoding="utf-8")
+
+    settings = stage / "packaging/android/settings.gradle"
+    settings_text = settings.read_text(encoding="utf-8")
+    if "rootProject.name = 'HorizonAndroid'" not in settings_text:
+        raise SystemExit("Could not locate the Android Gradle project name.")
+    settings.write_text(
+        settings_text.replace("rootProject.name = 'HorizonAndroid'", "rootProject.name = 'PavoHorizon'", 1),
+        encoding="utf-8",
+    )
+    print("Android identity: label=PavoHorizon, applicationId=com.ale5is.pavohorizon", flush=True)
+
+
+def verify_no_starlight_in_apk(apk):
+    import zipfile
+
+    needles = (b"starlight", "starlight".encode("utf-16le"), "starlight".encode("utf-16be"))
+    matches = []
+    with zipfile.ZipFile(apk) as archive:
+        for entry in archive.infolist():
+            name = entry.filename.lower().encode("utf-8", errors="ignore")
+            if b"starlight" in name:
+                matches.append(entry.filename)
+                continue
+            try:
+                payload = archive.read(entry)
+            except Exception:
+                continue
+            if any(needle in payload.lower() for needle in needles):
+                matches.append(entry.filename)
+                continue
+            for encoding in ("utf-16le", "utf-16be"):
+                try:
+                    decoded = payload.decode(encoding, errors="ignore").lower()
+                except Exception:
+                    continue
+                if "starlight" in decoded:
+                    matches.append(entry.filename)
+                    break
+    if matches:
+        raise SystemExit("Starlight references remain in APK entries: " + ", ".join(matches))
+    print("Starlight scan: no references found in APK entries.", flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Apply the API-80 voice-chat mixin and build a Horizon Android APK.")
     parser.add_argument("--horizon-source", type=Path, required=True, help="Clean Horizon v0.7.8 source checkout")
@@ -230,6 +295,7 @@ def main():
             stream.write(jade_license_text)
             stream.write("\n")
     patch_android_microphone(stage)
+    patch_android_identity(stage)
 
     command = [
         sys.executable,
@@ -260,6 +326,7 @@ def main():
     if not args.check_only:
         apk_name = "horizon-android-public.apk" if args.public else "horizon-android.apk"
         apk = stage / ".local/android/apk" / args.abi / apk_name
+        verify_no_starlight_in_apk(apk)
         print(f"APK: {apk}", flush=True)
 
 if __name__ == "__main__":
