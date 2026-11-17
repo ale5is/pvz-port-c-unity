@@ -21,7 +21,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          RUN_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/build-horizon-078-svc-jade.yml/runs?branch=main&status=success&per_page=50" --jq '[.workflow_runs[] | select(.head_sha == env.GITHUB_SHA) | .id][0] // empty')"
+          RUN_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/build-horizon-078-svc-jade.yml/runs?branch=main&status=success&per_page=50" --jq '.workflow_runs[] | [.id, .head_sha] | @tsv' | awk -v sha="$GITHUB_SHA" '$2 == sha { print $1; exit }')"
           test -n "$RUN_ID" || { echo "No successful PavoHorizon APK build exists for commit $GITHUB_SHA"; exit 1; }
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
