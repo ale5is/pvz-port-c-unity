@@ -10,7 +10,7 @@ This API-80 adaptation speaks the Simple Voice Chat 2.6.x client protocol (compa
 
 Horizon 0.7.8 hook API: 80. The remote client connection is detected from `Remote.logged_in` in the frame hook; the 0.7.8 `world_lifecycle` hook is server-side and does not fire for remote clients.
 
-The Android release build is validated by GitHub Actions. Runtime behavior still requires installation and testing on a physical Android device.
+The Android release workflow builds and audits the APK; only a successful workflow run with its artifact checks passing should be treated as a valid build. Runtime behavior still requires installation and testing on a physical Android device.
 
 ## Jade API-80 adaptation
 
