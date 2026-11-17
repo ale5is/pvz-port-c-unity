@@ -122,11 +122,17 @@ pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration)
     let (listener_position, player_positions) = game.native_voice_positions();
     let reconnect = {
         let mut g = locked();
+        let resolved_positions: Vec<_> = player_positions
+            .into_iter()
+            .filter_map(|(name, position)| {
+                g.uuid_by_name.get(&name).copied().map(|uuid| (uuid, position))
+            })
+            .collect();
         if let Some(session) = g.session.as_mut() {
             if let Some(position) = listener_position {
                 session.set_listener(position);
             }
-            for (uuid, position) in player_positions {
+            for (uuid, position) in resolved_positions {
                 session.set_position(uuid, position);
             }
         }
