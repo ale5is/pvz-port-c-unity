@@ -196,9 +196,13 @@ def patch_android_identity(stage):
     checker_text = checker.read_text(encoding="utf-8")
     old_default = "def audit(path, aapt2, public=False, app_id='dev.horizon.android'):"
     new_default = "def audit(path, aapt2, public=False, app_id='com.ale5is.pavohorizon'):"
-    if old_default not in checker_text:
-        raise SystemExit("Could not locate the default Android package identity in the release audit.")
-    checker.write_text(checker_text.replace(old_default, new_default, 1), encoding="utf-8")
+    old_choices = "parser.add_argument('--app-id', choices=['dev.horizon.android', 'dev.horizon.android.dev'], default='dev.horizon.android')"
+    new_choices = "parser.add_argument('--app-id', choices=['dev.horizon.android', 'dev.horizon.android.dev', 'com.ale5is.pavohorizon'], default='com.ale5is.pavohorizon')"
+    if old_default not in checker_text or old_choices not in checker_text:
+        raise SystemExit("Could not locate both Android package identity defaults and CLI choices in the release audit.")
+    checker_text = checker_text.replace(old_default, new_default, 1)
+    checker_text = checker_text.replace(old_choices, new_choices, 1)
+    checker.write_text(checker_text, encoding="utf-8")
 
     print("Android identity: label=PavoHorizon, applicationId=com.ale5is.pavohorizon; release audit aligned; Gradle project name preserved for upstream build compatibility.", flush=True)
 
