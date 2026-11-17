@@ -1725,6 +1725,34 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
             (7, "Folder") => Some("文件夹"),
             (7, "Tap to open") => Some("点击打开"),
             (7, "Delete selected items") => Some("删除所选项目"),
+            (1, "MOD") => Some("MOD"),
+            (1, "PACK") => Some("PAQUETE"),
+            (1, "SHADER") => Some("SHADER"),
+            (1, "item(s)") => Some("elementos"),
+            (2, "MOD") => Some("MOD"),
+            (2, "PACK") => Some("PACOTE"),
+            (2, "SHADER") => Some("SHADER"),
+            (2, "item(s)") => Some("itens"),
+            (3, "MOD") => Some("MOD"),
+            (3, "PACK") => Some("PACK"),
+            (3, "SHADER") => Some("SHADER"),
+            (3, "item(s)") => Some("éléments"),
+            (4, "MOD") => Some("MOD"),
+            (4, "PACK") => Some("PACCHETTO"),
+            (4, "SHADER") => Some("SHADER"),
+            (4, "item(s)") => Some("elementi"),
+            (5, "MOD") => Some("MOD"),
+            (5, "PACK") => Some("PAKET"),
+            (5, "SHADER") => Some("SHADER"),
+            (5, "item(s)") => Some("Elemente"),
+            (6, "MOD") => Some("MOD"),
+            (6, "PACK") => Some("パック"),
+            (6, "SHADER") => Some("シェーダー"),
+            (6, "item(s)") => Some("項目"),
+            (7, "MOD") => Some("模组"),
+            (7, "PACK") => Some("资源包"),
+            (7, "SHADER") => Some("光影"),
+            (7, "item(s)") => Some("个项目"),
         _ => None,
     };
     if let Some(value) = exact {
@@ -1775,7 +1803,9 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
         if let Some((count, _)) = value.split_once(" item(s)  •  Tap to open") {
             if let Some(label) = pavo_content_library_text(lang, "Folder") {
                 if let Some(tap) = pavo_content_library_text(lang, "Tap to open") {
-                    return Some(format!("{label}  •  {count} elemento(s)  •  {tap}"));
+                    if let Some(unit) = pavo_content_library_text(lang, "item(s)") {
+                        return Some(format!("{label}  •  {count} {unit}  •  {tap}"));
+                    }
                 }
             }
         }
