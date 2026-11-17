@@ -147,6 +147,11 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
     if !game.native_on("simple-voice-chat") || game.player.is_none() {
         return;
     }
+    if pressed && key == "key.keyboard.h" {
+        let mut g = locked();
+        g.hud_open = !g.hud_open;
+        return;
+    }
     let ptt = game.native_mod_key("simple-voice-chat", "ptt", "key.keyboard.v");
     let mute_mic = game.native_mod_key("simple-voice-chat", "mute_mic", "key.keyboard.m");
     let mute_players = game.native_mod_key("simple-voice-chat", "mute_players", "key.keyboard.b");
