@@ -752,6 +752,19 @@ fn default_language() -> String {
             encoding="utf-8",
         )
 
+    spanish_file = stage / "crates/horizon-client/assets/horizon/lang/es_es.json"
+    spanish = json.loads(spanish_file.read_text(encoding="utf-8"))
+    spanish.update({
+        "horizon.pages.shader_options": "Opciones de shaders",
+        "horizon.shader_options.profile": "Perfil",
+        "horizon.shader_options.loading": "Leyendo las opciones del paquete de shaders...",
+        "horizon.shader_options.open": "Opciones de shaders...",
+    })
+    spanish_file.write_text(
+        json.dumps(spanish, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
     shader_options = stage / "crates/horizon-client-render/src/shader_options.rs"
     shader_source = shader_options.read_text(encoding="utf-8")
     named_anchor = '        Text::legacy(self.lang.get(key).unwrap_or(or))\n'
