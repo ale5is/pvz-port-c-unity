@@ -30,7 +30,7 @@ id = "voice_positions_remote"
 file = "crates/horizon-client/src/game/remote.rs"
 name = "voice_positions_remote"
 source = "voice_positions_remote.rs"
-visibility = "pub(super)"
+visibility = "pub(crate)"
 
 [[injection]]
 id = "voicechat_payload"
