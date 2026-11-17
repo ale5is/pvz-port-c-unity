@@ -124,15 +124,27 @@ impl Glue {
 
     /// A message arrived from the server on one of our channels.
     pub fn on_net(&mut self, channel: &str, data: &[u8], hint: Option<&str>, now: Instant) {
-        let Some(parsed) = proto::read(channel, data) else { return };
-        let Ok(msg) = parsed else { return };
+        let Some(parsed) = proto::read(channel, data) else {
+            eprintln!("[PavoHorizon/SVC] IGNORE channel={} bytes={}", channel, data.len());
+            return;
+        };
+        let msg = match parsed {
+            Ok(msg) => msg,
+            Err(_) => {
+                eprintln!("[PavoHorizon/SVC] PARSE_ERROR channel={} bytes={}", channel, data.len());
+                return;
+            }
+        };
         match msg {
             proto::ServerMessage::Secret { secret, port, player, distance, voice_host, .. } => {
                 let target = voice_socket(&voice_host, hint, port);
                 self.server_addr = Some(target);
                 let mut s = Session::new(player);
                 s.set_max_distance(distance);
-                s.on_secret(secret, target).ok();
+                match s.on_secret(secret, target) {
+                    Ok(()) => eprintln!("[PavoHorizon/SVC] SECRET_OK udp_target={}", target),
+                    Err(error) => eprintln!("[PavoHorizon/SVC] UDP_BIND_ERROR target={} error={}", target, error),
+                }
                 self.session = Some(s);
             }
             proto::ServerMessage::State(st) => self.see_state(&st, now),
