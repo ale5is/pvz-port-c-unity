@@ -368,7 +368,7 @@ impl Glue {
         mute_players_binding: &str,
         mute_all_binding: &str,
     ) -> Option<String> {
-        if key == ptt_binding {
+        if key == ptt_binding || configured_key_matches(key, &self.cfg.ptt_key) {
             if self.cfg.push_to_talk {
                 self.ptt_held = pressed;
             }
@@ -377,15 +377,15 @@ impl Glue {
         if !pressed {
             return None;
         }
-        if key == mute_mic_binding {
+        if key == mute_mic_binding || configured_key_matches(key, &self.cfg.mute_key) {
             self.set_muted(!self.cfg.muted);
             return Some(if self.cfg.muted { "microphone muted".into() } else { "microphone unmuted".into() });
         }
-        if key == mute_players_binding {
+        if key == mute_players_binding || configured_key_matches(key, &self.cfg.mute_players_key) {
             self.set_players_muted(!self.cfg.muted_players);
             return Some(if self.cfg.muted_players { "other players muted".into() } else { "other players unmuted".into() });
         }
-        if key == mute_all_binding {
+        if key == mute_all_binding || configured_key_matches(key, &self.cfg.mute_all_key) {
             let muted = !(self.cfg.muted && self.cfg.muted_players);
             self.set_all_muted(muted);
             return Some(if muted { "microphone and other players muted".into() } else { "microphone and other players unmuted".into() });
@@ -473,7 +473,7 @@ impl Glue {
                     if self.session.as_ref().is_some_and(|s| s.state() == crate::session::State::Connected) { "connected" } else { "disconnected" },
                     (self.cfg.mic_volume * 100.0).round() as u32,
                     (self.cfg.volume * 100.0).round() as u32,
-                    self.cfg.ptt_key
+                    format!("{} ({})", if self.cfg.push_to_talk { "push-to-talk" } else { "always-on" }, self.cfg.ptt_key)
                 ) + if self.cfg.muted { ", muted" } else { ", unmuted" },
                 sends,
             ),
@@ -523,6 +523,17 @@ impl Glue {
 fn valid_key_code(key: &str) -> bool {
     (key.starts_with("Key") && key.len() == 4 && key.as_bytes()[3].is_ascii_alphabetic())
         || (key.starts_with("Digit") && key.len() == 6 && key.as_bytes()[5].is_ascii_digit())
+}
+
+fn configured_key_matches(native_key: &str, configured: &str) -> bool {
+    let suffix = if configured.starts_with("Key") && configured.len() == 4 {
+        configured[3..].to_ascii_lowercase()
+    } else if configured.starts_with("Digit") && configured.len() == 6 {
+        configured[5..].to_string()
+    } else {
+        return false;
+    };
+    native_key == format!("key.keyboard.{suffix}")
 }
 
 fn voice_socket(voice_host: &str, hint: Option<&str>, port: u16) -> SocketAddr {
@@ -667,6 +678,19 @@ mod tests {
         assert!(g.cfg.muted_players);
         g.set_players_muted(false);
         assert!(!g.cfg.muted_players);
+    }
+
+    #[test]
+    fn configured_key_codes_work_with_native_key_events() {
+        let mut g = glue();
+        g.cfg.ptt_key = "KeyX".into();
+        g.cfg.mute_key = "KeyY".into();
+        assert_eq!(g.on_key_binding("key.keyboard.x", true, "key.keyboard.v", "key.keyboard.m", "key.keyboard.b", "key.keyboard.n"), None);
+        assert!(g.ptt_held);
+        g.on_key_binding("key.keyboard.x", false, "key.keyboard.v", "key.keyboard.m", "key.keyboard.b", "key.keyboard.n");
+        assert!(!g.ptt_held);
+        assert_eq!(g.on_key_binding("key.keyboard.y", true, "key.keyboard.v", "key.keyboard.m", "key.keyboard.b", "key.keyboard.n"), Some("microphone muted".into()));
+        assert!(g.cfg.muted);
     }
 
     #[test]
