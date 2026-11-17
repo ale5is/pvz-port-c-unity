@@ -78,7 +78,9 @@ pub fn on_net_from_game(
     channel: &str,
     data: &[u8],
 ) {
-    if !game.native_on("simple-voice-chat") {
+    let enabled = game.native_on("simple-voice-chat");
+    eprintln!("[PavoHorizon/SVC] GAME RX channel={} bytes={} enabled={}", channel, data.len(), enabled);
+    if !enabled {
         return;
     }
     let hint = game
