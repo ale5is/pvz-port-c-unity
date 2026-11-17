@@ -244,19 +244,19 @@ impl Glue {
     /// called once per client start, devices outlive worlds.
     pub fn start_audio(&mut self) -> Vec<String> {
         let mut notes = Vec::new();
-        if self.mic.is_none() {
+        if !self.cfg.muted && self.mic.is_none() {
             match crate::audio_io::MicStream::open() {
                 Ok(m) => self.mic = Some(m),
                 Err(e) => notes.push(format!("[voice] no microphone: {}", e)),
             }
         }
-        if self.speaker.is_none() {
+        if !self.cfg.muted_players && self.speaker.is_none() {
             match crate::audio_io::Speaker::open() {
                 Ok(s) => self.speaker = Some(s),
                 Err(e) => notes.push(format!("[voice] no speaker: {}", e)),
             }
         }
-        if self.codec.is_none() {
+        if (!self.cfg.muted || !self.cfg.muted_players) && self.codec.is_none() {
             match crate::audio::VoiceCodec::new() {
                 Ok(c) => self.codec = Some(c),
                 Err(e) => notes.push(format!("[voice] audio codec failed to start: {}", e)),
