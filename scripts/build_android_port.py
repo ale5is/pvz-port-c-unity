@@ -812,7 +812,7 @@ fn pavo_launcher_text(text: &str) -> String {
             (4, "Worlds") => "Mondi",
             (4, "Language") => "Lingua",
             (4, "English v") => "Italiano v",
-            (5, "Resource Pack") => "R Ressourcenpaket",
+            (5, "Resource Pack") => "Ressourcenpaket",
             (5, "Shaders") => "Shader",
             (5, "Theme Customization") => "Design anpassen",
             (5, "Controls & HUD Layout") => "Steuerung und HUD-Layout",
