@@ -313,6 +313,79 @@ def patch_android_launcher_branding(stage):
     launcher.write_text(source, encoding="utf-8")
     print("Android launcher branding: PavoHorizon; Starling migration/download entry removed; world export retained.", flush=True)
 
+
+def patch_pavo_native_builds(source):
+    launcher = source / "launcher" / "src"
+    module_file = launcher / "native_mods.rs"
+    module_dir = launcher / "native_mods"
+    main_file = launcher / "main.rs"
+    mods_page = launcher / "mods_page.rs"
+
+    required = [module_file, module_dir, main_file, mods_page]
+    missing = [str(path) for path in required if not path.exists()]
+    if missing:
+        raise SystemExit("Pinned launcher native-build sources are incomplete: " + ", ".join(missing))
+
+    for path in (source / "launcher").rglob("*.rs"):
+        text = path.read_text(encoding="utf-8")
+        renamed = text.replace("native_mods", "pavo_native_builds")
+        if renamed != text:
+            path.write_text(renamed, encoding="utf-8")
+
+    renamed_file = launcher / "pavo_native_builds.rs"
+    renamed_dir = launcher / "pavo_native_builds"
+    if renamed_file.exists() or renamed_dir.exists():
+        raise SystemExit("Pavo Native Builds paths already exist; refusing to overwrite launcher sources.")
+    module_file.rename(renamed_file)
+    module_dir.rename(renamed_dir)
+
+    module = renamed_file.read_text(encoding="utf-8")
+    anchor = "use std::process::{Command, Stdio};\n"
+    if module.count(anchor) != 1:
+        raise SystemExit("Could not locate Pavo Native Builds module imports.")
+    module = module.replace(anchor, anchor + "\n/// Experimental native mod compilation is intentionally disabled for this port.\npub const ENABLED: bool = false;\n", 1)
+    renamed_file.write_text(module, encoding="utf-8")
+
+    main = main_file.read_text(encoding="utf-8")
+    build_anchor = "    fn build_native(&mut self, anyway: bool) {\n"
+    if main.count(build_anchor) != 1:
+        raise SystemExit("Could not locate the native-build entry point in the launcher.")
+    main = main.replace(
+        build_anchor,
+        build_anchor
+        + '        if !pavo_native_builds::ENABLED {\n'
+        + '            self.native_error = Some(tr("Pavo Native Builds is disabled in this version.").into());\n'
+        + '            return;\n'
+        + '        }\n',
+        1,
+    )
+    main_file.write_text(main, encoding="utf-8")
+
+    page = mods_page.read_text(encoding="utf-8")
+    page_anchor = "    pub(super) fn native_build(&self, cx: &mut Context<Self>) -> Option<Div> {\n"
+    if page.count(page_anchor) != 1:
+        raise SystemExit("Could not locate the native-build launcher panel.")
+    page = page.replace(
+        page_anchor,
+        page_anchor + "        if !pavo_native_builds::ENABLED {\n            return None;\n        }\n",
+        1,
+    )
+    page = page.replace(
+        'trf("Native build of {instance}", &name)',
+        'trf("Pavo Native Builds · {instance}", &name)',
+        1,
+    )
+    mods_page.write_text(page, encoding="utf-8")
+
+    remaining = []
+    for path in (source / "launcher").rglob("*.rs"):
+        if "native_mods" in path.read_text(encoding="utf-8"):
+            remaining.append(str(path))
+    if remaining:
+        raise SystemExit("Old native_mods identifiers remain in launcher sources: " + ", ".join(remaining))
+
+    print("Pavo Native Builds: module renamed; UI hidden and build entry point blocked (ENABLED=false).", flush=True)
+
 def verify_no_starlight_in_apk(apk):
     import zipfile
 
@@ -364,6 +437,7 @@ def main():
     source = args.horizon_source.expanduser().resolve()
     stage = args.out.expanduser().resolve()
     verify_source(source)
+    patch_pavo_native_builds(source)
     if args.jade_source is not None:
         verify_jade_compatibility(args.jade_source.expanduser().resolve())
     if args.sdk is None or not args.sdk.is_dir():
