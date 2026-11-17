@@ -240,6 +240,11 @@ def patch_android_launcher_branding(stage):
             "Android launcher migration notice",
         ),
         (
+            '        ui.text(Face::SemiBold, 16.0, 54.0, 10.0, my3_text(), "Horizon");',
+            '        ui.text(Face::SemiBold, 16.0, 54.0, 10.0, my3_text(), "PavoHorizon 1.0.0");',
+            "Android launcher top-left title",
+        ),
+        (
             '''                let migration_y = line_y + 24.0;
                 let migration_w = (content_w - 52.0) * 0.5;
                 button(
