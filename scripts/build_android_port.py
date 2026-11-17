@@ -288,8 +288,13 @@ def patch_android_launcher_branding(stage):
             "Android launcher migration notice",
         ),
         (
+            '        ui.horizon_logo(18.0, 12.0, 28.0);',
+            '        ui.rounded(18.0, 12.0, 28.0, 28.0, 8.0, my3_accent());\\n        ui.text(Face::Bold, 20.0, 24.0, 14.0, my3_on_accent(), "P");',
+            "Replace Android launcher Horizon logo with P mark",
+        ),
+        (
             '        ui.text(Face::SemiBold, 16.0, 54.0, 10.0, my3_text(), "Horizon");',
-            '        ui.text(Face::SemiBold, 16.0, 54.0, 10.0, my3_text(), "PavoHorizon 1.0.0");',
+            '        ui.text(Face::SemiBold, 16.0, 54.0, 10.0, my3_text(), "PavoHorizon");',
             "Android launcher top-left title",
         ),
         (
@@ -304,8 +309,11 @@ def patch_android_launcher_branding(stage):
             &fitted_version,
         );
 ''',
-            '',
-            "Remove upstream Android 0.7.8 subtitle from launcher header",
+            '''        let version_line = format!("Android {}", crate::backend::VERSION);
+        let fitted_version = ui.fit_text(Face::Regular, 11.0, &version_line, brand_w);
+        ui.text(Face::Regular, 11.0, 54.0, 30.0, my3_muted(), &fitted_version);
+''',
+            "Restore Android version below PavoHorizon wordmark",
         ),
         (
             '''                let migration_y = line_y + 24.0;
