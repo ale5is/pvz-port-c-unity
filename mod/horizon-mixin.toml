@@ -90,6 +90,18 @@ bindings = [
 ]
 
 [[injection]]
+id = "simple_voice_chat_hud"
+kind = "HEAD"
+hook = "hud"
+hook_version = 1
+helper = "hud.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "batch", ty = "&mut horizon_client::hud::HudBatch", value = "&mut *batch" },
+  { name = "corners", ty = "&mut horizon_client::extras_hud::Corners", value = "&mut *corners" },
+]
+
+[[injection]]
 id = "simple_voice_chat_settings"
 kind = "HEAD"
 hook = "settings"
