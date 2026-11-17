@@ -289,7 +289,7 @@ def patch_android_launcher_branding(stage):
         ),
         (
             '        ui.horizon_logo(18.0, 12.0, 28.0);',
-            '        ui.rounded(18.0, 12.0, 28.0, 28.0, 8.0, my3_accent());\n        ui.text(Face::Bold, 20.0, 24.0, 14.0, my3_on_accent(), "P");',
+            '        ui.rounded(18.0, 12.0, 28.0, 28.0, 8.0, my3_accent());\n        ui.text(Face::SemiBold, 20.0, 24.0, 14.0, my3_on_accent(), "P");',
             "Replace Android launcher Horizon logo with P mark",
         ),
         (
