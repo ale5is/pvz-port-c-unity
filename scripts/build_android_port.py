@@ -478,6 +478,99 @@ def patch_pavo_native_builds(source):
 
     print("Pavo Native Builds: module renamed; UI hidden and build entry point blocked (ENABLED=false).", flush=True)
 
+
+def patch_android_language(stage):
+    catalog = stage / "crates/horizon-client/src/android/catalog.rs"
+    source = catalog.read_text(encoding="utf-8")
+    anchor = "    pub server: String,\n"
+    if source.count(anchor) != 1:
+        raise SystemExit("Could not locate Android launcher language config field.")
+    source = source.replace(anchor, anchor + '    #[serde(default = "default_language")]\n    pub language: String,\n', 1)
+    anchor = "fn default_true() -> bool {\n"
+    if source.count(anchor) != 1:
+        raise SystemExit("Could not locate Android launcher config defaults.")
+    source = source.replace(anchor, 'fn default_language() -> String { "en_us".into() }\n\n' + anchor, 1)
+    catalog.write_text(source, encoding="utf-8")
+
+    pages = stage / "crates/horizon-client/src/android/launcher_pages.rs"
+    source = pages.read_text(encoding="utf-8")
+    patches = [
+        (
+            "    UiScale,\n",
+            "    UiScale,\n    CycleLanguage,\n",
+            "Android language action",
+        ),
+        (
+            "                let count = 12;\n",
+            "                let count = 13;\n",
+            "Android launcher settings row count",
+        ),
+        (
+            "                let rows: [(&str, &str, SettingControl<'_>); 12] = [\n",
+            "                let rows: [(&str, &str, SettingControl<'_>); 13] = [\n",
+            "Android launcher settings row array",
+        ),
+        (
+            '''                    (
+                        "Open game & world folders",
+                        "Manage saves, resource packs and mods in Android Files",
+                        SettingControl::Button("Open Files", Action::GameFiles, false),
+                    ),
+                ];''',
+            '''                    (
+                        "Open game & world folders",
+                        "Manage saves, resource packs and mods in Android Files",
+                        SettingControl::Button("Open Files", Action::GameFiles, false),
+                    ),
+                    (
+                        "Language",
+                        "Change the launcher and in-game language",
+                        SettingControl::Button(
+                            match c.language.as_str() {
+                                "es_es" => "Español v",
+                                "pt_br" => "Português v",
+                                "fr_fr" => "Français v",
+                                "it_it" => "Italiano v",
+                                "de_de" => "Deutsch v",
+                                "ja_jp" => "日本語 v",
+                                "zh_cn" => "简体中文 v",
+                                _ => "English v",
+                            },
+                            Action::CycleLanguage,
+                            false,
+                        ),
+                    ),
+                ];''',
+            "Android launcher language selector row",
+        ),
+        (
+            "            Some(Action::UiScale) => self.open_chooser(chooser::Kind::UiScale),\n",
+            '''            Some(Action::CycleLanguage) => {
+                const LANGUAGES: [&str; 8] = [
+                    "en_us", "es_es", "pt_br", "fr_fr",
+                    "it_it", "de_de", "ja_jp", "zh_cn",
+                ];
+                let current = self.catalog.config.language.as_str();
+                let index = LANGUAGES.iter().position(|code| *code == current).unwrap_or(0);
+                let next = LANGUAGES[(index + 1) % LANGUAGES.len()];
+                self.catalog.config.language = next.into();
+                self.modify_game_settings(|settings| settings.language = next.into());
+                self.catalog.config.save(&self.home)?;
+                self.catalog.status = format!("Language changed to {next}. Restart the game to apply it.");
+            }
+            Some(Action::UiScale) => self.open_chooser(chooser::Kind::UiScale),
+''',
+            "Android language selector action",
+        ),
+    ]
+    for old, new, label in patches:
+        count = source.count(old)
+        if count != 1:
+            raise SystemExit(f"Could not uniquely locate {label} (found {count}).")
+        source = source.replace(old, new, 1)
+    pages.write_text(source, encoding="utf-8")
+    print("PavoHorizon language setting: persistent 8-language selector added to Android launcher and Minecraft options.", flush=True)
+
 def verify_no_starlight_in_apk(apk):
     import zipfile
 
@@ -581,6 +674,7 @@ def main():
     patch_android_microphone(stage)
     patch_android_identity(stage)
     patch_android_launcher_branding(stage)
+    patch_android_language(stage)
 
     command = [
         sys.executable,
