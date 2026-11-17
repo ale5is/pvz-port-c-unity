@@ -10,53 +10,43 @@ pub use svc_client::runtime::{state, Glue};
 
 static OUT: Mutex<Vec<(String, Vec<u8>)>> = Mutex::new(Vec::new());
 
-fn config_base() -> Option<String> {
-    match crate::game::Game::native_config_dir() {
-        Ok(path) => Some(path.to_string_lossy().into_owned()),
-        Err(error) => {
-            eprintln!("[voice] cannot resolve config directory: {error}");
-            None
-        }
-    }
-}
-
-fn save_config() {
-    let Some(base) = config_base() else { return; };
-    let cfg = locked().cfg.clone();
-    svc_client::runtime::Glue::save_config(&base, &cfg);
-}
-
 fn locked() -> std::sync::MutexGuard<'static, Glue> {
     state().lock().unwrap_or_else(|e| e.into_inner())
 }
 
+pub fn register_mod(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
+    if mods.iter().any(|m| m.id == "simple-voice-chat") {
+        return;
+    }
+    mods.push(crate::game::native_hooks::NativeMod {
+        id: "simple-voice-chat".into(),
+        title: "Simple Voice Chat".into(),
+        description: "Voice chat with nearby players.".into(),
+        keys: vec![
+            ["ptt".into(), "Push to Talk".into(), "key.keyboard.v".into()],
+            ["mute".into(), "Mute Microphone".into(), "key.keyboard.m".into()],
+        ],
+    });
+}
+
 pub fn queue_outbound(channel: String, body: Vec<u8>) {
-    OUT.lock().unwrap_or_else(|e| e.into_inner()).push((channel, body));
+    OUT.lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .push((channel, body));
 }
 
 pub fn drain_outbound() -> Vec<(String, Vec<u8>)> {
-    if !locked().cfg.enabled {
-        OUT.lock().unwrap_or_else(|e| e.into_inner()).clear();
-        return Vec::new();
-    }
     std::mem::take(&mut *OUT.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
-pub fn world_open_ready(game: &mut crate::game::Game<'_>) {
-    {
-        let mut g = locked();
-        if let Some(base) = config_base() {
-            g.cfg = svc_client::runtime::Glue::load_config(&base);
-        }
-        g.cfg.enabled = game.native_on("simple-voice-chat");
-        if !g.cfg.enabled { return; }
-    }
+pub fn world_open_ready() {
     let mut g = locked();
     g.world_open();
-    #[cfg(not(target_os = "android"))]
-    g.set_audio_permission(true);
     let (channel, body) = Glue::handshake();
     queue_outbound(channel, body);
+    for note in g.start_audio() {
+        eprintln!("{note}");
+    }
 }
 
 pub fn world_closed() {
@@ -64,163 +54,106 @@ pub fn world_closed() {
     OUT.lock().unwrap_or_else(|e| e.into_inner()).clear();
 }
 
-pub fn world_lifecycle(
-    game: &mut crate::game::Game<'_>,
-    _context: &crate::game::native_lifecycle::NativeLifecycleContext,
-    phase: crate::game::native_lifecycle::WorldPhase,
-    _error_text: &str,
+fn server_host(address: &str) -> Option<String> {
+    let address = address.trim();
+    if let Ok(socket) = address.parse::<std::net::SocketAddr>() {
+        return Some(socket.ip().to_string());
+    }
+    if let Some(bracketed) = address.strip_prefix('[')
+        && let Some(end) = bracketed.find(']')
+    {
+        return Some(bracketed[..end].to_string());
+    }
+    if let Some((host, port)) = address.rsplit_once(':')
+        && !host.contains(':')
+        && port.parse::<u16>().is_ok()
+    {
+        return Some(host.to_string());
+    }
+    Some(address.to_string())
+}
+
+pub fn on_net_from_game(
+    game: &crate::game::Game<'_>,
+    channel: &str,
+    data: &[u8],
 ) {
-    use crate::game::native_lifecycle::WorldPhase::{WorldCloseFailed, WorldCloseFinal, WorldOpenFailed, WorldOpenReady};
-    match phase {
-        WorldOpenReady => world_open_ready(game),
-        WorldOpenFailed | WorldCloseFinal | WorldCloseFailed => world_closed(),
+    if !game.native_on("simple-voice-chat") {
+        return;
     }
+    let hint = game
+        .remote
+        .as_ref()
+        .and_then(|remote| server_host(&remote.session.address));
+    locked().on_net(channel, data, hint.as_deref(), Instant::now());
 }
 
-pub fn server_address<'a, 'w>(game: &'a crate::game::Game<'w>) -> Option<&'a str> {
-    game.remote.as_ref().map(|remote| remote.session.address.as_str())
-}
+static REMOTE_ACTIVE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
-pub fn on_net(channel: &str, data: &[u8], server_address: Option<&str>) {
-    let mut g = locked();
-    if g.cfg.enabled {
-        g.on_net(channel, data, server_address, Instant::now());
+pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration) {
+    if !game.native_on("simple-voice-chat") {
+        if REMOTE_ACTIVE.swap(false, std::sync::atomic::Ordering::Relaxed) {
+            world_closed();
+        }
+        return;
     }
-}
 
-pub fn record_net_tx(channel: &str, bytes: usize) {
-    locked().record_tx(channel, bytes, Instant::now());
+    let connected = game
+        .remote
+        .as_ref()
+        .is_some_and(|remote| remote.logged_in && remote.reconfiguring.is_none());
+    let was_connected = REMOTE_ACTIVE.swap(connected, std::sync::atomic::Ordering::Relaxed);
+
+    if connected && !was_connected {
+        world_open_ready();
+    } else if !connected && was_connected {
+        world_closed();
+    }
+
+    let reconnect = {
+        let mut g = locked();
+        let _ = g.on_frame(Instant::now());
+        std::mem::take(&mut g.reconnect_pending)
+    };
+    if connected && reconnect {
+        let (channel, body) = Glue::handshake();
+        queue_outbound(channel, body);
+    }
 }
 
 pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
-    if !game.native_on("simple-voice-chat") || game.player.is_none() { return; }
-    let playing = game.native_playing();
-    let ptt = game.native_mod_key("simple-voice-chat", "ptt", "key.keyboard.v");
-    let mute_mic = game.native_mod_key("simple-voice-chat", "mute_mic", "key.keyboard.m");
-    let mute_players = game.native_mod_key("simple-voice-chat", "mute_players", "key.keyboard.b");
-    let mute_all = game.native_mod_key("simple-voice-chat", "mute_all", "key.keyboard.n");
-    let changed = {
-        let mut g = locked();
-        if !g.cfg.enabled { return; }
-        if playing && key == "key.keyboard.h" && pressed { g.hud_open = !g.hud_open; }
-        if playing || !pressed {
-            g.on_key_binding(key, pressed, &ptt, &mute_mic, &mute_players, &mute_all).is_some()
-        } else { false }
-    };
-    if changed { save_config(); }
-}
-
-pub fn on_command(game: &mut crate::game::Game<'_>, command: &str, ran: &mut bool) {
-    if !game.native_on("simple-voice-chat") || !locked().cfg.enabled { return; }
-    let command = command.trim();
-    if !svc_client::runtime::is_voice_command(command) { return; }
-    let command = command.strip_prefix('/').unwrap_or(command);
-    let (feedback, outbound, cfg) = {
-        let mut g = locked();
-        let (feedback, outbound) = g.on_command(command);
-        (feedback, outbound, g.cfg.clone())
-    };
-    if let Some(base) = config_base() {
-        svc_client::runtime::Glue::save_config(&base, &cfg);
-    }
-    if !feedback.is_empty() {
-        game.system_message(horizon_client::text::Text::literal(feedback));
-    }
-    for (channel, body) in outbound { queue_outbound(channel, body); }
-    *ran = true;
-}
-
-pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration) {
-    let enabled = game.native_on("simple-voice-chat");
-    let active = {
-        let mut g = locked();
-        g.cfg.enabled = enabled;
-        g.is_world_active()
-    };
-    if !enabled {
-        if active { world_closed(); }
-        else { OUT.lock().unwrap_or_else(|e| e.into_inner()).clear(); }
-        return;
-    }
-    let world_present = game.player.is_some();
-    if world_present && !active { world_open_ready(game); }
-    else if !world_present && active { world_closed(); }
-
-    let (listener, players) = game.native_voice_positions();
-    let now = Instant::now();
-    let mut g = locked();
-    if let (Some(listener), Some(session)) = (listener, g.session.as_mut()) {
-        session.set_positions(listener, players);
-    }
-    #[cfg(target_os = "android")]
-    if g.is_world_active() && g.should_check_audio_permission(now) {
-        match crate::native_ime::has_audio_permission() {
-            Ok(granted) => g.set_audio_permission(granted),
-            Err(error) => {
-                g.set_audio_permission_error();
-                eprintln!("[voice] microphone permission check failed: {error}");
-            }
-        }
-    }
-    #[cfg(not(target_os = "android"))]
-    g.set_audio_permission(true);
-    for note in g.ensure_audio(now) { eprintln!("{note}"); }
-    let _ = g.on_frame(now);
-}
-
-pub fn register_mod(
-    _game: &mut crate::game::Game<'_>,
-    mods: &mut Vec<crate::game::native_hooks::NativeMod>,
-) {
-    if mods.iter().any(|m| m.id == "simple-voice-chat") { return; }
-    if let Some(base) = config_base() {
-        locked().cfg = svc_client::runtime::Glue::load_config(&base);
-    }
-    mods.push(crate::game::native_hooks::NativeMod {
-        id: "simple-voice-chat".into(),
-        title: "Simple Voice Chat".into(),
-        description: "Voice chat with nearby players. Configure push-to-talk and mute keys below.".into(),
-        keys: vec![
-            ["ptt".into(), "Push to Talk".into(), "key.keyboard.v".into()],
-            ["mute_mic".into(), "Mute My Microphone".into(), "key.keyboard.m".into()],
-            ["mute_players".into(), "Mute Other Players".into(), "key.keyboard.b".into()],
-            ["mute_all".into(), "Mute Microphone + Players".into(), "key.keyboard.n".into()],
-        ],
-    });
-}
-
-pub fn settings(_game: &mut crate::game::Game<'_>, mod_id: &str, buttons: &mut Vec<String>) {
-    if mod_id != "simple-voice-chat" { return; }
-    let g = locked();
-    buttons.push(if g.cfg.push_to_talk { "Microphone mode: Push to Talk".into() } else { "Microphone mode: Always On".into() });
-    buttons.push(if g.cfg.muted { "Unmute my microphone".into() } else { "Mute my microphone".into() });
-    buttons.push(if g.cfg.muted_players { "Unmute other players".into() } else { "Mute other players".into() });
-    buttons.push(if g.cfg.muted && g.cfg.muted_players { "Unmute microphone + players".into() } else { "Mute microphone + players".into() });
-    buttons.push("Reconnect to voice server".into());
-}
-
-pub fn settings_click(game: &mut crate::game::Game<'_>, mod_id: &str, button: usize) {
-    if mod_id != "simple-voice-chat" { return; }
-    if button <= 3 {
-        let (description, cfg) = {
-            let mut g = locked();
-            match button {
-                0 => { let enabled = !g.cfg.push_to_talk; g.set_push_to_talk(enabled); (if enabled { "push-to-talk mode enabled" } else { "always-on microphone enabled" }, g.cfg.clone()) }
-                1 => { let muted = !g.cfg.muted; g.set_muted(muted); (if muted { "microphone muted" } else { "microphone unmuted" }, g.cfg.clone()) }
-                2 => { let muted = !g.cfg.muted_players; g.set_players_muted(muted); (if muted { "other players muted" } else { "other players unmuted" }, g.cfg.clone()) }
-                _ => { let muted = !(g.cfg.muted && g.cfg.muted_players); g.set_all_muted(muted); (if muted { "microphone and other players muted" } else { "microphone and other players unmuted" }, g.cfg.clone()) }
-            }
-        };
-        if let Some(base) = config_base() { svc_client::runtime::Glue::save_config(&base, &cfg); }
-        eprintln!("[voice] {description}; connection remains active");
-        return;
-    }
-    if button != 4 { return; }
     if !game.native_on("simple-voice-chat") || game.player.is_none() {
-        eprintln!("[voice] reconnect is available only when Simple Voice Chat is enabled in Mods and a world is open");
         return;
     }
-    world_closed();
-    world_open_ready(game);
-    eprintln!("[voice] manual reconnect requested");
+    let ptt = game.native_mod_key("simple-voice-chat", "ptt", "key.keyboard.v");
+    let mute = game.native_mod_key("simple-voice-chat", "mute", "key.keyboard.m");
+    let feedback = if key == ptt {
+        locked().on_key("KeyV", pressed)
+    } else if key == mute && pressed {
+        locked().on_key("KeyM", true)
+    } else {
+        None
+    };
+    if let Some(feedback) = feedback {
+        eprintln!("{feedback}");
+    }
+}
+
+pub fn on_command(game: &crate::game::Game<'_>, command: &str, ran: &mut bool) {
+    if !game.native_on("simple-voice-chat") {
+        return;
+    }
+    let head = command.split_whitespace().next().unwrap_or("");
+    if head != "svc" && head != "vcgroup" {
+        return;
+    }
+    let (feedback, outbound) = locked().on_command(command);
+    if !feedback.is_empty() {
+        eprintln!("{feedback}");
+    }
+    for (channel, body) in outbound {
+        queue_outbound(channel, body);
+    }
+    *ran = true;
 }

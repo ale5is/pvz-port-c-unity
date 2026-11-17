@@ -1,6 +1,18 @@
 // API-80 adaptation of Jade's in-world look-at overlay for Horizon 0.7.8.
 // This module deliberately uses only the pinned game's existing APIs.
 
+pub fn register_mod(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
+    if mods.iter().any(|m| m.id == "jade") {
+        return;
+    }
+    mods.push(crate::game::native_hooks::NativeMod {
+        id: "jade".into(),
+        title: "Jade".into(),
+        description: "Shows information about the block you are looking at.".into(),
+        keys: Vec::new(),
+    });
+}
+
 pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch) {
     let Some(hit) = game.pick() else {
         return;
