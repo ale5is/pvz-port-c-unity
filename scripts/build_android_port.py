@@ -1023,6 +1023,22 @@ fn pavo_launcher_text(text: &str) -> String {
     if source.count(ui_anchor) != 1:
         raise SystemExit("Could not locate Horizon UI struct for language support.")
     source = source.replace(ui_anchor, language_ui + ui_anchor, 1)
+    fit_anchor = "    pub fn fit_text(&self, face: Face, size: f32, text: &str, width: f32) -> String {\n"
+    if source.count(fit_anchor) != 1:
+        raise SystemExit("Could not locate Horizon translated text fitting.")
+    source = source.replace(
+        fit_anchor,
+        fit_anchor + "        let translated = pavo_launcher_text(text);\n        let text = translated.as_str();\n",
+        1,
+    )
+    measure_anchor = "    pub fn measure(&self, face: Face, size: f32, text: &str) -> f32 {\n"
+    if source.count(measure_anchor) != 1:
+        raise SystemExit("Could not locate Horizon translated text measurement.")
+    source = source.replace(
+        measure_anchor,
+        measure_anchor + "        let translated = pavo_launcher_text(text);\n        let text = translated.as_str();\n",
+        1,
+    )
     text_anchor = "        self.text_line(face, size, (size * 1.45).round(), x, y, color, text)\n"
     if source.count(text_anchor) != 1:
         raise SystemExit("Could not locate Horizon UI text renderer.")
