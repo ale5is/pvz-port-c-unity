@@ -740,6 +740,34 @@ mod tests {
     }
 
     #[test]
+    fn replaced_player_uuid_does_not_remove_the_new_mapping() {
+        let mut g = glue();
+        let now = Instant::now();
+        let first = proto::PlayerState {
+            uuid: 9,
+            name: "player".into(),
+            disabled: false,
+            disconnected: false,
+            group: None,
+        };
+        let second = proto::PlayerState {
+            uuid: 10,
+            name: "player".into(),
+            disabled: false,
+            disconnected: false,
+            group: None,
+        };
+        g.see_state(&first, now);
+        g.see_state(&second, now);
+        assert_eq!(g.uuid_by_name.get("player"), Some(&10));
+        assert!(!g.name_by_uuid.contains_key(&9));
+
+        g.on_net(proto::REMOVE_STATE, &9u128.to_be_bytes(), None, now);
+        assert_eq!(g.uuid_by_name.get("player"), Some(&10));
+        assert_eq!(g.name_by_uuid.get(&10), Some(&"player".to_string()));
+    }
+
+    #[test]
     fn ptt_and_mute_toggle() {
         let mut g = glue();
         assert_eq!(g.on_key("KeyV", true), None);
