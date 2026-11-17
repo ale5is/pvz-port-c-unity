@@ -2091,9 +2091,6 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
 fn pavo_launcher_text(text: &str) -> String {
     PAVO_LAUNCHER_LANGUAGE.with(|current| {
         let lang = current.get();
-        if let Some(translated) = pavo_content_library_text(lang, text) {
-            return translated;
-        }
         let translated = match (lang, text) {
             (1, "Resource Pack") => "Paquetes de recursos",
             (1, "Shaders") => "Shaders",
