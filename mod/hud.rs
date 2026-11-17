@@ -92,13 +92,19 @@ fn hud(
         game.native_text(batch, line, [x + 5.0, y + 4.0 + index as f32 * 10.0], *color, true);
     }
 
-    let (ptt_key, ptt_enabled) = {
+    let (configured_ptt_key, ptt_enabled) = {
         let guard = crate::game::simple_voice_chat::state()
             .lock()
             .unwrap_or_else(|error| error.into_inner());
         (guard.cfg.ptt_key.clone(), guard.cfg.push_to_talk)
     };
     if ptt_enabled {
+        let native_ptt_key = game.native_mod_key("simple-voice-chat", "ptt", "key.keyboard.v");
+        let ptt_key = if native_ptt_key == "key.keyboard.v" && configured_ptt_key != "KeyV" {
+            configured_ptt_key
+        } else {
+            native_ptt_key.rsplit('.').next().unwrap_or(&native_ptt_key).to_owned()
+        };
         let ptt_label = ptt_key.strip_prefix("Key").unwrap_or(&ptt_key).to_uppercase();
         let prompt = if spanish {
             format!("Pulsa [{}] para hablar", ptt_label)
