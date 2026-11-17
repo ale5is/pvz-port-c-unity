@@ -717,6 +717,7 @@ fn default_language() -> String {
     if source.count(rows_anchor) != 1:
         raise SystemExit("Could not locate the launcher settings row array to place the language selector first.")
     source = source.replace(rows_anchor, rows_anchor + language_row, 1)
+    pages.write_text(source, encoding="utf-8")
 
     ui_theme = stage / "crates/horizon-client/src/ui_theme.rs"
     source = ui_theme.read_text(encoding="utf-8")
