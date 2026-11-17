@@ -1,7 +1,7 @@
 impl crate::game::Game<'_> {
     pub(in crate::game) fn native_voice_positions(
         &self,
-    ) -> (Option<[f64; 3]>, Vec<(u128, [f64; 3])>) {
+    ) -> (Option<[f64; 3]>, Vec<(String, [f64; 3])>) {
         let listener = self
             .player
             .as_ref()
@@ -9,17 +9,13 @@ impl crate::game::Game<'_> {
         let Some(remote) = self.remote.as_ref() else {
             return (listener, Vec::new());
         };
-        let players = remote
-            .level_players
-            .iter()
-            .filter_map(|(entity_id, uuid)| {
-                if *uuid == remote.profile {
-                    return None;
-                }
+        let players = self
+            .remote_player_names()
+            .into_iter()
+            .filter_map(|(entity_id, name)| {
                 remote
-                    .entities
-                    .get(entity_id)
-                    .map(|tracked| (*uuid, tracked.position))
+                    .tracked(entity_id as i32)
+                    .map(|(_, position)| (name, position))
             })
             .collect();
         (listener, players)
