@@ -299,6 +299,21 @@ def patch_android_launcher_branding(stage):
             '''                } else { "Abre Archivos del sistema > PavoHorizon." }.into();''',
             "Game files fallback label",
         ),
+        (
+            '''                "Exit Horizon Android?",''',
+            '''                "Exit PavoHorizon?",''',
+            "Exit confirmation title",
+        ),
+        (
+            '''                    "Open the system Files app and choose Horizon Android.".into()''',
+            '''                    "Open the system Files app and choose PavoHorizon.".into()''',
+            "System Files fallback label",
+        ),
+        (
+            '''                    "Reports are saved under Horizon Android > Reports.".into()''',
+            '''                    "Reports are saved under PavoHorizon > Reports.".into()''',
+            "Reports folder fallback label",
+        ),
     ];
 
     for (old, new, label) in replacements:
@@ -309,6 +324,8 @@ def patch_android_launcher_branding(stage):
 
     if "Starling" in source or "starling" in source:
         raise SystemExit("Starling references remain in the patched Android launcher source.")
+    if "Horizon Android" in source:
+        raise SystemExit("Old Horizon Android app branding remains in the patched launcher source.")
 
     launcher.write_text(source, encoding="utf-8")
     print("Android launcher branding: PavoHorizon; Starling migration/download entry removed; world export retained.", flush=True)
