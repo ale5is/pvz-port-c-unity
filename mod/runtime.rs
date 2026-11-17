@@ -110,7 +110,7 @@ pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration)
     let connected = game
         .remote
         .as_ref()
-        .is_some_and(|remote| remote.logged_in && remote.reconfiguring.is_none());
+        .is_some_and(|remote| remote.logged_in && remote.joined && remote.reconfiguring.is_none());
     let was_connected = REMOTE_ACTIVE.swap(connected, std::sync::atomic::Ordering::Relaxed);
 
     if connected && !was_connected {
