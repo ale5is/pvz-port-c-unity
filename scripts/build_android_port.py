@@ -674,9 +674,9 @@ fn default_language() -> String {
     if language_row_start < 0 or language_row_end < 0:
         raise SystemExit("Could not find the complete launcher language row.")
     language_row_end += len(language_row_end_marker)
-    language_row = source[language_row_start:language_row_end] + "\\n"
+    language_row = source[language_row_start:language_row_end] + "\n"
     source = source[:language_row_start] + source[language_row_end:]
-    rows_anchor = "                let rows: [(&str, &str, SettingControl<'_>); 13] = [\\n"
+    rows_anchor = "                let rows: [(&str, &str, SettingControl<'_>); 13] = [" + "\n"
     if source.count(rows_anchor) != 1:
         raise SystemExit("Could not locate the launcher settings row array to place the language selector first.")
     source = source.replace(rows_anchor, rows_anchor + language_row, 1)
