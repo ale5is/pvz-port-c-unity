@@ -8,10 +8,26 @@ pub fn register_mod(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
     mods.push(crate::game::native_hooks::NativeMod {
         id: "jade".into(),
         title: "Jade".into(),
-        description: if horizon_client::lang::code().starts_with("es") {
-            "Muestra información del bloque que estás mirando.".into()
-        } else {
-            "Shows information about the block you are looking at.".into()
+        description: {
+            let code = horizon_client::lang::code().to_ascii_lowercase();
+            let text = if code.starts_with("es") {
+                "Muestra información del bloque que estás mirando."
+            } else if code.starts_with("pt") {
+                "Mostra informações sobre o bloco que você está olhando."
+            } else if code.starts_with("fr") {
+                "Affiche des informations sur le bloc que vous regardez."
+            } else if code.starts_with("it") {
+                "Mostra informazioni sul blocco che stai guardando."
+            } else if code.starts_with("de") {
+                "Zeigt Informationen über den Block an, den du ansiehst."
+            } else if code.starts_with("ja") {
+                "見ているブロックの情報を表示します。"
+            } else if code.starts_with("zh") {
+                "显示你正在注视的方块信息。"
+            } else {
+                "Shows information about the block you are looking at."
+            };
+            text.into()
         },
         keys: Vec::new(),
     });
