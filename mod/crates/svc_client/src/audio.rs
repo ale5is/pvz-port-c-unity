@@ -5,14 +5,12 @@ pub const FRAME_SAMPLES: usize = 960;
 
 pub struct VoiceCodec {
     encoder: crate::opus_ffi::Encoder,
-    decoder: crate::opus_ffi::Decoder,
 }
 
 impl VoiceCodec {
     pub fn new() -> Result<Self, crate::opus_ffi::Error> {
         Ok(Self {
             encoder: crate::opus_ffi::Encoder::new(SAMPLE_RATE, crate::opus_ffi::Channels::Mono, crate::opus_ffi::Application::Voip)?,
-            decoder: crate::opus_ffi::Decoder::new(SAMPLE_RATE, crate::opus_ffi::Channels::Mono)?,
         })
     }
 
@@ -23,15 +21,24 @@ impl VoiceCodec {
         let n = self.encoder.encode(pcm, &mut out)?;
         Ok(out[..n].to_vec())
     }
+}
 
-    /// One Opus packet to samples; pass None to conceal a lost packet.
-    pub fn decode(&mut self, packet: Option<&[u8]>) -> Result<Vec<i16>, crate::opus_ffi::Error> {
+/// A dedicated Opus decoder. Keep one instance per remote voice sender so
+/// decoder history from different players never contaminates another stream.
+pub struct VoiceDecoder {
+    decoder: crate::opus_ffi::Decoder,
+}
+
+impl VoiceDecoder {
+    pub fn new() -> Result<Self, crate::opus_ffi::Error> {
+        Ok(Self {
+            decoder: crate::opus_ffi::Decoder::new(SAMPLE_RATE, crate::opus_ffi::Channels::Mono)?,
+        })
+    }
+
+    pub fn decode(&mut self, packet: &[u8]) -> Result<Vec<i16>, crate::opus_ffi::Error> {
         let mut out = vec![0i16; SAMPLE_RATE as usize / 4];
-        let (input, fec) = match packet {
-            Some(p) => (p, false),
-            None => (&[][..], true),
-        };
-        let n = self.decoder.decode(Some(input), &mut out, fec)?;
+        let n = self.decoder.decode(Some(packet), &mut out, false)?;
         Ok(out[..n].to_vec())
     }
 }
@@ -59,7 +66,8 @@ mod tests {
             .collect();
         let packet = codec.encode(&pcm).unwrap();
         assert!(!packet.is_empty() && packet.len() < 400);
-        let back = codec.decode(Some(&packet)).unwrap();
+        let mut decoder = VoiceDecoder::new().unwrap();
+        let back = decoder.decode(&packet).unwrap();
         assert_eq!(back.len(), FRAME_SAMPLES);
         let (rms_in, rms_out) = (rms(&pcm), rms(&back));
         assert!(
@@ -70,8 +78,8 @@ mod tests {
 
     #[test]
     fn a_lost_packet_still_decodes() {
-        let mut codec = VoiceCodec::new().unwrap();
-        let back = codec.decode(None).unwrap();
+        let mut decoder = VoiceDecoder::new().unwrap();
+        let back = decoder.decoder.decode(None, &mut vec![0i16; SAMPLE_RATE as usize / 4], true).unwrap();
         assert!(!back.is_empty() && back.len() <= SAMPLE_RATE as usize / 4);
     }
 
