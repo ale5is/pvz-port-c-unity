@@ -651,17 +651,22 @@ fn default_language() -> String {
 
     # Keep the language control near the top of Launcher Settings so it is
     # visible immediately on phones, rather than buried below the long list.
-    language_row_start = source.find('                    (\\n                        match c.language.as_str() {')
+    language_row_start = source.find("                        match c.language.as_str() {")
     if language_row_start < 0:
         raise SystemExit("Could not find the injected launcher language row.")
-    language_row_end_marker = "                    ),\\n"
+    language_row_start = source.rfind("                    (", 0, language_row_start)
+    language_row_end_marker = """                            Action::CycleLanguage,
+                            false,
+                        ),
+                    ),"""
     language_row_end = source.find(language_row_end_marker, language_row_start)
-    if language_row_end < 0:
-        raise SystemExit("Could not find the end of the launcher language row.")
+    if language_row_start < 0 or language_row_end < 0:
+        raise SystemExit("Could not find the complete launcher language row.")
     language_row_end += len(language_row_end_marker)
-    language_row = source[language_row_start:language_row_end]
+    language_row = source[language_row_start:language_row_end] + "\n"
     source = source[:language_row_start] + source[language_row_end:]
-    theme_row_anchor = '                    (\\n                        "Theme",'
+    theme_row_anchor = """                    (
+                        "Theme","""
     if source.count(theme_row_anchor) != 1:
         raise SystemExit("Could not locate Theme row to position the language selector.")
     source = source.replace(theme_row_anchor, language_row + theme_row_anchor, 1)
