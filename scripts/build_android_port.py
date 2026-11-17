@@ -595,10 +595,10 @@ fn default_language() -> String {
         1,
     )
     action_enum_start = source.find("pub(super) enum Action {")
-    action_enum_end = source.find("\\n}", action_enum_start)
-    if action_enum_start < 0 or action_enum_end < 0:
+    action_page_variant = source.find("    Page(Page),", action_enum_start)
+    if action_enum_start < 0 or action_page_variant < 0:
         raise SystemExit("Could not validate the Android launcher Action enum.")
-    if "CycleLanguage," not in source[action_enum_start:action_enum_end]:
+    if "CycleLanguage," not in source[action_enum_start:action_page_variant]:
         raise SystemExit("CycleLanguage was not inserted into the Android launcher Action enum.")
     patches = [
         (
