@@ -495,29 +495,41 @@ def patch_android_language(stage):
     anchor = "fn default_true() -> bool {\n"
     if source.count(anchor) != 1:
         raise SystemExit("Could not locate Android launcher config defaults.")
-    language_defaults = """fn default_language_auto() -> bool { true }
+    language_defaults = """unsafe extern "C" {
+    fn __system_property_get(name: *const std::ffi::c_char, value: *mut std::ffi::c_char) -> i32;
+}
+
+fn default_language_auto() -> bool { true }
+
+fn android_system_property(name: &str) -> Option<String> {
+    let key = std::ffi::CString::new(name).ok()?;
+    let mut value = [0 as std::ffi::c_char; 92];
+    let length = unsafe { __system_property_get(key.as_ptr(), value.as_mut_ptr()) };
+    if length <= 0 {
+        return None;
+    }
+    let bytes = unsafe {
+        std::slice::from_raw_parts(value.as_ptr().cast::<u8>(), length as usize)
+    };
+    let result = String::from_utf8_lossy(bytes).trim().to_ascii_lowercase();
+    if result.is_empty() { None } else { Some(result) }
+}
 
 fn default_language() -> String {
     for property in [
         "persist.sys.locale",
-        "ro.product.locale",
         "persist.sys.language",
+        "ro.product.locale",
         "ro.product.locale.language",
     ] {
-        for executable in ["/system/bin/getprop", "getprop"] {
-            let output = std::process::Command::new(executable).arg(property).output().ok();
-            let Some(output) = output else { continue };
-            if !output.status.success() { continue; }
-            let locale = String::from_utf8_lossy(&output.stdout).trim().to_ascii_lowercase();
-            if locale.is_empty() { continue; }
-            let language = locale.split(|c| c == '-' || c == '_').next().unwrap_or("");
-            let code = match language {
-                "es" => "es_es", "pt" => "pt_br", "fr" => "fr_fr",
-                "it" => "it_it", "de" => "de_de", "ja" => "ja_jp",
-                "zh" => "zh_cn", "en" => "en_us", _ => continue,
-            };
-            return code.into();
-        }
+        let Some(locale) = android_system_property(property) else { continue };
+        let language = locale.split(|c| c == '-' || c == '_').next().unwrap_or("");
+        let code = match language {
+            "es" => "es_es", "pt" => "pt_br", "fr" => "fr_fr",
+            "it" => "it_it", "de" => "de_de", "ja" => "ja_jp",
+            "zh" => "zh_cn", "en" => "en_us", _ => continue,
+        };
+        return code.into();
     }
     "en_us".into()
 }
@@ -649,8 +661,7 @@ fn default_language() -> String {
             raise SystemExit(f"Could not uniquely locate {label} (found {count}).")
         source = source.replace(old, new, 1)
 
-    # Keep the language control near the top of Launcher Settings so it is
-    # visible immediately on phones, rather than buried below the long list.
+    # Put the language selector first so it is visible without scrolling.
     language_row_start = source.find("                        match c.language.as_str() {")
     if language_row_start < 0:
         raise SystemExit("Could not find the injected launcher language row.")
@@ -663,13 +674,12 @@ fn default_language() -> String {
     if language_row_start < 0 or language_row_end < 0:
         raise SystemExit("Could not find the complete launcher language row.")
     language_row_end += len(language_row_end_marker)
-    language_row = source[language_row_start:language_row_end] + "\n"
+    language_row = source[language_row_start:language_row_end] + "\\n"
     source = source[:language_row_start] + source[language_row_end:]
-    theme_row_anchor = """                    (
-                        "Theme","""
-    if source.count(theme_row_anchor) != 1:
-        raise SystemExit("Could not locate Theme row to position the language selector.")
-    source = source.replace(theme_row_anchor, language_row + theme_row_anchor, 1)
+    rows_anchor = "                let rows: [(&str, &str, SettingControl<'_>); 13] = [\\n"
+    if source.count(rows_anchor) != 1:
+        raise SystemExit("Could not locate the launcher settings row array to place the language selector first.")
+    source = source.replace(rows_anchor, rows_anchor + language_row, 1)
 
     ui_theme = stage / "crates/horizon-client/src/ui_theme.rs"
     source = ui_theme.read_text(encoding="utf-8")
