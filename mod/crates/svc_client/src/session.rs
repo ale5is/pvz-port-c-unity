@@ -100,6 +100,13 @@ impl Session {
     pub fn set_position(&mut self, who: u128, pos: [f64; 3]) {
         self.positions.insert(who, pos);
     }
+    pub fn replace_positions(
+        &mut self,
+        positions: impl IntoIterator<Item = (u128, [f64; 3])>,
+    ) {
+        self.positions.clear();
+        self.positions.extend(positions);
+    }
     pub fn forget_position(&mut self, who: u128) {
         self.positions.remove(&who);
     }
@@ -327,6 +334,15 @@ mod tests {
                 .send_to(&datagram, self.from.unwrap())
                 .unwrap();
         }
+    }
+
+    #[test]
+    fn replacing_positions_removes_players_from_previous_world_snapshot() {
+        let mut s = Session::new(1);
+        s.set_position(2, [1.0, 2.0, 3.0]);
+        s.replace_positions([(3, [4.0, 5.0, 6.0])]);
+        assert!(!s.positions.contains_key(&2));
+        assert_eq!(s.positions.get(&3), Some(&[4.0, 5.0, 6.0]));
     }
 
     #[test]
