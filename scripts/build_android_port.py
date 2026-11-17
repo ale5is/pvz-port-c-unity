@@ -584,6 +584,184 @@ fn default_language() -> String {
     )
     catalog.write_text(source, encoding="utf-8")
 
+    core_lang = stage / "crates/horizon-client-core/src/lang.rs"
+    core_source = core_lang.read_text(encoding="utf-8")
+    bundled_anchor = '            _ => return None,\n'
+    if core_source.count(bundled_anchor) != 1:
+        raise SystemExit("Could not locate bundled Horizon language dispatch.")
+    bundled_languages = ''.join(
+        f'            "assets/horizon/lang/{code}.json" => include_str!("../../horizon-client/assets/horizon/lang/{code}.json"),\n'
+        for code in ("pt_br", "fr_fr", "it_it", "de_de", "ja_jp")
+    )
+    core_source = core_source.replace(bundled_anchor, bundled_languages + bundled_anchor, 1)
+    core_lang.write_text(core_source, encoding="utf-8")
+
+    locale_translations = {
+        "pt_br": {
+            "horizon.pages.shader_packs": "Pacotes de shaders",
+            "horizon.pages.shader_options": "Opções de shaders",
+            "horizon.shader_options.profile": "Perfil",
+            "Preset": "Predefinição", "LOD Distance": "Distância LOD",
+            "Far Detail": "Detalhe distante", "Cave Culling": "Oclusão de cavernas",
+            "Entity Culling": "Oclusão de entidades", "Chunk Updates": "Atualizações de chunks",
+            "Upload Budget": "Limite de envio", "Sky": "Céu", "Fog": "Névoa",
+            "Weather": "Clima", "Animated Textures": "Texturas animadas",
+            "Present Mode": "Modo de apresentação", "Frame Pacing": "Ritmo de quadros",
+            "Worker Threads": "Threads de trabalho", "Resolution Scale": "Escala de resolução",
+            "Anti-aliasing": "Antisserrilhamento", "Upscaling": "Ampliação",
+            "HDR Settings...": "Configurações HDR...", "Paper White": "Branco de referência",
+            "Peak Brightness": "Brilho máximo", "Black Level": "Nível de preto",
+            "UI Brightness": "Brilho da interface", "Battery Mode": "Modo de bateria",
+            "Graphics API": "API gráfica", "Performance Overlay": "Sobreposição de desempenho",
+            "Full Detail Distance": "Distância de detalhe completo", "On": "Ligado",
+            "Off": "Desligado", "Unlimited": "Ilimitado", "Auto": "Automático",
+            "Custom": "Personalizado", "Performance": "Desempenho", "Balanced": "Equilibrado",
+            "Quality": "Qualidade", "Ultra Performance": "Desempenho ultra",
+            "Native": "Nativo", "Full": "Completo", "Reduced": "Reduzido",
+            "Efficient": "Eficiente", "Precise": "Preciso", "Auto (VSync)": "Automático (VSync)",
+            "Immediate": "Imediato", "No cost": "Sem custo", "Low cost": "Custo baixo",
+            "Medium cost": "Custo médio", "High cost": "Custo alto", "Saves time": "Economiza tempo",
+            "Rendering": "Renderização", "Display": "Tela", "Preferences": "Preferências",
+            "Overlay": "Sobreposição", "HDR": "HDR", "Graphics": "Gráficos",
+            "Graphics: Advanced": "Gráficos: avançado", "Graphics: HDR": "Gráficos: HDR",
+            "Advanced...": "Avançado...", "Simple...": "Simples...", "Done": "Concluído"
+        },
+        "fr_fr": {
+            "horizon.pages.shader_packs": "Packs de shaders",
+            "horizon.pages.shader_options": "Options des shaders",
+            "horizon.shader_options.profile": "Profil",
+            "Preset": "Préréglage", "LOD Distance": "Distance LOD",
+            "Far Detail": "Détails lointains", "Cave Culling": "Occlusion des grottes",
+            "Entity Culling": "Occlusion des entités", "Chunk Updates": "Mises à jour des chunks",
+            "Upload Budget": "Budget de transfert", "Sky": "Ciel", "Fog": "Brouillard",
+            "Weather": "Météo", "Animated Textures": "Textures animées",
+            "Present Mode": "Mode de présentation", "Frame Pacing": "Rythme des images",
+            "Worker Threads": "Threads de travail", "Resolution Scale": "Échelle de résolution",
+            "Anti-aliasing": "Anticrénelage", "Upscaling": "Mise à l’échelle",
+            "HDR Settings...": "Paramètres HDR...", "Paper White": "Blanc papier",
+            "Peak Brightness": "Luminosité maximale", "Black Level": "Niveau de noir",
+            "UI Brightness": "Luminosité de l’interface", "Battery Mode": "Mode batterie",
+            "Graphics API": "API graphique", "Performance Overlay": "Superposition des performances",
+            "Full Detail Distance": "Distance de détail complet", "On": "Activé",
+            "Off": "Désactivé", "Unlimited": "Illimité", "Auto": "Automatique",
+            "Custom": "Personnalisé", "Performance": "Performances", "Balanced": "Équilibré",
+            "Quality": "Qualité", "Ultra Performance": "Performances ultra",
+            "Native": "Natif", "Full": "Complet", "Reduced": "Réduit",
+            "Efficient": "Efficace", "Precise": "Précis", "Auto (VSync)": "Automatique (VSync)",
+            "Immediate": "Immédiat", "No cost": "Sans coût", "Low cost": "Coût faible",
+            "Medium cost": "Coût moyen", "High cost": "Coût élevé", "Saves time": "Économise du temps",
+            "Rendering": "Rendu", "Display": "Affichage", "Preferences": "Préférences",
+            "Overlay": "Superposition", "HDR": "HDR", "Graphics": "Graphismes",
+            "Graphics: Advanced": "Graphismes : avancés", "Graphics: HDR": "Graphismes : HDR",
+            "Advanced...": "Avancé...", "Simple...": "Simple...", "Done": "Terminé"
+        },
+        "it_it": {
+            "horizon.pages.shader_packs": "Pacchetti shader",
+            "horizon.pages.shader_options": "Opzioni shader",
+            "horizon.shader_options.profile": "Profilo",
+            "Preset": "Preimpostazione", "LOD Distance": "Distanza LOD",
+            "Far Detail": "Dettaglio distante", "Cave Culling": "Occlusione caverne",
+            "Entity Culling": "Occlusione entità", "Chunk Updates": "Aggiornamenti chunk",
+            "Upload Budget": "Limite di caricamento", "Sky": "Cielo", "Fog": "Nebbia",
+            "Weather": "Meteo", "Animated Textures": "Texture animate",
+            "Present Mode": "Modalità presentazione", "Frame Pacing": "Ritmo dei fotogrammi",
+            "Worker Threads": "Thread di lavoro", "Resolution Scale": "Scala di risoluzione",
+            "Anti-aliasing": "Antialiasing", "Upscaling": "Upscaling",
+            "HDR Settings...": "Impostazioni HDR...", "Paper White": "Bianco carta",
+            "Peak Brightness": "Luminosità massima", "Black Level": "Livello del nero",
+            "UI Brightness": "Luminosità interfaccia", "Battery Mode": "Modalità batteria",
+            "Graphics API": "API grafica", "Performance Overlay": "Overlay prestazioni",
+            "Full Detail Distance": "Distanza dettaglio completo", "On": "Attivo",
+            "Off": "Disattivato", "Unlimited": "Illimitato", "Auto": "Automatico",
+            "Custom": "Personalizzato", "Performance": "Prestazioni", "Balanced": "Bilanciato",
+            "Quality": "Qualità", "Ultra Performance": "Prestazioni ultra",
+            "Native": "Nativo", "Full": "Completo", "Reduced": "Ridotto",
+            "Efficient": "Efficiente", "Precise": "Preciso", "Auto (VSync)": "Automatico (VSync)",
+            "Immediate": "Immediato", "No cost": "Nessun costo", "Low cost": "Costo basso",
+            "Medium cost": "Costo medio", "High cost": "Costo elevato", "Saves time": "Risparmia tempo",
+            "Rendering": "Rendering", "Display": "Schermo", "Preferences": "Preferenze",
+            "Overlay": "Overlay", "HDR": "HDR", "Graphics": "Grafica",
+            "Graphics: Advanced": "Grafica: avanzata", "Graphics: HDR": "Grafica: HDR",
+            "Advanced...": "Avanzate...", "Simple...": "Semplici...", "Done": "Fatto"
+        },
+        "de_de": {
+            "horizon.pages.shader_packs": "Shader-Pakete",
+            "horizon.pages.shader_options": "Shader-Optionen",
+            "horizon.shader_options.profile": "Profil",
+            "Preset": "Voreinstellung", "LOD Distance": "LOD-Entfernung",
+            "Far Detail": "Ferne Details", "Cave Culling": "Höhlen-Ausblendung",
+            "Entity Culling": "Objekt-Ausblendung", "Chunk Updates": "Chunk-Aktualisierungen",
+            "Upload Budget": "Übertragungsbudget", "Sky": "Himmel", "Fog": "Nebel",
+            "Weather": "Wetter", "Animated Textures": "Animierte Texturen",
+            "Present Mode": "Präsentationsmodus", "Frame Pacing": "Frame-Taktung",
+            "Worker Threads": "Arbeitsthreads", "Resolution Scale": "Auflösungsskalierung",
+            "Anti-aliasing": "Kantenglättung", "Upscaling": "Hochskalierung",
+            "HDR Settings...": "HDR-Einstellungen...", "Paper White": "Papierweiß",
+            "Peak Brightness": "Spitzenhelligkeit", "Black Level": "Schwarzwert",
+            "UI Brightness": "Oberflächenhelligkeit", "Battery Mode": "Akkumodus",
+            "Graphics API": "Grafik-API", "Performance Overlay": "Leistungsanzeige",
+            "Full Detail Distance": "Volle Detailentfernung", "On": "Ein",
+            "Off": "Aus", "Unlimited": "Unbegrenzt", "Auto": "Automatisch",
+            "Custom": "Benutzerdefiniert", "Performance": "Leistung", "Balanced": "Ausgewogen",
+            "Quality": "Qualität", "Ultra Performance": "Ultraleistung",
+            "Native": "Nativ", "Full": "Voll", "Reduced": "Reduziert",
+            "Efficient": "Effizient", "Precise": "Präzise", "Auto (VSync)": "Automatisch (VSync)",
+            "Immediate": "Sofort", "No cost": "Kostenlos", "Low cost": "Geringe Kosten",
+            "Medium cost": "Mittlere Kosten", "High cost": "Hohe Kosten", "Saves time": "Spart Zeit",
+            "Rendering": "Rendering", "Display": "Anzeige", "Preferences": "Einstellungen",
+            "Overlay": "Overlay", "HDR": "HDR", "Graphics": "Grafik",
+            "Graphics: Advanced": "Grafik: erweitert", "Graphics: HDR": "Grafik: HDR",
+            "Advanced...": "Erweitert...", "Simple...": "Einfach...", "Done": "Fertig"
+        },
+        "ja_jp": {
+            "horizon.pages.shader_packs": "シェーダーパック",
+            "horizon.pages.shader_options": "シェーダー設定",
+            "horizon.shader_options.profile": "プロファイル",
+            "Preset": "プリセット", "LOD Distance": "LOD 距離",
+            "Far Detail": "遠景の詳細", "Cave Culling": "洞窟のカリング",
+            "Entity Culling": "エンティティのカリング", "Chunk Updates": "チャンク更新",
+            "Upload Budget": "アップロード量", "Sky": "空", "Fog": "霧",
+            "Weather": "天候", "Animated Textures": "アニメーションテクスチャ",
+            "Present Mode": "表示モード", "Frame Pacing": "フレームペーシング",
+            "Worker Threads": "ワーカースレッド", "Resolution Scale": "解像度スケール",
+            "Anti-aliasing": "アンチエイリアス", "Upscaling": "アップスケーリング",
+            "HDR Settings...": "HDR 設定...", "Paper White": "ペーパーホワイト",
+            "Peak Brightness": "ピーク輝度", "Black Level": "黒レベル",
+            "UI Brightness": "UI の明るさ", "Battery Mode": "バッテリーモード",
+            "Graphics API": "グラフィックス API", "Performance Overlay": "パフォーマンス表示",
+            "Full Detail Distance": "詳細描画距離", "On": "オン", "Off": "オフ",
+            "Unlimited": "無制限", "Auto": "自動", "Custom": "カスタム",
+            "Performance": "パフォーマンス", "Balanced": "バランス",
+            "Quality": "品質", "Ultra Performance": "ウルトラパフォーマンス",
+            "Native": "ネイティブ", "Full": "最大", "Reduced": "低減",
+            "Efficient": "効率的", "Precise": "高精度", "Auto (VSync)": "自動 (VSync)",
+            "Immediate": "即時", "No cost": "負荷なし", "Low cost": "低負荷",
+            "Medium cost": "中負荷", "High cost": "高負荷", "Saves time": "時間を節約",
+            "Rendering": "レンダリング", "Display": "ディスプレイ", "Preferences": "設定",
+            "Overlay": "オーバーレイ", "HDR": "HDR", "Graphics": "グラフィックス",
+            "Graphics: Advanced": "グラフィックス：詳細", "Graphics: HDR": "グラフィックス：HDR",
+            "Advanced...": "詳細...", "Simple...": "シンプル...", "Done": "完了"
+        }
+    }
+    for locale, translations in locale_translations.items():
+        locale_file = stage / f"crates/horizon-client/assets/horizon/lang/{locale}.json"
+        locale_file.write_text(
+            json.dumps(translations, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+    shader_options = stage / "crates/horizon-client-render/src/shader_options.rs"
+    shader_source = shader_options.read_text(encoding="utf-8")
+    named_anchor = '        Text::legacy(self.lang.get(key).unwrap_or(or))\n'
+    if shader_source.count(named_anchor) != 1:
+        raise SystemExit("Could not locate shader-pack label fallback.")
+    shader_source = shader_source.replace(
+        named_anchor,
+        '        let translated = self.lang.get(key).map(str::to_owned).unwrap_or_else(|| crate::lang::get_or(or, or));\n        Text::legacy(&translated)\n',
+        1,
+    )
+    shader_options.write_text(shader_source, encoding="utf-8")
+
     pages = stage / "crates/horizon-client/src/android/launcher_pages.rs"
     source = pages.read_text(encoding="utf-8")
     action_variant_anchor = "    Page(Page),\n"
