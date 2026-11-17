@@ -199,16 +199,21 @@ pub fn register_mod(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
     if let Some(base) = config_base() {
         locked().cfg = svc_client::runtime::Glue::load_config(&base);
     }
+    let spanish = horizon_client::lang::code().starts_with("es");
     mods.push(crate::game::native_hooks::NativeMod {
         id: "simple-voice-chat".into(),
-        title: "Simple Voice Chat".into(),
-        description: "Voice chat with nearby players. Configure push-to-talk and independent mute controls.".into(),
+        title: if spanish { "Chat de voz simple".into() } else { "Simple Voice Chat".into() },
+        description: if spanish {
+            "Chat de voz con jugadores cercanos. Configura pulsar para hablar y los controles de silencio.".into()
+        } else {
+            "Voice chat with nearby players. Configure push-to-talk and independent mute controls.".into()
+        },
         keys: vec![
-            ["ptt".into(), "Push to Talk".into(), "key.keyboard.v".into()],
-            ["hud_toggle".into(), "Toggle Connection HUD".into(), "key.keyboard.h".into()],
-            ["mute_mic".into(), "Mute My Microphone".into(), "key.keyboard.m".into()],
-            ["mute_players".into(), "Mute Other Players".into(), "key.keyboard.b".into()],
-            ["mute_all".into(), "Mute Microphone + Players".into(), "key.keyboard.n".into()],
+            ["ptt".into(), if spanish { "Pulsar para hablar".into() } else { "Push to Talk".into() }, "key.keyboard.v".into()],
+            ["hud_toggle".into(), if spanish { "Mostrar/ocultar HUD de conexión".into() } else { "Toggle Connection HUD".into() }, "key.keyboard.h".into()],
+            ["mute_mic".into(), if spanish { "Silenciar mi micrófono".into() } else { "Mute My Microphone".into() }, "key.keyboard.m".into()],
+            ["mute_players".into(), if spanish { "Silenciar a otros jugadores".into() } else { "Mute Other Players".into() }, "key.keyboard.b".into()],
+            ["mute_all".into(), if spanish { "Silenciar micrófono y jugadores".into() } else { "Mute Microphone + Players".into() }, "key.keyboard.n".into()],
         ],
     });
 }
@@ -222,41 +227,54 @@ pub fn settings(
         return;
     }
     let g = locked();
-    buttons.push(if g.cfg.push_to_talk {
+    let spanish = horizon_client::lang::code().starts_with("es");
+    buttons.push(if spanish {
+        if g.cfg.push_to_talk { "Modo de micrófono: pulsar para hablar".into() } else { "Modo de micrófono: siempre activo".into() }
+    } else if g.cfg.push_to_talk {
         "Microphone mode: Push to Talk".into()
     } else {
         "Microphone mode: Always On".into()
     });
-    buttons.push(if g.cfg.muted {
+    buttons.push(if spanish {
+        if g.cfg.muted { "Activar mi micrófono".into() } else { "Silenciar mi micrófono".into() }
+    } else if g.cfg.muted {
         "Unmute my microphone".into()
     } else {
         "Mute my microphone".into()
     });
-    buttons.push(if g.cfg.muted_players {
+    buttons.push(if spanish {
+        if g.cfg.muted_players { "Activar a otros jugadores".into() } else { "Silenciar a otros jugadores".into() }
+    } else if g.cfg.muted_players {
         "Unmute other players".into()
     } else {
         "Mute other players".into()
     });
-    buttons.push(if g.cfg.muted && g.cfg.muted_players {
+    buttons.push(if spanish {
+        if g.cfg.muted && g.cfg.muted_players { "Activar micrófono y jugadores".into() } else { "Silenciar micrófono y jugadores".into() }
+    } else if g.cfg.muted && g.cfg.muted_players {
         "Unmute microphone + players".into()
     } else {
         "Mute microphone + players".into()
     });
-    buttons.push("Reconnect to voice server".into());
+    buttons.push(if spanish { "Reconectar al servidor de voz".into() } else { "Reconnect to voice server".into() });
     buttons.push(format!(
-        "Output volume: {}% (-10%)",
+        "{}: {}% (-10%)",
+        if spanish { "Volumen de salida" } else { "Output volume" },
         (g.cfg.volume * 100.0).round() as u32
     ));
     buttons.push(format!(
-        "Output volume: {}% (+10%)",
+        "{}: {}% (+10%)",
+        if spanish { "Volumen de salida" } else { "Output volume" },
         (g.cfg.volume * 100.0).round() as u32
     ));
     buttons.push(format!(
-        "Microphone gain: {}% (-10%)",
+        "{}: {}% (-10%)",
+        if spanish { "Ganancia del micrófono" } else { "Microphone gain" },
         (g.cfg.mic_volume * 100.0).round() as u32
     ));
     buttons.push(format!(
-        "Microphone gain: {}% (+10%)",
+        "{}: {}% (+10%)",
+        if spanish { "Ganancia del micrófono" } else { "Microphone gain" },
         (g.cfg.mic_volume * 100.0).round() as u32
     ));
 }
