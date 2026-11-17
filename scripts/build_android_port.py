@@ -184,15 +184,7 @@ def patch_android_identity(stage):
         raise SystemExit("Could not locate the default Android application ID.")
     gradle.write_text(gradle_text.replace(old_app_id, new_app_id, 1), encoding="utf-8")
 
-    settings = stage / "packaging/android/settings.gradle"
-    settings_text = settings.read_text(encoding="utf-8")
-    if "rootProject.name = 'HorizonAndroid'" not in settings_text:
-        raise SystemExit("Could not locate the Android Gradle project name.")
-    settings.write_text(
-        settings_text.replace("rootProject.name = 'HorizonAndroid'", "rootProject.name = 'PavoHorizon'", 1),
-        encoding="utf-8",
-    )
-    print("Android identity: label=PavoHorizon, applicationId=com.ale5is.pavohorizon", flush=True)
+    print("Android identity: label=PavoHorizon, applicationId=com.ale5is.pavohorizon; Gradle project name preserved for upstream build compatibility.", flush=True)
 
 
 def verify_no_starlight_in_apk(apk):
