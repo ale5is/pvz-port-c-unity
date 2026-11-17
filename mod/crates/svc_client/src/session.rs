@@ -263,7 +263,10 @@ impl Session {
             }
         };
         let packet = match FromServer::read(&plain) {
-            Ok(p) => p,
+            Ok(p) => {
+                self.last_udp_error = None;
+                p
+            }
             Err(error) => {
                 self.udp_invalid = self.udp_invalid.saturating_add(1);
                 self.last_udp_error = Some(format!("Paquete SVC inválido: {error:?}"));
