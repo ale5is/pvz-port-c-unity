@@ -56,6 +56,7 @@ pub struct Glue {
     pub name_by_uuid: HashMap<u128, String>,
     pub group_id: Option<u128>,
     pub group_name: Option<String>,
+    pub group_by_name: HashMap<String, u128>,
     pub server_addr: Option<SocketAddr>,
     /// Lines for the chat box: group joins, players entering or leaving voice.
     pub notes: Vec<String>,
@@ -81,6 +82,7 @@ impl Default for Glue {
             name_by_uuid: HashMap::new(),
             group_id: None,
             group_name: None,
+            group_by_name: HashMap::new(),
             server_addr: None,
             notes: Vec::new(),
             reconnect_pending: false,
@@ -150,6 +152,9 @@ impl Glue {
         self.server_addr = None;
         self.group_id = None;
         self.group_name = None;
+        self.group_by_name.clear();
+        self.uuid_by_name.clear();
+        self.name_by_uuid.clear();
         self.ptt_held = false;
         self.reconnect_pending = false;
         self.notes.clear();
@@ -210,6 +215,7 @@ impl Glue {
                 }
             }
             proto::ServerMessage::AddGroup { id, name, password, .. } => {
+                self.group_by_name.insert(name.clone(), id);
                 self.notes.push(if password {
                     format!("[voice] group {} (password protected) exists", name)
                 } else {
@@ -220,11 +226,27 @@ impl Glue {
                 }
             }
             proto::ServerMessage::RemoveGroup(id) => {
+                self.group_by_name.retain(|_, group_id| *group_id != id);
                 if self.group_id == Some(id) {
                     self.group_id = None;
                     self.group_name = None;
                     self.notes.push("[voice] the group was removed".into());
                 }
+            }
+            proto::ServerMessage::JoinedGroup { group, wrong_password } => {
+                self.group_id = group;
+                self.group_name = group.and_then(|id| {
+                    self.group_by_name.iter().find_map(|(name, group_id)| {
+                        (*group_id == id).then(|| name.clone())
+                    })
+                });
+                self.notes.push(if wrong_password {
+                    "[voice] incorrect group password".into()
+                } else if self.group_id.is_some() {
+                    "[voice] joined voice group".into()
+                } else {
+                    "[voice] left voice group".into()
+                });
             }
             _ => {}
         }
@@ -498,10 +520,15 @@ impl Glue {
                 format!("creating group {}", name)
             }
             "join" => {
-                let Some(id) = rest.first().and_then(|n| self.uuid_by_name.get(*n).copied()) else {
-                    return "usage: /vcgroup join <group id or name>".into();
+                let Some(id) = rest.first().and_then(|name| {
+                    name.parse::<u128>().ok().or_else(|| self.group_by_name.get(*name).copied())
+                }) else {
+                    return "usage: /vcgroup join <group id or name> [password]".into();
                 };
-                sends.push((proto::SET_GROUP.to_string(), proto::join_group(id, None)));
+                sends.push((
+                    proto::SET_GROUP.to_string(),
+                    proto::join_group(id, rest.get(1).copied()),
+                ));
                 format!("joining group {}", id)
             }
             "leave" => {
@@ -515,7 +542,12 @@ impl Glue {
                 names.sort();
                 format!("in voice chat: {}", names.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", "))
             }
-            _ => "usage: /vcgroup create|join|leave|list".into(),
+            "groups" => {
+                let mut names: Vec<&String> = self.group_by_name.keys().collect();
+                names.sort();
+                format!("voice groups: {}", names.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", "))
+            }
+            _ => "usage: /vcgroup create|join <group id or name> [password]|leave|list|groups".into(),
         }
     }
 }
@@ -662,6 +694,22 @@ mod tests {
         assert!(reply.contains("den"));
         assert_eq!(sends.len(), 1);
         assert_eq!(sends[0].0, proto::CREATE_GROUP);
+    }
+
+    #[test]
+    fn group_join_resolves_group_names_and_uuid_ids() {
+        let mut g = glue();
+        let group_id = 123456u128;
+        g.group_by_name.insert("lobby".into(), group_id);
+        let (reply, sends) = g.on_command("vcgroup join lobby secret");
+        assert!(reply.contains(&group_id.to_string()));
+        assert_eq!(sends.len(), 1);
+        assert_eq!(sends[0].0, proto::SET_GROUP);
+        assert_eq!(sends[0].1, proto::join_group(group_id, Some("secret")));
+
+        let (reply, sends) = g.on_command("vcgroup join 123456");
+        assert!(reply.contains("123456"));
+        assert_eq!(sends[0].1, proto::join_group(group_id, None));
     }
 
     #[test]
