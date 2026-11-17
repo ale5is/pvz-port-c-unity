@@ -199,6 +199,7 @@ impl Glue {
         };
         match msg {
             proto::ServerMessage::Secret { secret, port, player, distance, voice_host, .. } => {
+                self.decoders.clear();
                 let target = voice_socket(&voice_host, hint, port);
                 self.server_addr = Some(target);
                 let mut s = Session::new(player);
@@ -217,7 +218,9 @@ impl Glue {
             }
             proto::ServerMessage::RemoveState(uuid) => {
                 if let Some(name) = self.name_by_uuid.remove(&uuid) {
-                    self.uuid_by_name.remove(&name);
+                    if self.uuid_by_name.get(&name) == Some(&uuid) {
+                        self.uuid_by_name.remove(&name);
+                    }
                     self.notes.push(format!("[voice] {} left voice chat", name));
                 }
                 if let Some(s) = &mut self.session {
@@ -265,8 +268,20 @@ impl Glue {
 
     fn see_state(&mut self, st: &proto::PlayerState, now: Instant) {
         let fresh = !self.uuid_by_name.contains_key(&st.name);
-        self.uuid_by_name.insert(st.name.clone(), st.uuid);
-        self.name_by_uuid.insert(st.uuid, st.name.clone());
+        if let Some(old_uuid) = self.uuid_by_name.insert(st.name.clone(), st.uuid) {
+            if old_uuid != st.uuid {
+                self.name_by_uuid.remove(&old_uuid);
+                self.decoders.remove(&old_uuid);
+                if let Some(session) = &mut self.session {
+                    session.forget_position(old_uuid);
+                }
+            }
+        }
+        if let Some(old_name) = self.name_by_uuid.insert(st.uuid, st.name.clone()) {
+            if old_name != st.name && self.uuid_by_name.get(&old_name) == Some(&st.uuid) {
+                self.uuid_by_name.remove(&old_name);
+            }
+        }
         if fresh && !st.disconnected && self.name_by_uuid.len() > 1 {
             self.notes.push(format!("[voice] {} is in voice chat", st.name));
         }
