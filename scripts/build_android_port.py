@@ -1996,9 +1996,17 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
     if let Some(value) = text.strip_prefix("Delete ") {
         if let Some(count) = value.strip_suffix(" selected items?") {
             if count.chars().all(|c| c.is_ascii_digit()) {
-                if let Some(label) = pavo_content_library_text(lang, "Delete selected items") {
-                    return Some(format!("{label} ({count})?"));
-                }
+                let message = match lang {
+                    1 => format!("¿Eliminar {count} elementos seleccionados?"),
+                    2 => format!("Excluir {count} itens selecionados?"),
+                    3 => format!("Supprimer les {count} éléments sélectionnés ?"),
+                    4 => format!("Eliminare {count} elementi selezionati?"),
+                    5 => format!("{count} ausgewählte Elemente löschen?"),
+                    6 => format!("選択した{count}件の項目を削除しますか？"),
+                    7 => format!("确定删除所选的 {count} 个项目吗？"),
+                    _ => format!("Delete {count} selected items?"),
+                };
+                return Some(message);
             }
         }
     }
