@@ -209,7 +209,6 @@ def patch_android_identity(stage):
 
 
 def write_pavo_launcher_icon(path):
-    import math
     import struct
     import zlib
 
@@ -249,7 +248,7 @@ def write_pavo_launcher_icon(path):
     def chunk(kind, data):
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
 
-    png = b"\\x89PNG\\r\\n\\x1a\\n"
+    png = b"\x89PNG\r\n\x1a\n"
     png += chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
     png += chunk(b"IDAT", zlib.compress(bytes(pixels), 9))
     png += chunk(b"IEND", b"")
