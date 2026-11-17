@@ -775,6 +775,23 @@ fn default_language() -> String {
         '        let translated = self.lang.get(key).map(str::to_owned).unwrap_or_else(|| crate::lang::get_or(or, or));\n        Text::legacy(&translated)\n',
         1,
     )
+    value_anchor = '''            let text = self
+                .lang
+                .get(&format!("value.{name}.{value}"))
+                .unwrap_or(value);
+'''
+    if shader_source.count(value_anchor) != 1:
+        raise SystemExit("Could not locate shader-pack option value fallback.")
+    shader_source = shader_source.replace(
+        value_anchor,
+        '''            let text = self
+                .lang
+                .get(&format!("value.{name}.{value}"))
+                .map(str::to_owned)
+                .unwrap_or_else(|| crate::lang::get_or(value, value));
+''',
+        1,
+    )
     shader_options.write_text(shader_source, encoding="utf-8")
 
     pages = stage / "crates/horizon-client/src/android/launcher_pages.rs"
