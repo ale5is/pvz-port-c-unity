@@ -13,6 +13,13 @@ name = "simple_voice_chat"
 source = "runtime.rs"
 
 [[module]]
+id = "voice_positions"
+file = "crates/horizon-client/src/game.rs"
+name = "voice_positions"
+source = "voice_positions.rs"
+visibility = "pub"
+
+[[module]]
 id = "voicechat_network"
 file = "crates/horizon-client/src/game/remote.rs"
 name = "voicechat_network"
