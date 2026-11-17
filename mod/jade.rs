@@ -8,7 +8,11 @@ pub fn register_mod(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
     mods.push(crate::game::native_hooks::NativeMod {
         id: "jade".into(),
         title: "Jade".into(),
-        description: "Shows information about the block you are looking at.".into(),
+        description: if horizon_client::lang::code().starts_with("es") {
+            "Muestra información del bloque que estás mirando.".into()
+        } else {
+            "Shows information about the block you are looking at.".into()
+        },
         keys: Vec::new(),
     });
 }
