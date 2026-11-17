@@ -1,7 +1,5 @@
-// Game-side module for the Simple Voice Chat port. Thin shell over the
-// svc_client bundle crate: protocol, session and audio live there; this
-// module bridges Horizon's hooks to it and queues outbound packets for
-// the net send path.
+// Game-side module for the Simple Voice Chat port.
+// The shared svc_client crate owns protocol, UDP, audio and persisted settings.
 
 use std::sync::Mutex;
 use std::time::Instant;
@@ -10,23 +8,26 @@ pub use svc_client::runtime::{state, Glue};
 
 static OUT: Mutex<Vec<(String, Vec<u8>)>> = Mutex::new(Vec::new());
 
-fn locked() -> std::sync::MutexGuard<'static, Glue> {
-    state().lock().unwrap_or_else(|e| e.into_inner())
+fn config_base() -> Option<String> {
+    match crate::game::Game::native_config_dir() {
+        Ok(path) => Some(path.to_string_lossy().into_owned()),
+        Err(error) => {
+            eprintln!("[PavoHorizon/SVC] cannot resolve config directory: {error}");
+            None
+        }
+    }
 }
 
-pub fn register_mod(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
-    if mods.iter().any(|m| m.id == "simple-voice-chat") {
+fn save_config() {
+    let Some(base) = config_base() else {
         return;
-    }
-    mods.push(crate::game::native_hooks::NativeMod {
-        id: "simple-voice-chat".into(),
-        title: "Simple Voice Chat".into(),
-        description: "Voice chat with nearby players.".into(),
-        keys: vec![
-            ["ptt".into(), "Push to Talk".into(), "key.keyboard.v".into()],
-            ["mute".into(), "Mute Microphone".into(), "key.keyboard.m".into()],
-        ],
-    });
+    };
+    let cfg = locked().cfg.clone();
+    svc_client::runtime::Glue::save_config(&base, &cfg);
+}
+
+fn locked() -> std::sync::MutexGuard<'static, Glue> {
+    state().lock().unwrap_or_else(|e| e.into_inner())
 }
 
 pub fn queue_outbound(channel: String, body: Vec<u8>) {
@@ -40,12 +41,17 @@ pub fn drain_outbound() -> Vec<(String, Vec<u8>)> {
 }
 
 pub fn world_open_ready() {
-    let mut g = locked();
-    g.world_open();
-    let (channel, body) = Glue::handshake();
-    queue_outbound(channel, body);
-    for note in g.start_audio() {
-        eprintln!("{note}");
+    if let Some(base) = config_base() {
+        locked().cfg = svc_client::runtime::Glue::load_config(&base);
+    }
+    {
+        let mut g = locked();
+        g.world_open();
+        let (channel, body) = Glue::handshake();
+        queue_outbound(channel, body);
+        for note in g.start_audio() {
+            eprintln!("{note}");
+        }
     }
 }
 
@@ -129,16 +135,20 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
         return;
     }
     let ptt = game.native_mod_key("simple-voice-chat", "ptt", "key.keyboard.v");
-    let mute = game.native_mod_key("simple-voice-chat", "mute", "key.keyboard.m");
-    let feedback = if key == ptt {
-        locked().on_key("KeyV", pressed)
-    } else if key == mute && pressed {
-        locked().on_key("KeyM", true)
-    } else {
-        None
-    };
+    let mute_mic = game.native_mod_key("simple-voice-chat", "mute_mic", "key.keyboard.m");
+    let mute_players = game.native_mod_key("simple-voice-chat", "mute_players", "key.keyboard.b");
+    let mute_all = game.native_mod_key("simple-voice-chat", "mute_all", "key.keyboard.n");
+    let feedback = locked().on_key_binding(
+        key,
+        pressed,
+        &ptt,
+        &mute_mic,
+        &mute_players,
+        &mute_all,
+    );
     if let Some(feedback) = feedback {
-        eprintln!("{feedback}");
+        save_config();
+        eprintln!("[PavoHorizon/SVC] {feedback}");
     }
 }
 
@@ -146,16 +156,123 @@ pub fn on_command(game: &crate::game::Game<'_>, command: &str, ran: &mut bool) {
     if !game.native_on("simple-voice-chat") {
         return;
     }
+    let command = command.trim();
+    let command = command.strip_prefix('/').unwrap_or(command);
     let head = command.split_whitespace().next().unwrap_or("");
     if head != "svc" && head != "vcgroup" {
         return;
     }
     let (feedback, outbound) = locked().on_command(command);
+    save_config();
     if !feedback.is_empty() {
-        eprintln!("{feedback}");
+        eprintln!("[PavoHorizon/SVC] {feedback}");
     }
     for (channel, body) in outbound {
         queue_outbound(channel, body);
     }
     *ran = true;
+}
+
+pub fn register_mod(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
+    if mods.iter().any(|m| m.id == "simple-voice-chat") {
+        return;
+    }
+    if let Some(base) = config_base() {
+        locked().cfg = svc_client::runtime::Glue::load_config(&base);
+    }
+    mods.push(crate::game::native_hooks::NativeMod {
+        id: "simple-voice-chat".into(),
+        title: "Simple Voice Chat".into(),
+        description: "Voice chat with nearby players. Configure push-to-talk and independent mute controls.".into(),
+        keys: vec![
+            ["ptt".into(), "Push to Talk".into(), "key.keyboard.v".into()],
+            ["mute_mic".into(), "Mute My Microphone".into(), "key.keyboard.m".into()],
+            ["mute_players".into(), "Mute Other Players".into(), "key.keyboard.b".into()],
+            ["mute_all".into(), "Mute Microphone + Players".into(), "key.keyboard.n".into()],
+        ],
+    });
+}
+
+pub fn settings(
+    _game: &mut crate::game::Game<'_>,
+    mod_id: &str,
+    buttons: &mut Vec<String>,
+) {
+    if mod_id != "simple-voice-chat" {
+        return;
+    }
+    let g = locked();
+    buttons.push(if g.cfg.push_to_talk {
+        "Microphone mode: Push to Talk".into()
+    } else {
+        "Microphone mode: Always On".into()
+    });
+    buttons.push(if g.cfg.muted {
+        "Unmute my microphone".into()
+    } else {
+        "Mute my microphone".into()
+    });
+    buttons.push(if g.cfg.muted_players {
+        "Unmute other players".into()
+    } else {
+        "Mute other players".into()
+    });
+    buttons.push(if g.cfg.muted && g.cfg.muted_players {
+        "Unmute microphone + players".into()
+    } else {
+        "Mute microphone + players".into()
+    });
+    buttons.push("Reconnect to voice server".into());
+}
+
+pub fn settings_click(
+    game: &mut crate::game::Game<'_>,
+    mod_id: &str,
+    button: usize,
+) {
+    if mod_id != "simple-voice-chat" {
+        return;
+    }
+    if button <= 3 {
+        let (description, cfg) = {
+            let mut g = locked();
+            match button {
+                0 => {
+                    let enabled = !g.cfg.push_to_talk;
+                    g.set_push_to_talk(enabled);
+                    (if enabled { "push-to-talk mode enabled" } else { "always-on microphone enabled" }, g.cfg.clone())
+                }
+                1 => {
+                    let muted = !g.cfg.muted;
+                    g.set_muted(muted);
+                    (if muted { "microphone muted" } else { "microphone unmuted" }, g.cfg.clone())
+                }
+                2 => {
+                    let muted = !g.cfg.muted_players;
+                    g.set_players_muted(muted);
+                    (if muted { "other players muted" } else { "other players unmuted" }, g.cfg.clone())
+                }
+                _ => {
+                    let muted = !(g.cfg.muted && g.cfg.muted_players);
+                    g.set_all_muted(muted);
+                    (if muted { "microphone and other players muted" } else { "microphone and other players unmuted" }, g.cfg.clone())
+                }
+            }
+        };
+        if let Some(base) = config_base() {
+            svc_client::runtime::Glue::save_config(&base, &cfg);
+        }
+        eprintln!("[PavoHorizon/SVC] {description}; voice session remains active");
+        return;
+    }
+    if button != 4 {
+        return;
+    }
+    if !game.native_on("simple-voice-chat") || game.player.is_none() {
+        eprintln!("[PavoHorizon/SVC] reconnect requires the mod enabled and a world open");
+        return;
+    }
+    world_closed();
+    world_open_ready();
+    eprintln!("[PavoHorizon/SVC] manual reconnect requested");
 }
