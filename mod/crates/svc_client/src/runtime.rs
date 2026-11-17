@@ -51,6 +51,8 @@ pub struct Glue {
     pub cfg: VoiceConfig,
     pub session: Option<Session>,
     pub ptt_held: bool,
+    /// Whether the previous microphone frame started a speaking stream.
+    pub mic_talking: bool,
     /// uuid by player name, from the server's state packets.
     pub uuid_by_name: HashMap<String, u128>,
     pub name_by_uuid: HashMap<u128, String>,
@@ -78,6 +80,7 @@ impl Default for Glue {
             cfg: VoiceConfig::default(),
             session: None,
             ptt_held: false,
+            mic_talking: false,
             uuid_by_name: HashMap::new(),
             name_by_uuid: HashMap::new(),
             group_id: None,
@@ -156,6 +159,7 @@ impl Glue {
         self.uuid_by_name.clear();
         self.name_by_uuid.clear();
         self.ptt_held = false;
+        self.mic_talking = false;
         self.reconnect_pending = false;
         self.notes.clear();
         self.pending_sends.clear();
@@ -166,6 +170,7 @@ impl Glue {
         if let Some(mut s) = self.session.take() {
             s.close();
         }
+        self.mic_talking = false;
         self.reconnect_pending = false;
     }
 
@@ -289,6 +294,16 @@ impl Glue {
 
     /// The microphone side: when talking, turn captured audio into Opus
     /// packets on the session; always drain the capture so it stays fresh.
+    fn stop_mic(&mut self) {
+        if !self.mic_talking {
+            return;
+        }
+        if let Some(session) = &mut self.session {
+            session.push_mic(&[]);
+        }
+        self.mic_talking = false;
+    }
+
     fn pump_mic(&mut self) {
         let talking = !self.cfg.muted
             && (!self.cfg.push_to_talk || self.ptt_held)
@@ -297,11 +312,18 @@ impl Glue {
                 .as_ref()
                 .map(|s| s.state() == crate::session::State::Connected)
                 .unwrap_or(false);
-        let Some(mic) = &mut self.mic else { return };
-        while let Some(frame) = mic.poll_frame() {
-            if !talking {
-                continue;
+        if !talking {
+            if let Some(mic) = &mut self.mic {
+                while mic.poll_frame().is_some() {}
             }
+            self.stop_mic();
+            return;
+        }
+        let Some(mic) = &mut self.mic else {
+            self.stop_mic();
+            return;
+        };
+        while let Some(frame) = mic.poll_frame() {
             let mut adjusted = frame;
             for sample in &mut adjusted {
                 *sample = (*sample as f32 * self.cfg.mic_volume)
@@ -311,8 +333,9 @@ impl Glue {
                 Some(Ok(p)) => p,
                 _ => break,
             };
-            if let Some(s) = &mut self.session {
-                s.push_mic(&packet);
+            if let Some(session) = &mut self.session {
+                session.push_mic(&packet);
+                self.mic_talking = true;
             }
         }
     }
