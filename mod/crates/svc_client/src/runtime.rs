@@ -21,6 +21,8 @@ pub const PORT: &str = "simple-voice-chat";
 pub struct VoiceConfig {
     pub ptt_key: String,
     pub mute_key: String,
+    pub mute_players_key: String,
+    pub mute_all_key: String,
     pub muted: bool,
     pub muted_players: bool,
     pub push_to_talk: bool,
@@ -33,6 +35,8 @@ impl Default for VoiceConfig {
         Self {
             ptt_key: "KeyV".into(),
             mute_key: "KeyM".into(),
+            mute_players_key: "KeyB".into(),
+            mute_all_key: "KeyN".into(),
             muted: false,
             muted_players: false,
             push_to_talk: true,
