@@ -208,6 +208,55 @@ def patch_android_identity(stage):
 
 
 
+def write_pavo_launcher_icon(path):
+    import math
+    import struct
+    import zlib
+
+    size = 192
+    pixels = bytearray()
+    dark = (22, 24, 31, 255)
+    light = (236, 237, 243, 255)
+    muted = (236, 237, 243, 92)
+    accent = (154, 134, 255, 255)
+
+    def inside_round_tile(x, y):
+        radius = 42
+        cx = min(max(x, radius), size - radius - 1)
+        cy = min(max(y, radius), size - radius - 1)
+        return (x - cx) ** 2 + (y - cy) ** 2 <= radius ** 2
+
+    def in_p(x, y):
+        stem = 55 <= x < 78 and 39 <= y < 153
+        top = 78 <= x < 128 and 39 <= y < 62
+        right = 128 <= x < 151 and 62 <= y < 96
+        middle = 78 <= x < 128 and 96 <= y < 119
+        return stem or top or right or middle
+
+    for y in range(size):
+        pixels.append(0)
+        for x in range(size):
+            if not inside_round_tile(x, y):
+                pixels.extend((0, 0, 0, 0))
+                continue
+            color = dark
+            if in_p(x, y):
+                color = light if y < 96 else muted
+            if 0 <= y < 12:
+                color = accent
+            pixels.extend(color)
+
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff)
+
+    png = b"\\x89PNG\\r\\n\\x1a\\n"
+    png += chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
+    png += chunk(b"IDAT", zlib.compress(bytes(pixels), 9))
+    png += chunk(b"IEND", b"")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(png)
+
+
 def patch_android_launcher_branding(stage):
     launcher = stage / "crates/horizon-client/src/android/launcher_pages.rs"
     source = launcher.read_text(encoding="utf-8")
@@ -348,7 +397,8 @@ def patch_android_launcher_branding(stage):
         raise SystemExit("Old Horizon Android app branding remains in the patched launcher source.")
 
     launcher.write_text(source, encoding="utf-8")
-    print("Android launcher branding: PavoHorizon; Starling migration/download entry removed; world export retained.", flush=True)
+    write_pavo_launcher_icon(stage / "packaging/android/res/drawable-nodpi/launcher_icon.png")
+    print("Android launcher branding: PavoHorizon P icon; Starling migration/download entry removed; world export retained.", flush=True)
 
 
 def patch_pavo_native_builds(source):
