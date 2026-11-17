@@ -284,7 +284,16 @@ def patch_android_launcher_branding(stage):
                     my3_text(),
                     "PavoHorizon para Android",
                 );
-                let notice = "Tu instancia de PavoHorizon está lista. Puedes exportar tus mundos desde Android Files (SAF) cuando lo necesites.";''',
+                let notice = match self.catalog.config.language.as_str() {
+                    "es_es" => "Tu instancia de PavoHorizon está lista. Puedes exportar tus mundos desde Archivos de Android (SAF) cuando lo necesites.",
+                    "pt_br" => "Sua instância do PavoHorizon está pronta. Você pode exportar seus mundos pelos Arquivos do Android (SAF) quando quiser.",
+                    "fr_fr" => "Votre instance PavoHorizon est prête. Vous pouvez exporter vos mondes depuis les fichiers Android (SAF) à tout moment.",
+                    "it_it" => "La tua istanza PavoHorizon è pronta. Puoi esportare i tuoi mondi dai File Android (SAF) quando vuoi.",
+                    "de_de" => "Deine PavoHorizon-Instanz ist bereit. Du kannst deine Welten jederzeit über Android-Dateien (SAF) exportieren.",
+                    "ja_jp" => "PavoHorizon の準備ができました。Android のファイル (SAF) からいつでもワールドをエクスポートできます。",
+                    "zh_cn" => "PavoHorizon 已准备就绪。你可以随时通过 Android 文件 (SAF) 导出世界。",
+                    _ => "Your PavoHorizon instance is ready. You can export your worlds from Android Files (SAF) whenever you need.",
+                };''',
             "Android launcher migration notice",
         ),
         (
@@ -337,13 +346,32 @@ def patch_android_launcher_branding(stage):
                     Action::WorldFiles,
                     false,
                 );''',
-            '''                let migration_y = line_y + 24.0;
+            '''                let migration_y = (line_y + 24.0).min(card_y + card_h - 40.0);
+                let export_width = (content_w - 182.0).max(80.0);
                 button(
                     &mut ui,
                     &mut self.targets,
-                    [content_x + 22.0, migration_y, content_w - 44.0, 34.0],
+                    [content_x + 22.0, migration_y, export_width, 34.0],
                     "Exportar mundos (SAF)",
                     Action::WorldFiles,
+                    false,
+                );
+                let language_label = match self.catalog.config.language.as_str() {
+                    "es_es" => "Español v",
+                    "pt_br" => "Português v",
+                    "fr_fr" => "Français v",
+                    "it_it" => "Italiano v",
+                    "de_de" => "Deutsch v",
+                    "ja_jp" => "日本語 v",
+                    "zh_cn" => "简体中文 v",
+                    _ => "English v",
+                };
+                button(
+                    &mut ui,
+                    &mut self.targets,
+                    [content_x + content_w - 140.0, migration_y, 118.0, 34.0],
+                    language_label,
+                    Action::CycleLanguage,
                     false,
                 );''',
             "Android launcher migration buttons",
