@@ -309,11 +309,9 @@ def patch_android_launcher_branding(stage):
             &fitted_version,
         );
 ''',
-            '''        let version_line = format!("Android {}", crate::backend::VERSION);
-        let fitted_version = ui.fit_text(Face::Regular, 11.0, &version_line, brand_w);
-        ui.text(Face::Regular, 11.0, 54.0, 30.0, my3_muted(), &fitted_version);
+            '''        ui.text(Face::Regular, 11.0, 54.0, 30.0, my3_muted(), "1.0.0");
 ''',
-            "Restore Android version below PavoHorizon wordmark",
+            "Show PavoHorizon app version below wordmark",
         ),
         (
             '''                let migration_y = line_y + 24.0;
