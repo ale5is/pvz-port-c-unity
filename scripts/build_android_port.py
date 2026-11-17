@@ -1956,6 +1956,20 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
             (7, "Pasted") => Some("已粘贴"),
             (7, "Installed {count} item(s). Open Play to load this profile.") => Some("已安装 {count} 个项目。打开“开始游戏”以加载此配置。"),
             (7, "Installed {}. Enable it in Installed after reviewing its capabilities in game Mods.") => Some("已安装 {}。请在游戏内模组中检查其功能后，在“已安装”中启用。"),
+            (1, "Cloud profile synchronized. Local overrides are kept separate.") => Some("Perfil de la nube sincronizado. Las modificaciones locales se mantienen separadas."),
+            (1, "Official default skin checksum mismatch") => Some("La suma de verificación del aspecto oficial no coincide."),
+            (2, "Cloud profile synchronized. Local overrides are kept separate.") => Some("Perfil da nuvem sincronizado. As substituições locais permanecem separadas."),
+            (2, "Official default skin checksum mismatch") => Some("A soma de verificação do visual oficial não corresponde."),
+            (3, "Cloud profile synchronized. Local overrides are kept separate.") => Some("Profil cloud synchronisé. Les remplacements locaux restent séparés."),
+            (3, "Official default skin checksum mismatch") => Some("La somme de contrôle du skin officiel ne correspond pas."),
+            (4, "Cloud profile synchronized. Local overrides are kept separate.") => Some("Profilo cloud sincronizzato. Le sostituzioni locali restano separate."),
+            (4, "Official default skin checksum mismatch") => Some("Il checksum della skin ufficiale non corrisponde."),
+            (5, "Cloud profile synchronized. Local overrides are kept separate.") => Some("Cloud-Profil synchronisiert. Lokale Überschreibungen bleiben getrennt."),
+            (5, "Official default skin checksum mismatch") => Some("Die Prüfsumme des offiziellen Skins stimmt nicht überein."),
+            (6, "Cloud profile synchronized. Local overrides are kept separate.") => Some("クラウドプロフィールを同期しました。ローカル設定は別に保持されます。"),
+            (6, "Official default skin checksum mismatch") => Some("公式スキンのチェックサムが一致しません。"),
+            (7, "Cloud profile synchronized. Local overrides are kept separate.") => Some("云端个人资料已同步。本地覆盖内容保持独立。"),
+            (7, "Official default skin checksum mismatch") => Some("官方皮肤校验和不匹配。"),
         _ => None,
     };
     if let Some(value) = exact {
@@ -1966,6 +1980,11 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
             if let Some(label) = pavo_content_library_text(lang, prefix) {
                 return Some(format!("{label} ({suffix}"));
             }
+        }
+    }
+    if let Some(error) = text.strip_prefix("Default skin unavailable: ") {
+        if let Some(label) = pavo_content_library_text(lang, "Default skin unavailable offline") {
+            return Some(format!("{label}: {error}"));
         }
     }
     if let Some(value) = text.strip_prefix("Active Local: ") {
