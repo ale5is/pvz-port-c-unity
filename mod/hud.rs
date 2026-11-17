@@ -40,6 +40,7 @@ fn hud(
         Some((tx, rx, invalid)) => format!("UDP TX/RX/ERR: {}/{}/{}", tx, rx, invalid),
         None => "UDP: ESPERANDO SECRET".into(),
     };
+    let has_udp_error = udp_error.is_some();
     let error_line = udp_error
         .map(|error| format!("UDP ERROR: {}", error))
         .unwrap_or_else(|| "UDP ERROR: -".into());
@@ -51,7 +52,7 @@ fn hud(
         (format!("PTT {}: {}", ptt, if ptt_held { "TRANSMITIENDO" } else { "ESPERANDO" }), if ptt_held { 0x55FF55 } else { 0xFFFFFF }),
         (format!("Volumen: {}% | Ganancia mic: {}%", volume, mic_volume), 0xFFFFFF),
         (udp_line, 0xFFFFFF),
-        (error_line, if udp_error.is_none() { 0x55FF55 } else { 0xFF5555 }),
+        (error_line, if has_udp_error { 0xFF5555 } else { 0x55FF55 }),
     ];
     let width = lines.iter()
         .map(|(line, _)| game.native_text_width(line))
