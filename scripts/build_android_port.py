@@ -192,7 +192,15 @@ def patch_android_identity(stage):
         raise SystemExit("Could not locate the upstream Android package audit argument.")
     android_build.write_text(build_text.replace(old_check_arg, new_check_arg, 1), encoding="utf-8")
 
-    print("Android identity: label=PavoHorizon, applicationId=com.ale5is.pavohorizon; package audit aligned; Gradle project name preserved for upstream build compatibility.", flush=True)
+    checker = stage / "tools/check_android_release.py"
+    checker_text = checker.read_text(encoding="utf-8")
+    old_default = "def audit(path, aapt2, public=False, app_id='dev.horizon.android'):"
+    new_default = "def audit(path, aapt2, public=False, app_id='com.ale5is.pavohorizon'):"
+    if old_default not in checker_text:
+        raise SystemExit("Could not locate the default Android package identity in the release audit.")
+    checker.write_text(checker_text.replace(old_default, new_default, 1), encoding="utf-8")
+
+    print("Android identity: label=PavoHorizon, applicationId=com.ale5is.pavohorizon; release audit aligned; Gradle project name preserved for upstream build compatibility.", flush=True)
 
 
 def verify_no_starlight_in_apk(apk):
