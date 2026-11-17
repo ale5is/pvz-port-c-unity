@@ -36,9 +36,13 @@ impl VoiceDecoder {
         })
     }
 
-    pub fn decode(&mut self, packet: &[u8]) -> Result<Vec<i16>, crate::opus_ffi::Error> {
+    pub fn decode(&mut self, packet: Option<&[u8]>) -> Result<Vec<i16>, crate::opus_ffi::Error> {
         let mut out = vec![0i16; SAMPLE_RATE as usize / 4];
-        let n = self.decoder.decode(Some(packet), &mut out, false)?;
+        let (input, fec) = match packet {
+            Some(packet) => (packet, false),
+            None => (&[][..], true),
+        };
+        let n = self.decoder.decode(Some(input), &mut out, fec)?;
         Ok(out[..n].to_vec())
     }
 }
@@ -67,7 +71,7 @@ mod tests {
         let packet = codec.encode(&pcm).unwrap();
         assert!(!packet.is_empty() && packet.len() < 400);
         let mut decoder = VoiceDecoder::new().unwrap();
-        let back = decoder.decode(&packet).unwrap();
+        let back = decoder.decode(Some(&packet)).unwrap();
         assert_eq!(back.len(), FRAME_SAMPLES);
         let (rms_in, rms_out) = (rms(&pcm), rms(&back));
         assert!(
@@ -79,7 +83,7 @@ mod tests {
     #[test]
     fn a_lost_packet_still_decodes() {
         let mut decoder = VoiceDecoder::new().unwrap();
-        let back = decoder.decoder.decode(None, &mut vec![0i16; SAMPLE_RATE as usize / 4], true).unwrap();
+        let back = decoder.decode(None).unwrap();
         assert!(!back.is_empty() && back.len() <= SAMPLE_RATE as usize / 4);
     }
 
