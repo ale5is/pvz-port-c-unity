@@ -1,5 +1,5 @@
 impl super::Remote {
-    pub(super) fn voice_player_positions(&self) -> Vec<(String, [f64; 3])> {
+    pub(crate) fn voice_player_positions(&self) -> Vec<(String, [f64; 3])> {
         self.level_players
             .iter()
             .filter_map(|(entity_id, uuid)| {
