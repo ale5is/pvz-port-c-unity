@@ -37,13 +37,25 @@ fn hud(
         return;
     }
     let udp_line = match udp_counts {
+        Some((tx, rx, invalid)) if horizon_client::lang::code().starts_with("es") => {
+            format!("UDP TX/RX/ERR: {}/{}/{}", tx, rx, invalid)
+        }
         Some((tx, rx, invalid)) => format!("UDP TX/RX/ERR: {}/{}/{}", tx, rx, invalid),
-        None => "UDP: ESPERANDO SECRET".into(),
+        None if horizon_client::lang::code().starts_with("es") => "UDP: ESPERANDO CLAVE".into(),
+        None => "UDP: WAITING FOR SECRET".into(),
     };
     let has_udp_error = udp_error.is_some();
     let error_line = udp_error
-        .map(|error| format!("UDP ERROR: {}", error))
-        .unwrap_or_else(|| "UDP ERROR: -".into());
+        .map(|error| {
+            if horizon_client::lang::code().starts_with("es") {
+                format!("ERROR UDP: {}", error)
+            } else {
+                format!("UDP ERROR: {}", error)
+            }
+        })
+        .unwrap_or_else(|| {
+            if horizon_client::lang::code().starts_with("es") { "ERROR UDP: -".into() } else { "UDP ERROR: -".into() }
+        });
     let spanish = horizon_client::lang::code().starts_with("es");
     let hud_key = game.native_mod_key("simple-voice-chat", "hud_toggle", "key.keyboard.h");
     let hud_key_label = hud_key.rsplit('.').next().unwrap_or(&hud_key).to_uppercase();
