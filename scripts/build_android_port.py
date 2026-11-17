@@ -504,17 +504,20 @@ fn default_language() -> String {
         "persist.sys.language",
         "ro.product.locale.language",
     ] {
-        let output = std::process::Command::new("getprop").arg(property).output().ok();
-        let Some(output) = output else { continue };
-        let locale = String::from_utf8_lossy(&output.stdout).trim().to_ascii_lowercase();
-        if locale.is_empty() { continue; }
-        let language = locale.split(|c| c == '-' || c == '_').next().unwrap_or("");
-        let code = match language {
-            "es" => "es_es", "pt" => "pt_br", "fr" => "fr_fr",
-            "it" => "it_it", "de" => "de_de", "ja" => "ja_jp",
-            "zh" => "zh_cn", "en" => "en_us", _ => continue,
-        };
-        return code.into();
+        for executable in ["/system/bin/getprop", "getprop"] {
+            let output = std::process::Command::new(executable).arg(property).output().ok();
+            let Some(output) = output else { continue };
+            if !output.status.success() { continue; }
+            let locale = String::from_utf8_lossy(&output.stdout).trim().to_ascii_lowercase();
+            if locale.is_empty() { continue; }
+            let language = locale.split(|c| c == '-' || c == '_').next().unwrap_or("");
+            let code = match language {
+                "es" => "es_es", "pt" => "pt_br", "fr" => "fr_fr",
+                "it" => "it_it", "de" => "de_de", "ja" => "ja_jp",
+                "zh" => "zh_cn", "en" => "en_us", _ => continue,
+            };
+            return code.into();
+        }
     }
     "en_us".into()
 }
@@ -645,6 +648,23 @@ fn default_language() -> String {
         if count != 1:
             raise SystemExit(f"Could not uniquely locate {label} (found {count}).")
         source = source.replace(old, new, 1)
+
+    # Keep the language control near the top of Launcher Settings so it is
+    # visible immediately on phones, rather than buried below the long list.
+    language_row_start = source.find('                    (\\n                        match c.language.as_str() {')
+    if language_row_start < 0:
+        raise SystemExit("Could not find the injected launcher language row.")
+    language_row_end_marker = "                    ),\\n"
+    language_row_end = source.find(language_row_end_marker, language_row_start)
+    if language_row_end < 0:
+        raise SystemExit("Could not find the end of the launcher language row.")
+    language_row_end += len(language_row_end_marker)
+    language_row = source[language_row_start:language_row_end]
+    source = source[:language_row_start] + source[language_row_end:]
+    theme_row_anchor = '                    (\\n                        "Theme",'
+    if source.count(theme_row_anchor) != 1:
+        raise SystemExit("Could not locate Theme row to position the language selector.")
+    source = source.replace(theme_row_anchor, language_row + theme_row_anchor, 1)
 
     ui_theme = stage / "crates/horizon-client/src/ui_theme.rs"
     source = ui_theme.read_text(encoding="utf-8")
