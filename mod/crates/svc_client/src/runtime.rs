@@ -116,6 +116,10 @@ impl Glue {
         if muted {
             self.ptt_held = false;
             self.mic = None;
+        } else {
+            for note in self.start_audio() {
+                eprintln!("{note}");
+            }
         }
     }
 
@@ -123,6 +127,10 @@ impl Glue {
         self.cfg.muted_players = muted;
         if muted {
             self.speaker = None;
+        } else {
+            for note in self.start_audio() {
+                eprintln!("{note}");
+            }
         }
     }
 
@@ -643,6 +651,45 @@ mod tests {
         assert!(reply.contains("den"));
         assert_eq!(sends.len(), 1);
         assert_eq!(sends[0].0, proto::CREATE_GROUP);
+    }
+
+    #[test]
+    fn voice_controls_toggle_independently() {
+        let mut g = glue();
+        g.set_muted(true);
+        assert!(g.cfg.muted);
+        assert!(!g.cfg.muted_players);
+        g.set_players_muted(true);
+        assert!(g.cfg.muted);
+        assert!(g.cfg.muted_players);
+        g.set_muted(false);
+        assert!(!g.cfg.muted);
+        assert!(g.cfg.muted_players);
+        g.set_players_muted(false);
+        assert!(!g.cfg.muted_players);
+    }
+
+    #[test]
+    fn always_on_mode_does_not_require_ptt() {
+        let mut g = glue();
+        g.set_push_to_talk(false);
+        assert!(!g.cfg.push_to_talk);
+        assert_eq!(g.on_key("KeyV", true), None);
+        assert!(!g.ptt_held);
+    }
+
+    #[test]
+    fn voice_commands_restore_volume_and_mode_controls() {
+        let mut g = glue();
+        let (reply, _) = g.on_command("svc volume 45");
+        assert_eq!(reply, "voice output volume: 45%");
+        let (reply, _) = g.on_command("svc micvolume 30");
+        assert_eq!(reply, "microphone gain: 30%");
+        assert!((g.cfg.volume - 0.45).abs() < 0.001);
+        assert!((g.cfg.mic_volume - 0.30).abs() < 0.001);
+        let (reply, _) = g.on_command("svc mode always");
+        assert!(reply.contains("always-on"));
+        assert!(!g.cfg.push_to_talk);
     }
 
     #[test]
