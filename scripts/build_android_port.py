@@ -508,6 +508,8 @@ def patch_pavo_native_builds(source):
 
 
 def patch_android_language(stage):
+    import json
+
     catalog = stage / "crates/horizon-client/src/android/catalog.rs"
     source = catalog.read_text(encoding="utf-8")
     anchor = "    pub server: String,\n"
