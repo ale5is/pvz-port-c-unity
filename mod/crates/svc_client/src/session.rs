@@ -229,11 +229,20 @@ impl Session {
         match packet {
             FromServer::AuthenticateAck => {
                 if self.state == State::Connecting {
+                    // Simple Voice Chat does not consider the UDP session fully
+                    // connected after AuthenticateAck. The client must prove that
+                    // it can receive UDP by sending ConnectionCheck and waiting
+                    // for ConnectionCheckAck.
+                    self.send(&ToServer::ConnectionCheck);
+                }
+            }
+            FromServer::ConnectionCheckAck => {
+                if self.state == State::Connecting {
                     self.state = State::Connected;
                     self.events.push(Event::Connected);
                 }
             }
-            FromServer::KeepAlive | FromServer::Ping { .. } | FromServer::ConnectionCheckAck => {}
+            FromServer::KeepAlive | FromServer::Ping { .. } => {}
             FromServer::Positional {
                 sender,
                 data,
@@ -365,6 +374,12 @@ mod tests {
             other => panic!("expected Authenticate, got {other:?}"),
         }
         srv.send_packet(&FromServer::AuthenticateAck);
+        assert!(s.pump().is_empty());
+        assert_eq!(s.state(), State::Connecting);
+        assert!(matches!(srv.recv_packet(), ToServer::ConnectionCheck));
+
+        // The server validates the UDP source address only after this check.
+        srv.send_packet(&FromServer::ConnectionCheckAck);
         assert_eq!(s.pump(), vec![Event::Connected]);
         assert_eq!(s.state(), State::Connected);
 
