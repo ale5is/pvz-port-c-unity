@@ -523,8 +523,26 @@ def patch_android_language(stage):
                         SettingControl::Button("Open Files", Action::GameFiles, false),
                     ),
                     (
-                        "Language",
-                        "Change the launcher and in-game language",
+                        match c.language.as_str() {
+                            "es_es" => "Idioma",
+                            "pt_br" => "Idioma",
+                            "fr_fr" => "Langue",
+                            "it_it" => "Lingua",
+                            "de_de" => "Sprache",
+                            "ja_jp" => "言語",
+                            "zh_cn" => "语言",
+                            _ => "Language",
+                        },
+                        match c.language.as_str() {
+                            "es_es" => "Cambia el idioma del launcher y del juego",
+                            "pt_br" => "Altera o idioma do launcher e do jogo",
+                            "fr_fr" => "Change la langue du launcher et du jeu",
+                            "it_it" => "Cambia la lingua del launcher e del gioco",
+                            "de_de" => "Sprache von Launcher und Spiel ändern",
+                            "ja_jp" => "ランチャーとゲームの言語を変更",
+                            "zh_cn" => "更改启动器和游戏语言",
+                            _ => "Change the launcher and in-game language",
+                        },
                         SettingControl::Button(
                             match c.language.as_str() {
                                 "es_es" => "Español v",
@@ -556,7 +574,16 @@ def patch_android_language(stage):
                 self.catalog.config.language = next.into();
                 self.modify_game_settings(|settings| settings.language = next.into());
                 self.catalog.config.save(&self.home)?;
-                self.catalog.status = format!("Language changed to {next}. Restart the game to apply it.");
+                self.catalog.status = match next {
+                    "es_es" => "Idioma cambiado. Reinicia el juego para aplicar el cambio.".into(),
+                    "pt_br" => "Idioma alterado. Reinicie o jogo para aplicar.".into(),
+                    "fr_fr" => "Langue modifiée. Redémarrez le jeu pour appliquer le changement.".into(),
+                    "it_it" => "Lingua modificata. Riavvia il gioco per applicare la modifica.".into(),
+                    "de_de" => "Sprache geändert. Starte das Spiel neu, um die Änderung anzuwenden.".into(),
+                    "ja_jp" => "言語を変更しました。適用するにはゲームを再起動してください。".into(),
+                    "zh_cn" => "语言已更改。请重新启动游戏以应用更改。".into(),
+                    _ => "Language changed. Restart the game to apply it.".into(),
+                };
             }
             Some(Action::UiScale) => self.open_chooser(chooser::Kind::UiScale),
 ''',
