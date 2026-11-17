@@ -36,52 +36,41 @@ fn hud(
     if !game.native_corner_shown(corner) {
         return;
     }
+    let code = horizon_client::lang::code().to_ascii_lowercase();
+    let lang = if code.starts_with("es") { 1 } else if code.starts_with("pt") { 2 }
+        else if code.starts_with("fr") { 3 } else if code.starts_with("it") { 4 }
+        else if code.starts_with("de") { 5 } else if code.starts_with("ja") { 6 }
+        else if code.starts_with("zh") { 7 } else { 0 };
+    let words = [
+        ["VOICE", "Connection", "CONNECTED", "DISCONNECTED", "Microphone", "MUTED", "ACTIVE", "INACTIVE", "Output", "PTT", "TRANSMITTING", "WAITING", "Volume", "Mic gain", "WAITING FOR SECRET", "UDP ERROR", "Press", "to talk"],
+        ["VOZ", "Conexión", "CONECTADO", "DESCONECTADO", "Micrófono", "SILENCIADO", "ACTIVO", "INACTIVO", "Salida", "PTT", "TRANSMITIENDO", "ESPERANDO", "Volumen", "Ganancia mic.", "ESPERANDO CLAVE", "ERROR UDP", "Pulsa", "para hablar"],
+        ["VOZ", "Conexão", "CONECTADO", "DESCONECTADO", "Microfone", "SILENCIADO", "ATIVO", "INATIVO", "Saída", "PTT", "TRANSMITINDO", "AGUARDANDO", "Volume", "Ganho mic.", "AGUARDANDO CHAVE", "ERRO UDP", "Pressione", "para falar"],
+        ["VOIX", "Connexion", "CONNECTÉ", "DÉCONNECTÉ", "Micro", "MUET", "ACTIF", "INACTIF", "Sortie", "PTT", "TRANSMISSION", "EN ATTENTE", "Volume", "Gain micro", "EN ATTENTE DE CLÉ", "ERREUR UDP", "Appuyez", "pour parler"],
+        ["VOCE", "Connessione", "CONNESSO", "DISCONNESSO", "Microfono", "MUTED", "ATTIVO", "INATTIVO", "Uscita", "PTT", "TRASMISSIONE", "IN ATTESA", "Volume", "Gain microfono", "IN ATTESA DELLA CHIAVE", "ERRORE UDP", "Premi", "per parlare"],
+        ["SPRACHE", "Verbindung", "VERBUNDEN", "GETRENNT", "Mikrofon", "STUMM", "AKTIV", "INAKTIV", "Ausgabe", "PTT", "ÜBERTRÄGT", "WARTET", "Lautstärke", "Mikrofonpegel", "WARTET AUF SCHLÜSSEL", "UDP-FEHLER", "Drücke", "zum Sprechen"],
+        ["音声", "接続", "接続中", "切断", "マイク", "ミュート", "有効", "無効", "出力", "PTT", "送信中", "待機中", "音量", "マイク音量", "キー待機中", "UDPエラー", "押して", "話す"],
+        ["语音", "连接", "已连接", "已断开", "麦克风", "已静音", "启用", "停用", "输出", "PTT", "正在传输", "等待中", "音量", "麦克风增益", "等待密钥", "UDP错误", "按下", "讲话"]
+    ][lang];
     let udp_line = match udp_counts {
-        Some((tx, rx, invalid)) if horizon_client::lang::code().starts_with("es") => {
-            format!("UDP TX/RX/ERR: {}/{}/{}", tx, rx, invalid)
-        }
         Some((tx, rx, invalid)) => format!("UDP TX/RX/ERR: {}/{}/{}", tx, rx, invalid),
-        None if horizon_client::lang::code().starts_with("es") => "UDP: ESPERANDO CLAVE".into(),
-        None => "UDP: WAITING FOR SECRET".into(),
+        None => format!("UDP: {}", words[14]),
     };
     let has_udp_error = udp_error.is_some();
     let error_line = udp_error
-        .map(|error| {
-            if horizon_client::lang::code().starts_with("es") {
-                format!("ERROR UDP: {}", error)
-            } else {
-                format!("UDP ERROR: {}", error)
-            }
-        })
-        .unwrap_or_else(|| {
-            if horizon_client::lang::code().starts_with("es") { "ERROR UDP: -".into() } else { "UDP ERROR: -".into() }
-        });
-    let spanish = horizon_client::lang::code().starts_with("es");
+        .map(|error| format!("{}: {}", words[15], error))
+        .unwrap_or_else(|| format!("{}: -", words[15]));
     let hud_key = game.native_mod_key("simple-voice-chat", "hud_toggle", "key.keyboard.h");
     let hud_key_label = hud_key.rsplit('.').next().unwrap_or(&hud_key).to_uppercase();
-    let lines = if spanish {
-        vec![
-            (format!("PAVOHORIZON | VOZ [{}]", hud_key_label), 0xFFFFFF),
-            (format!("Conexión: {}", if connected { "CONECTADO" } else { "DESCONECTADO" }), if connected { 0x55FF55 } else { 0xFF5555 }),
-            (format!("Micrófono: {}", if muted { "SILENCIADO" } else if mic { "ACTIVO" } else { "INACTIVO" }), if muted { 0xFF5555 } else if mic { 0x55FF55 } else { 0xFFAA00 }),
-            (format!("Salida: {}", if muted_players { "SILENCIADA" } else if speaker { "ACTIVA" } else { "INACTIVA" }), if muted_players { 0xFF5555 } else if speaker { 0x55FF55 } else { 0xFFAA00 }),
-            (format!("PTT {}: {}", ptt, if ptt_held { "TRANSMITIENDO" } else { "ESPERANDO" }), if ptt_held { 0x55FF55 } else { 0xFFFFFF }),
-            (format!("Volumen: {}% | Ganancia mic.: {}%", volume, mic_volume), 0xFFFFFF),
-            (udp_line, 0xFFFFFF),
-            (error_line, if has_udp_error { 0xFF5555 } else { 0x55FF55 }),
-        ]
-    } else {
-        vec![
-            (format!("PAVOHORIZON | VOICE [{}]", hud_key_label), 0xFFFFFF),
-            (format!("Connection: {}", if connected { "CONNECTED" } else { "DISCONNECTED" }), if connected { 0x55FF55 } else { 0xFF5555 }),
-            (format!("Microphone: {}", if muted { "MUTED" } else if mic { "ACTIVE" } else { "INACTIVE" }), if muted { 0xFF5555 } else if mic { 0x55FF55 } else { 0xFFAA00 }),
-            (format!("Output: {}", if muted_players { "MUTED" } else if speaker { "ACTIVE" } else { "INACTIVE" }), if muted_players { 0xFF5555 } else if speaker { 0x55FF55 } else { 0xFFAA00 }),
-            (format!("PTT {}: {}", ptt, if ptt_held { "TRANSMITTING" } else { "WAITING" }), if ptt_held { 0x55FF55 } else { 0xFFFFFF }),
-            (format!("Volume: {}% | Mic gain: {}%", volume, mic_volume), 0xFFFFFF),
-            (if udp_counts.is_some() { format!("UDP TX/RX/ERR: {}", udp_line.trim_start_matches("UDP TX/RX/ERR: ")) } else { "UDP: WAITING FOR SECRET".into() }, 0xFFFFFF),
-            (if has_udp_error { format!("UDP ERROR: {}", error_line.trim_start_matches("UDP ERROR: ")) } else { "UDP ERROR: -".into() }, if has_udp_error { 0xFF5555 } else { 0x55FF55 }),
-        ]
-    };
+    let lines = vec![
+        (format!("PAVOHORIZON | {} [{}]", words[0], hud_key_label), 0xFFFFFF),
+        (format!("{}: {}", words[1], if connected { words[2] } else { words[3] }), if connected { 0x55FF55 } else { 0xFF5555 }),
+        (format!("{}: {}", words[4], if muted { words[5] } else if mic { words[6] } else { words[7] }), if muted { 0xFF5555 } else if mic { 0x55FF55 } else { 0xFFAA00 }),
+        (format!("{}: {}", words[8], if muted_players { words[5] } else if speaker { words[6] } else { words[7] }), if muted_players { 0xFF5555 } else if speaker { 0x55FF55 } else { 0xFFAA00 }),
+        (format!("{} {}: {}", words[9], ptt, if ptt_held { words[10] } else { words[11] }), if ptt_held { 0x55FF55 } else { 0xFFFFFF }),
+        (format!("{}: {}% | {}: {}%", words[12], volume, words[13], mic_volume), 0xFFFFFF),
+        (udp_line, 0xFFFFFF),
+        (error_line, if has_udp_error { 0xFF5555 } else { 0x55FF55 }),
+    ];
     let width = lines.iter()
         .map(|(line, _)| game.native_text_width(line))
         .fold(0.0_f32, f32::max) + 10.0;
@@ -106,11 +95,7 @@ fn hud(
             native_ptt_key.rsplit('.').next().unwrap_or(&native_ptt_key).to_owned()
         };
         let ptt_label = ptt_key.strip_prefix("Key").unwrap_or(&ptt_key).to_uppercase();
-        let prompt = if spanish {
-            format!("Pulsa [{}] para hablar", ptt_label)
-        } else {
-            format!("Press [{}] to talk", ptt_label)
-        };
+        let prompt = format!("{} [{}] {}", words[16], ptt_label, words[17]);
         let prompt_width = game.native_text_width(&prompt) + 10.0;
         let (prompt_x, prompt_y) = corners.place(
             horizon_client::extras::Corner::BottomLeft,
