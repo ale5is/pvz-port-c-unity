@@ -485,11 +485,60 @@ def patch_android_language(stage):
     anchor = "    pub server: String,\n"
     if source.count(anchor) != 1:
         raise SystemExit("Could not locate Android launcher language config field.")
-    source = source.replace(anchor, anchor + '    #[serde(default = "default_language")]\n    pub language: String,\n', 1)
+    source = source.replace(
+        anchor,
+        anchor
+        + '    #[serde(default = "default_language")]\n    pub language: String,\n'
+        + '    #[serde(default = "default_language_auto")]\n    pub language_auto: bool,\n',
+        1,
+    )
     anchor = "fn default_true() -> bool {\n"
     if source.count(anchor) != 1:
         raise SystemExit("Could not locate Android launcher config defaults.")
-    source = source.replace(anchor, 'fn default_language() -> String { "en_us".into() }\n\n' + anchor, 1)
+    language_defaults = """fn default_language_auto() -> bool { true }
+
+fn default_language() -> String {
+    for property in [
+        "persist.sys.locale",
+        "ro.product.locale",
+        "persist.sys.language",
+        "ro.product.locale.language",
+    ] {
+        let output = std::process::Command::new("getprop").arg(property).output().ok();
+        let Some(output) = output else { continue };
+        let locale = String::from_utf8_lossy(&output.stdout).trim().to_ascii_lowercase();
+        if locale.is_empty() { continue; }
+        let language = locale.split(|c| c == '-' || c == '_').next().unwrap_or("");
+        let code = match language {
+            "es" => "es_es", "pt" => "pt_br", "fr" => "fr_fr",
+            "it" => "it_it", "de" => "de_de", "ja" => "ja_jp",
+            "zh" => "zh_cn", "en" => "en_us", _ => continue,
+        };
+        return code.into();
+    }
+    "en_us".into()
+}
+
+"""
+    source = source.replace(anchor, language_defaults + anchor, 1)
+    anchor = "        let mut config: Self = serde_json::from_value(value.clone()).unwrap_or_default();\n"
+    if source.count(anchor) != 1:
+        raise SystemExit("Could not locate Android launcher config loading.")
+    source = source.replace(
+        anchor,
+        anchor
+        + """        if config.language_auto {
+            config.language = default_language();
+        }
+        let options_path = config.game_home(home).join("options.txt");
+        let mut game_settings = horizon_client::settings::Settings::load(&options_path);
+        if game_settings.language != config.language {
+            game_settings.language = config.language.clone();
+            let _ = game_settings.save(&options_path);
+        }
+""",
+        1,
+    )
     catalog.write_text(source, encoding="utf-8")
 
     pages = stage / "crates/horizon-client/src/android/launcher_pages.rs"
@@ -572,6 +621,7 @@ def patch_android_language(stage):
                 let index = LANGUAGES.iter().position(|code| *code == current).unwrap_or(0);
                 let next = LANGUAGES[(index + 1) % LANGUAGES.len()];
                 self.catalog.config.language = next.into();
+                self.catalog.config.language_auto = false;
                 self.modify_game_settings(|settings| settings.language = next.into());
                 self.catalog.config.save(&self.home)?;
                 self.catalog.status = match next {
@@ -595,8 +645,226 @@ def patch_android_language(stage):
         if count != 1:
             raise SystemExit(f"Could not uniquely locate {label} (found {count}).")
         source = source.replace(old, new, 1)
+
+    ui_theme = stage / "crates/horizon-client/src/ui_theme.rs"
+    source = ui_theme.read_text(encoding="utf-8")
+    import_anchor = "use std::{cell::RefCell, collections::HashMap, path::Path};\n"
+    if source.count(import_anchor) != 1:
+        raise SystemExit("Could not locate Horizon UI theme imports.")
+    source = source.replace(
+        import_anchor,
+        "use std::{cell::{Cell, RefCell}, collections::HashMap, path::Path};\n",
+        1,
+    )
+    ui_anchor = "pub struct Ui<'a> {\n"
+    language_ui = r"""
+thread_local! {
+    static PAVO_LAUNCHER_LANGUAGE: Cell<u8> = const { Cell::new(0) };
+}
+
+pub fn set_launcher_language(language: &str) {
+    let index = match language {
+        "es_es" => 1, "pt_br" => 2, "fr_fr" => 3, "it_it" => 4,
+        "de_de" => 5, "ja_jp" => 6, "zh_cn" => 7, _ => 0,
+    };
+    PAVO_LAUNCHER_LANGUAGE.with(|current| current.set(index));
+}
+
+fn pavo_launcher_text(text: &str) -> String {
+    PAVO_LAUNCHER_LANGUAGE.with(|current| {
+        let lang = current.get();
+        let translated = match (lang, text) {
+            (1, "Settings") => "Ajustes",
+            (1, "Video Settings") => "Ajustes de vídeo",
+            (1, "Launcher Settings") => "Ajustes del launcher",
+            (1, "Controls") => "Controles",
+            (1, "Experimental Stuff") => "Funciones experimentales",
+            (1, "Diagnostics") => "Diagnóstico",
+            (1, "Account") => "Cuenta",
+            (1, "Rendering, resolution and performance") => "Renderizado, resolución y rendimiento",
+            (1, "Theme customization, profiles, DPI scale & preferences") => "Tema, perfiles, escala DPI y preferencias",
+            (1, "HUD touch layout, buttons, sensitivity and profiles") => "Diseño táctil del HUD, botones, sensibilidad y perfiles",
+            (1, "Logs, device info and troubleshooting") => "Registros, información del dispositivo y solución de problemas",
+            (1, "Microsoft and Xbox sign-in") => "Inicio de sesión de Microsoft y Xbox",
+            (1, "← Back") => "← Volver",
+            (1, "Enabled") => "Activado",
+            (1, "Off") => "Desactivado",
+            (1, "Open Files") => "Abrir archivos",
+            (1, "Open game & world folders") => "Abrir carpetas del juego y mundos",
+            (1, "Manage saves, resource packs and mods in Android Files") => "Administra mundos, paquetes y mods desde Archivos",
+            (1, "Reset Default") => "Restablecer valores",
+            (1, "Light") => "Claro",
+            (1, "Dark") => "Oscuro",
+            (1, "Search") => "Buscar",
+            (1, "Play") => "Jugar",
+            (1, "Home") => "Inicio",
+            (1, "Mods") => "Mods",
+            (1, "Installed") => "Instalados",
+            (1, "Discover") => "Descubrir",
+            (1, "Downloads") => "Descargas",
+            (1, "Skins") => "Aspectos",
+            (1, "Servers") => "Servidores",
+            (1, "Worlds") => "Mundos",
+            (1, "Language") => "Idioma",
+            (1, "Change the launcher and in-game language") => "Cambia el idioma del launcher y del juego",
+            (1, "English v") => "Español v",
+            (2, "Settings") => "Configurações",
+            (2, "Video Settings") => "Configurações de vídeo",
+            (2, "Launcher Settings") => "Configurações do launcher",
+            (2, "Controls") => "Controles",
+            (2, "Experimental Stuff") => "Recursos experimentais",
+            (2, "Diagnostics") => "Diagnóstico",
+            (2, "Account") => "Conta",
+            (2, "← Back") => "← Voltar",
+            (2, "Enabled") => "Ativado",
+            (2, "Off") => "Desativado",
+            (2, "Search") => "Pesquisar",
+            (2, "Play") => "Jogar",
+            (2, "Home") => "Início",
+            (2, "Installed") => "Instalados",
+            (2, "Discover") => "Descobrir",
+            (2, "Downloads") => "Downloads",
+            (2, "Skins") => "Visuais",
+            (2, "Servers") => "Servidores",
+            (2, "Worlds") => "Mundos",
+            (2, "Language") => "Idioma",
+            (2, "English v") => "Português v",
+            (3, "Settings") => "Paramètres",
+            (3, "Video Settings") => "Paramètres vidéo",
+            (3, "Launcher Settings") => "Paramètres du launcher",
+            (3, "Controls") => "Commandes",
+            (3, "Experimental Stuff") => "Fonctionnalités expérimentales",
+            (3, "Diagnostics") => "Diagnostics",
+            (3, "Account") => "Compte",
+            (3, "← Back") => "← Retour",
+            (3, "Enabled") => "Activé",
+            (3, "Off") => "Désactivé",
+            (3, "Search") => "Rechercher",
+            (3, "Play") => "Jouer",
+            (3, "Home") => "Accueil",
+            (3, "Installed") => "Installés",
+            (3, "Discover") => "Découvrir",
+            (3, "Downloads") => "Téléchargements",
+            (3, "Skins") => "Skins",
+            (3, "Servers") => "Serveurs",
+            (3, "Worlds") => "Mondes",
+            (3, "Language") => "Langue",
+            (3, "English v") => "Français v",
+            (4, "Settings") => "Impostazioni",
+            (4, "Video Settings") => "Impostazioni video",
+            (4, "Launcher Settings") => "Impostazioni launcher",
+            (4, "Controls") => "Controlli",
+            (4, "Experimental Stuff") => "Funzioni sperimentali",
+            (4, "Diagnostics") => "Diagnostica",
+            (4, "Account") => "Account",
+            (4, "← Back") => "← Indietro",
+            (4, "Enabled") => "Attivato",
+            (4, "Off") => "Disattivato",
+            (4, "Search") => "Cerca",
+            (4, "Play") => "Gioca",
+            (4, "Home") => "Home",
+            (4, "Installed") => "Installati",
+            (4, "Discover") => "Esplora",
+            (4, "Downloads") => "Download",
+            (4, "Skins") => "Skin",
+            (4, "Servers") => "Server",
+            (4, "Worlds") => "Mondi",
+            (4, "Language") => "Lingua",
+            (4, "English v") => "Italiano v",
+            (5, "Settings") => "Einstellungen",
+            (5, "Video Settings") => "Videoeinstellungen",
+            (5, "Launcher Settings") => "Launcher-Einstellungen",
+            (5, "Controls") => "Steuerung",
+            (5, "Experimental Stuff") => "Experimentelle Funktionen",
+            (5, "Diagnostics") => "Diagnose",
+            (5, "Account") => "Konto",
+            (5, "← Back") => "← Zurück",
+            (5, "Enabled") => "Aktiviert",
+            (5, "Off") => "Aus",
+            (5, "Search") => "Suchen",
+            (5, "Play") => "Spielen",
+            (5, "Home") => "Startseite",
+            (5, "Installed") => "Installiert",
+            (5, "Discover") => "Entdecken",
+            (5, "Downloads") => "Downloads",
+            (5, "Skins") => "Skins",
+            (5, "Servers") => "Server",
+            (5, "Worlds") => "Welten",
+            (5, "Language") => "Sprache",
+            (5, "English v") => "Deutsch v",
+            (6, "Settings") => "設定",
+            (6, "Video Settings") => "ビデオ設定",
+            (6, "Launcher Settings") => "ランチャー設定",
+            (6, "Controls") => "操作",
+            (6, "Experimental Stuff") => "実験的な機能",
+            (6, "Diagnostics") => "診断",
+            (6, "Account") => "アカウント",
+            (6, "← Back") => "← 戻る",
+            (6, "Enabled") => "有効",
+            (6, "Off") => "オフ",
+            (6, "Search") => "検索",
+            (6, "Play") => "プレイ",
+            (6, "Home") => "ホーム",
+            (6, "Installed") => "インストール済み",
+            (6, "Discover") => "見つける",
+            (6, "Downloads") => "ダウンロード",
+            (6, "Skins") => "スキン",
+            (6, "Servers") => "サーバー",
+            (6, "Worlds") => "ワールド",
+            (6, "Language") => "言語",
+            (6, "English v") => "日本語 v",
+            (7, "Settings") => "设置",
+            (7, "Video Settings") => "视频设置",
+            (7, "Launcher Settings") => "启动器设置",
+            (7, "Controls") => "控制",
+            (7, "Experimental Stuff") => "实验功能",
+            (7, "Diagnostics") => "诊断",
+            (7, "Account") => "账户",
+            (7, "← Back") => "← 返回",
+            (7, "Enabled") => "已启用",
+            (7, "Off") => "关闭",
+            (7, "Search") => "搜索",
+            (7, "Play") => "开始游戏",
+            (7, "Home") => "主页",
+            (7, "Installed") => "已安装",
+            (7, "Discover") => "发现",
+            (7, "Downloads") => "下载",
+            (7, "Skins") => "皮肤",
+            (7, "Servers") => "服务器",
+            (7, "Worlds") => "世界",
+            (7, "Language") => "语言",
+            (7, "English v") => "简体中文 v",
+            _ => text,
+        };
+        translated.to_owned()
+    })
+}
+
+"""
+    if source.count(ui_anchor) != 1:
+        raise SystemExit("Could not locate Horizon UI struct for language support.")
+    source = source.replace(ui_anchor, language_ui + ui_anchor, 1)
+    text_anchor = "        self.text_line(face, size, (size * 1.45).round(), x, y, color, text)\n"
+    if source.count(text_anchor) != 1:
+        raise SystemExit("Could not locate Horizon UI text renderer.")
+    source = source.replace(
+        text_anchor,
+        "        let translated = pavo_launcher_text(text);\n        self.text_line(face, size, (size * 1.45).round(), x, y, color, &translated)\n",
+        1,
+    )
+    ui_theme.write_text(source, encoding="utf-8")
+
+    source = pages.read_text(encoding="utf-8")
+    draw_anchor = "        if r.suspended {\n            return Ok(());\n        }\n"
+    if source.count(draw_anchor) != 1:
+        raise SystemExit("Could not locate Android launcher frame entry point.")
+    source = source.replace(
+        draw_anchor,
+        draw_anchor + "        horizon_client::ui_theme::set_launcher_language(&self.catalog.config.language);\n",
+        1,
+    )
     pages.write_text(source, encoding="utf-8")
-    print("PavoHorizon language setting: persistent 8-language selector added to Android launcher and Minecraft options.", flush=True)
+    print("PavoHorizon language support: detects Android locale, persists manual override, and translates launcher UI plus Minecraft.", flush=True)
 
 def verify_no_starlight_in_apk(apk):
     import zipfile
