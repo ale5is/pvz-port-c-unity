@@ -236,6 +236,22 @@ pub fn settings(
         "Mute microphone + players".into()
     });
     buttons.push("Reconnect to voice server".into());
+    buttons.push(format!(
+        "Output volume: {}% (-10%)",
+        (g.cfg.volume * 100.0).round() as u32
+    ));
+    buttons.push(format!(
+        "Output volume: {}% (+10%)",
+        (g.cfg.volume * 100.0).round() as u32
+    ));
+    buttons.push(format!(
+        "Microphone gain: {}% (-10%)",
+        (g.cfg.mic_volume * 100.0).round() as u32
+    ));
+    buttons.push(format!(
+        "Microphone gain: {}% (+10%)",
+        (g.cfg.mic_volume * 100.0).round() as u32
+    ));
 }
 
 pub fn settings_click(
@@ -276,6 +292,35 @@ pub fn settings_click(
             svc_client::runtime::Glue::save_config(&base, &cfg);
         }
         eprintln!("[PavoHorizon/SVC] {description}; voice session remains active");
+        return;
+    }
+    if (5..=8).contains(&button) {
+        let (description, cfg) = {
+            let mut g = locked();
+            let (label, value) = match button {
+                5 => {
+                    g.cfg.volume = (g.cfg.volume - 0.1).clamp(0.0, 1.0);
+                    ("output volume", g.cfg.volume)
+                }
+                6 => {
+                    g.cfg.volume = (g.cfg.volume + 0.1).clamp(0.0, 1.0);
+                    ("output volume", g.cfg.volume)
+                }
+                7 => {
+                    g.cfg.mic_volume = (g.cfg.mic_volume - 0.1).clamp(0.0, 1.0);
+                    ("microphone gain", g.cfg.mic_volume)
+                }
+                _ => {
+                    g.cfg.mic_volume = (g.cfg.mic_volume + 0.1).clamp(0.0, 1.0);
+                    ("microphone gain", g.cfg.mic_volume)
+                }
+            };
+            (format!("{label}: {}%", (value * 100.0).round() as u32), g.cfg.clone())
+        };
+        if let Some(base) = config_base() {
+            svc_client::runtime::Glue::save_config(&base, &cfg);
+        }
+        eprintln!("[PavoHorizon/SVC] {description}");
         return;
     }
     if button != 4 {
