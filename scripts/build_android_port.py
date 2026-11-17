@@ -184,7 +184,15 @@ def patch_android_identity(stage):
         raise SystemExit("Could not locate the default Android application ID.")
     gradle.write_text(gradle_text.replace(old_app_id, new_app_id, 1), encoding="utf-8")
 
-    print("Android identity: label=PavoHorizon, applicationId=com.ale5is.pavohorizon; Gradle project name preserved for upstream build compatibility.", flush=True)
+    android_build = stage / "tools/android_build.py"
+    build_text = android_build.read_text(encoding="utf-8")
+    old_check_arg = "*(['--app-id', 'dev.horizon.android.dev'] if args.dev_build else [])"
+    new_check_arg = "*(['--app-id', 'dev.horizon.android.dev'] if args.dev_build else ['--app-id', 'com.ale5is.pavohorizon'])"
+    if old_check_arg not in build_text:
+        raise SystemExit("Could not locate the upstream Android package audit argument.")
+    android_build.write_text(build_text.replace(old_check_arg, new_check_arg, 1), encoding="utf-8")
+
+    print("Android identity: label=PavoHorizon, applicationId=com.ale5is.pavohorizon; package audit aligned; Gradle project name preserved for upstream build compatibility.", flush=True)
 
 
 def verify_no_starlight_in_apk(apk):
