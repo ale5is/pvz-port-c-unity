@@ -72,6 +72,8 @@ pub struct Glue {
     pub speaker: Option<crate::audio_io::Speaker>,
     /// The Opus codec, created with the audio devices.
     pub codec: Option<crate::audio::VoiceCodec>,
+    /// Independent Opus decoder state for each remote voice sender.
+    pub decoders: HashMap<u128, crate::audio::VoiceDecoder>,
 }
 
 impl Default for Glue {
@@ -93,6 +95,7 @@ impl Default for Glue {
             mic: None,
             speaker: None,
             codec: None,
+            decoders: HashMap::new(),
         }
     }
 }
@@ -158,6 +161,7 @@ impl Glue {
         self.group_by_name.clear();
         self.uuid_by_name.clear();
         self.name_by_uuid.clear();
+        self.decoders.clear();
         self.ptt_held = false;
         self.mic_talking = false;
         self.reconnect_pending = false;
@@ -171,6 +175,7 @@ impl Glue {
             s.close();
         }
         self.mic_talking = false;
+        self.decoders.clear();
         self.reconnect_pending = false;
     }
 
@@ -218,6 +223,7 @@ impl Glue {
                 if let Some(s) = &mut self.session {
                     s.forget_position(uuid);
                 }
+                self.decoders.remove(&uuid);
             }
             proto::ServerMessage::AddGroup { id, name, password, .. } => {
                 self.group_by_name.insert(name.clone(), id);
@@ -348,15 +354,26 @@ impl Glue {
         }
         let Some(spk) = &self.speaker else { return };
         for e in events {
-            if let crate::session::Event::Voice { data, volume, .. } = e {
+            if let crate::session::Event::Voice { sender, data, volume, .. } = e {
+                if !self.decoders.contains_key(sender) {
+                    match crate::audio::VoiceDecoder::new() {
+                        Ok(decoder) => {
+                            self.decoders.insert(*sender, decoder);
+                        }
+                        Err(error) => {
+                            eprintln!("[PavoHorizon/SVC] decoder init failed for {sender}: {error}");
+                            continue;
+                        }
+                    }
+                }
                 let Some(mut pcm) = self
-                    .codec
-                    .as_mut()
-                    .and_then(|c| c.decode(Some(data)).ok())
+                    .decoders
+                    .get_mut(sender)
+                    .and_then(|decoder| decoder.decode(Some(data)).ok())
                 else {
                     continue;
                 };
-                crate::audio::mix(&mut pcm, volume * self.cfg.volume);
+                crate::audio::mix(&mut pcm, *volume * self.cfg.volume);
                 spk.play(&pcm);
             }
         }
