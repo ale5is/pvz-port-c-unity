@@ -19,16 +19,30 @@ pub const PORT: &str = "simple-voice-chat";
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct VoiceConfig {
-    /// The key that opens the mic while held (`KeyV`).
     pub ptt_key: String,
+    pub mute_key: String,
+    pub mute_players_key: String,
+    pub mute_all_key: String,
     pub muted: bool,
-    /// Mic capture volume, 0..=1.
+    pub muted_players: bool,
+    pub push_to_talk: bool,
     pub volume: f32,
+    pub mic_volume: f32,
 }
 
 impl Default for VoiceConfig {
     fn default() -> Self {
-        Self { ptt_key: "KeyV".into(), muted: false, volume: 1.0 }
+        Self {
+            ptt_key: "KeyV".into(),
+            mute_key: "KeyM".into(),
+            mute_players_key: "KeyB".into(),
+            mute_all_key: "KeyN".into(),
+            muted: false,
+            muted_players: false,
+            push_to_talk: true,
+            volume: 1.0,
+            mic_volume: 1.0,
+        }
     }
 }
 
@@ -95,6 +109,31 @@ impl Glue {
         if let Ok(t) = serde_json::to_string_pretty(cfg) {
             let _ = std::fs::write(Self::config_path(base), t);
         }
+    }
+
+    pub fn set_muted(&mut self, muted: bool) {
+        self.cfg.muted = muted;
+        if muted {
+            self.ptt_held = false;
+            self.mic = None;
+        }
+    }
+
+    pub fn set_players_muted(&mut self, muted: bool) {
+        self.cfg.muted_players = muted;
+        if muted {
+            self.speaker = None;
+        }
+    }
+
+    pub fn set_all_muted(&mut self, muted: bool) {
+        self.set_muted(muted);
+        self.set_players_muted(muted);
+    }
+
+    pub fn set_push_to_talk(&mut self, enabled: bool) {
+        self.cfg.push_to_talk = enabled;
+        self.ptt_held = false;
     }
 
     /// A world opened: drop any old session, the handshake goes out next.
@@ -222,7 +261,7 @@ impl Glue {
     /// packets on the session; always drain the capture so it stays fresh.
     fn pump_mic(&mut self) {
         let talking = !self.cfg.muted
-            && self.ptt_held
+            && (!self.cfg.push_to_talk || self.ptt_held)
             && self
                 .session
                 .as_ref()
@@ -233,7 +272,12 @@ impl Glue {
             if !talking {
                 continue;
             }
-            let packet = match self.codec.as_mut().map(|c| c.encode(&frame)) {
+            let mut adjusted = frame;
+            for sample in &mut adjusted {
+                *sample = (*sample as f32 * self.cfg.mic_volume)
+                    .clamp(-32768.0, 32767.0) as i16;
+            }
+            let packet = match self.codec.as_mut().map(|c| c.encode(&adjusted)) {
                 Some(Ok(p)) => p,
                 _ => break,
             };
@@ -246,6 +290,9 @@ impl Glue {
     /// The playback side: decode voice events and play them, applying the
     /// positional volume and the user's master volume.
     fn pump_speaker(&mut self, events: &[crate::session::Event]) {
+        if self.cfg.muted_players {
+            return;
+        }
         let Some(spk) = &self.speaker else { return };
         for e in events {
             if let crate::session::Event::Voice { data, volume, .. } = e {
@@ -280,16 +327,26 @@ impl Glue {
     /// A key event: PTT on press and release, mute on the mute key.
     pub fn on_key(&mut self, code: &str, pressed: bool) -> Option<String> {
         if code.eq_ignore_ascii_case(&self.cfg.ptt_key) {
-            self.ptt_held = pressed;
+            if self.cfg.push_to_talk {
+                self.ptt_held = pressed;
+            }
             return None;
         }
-        if pressed && code.eq_ignore_ascii_case("KeyM") {
-            self.cfg.muted = !self.cfg.muted;
-            return Some(if self.cfg.muted {
-                "voice muted".into()
-            } else {
-                "voice unmuted".into()
-            });
+        if !pressed {
+            return None;
+        }
+        if code.eq_ignore_ascii_case(&self.cfg.mute_key) {
+            self.set_muted(!self.cfg.muted);
+            return Some(if self.cfg.muted { "microphone muted".into() } else { "microphone unmuted".into() });
+        }
+        if code.eq_ignore_ascii_case(&self.cfg.mute_players_key) {
+            self.set_players_muted(!self.cfg.muted_players);
+            return Some(if self.cfg.muted_players { "other players muted".into() } else { "other players unmuted".into() });
+        }
+        if code.eq_ignore_ascii_case(&self.cfg.mute_all_key) {
+            let muted = !(self.cfg.muted && self.cfg.muted_players);
+            self.set_all_muted(muted);
+            return Some(if muted { "microphone and other players muted".into() } else { "microphone and other players unmuted".into() });
         }
         None
     }
@@ -309,31 +366,77 @@ impl Glue {
         }
         match sub {
             "mute" => {
-                self.cfg.muted = true;
-                ("voice muted".into(), sends)
+                self.set_muted(true);
+                ("microphone muted".into(), sends)
             }
             "unmute" => {
-                self.cfg.muted = false;
-                ("voice unmuted".into(), sends)
+                self.set_muted(false);
+                ("microphone unmuted".into(), sends)
+            }
+            "toggle" => {
+                self.set_muted(!self.cfg.muted);
+                (if self.cfg.muted { "microphone muted" } else { "microphone unmuted" }.into(), sends)
+            }
+            "muteplayers" => {
+                self.set_players_muted(true);
+                ("other players muted".into(), sends)
+            }
+            "unmuteplayers" => {
+                self.set_players_muted(false);
+                ("other players unmuted".into(), sends)
+            }
+            "muteall" => {
+                self.set_all_muted(true);
+                ("microphone and other players muted".into(), sends)
+            }
+            "unmuteall" => {
+                self.set_all_muted(false);
+                ("microphone and other players unmuted".into(), sends)
+            }
+            "mode" => {
+                match rest.first().copied() {
+                    Some("ptt") => self.set_push_to_talk(true),
+                    Some("always") => self.set_push_to_talk(false),
+                    Some(_) => return ("usage: /svc mode ptt|always".into(), sends),
+                    None => return (format!("microphone mode: {}", if self.cfg.push_to_talk { "push-to-talk" } else { "always-on" }), sends),
+                }
+                (format!("microphone mode: {}", if self.cfg.push_to_talk { "push-to-talk" } else { "always-on" }), sends)
             }
             "ptt" => {
                 if let Some(k) = rest.first() {
+                    if !valid_key_code(k) {
+                        return ("usage: /svc ptt KeyV".into(), sends);
+                    }
                     self.cfg.ptt_key = k.to_string();
                     (format!("push-to-talk key set to {}", k), sends)
                 } else {
                     (format!("push-to-talk key is {}", self.cfg.ptt_key), sends)
                 }
             }
+            "volume" => {
+                if let Some(value) = rest.first().and_then(|v| v.parse::<f32>().ok()) {
+                    self.cfg.volume = value.clamp(0.0, 100.0) / 100.0;
+                }
+                (format!("voice output volume: {}%", (self.cfg.volume * 100.0).round() as u32), sends)
+            }
+            "micvolume" => {
+                if let Some(value) = rest.first().and_then(|v| v.parse::<f32>().ok()) {
+                    self.cfg.mic_volume = value.clamp(0.0, 100.0) / 100.0;
+                }
+                (format!("microphone gain: {}%", (self.cfg.mic_volume * 100.0).round() as u32), sends)
+            }
             "status" => (
-                match &self.session {
-                    None => "voice chat: not connected".into(),
-                    Some(_) if self.cfg.muted => "voice chat: connected, muted".into(),
-                    Some(_) => "voice chat: connected".into(),
-                },
+                format!(
+                    "voice chat: {}, mic gain: {}%, output: {}%, PTT: {}",
+                    if self.session.as_ref().is_some_and(|s| s.state() == crate::session::State::Connected) { "connected" } else { "disconnected" },
+                    (self.cfg.mic_volume * 100.0).round() as u32,
+                    (self.cfg.volume * 100.0).round() as u32,
+                    self.cfg.ptt_key
+                ) + if self.cfg.muted { ", muted" } else { ", unmuted" },
                 sends,
             ),
             _ => (
-                "/svc mute|unmute|ptt <key>|status, /vcgroup create|join|leave|list".into(),
+                "/svc mute|unmute|toggle|muteplayers|unmuteplayers|muteall|unmuteall|mode ptt|always|ptt <KeyCode>|volume <0-100>|micvolume <0-100>|status; /vcgroup create|join|leave|list".into(),
                 sends,
             ),
         }
@@ -373,6 +476,11 @@ impl Glue {
             _ => "usage: /vcgroup create|join|leave|list".into(),
         }
     }
+}
+
+fn valid_key_code(key: &str) -> bool {
+    (key.starts_with("Key") && key.len() == 4 && key.as_bytes()[3].is_ascii_alphabetic())
+        || (key.starts_with("Digit") && key.len() == 6 && key.as_bytes()[5].is_ascii_digit())
 }
 
 fn voice_socket(voice_host: &str, hint: Option<&str>, port: u16) -> SocketAddr {
@@ -506,7 +614,7 @@ mod tests {
     #[test]
     fn config_round_trip() {
         let dir = std::env::temp_dir().join(format!("svc-test-{}", std::process::id()));
-        let cfg = VoiceConfig { ptt_key: "KeyB".into(), muted: true, volume: 0.5 };
+        let cfg = VoiceConfig { ptt_key: "KeyB".into(), muted: true, volume: 0.5, ..VoiceConfig::default() };
         Glue::save_config(dir.to_str().unwrap(), &cfg);
         let loaded = Glue::load_config(dir.to_str().unwrap());
         assert_eq!(loaded.ptt_key, "KeyB");
