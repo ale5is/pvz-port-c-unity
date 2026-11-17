@@ -1860,7 +1860,6 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
             (1, "Pasted") => Some("Pegado"),
             (1, "Installed {count} item(s). Open Play to load this profile.") => Some("Se instalaron {count} elementos. Abre Jugar para cargar este perfil."),
             (1, "Installed {}. Enable it in Installed after reviewing its capabilities in game Mods.") => Some("Se instaló {}. Actívalo en Instalados después de revisar sus capacidades en Mods del juego."),
-            (1, "bytes") => Some("bytes"),
             (2, "Clipboard is empty.") => Some("A área de transferência está vazia."),
             (2, "Searching... You can switch tabs while results load.") => Some("Pesquisando... Você pode trocar de aba enquanto os resultados carregam."),
             (2, "No Horizon shader packs match this search. Try another query or import a .hshader.") => Some("Nenhum pacote de shaders Horizon corresponde à busca. Tente outra consulta ou importe um .hshader."),
@@ -1877,7 +1876,6 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
             (2, "Pasted") => Some("Colado"),
             (2, "Installed {count} item(s). Open Play to load this profile.") => Some("{count} itens instalados. Abra Jogar para carregar este perfil."),
             (2, "Installed {}. Enable it in Installed after reviewing its capabilities in game Mods.") => Some("{} instalado. Ative em Instalados após revisar seus recursos nos Mods do jogo."),
-            (2, "bytes") => Some("bytes"),
             (3, "Clipboard is empty.") => Some("Le presse-papiers est vide."),
             (3, "Searching... You can switch tabs while results load.") => Some("Recherche... Vous pouvez changer d’onglet pendant le chargement."),
             (3, "No Horizon shader packs match this search. Try another query or import a .hshader.") => Some("Aucun pack de shaders Horizon ne correspond. Essayez une autre recherche ou importez un .hshader."),
@@ -1894,7 +1892,6 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
             (3, "Pasted") => Some("Collé"),
             (3, "Installed {count} item(s). Open Play to load this profile.") => Some("{count} éléments installés. Ouvrez Jouer pour charger ce profil."),
             (3, "Installed {}. Enable it in Installed after reviewing its capabilities in game Mods.") => Some("{} installé. Activez-le dans Installés après avoir vérifié ses capacités dans les mods du jeu."),
-            (3, "bytes") => Some("octets"),
             (4, "Clipboard is empty.") => Some("Gli appunti sono vuoti."),
             (4, "Searching... You can switch tabs while results load.") => Some("Ricerca... Puoi cambiare scheda mentre i risultati vengono caricati."),
             (4, "No Horizon shader packs match this search. Try another query or import a .hshader.") => Some("Nessun pacchetto shader Horizon corrisponde. Prova un'altra ricerca o importa un .hshader."),
@@ -1911,7 +1908,6 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
             (4, "Pasted") => Some("Incollato"),
             (4, "Installed {count} item(s). Open Play to load this profile.") => Some("Installati {count} elementi. Apri Gioca per caricare questo profilo."),
             (4, "Installed {}. Enable it in Installed after reviewing its capabilities in game Mods.") => Some("{} installato. Attivalo in Installati dopo averne verificato le funzionalità nei mod del gioco."),
-            (4, "bytes") => Some("byte"),
             (5, "Clipboard is empty.") => Some("Die Zwischenablage ist leer."),
             (5, "Searching... You can switch tabs while results load.") => Some("Suche... Du kannst während des Ladens die Tabs wechseln."),
             (5, "No Horizon shader packs match this search. Try another query or import a .hshader.") => Some("Keine Horizon-Shaderpakete entsprechen der Suche. Versuche eine andere Suche oder importiere ein .hshader."),
@@ -1928,7 +1924,6 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
             (5, "Pasted") => Some("Eingefügt"),
             (5, "Installed {count} item(s). Open Play to load this profile.") => Some("{count} Elemente installiert. Öffne Spielen, um dieses Profil zu laden."),
             (5, "Installed {}. Enable it in Installed after reviewing its capabilities in game Mods.") => Some("{} installiert. Aktiviere es unter Installiert, nachdem du die Funktionen in den Spiel-Mods geprüft hast."),
-            (5, "bytes") => Some("Bytes"),
             (6, "Clipboard is empty.") => Some("クリップボードは空です。"),
             (6, "Searching... You can switch tabs while results load.") => Some("検索中... 読み込み中もタブを切り替えられます。"),
             (6, "No Horizon shader packs match this search. Try another query or import a .hshader.") => Some("一致するHorizonシェーダーパックはありません。別の検索を試すか、.hshaderをインポートしてください。"),
@@ -1945,7 +1940,6 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
             (6, "Pasted") => Some("貼り付けました"),
             (6, "Installed {count} item(s). Open Play to load this profile.") => Some("{count}件をインストールしました。プロフィールを読み込むにはプレイを開いてください。"),
             (6, "Installed {}. Enable it in Installed after reviewing its capabilities in game Mods.") => Some("{}をインストールしました。ゲーム内MODで機能を確認してからインストール済みで有効にしてください。"),
-            (6, "bytes") => Some("バイト"),
             (7, "Clipboard is empty.") => Some("剪贴板为空。"),
             (7, "Searching... You can switch tabs while results load.") => Some("正在搜索... 加载结果时可以切换标签页。"),
             (7, "No Horizon shader packs match this search. Try another query or import a .hshader.") => Some("没有匹配的 Horizon 光影包。请尝试其他搜索，或导入 .hshader。"),
@@ -1962,7 +1956,6 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
             (7, "Pasted") => Some("已粘贴"),
             (7, "Installed {count} item(s). Open Play to load this profile.") => Some("已安装 {count} 个项目。打开“开始游戏”以加载此配置。"),
             (7, "Installed {}. Enable it in Installed after reviewing its capabilities in game Mods.") => Some("已安装 {}。请在游戏内模组中检查其功能后，在“已安装”中启用。"),
-            (7, "bytes") => Some("字节"),
         _ => None,
     };
     if let Some(value) = exact {
@@ -2007,6 +2000,36 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
                     return Some(format!("{label} ({count})?"));
                 }
             }
+        }
+    }
+    if let Some(value) = text.strip_prefix("Installed ") {
+        if let Some(count) = value.strip_suffix(" item(s). Open Play to load this profile.") {
+            if count.chars().all(|c| c.is_ascii_digit()) {
+                let message = match lang {
+                    1 => "elementos instalados. Abre Jugar para cargar este perfil.",
+                    2 => "itens instalados. Abra Jogar para carregar este perfil.",
+                    3 => "éléments installés. Ouvrez Jouer pour charger ce profil.",
+                    4 => "elementi installati. Apri Gioca per caricare questo profilo.",
+                    5 => "Elemente installiert. Öffne Spielen, um dieses Profil zu laden.",
+                    6 => "件をインストールしました。プロフィールを読み込むにはプレイを開いてください。",
+                    7 => "个项目已安装。打开“开始游戏”以加载此配置。",
+                    _ => "items installed. Open Play to load this profile.",
+                };
+                return Some(format!("{count} {message}"));
+            }
+        }
+        if let Some(name) = value.strip_suffix(". Enable it in Installed after reviewing its capabilities in game Mods.") {
+            let message = match lang {
+                1 => "Se instaló {name}. Actívalo en Instalados después de revisar sus capacidades en Mods del juego.",
+                2 => "{name} instalado. Ative em Instalados após revisar seus recursos nos Mods do jogo.",
+                3 => "{name} installé. Activez-le dans Installés après avoir vérifié ses capacités dans les mods du jeu.",
+                4 => "{name} installato. Attivalo in Installati dopo averne verificato le funzionalità nei mod del gioco.",
+                5 => "{name} installiert. Aktiviere es unter Installiert, nachdem du die Funktionen in den Spiel-Mods geprüft hast.",
+                6 => "{name}をインストールしました。ゲーム内MODで機能を確認してからインストール済みで有効にしてください。",
+                7 => "已安装 {name}。请在游戏内模组中检查其功能后，在“已安装”中启用。",
+                _ => "Installed {name}. Enable it in Installed after reviewing its capabilities in game Mods.",
+            };
+            return Some(message.replace("{name}", name));
         }
     }
     if let Some(value) = text.strip_prefix("Folder  •  ") {
