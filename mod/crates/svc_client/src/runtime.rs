@@ -51,6 +51,8 @@ pub struct Glue {
     pub cfg: VoiceConfig,
     pub session: Option<Session>,
     pub ptt_held: bool,
+    /// Whether the in-game voice diagnostics HUD is visible (toggle with H).
+    pub hud_open: bool,
     /// Whether the previous microphone frame started a speaking stream.
     pub mic_talking: bool,
     /// uuid by player name, from the server's state packets.
@@ -82,6 +84,7 @@ impl Default for Glue {
             cfg: VoiceConfig::default(),
             session: None,
             ptt_held: false,
+            hud_open: false,
             mic_talking: false,
             uuid_by_name: HashMap::new(),
             name_by_uuid: HashMap::new(),
@@ -171,6 +174,7 @@ impl Glue {
 
     /// The world closed: the socket dies with it.
     pub fn world_close(&mut self) {
+        self.hud_open = false;
         if let Some(mut s) = self.session.take() {
             s.close();
         }
