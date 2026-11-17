@@ -192,6 +192,22 @@ pub fn on_command(game: &crate::game::Game<'_>, command: &str, ran: &mut bool) {
     *ran = true;
 }
 
+fn language_index() -> usize {
+    let code = horizon_client::lang::code().to_ascii_lowercase();
+    if code.starts_with("es") { 1 }
+    else if code.starts_with("pt") { 2 }
+    else if code.starts_with("fr") { 3 }
+    else if code.starts_with("it") { 4 }
+    else if code.starts_with("de") { 5 }
+    else if code.starts_with("ja") { 6 }
+    else if code.starts_with("zh") { 7 }
+    else { 0 }
+}
+
+fn tr<'a>(values: [&'a str; 8]) -> &'a str {
+    values[language_index()]
+}
+
 pub fn register_mod(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
     if mods.iter().any(|m| m.id == "simple-voice-chat") {
         return;
@@ -199,21 +215,25 @@ pub fn register_mod(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
     if let Some(base) = config_base() {
         locked().cfg = svc_client::runtime::Glue::load_config(&base);
     }
-    let spanish = horizon_client::lang::code().starts_with("es");
     mods.push(crate::game::native_hooks::NativeMod {
         id: "simple-voice-chat".into(),
-        title: if spanish { "Chat de voz simple".into() } else { "Simple Voice Chat".into() },
-        description: if spanish {
-            "Chat de voz con jugadores cercanos. Configura pulsar para hablar y los controles de silencio.".into()
-        } else {
-            "Voice chat with nearby players. Configure push-to-talk and independent mute controls.".into()
-        },
+        title: tr(["Simple Voice Chat", "Chat de voz simple", "Chat de voz simples", "Chat vocal simple", "Chat vocale semplice", "Einfacher Sprachchat", "シンプルボイスチャット", "简易语音聊天"]).into(),
+        description: tr([
+            "Voice chat with nearby players. Configure push-to-talk and independent mute controls.",
+            "Chat de voz con jugadores cercanos. Configura pulsar para hablar y los controles de silencio.",
+            "Chat de voz com jogadores próximos. Configure para falar ao pressionar e controles de silêncio.",
+            "Chat vocal avec les joueurs proches. Configurez le push-to-talk et les commandes de sourdine.",
+            "Chat vocale con i giocatori vicini. Configura il push-to-talk e i controlli di silenziamento.",
+            "Sprachchat mit Spielern in der Nähe. Push-to-Talk und Stummschaltung konfigurieren.",
+            "近くのプレイヤーとボイスチャット。プッシュ・トゥ・トークとミュート操作を設定します。",
+            "与附近玩家语音聊天。配置按键通话和独立静音控制。"
+        ]).into(),
         keys: vec![
-            ["ptt".into(), if spanish { "Pulsar para hablar".into() } else { "Push to Talk".into() }, "key.keyboard.v".into()],
-            ["hud_toggle".into(), if spanish { "Mostrar/ocultar HUD de conexión".into() } else { "Toggle Connection HUD".into() }, "key.keyboard.h".into()],
-            ["mute_mic".into(), if spanish { "Silenciar mi micrófono".into() } else { "Mute My Microphone".into() }, "key.keyboard.m".into()],
-            ["mute_players".into(), if spanish { "Silenciar a otros jugadores".into() } else { "Mute Other Players".into() }, "key.keyboard.b".into()],
-            ["mute_all".into(), if spanish { "Silenciar micrófono y jugadores".into() } else { "Mute Microphone + Players".into() }, "key.keyboard.n".into()],
+            ["ptt".into(), tr(["Push to Talk", "Pulsar para hablar", "Pressionar para falar", "Appuyer pour parler", "Premi per parlare", "Zum Sprechen drücken", "プッシュ・トゥ・トーク", "按键通话"]).into(), "key.keyboard.v".into()],
+            ["hud_toggle".into(), tr(["Toggle Connection HUD", "Mostrar/ocultar HUD de conexión", "Alternar HUD de conexão", "Afficher/masquer le HUD de connexion", "Mostra/nascondi HUD connessione", "Verbindungs-HUD ein-/ausblenden", "接続HUDの表示切替", "切换连接状态HUD"]).into(), "key.keyboard.h".into()],
+            ["mute_mic".into(), tr(["Mute My Microphone", "Silenciar mi micrófono", "Silenciar meu microfone", "Couper mon micro", "Disattiva il mio microfono", "Mikrofon stummschalten", "自分のマイクをミュート", "静音我的麦克风"]).into(), "key.keyboard.m".into()],
+            ["mute_players".into(), tr(["Mute Other Players", "Silenciar a otros jugadores", "Silenciar outros jogadores", "Couper les autres joueurs", "Disattiva gli altri giocatori", "Andere Spieler stummschalten", "他のプレイヤーをミュート", "静音其他玩家"]).into(), "key.keyboard.b".into()],
+            ["mute_all".into(), tr(["Mute Microphone + Players", "Silenciar micrófono y jugadores", "Silenciar microfone e jogadores", "Couper le micro et les joueurs", "Disattiva microfono e giocatori", "Mikrofon und Spieler stummschalten", "マイクとプレイヤーをミュート", "静音麦克风和玩家"]).into(), "key.keyboard.n".into()],
         ],
     });
 }
@@ -227,56 +247,35 @@ pub fn settings(
         return;
     }
     let g = locked();
-    let spanish = horizon_client::lang::code().starts_with("es");
-    buttons.push(if spanish {
-        if g.cfg.push_to_talk { "Modo de micrófono: pulsar para hablar".into() } else { "Modo de micrófono: siempre activo".into() }
-    } else if g.cfg.push_to_talk {
-        "Microphone mode: Push to Talk".into()
+    buttons.push(if g.cfg.push_to_talk {
+        tr(["Microphone mode: Push to Talk", "Modo de micrófono: pulsar para hablar", "Modo do microfone: pressionar para falar", "Mode du micro : push-to-talk", "Modalità microfono: premi per parlare", "Mikrofonmodus: Push-to-Talk", "マイクモード：プッシュ・トゥ・トーク", "麦克风模式：按键通话"]).into()
     } else {
-        "Microphone mode: Always On".into()
+        tr(["Microphone mode: Always On", "Modo de micrófono: siempre activo", "Modo do microfone: sempre ligado", "Mode du micro : toujours actif", "Modalità microfono: sempre attivo", "Mikrofonmodus: immer aktiv", "マイクモード：常時オン", "麦克风模式：始终开启"]).into()
     });
-    buttons.push(if spanish {
-        if g.cfg.muted { "Activar mi micrófono".into() } else { "Silenciar mi micrófono".into() }
-    } else if g.cfg.muted {
-        "Unmute my microphone".into()
+    buttons.push(if g.cfg.muted {
+        tr(["Unmute my microphone", "Activar mi micrófono", "Ativar meu microfone", "Activer mon micro", "Attiva il mio microfono", "Mikrofon aktivieren", "マイクのミュート解除", "取消麦克风静音"]).into()
     } else {
-        "Mute my microphone".into()
+        tr(["Mute my microphone", "Silenciar mi micrófono", "Silenciar meu microfone", "Couper mon micro", "Disattiva il mio microfono", "Mikrofon stummschalten", "マイクをミュート", "静音我的麦克风"]).into()
     });
-    buttons.push(if spanish {
-        if g.cfg.muted_players { "Activar a otros jugadores".into() } else { "Silenciar a otros jugadores".into() }
-    } else if g.cfg.muted_players {
-        "Unmute other players".into()
+    buttons.push(if g.cfg.muted_players {
+        tr(["Unmute other players", "Activar a otros jugadores", "Ativar outros jogadores", "Réactiver les autres joueurs", "Riattiva gli altri giocatori", "Andere Spieler aktivieren", "他のプレイヤーのミュート解除", "取消其他玩家静音"]).into()
     } else {
-        "Mute other players".into()
+        tr(["Mute other players", "Silenciar a otros jugadores", "Silenciar outros jogadores", "Couper les autres joueurs", "Disattiva gli altri giocatori", "Andere Spieler stummschalten", "他のプレイヤーをミュート", "静音其他玩家"]).into()
     });
-    buttons.push(if spanish {
-        if g.cfg.muted && g.cfg.muted_players { "Activar micrófono y jugadores".into() } else { "Silenciar micrófono y jugadores".into() }
-    } else if g.cfg.muted && g.cfg.muted_players {
-        "Unmute microphone + players".into()
+    buttons.push(if g.cfg.muted && g.cfg.muted_players {
+        tr(["Unmute microphone + players", "Activar micrófono y jugadores", "Ativar microfone e jogadores", "Réactiver le micro et les joueurs", "Riattiva microfono e giocatori", "Mikrofon und Spieler aktivieren", "マイクとプレイヤーのミュート解除", "取消麦克风和玩家静音"]).into()
     } else {
-        "Mute microphone + players".into()
+        tr(["Mute microphone + players", "Silenciar micrófono y jugadores", "Silenciar microfone e jogadores", "Couper le micro et les joueurs", "Disattiva microfono e giocatori", "Mikrofon und Spieler stummschalten", "マイクとプレイヤーをミュート", "静音麦克风和玩家"]).into()
     });
-    buttons.push(if spanish { "Reconectar al servidor de voz".into() } else { "Reconnect to voice server".into() });
-    buttons.push(format!(
-        "{}: {}% (-10%)",
-        if spanish { "Volumen de salida" } else { "Output volume" },
-        (g.cfg.volume * 100.0).round() as u32
-    ));
-    buttons.push(format!(
-        "{}: {}% (+10%)",
-        if spanish { "Volumen de salida" } else { "Output volume" },
-        (g.cfg.volume * 100.0).round() as u32
-    ));
-    buttons.push(format!(
-        "{}: {}% (-10%)",
-        if spanish { "Ganancia del micrófono" } else { "Microphone gain" },
-        (g.cfg.mic_volume * 100.0).round() as u32
-    ));
-    buttons.push(format!(
-        "{}: {}% (+10%)",
-        if spanish { "Ganancia del micrófono" } else { "Microphone gain" },
-        (g.cfg.mic_volume * 100.0).round() as u32
-    ));
+    buttons.push(tr(["Reconnect to voice server", "Reconectar al servidor de voz", "Reconectar ao servidor de voz", "Reconnecter au serveur vocal", "Riconnetti al server vocale", "Mit Sprachserver verbinden", "ボイスサーバーに再接続", "重新连接语音服务器"]).into());
+    let volume = (g.cfg.volume * 100.0).round() as u32;
+    let mic = (g.cfg.mic_volume * 100.0).round() as u32;
+    let output = tr(["Output volume", "Volumen de salida", "Volume de saída", "Volume de sortie", "Volume di uscita", "Ausgabelautstärke", "出力音量", "输出音量"]);
+    let gain = tr(["Microphone gain", "Ganancia del micrófono", "Ganho do microfone", "Gain du micro", "Guadagno microfono", "Mikrofonverstärkung", "マイク感度", "麦克风增益"]);
+    buttons.push(format!("{output}: {volume}% (-10%)"));
+    buttons.push(format!("{output}: {volume}% (+10%)"));
+    buttons.push(format!("{gain}: {mic}% (-10%)"));
+    buttons.push(format!("{gain}: {mic}% (+10%)"));
 }
 
 pub fn settings_click(
