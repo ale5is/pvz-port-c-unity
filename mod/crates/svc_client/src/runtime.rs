@@ -544,7 +544,7 @@ impl Glue {
             }
             "join" => {
                 let Some(id) = rest.first().and_then(|name| {
-                    name.parse::<u128>().ok().or_else(|| self.group_by_name.get(*name).copied())
+                    parse_group_id(name).or_else(|| self.group_by_name.get(*name).copied())
                 }) else {
                     return "usage: /vcgroup join <group id or name> [password]".into();
                 };
@@ -573,6 +573,17 @@ impl Glue {
             _ => "usage: /vcgroup create|join <group id or name> [password]|leave|list|groups".into(),
         }
     }
+}
+
+fn parse_group_id(value: &str) -> Option<u128> {
+    if let Ok(id) = value.parse::<u128>() {
+        return Some(id);
+    }
+    let compact: String = value.chars().filter(|ch| *ch != '-').collect();
+    if compact.len() == 32 && compact.bytes().all(|ch| ch.is_ascii_hexdigit()) {
+        return u128::from_str_radix(&compact, 16).ok();
+    }
+    None
 }
 
 fn valid_key_code(key: &str) -> bool {
@@ -717,6 +728,14 @@ mod tests {
         assert!(reply.contains("den"));
         assert_eq!(sends.len(), 1);
         assert_eq!(sends[0].0, proto::CREATE_GROUP);
+    }
+
+    #[test]
+    fn group_id_parser_accepts_decimal_and_uuid_text() {
+        assert_eq!(parse_group_id("123456"), Some(123456));
+        assert_eq!(parse_group_id("00000000-0000-0000-0000-000000000001"), Some(1));
+        assert_eq!(parse_group_id("0000000000000000000000000000000a"), Some(10));
+        assert_eq!(parse_group_id("not-a-group"), None);
     }
 
     #[test]
