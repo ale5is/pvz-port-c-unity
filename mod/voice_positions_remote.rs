@@ -1,4 +1,4 @@
-impl Remote {
+impl super::Remote {
     pub(super) fn voice_player_positions(&self) -> Vec<(String, [f64; 3])> {
         self.level_players
             .iter()
