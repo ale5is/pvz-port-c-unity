@@ -943,6 +943,11 @@ fn default_language() -> String {
     language_ui = r"""
 thread_local! {
     static PAVO_LAUNCHER_LANGUAGE: Cell<u8> = const { Cell::new(0) };
+    static PAVO_CONTENT_LIBRARY_CONTEXT: Cell<bool> = const { Cell::new(false) };
+}
+
+pub fn set_content_library_context(enabled: bool) {
+    PAVO_CONTENT_LIBRARY_CONTEXT.with(|current| current.set(enabled));
 }
 
 pub fn set_launcher_language(language: &str) {
@@ -2091,6 +2096,11 @@ fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
 fn pavo_launcher_text(text: &str) -> String {
     PAVO_LAUNCHER_LANGUAGE.with(|current| {
         let lang = current.get();
+        if PAVO_CONTENT_LIBRARY_CONTEXT.with(|active| active.get()) {
+            if let Some(translated) = pavo_content_library_text(lang, text) {
+                return translated;
+            }
+        }
         let translated = match (lang, text) {
             (1, "Resource Pack") => "Paquetes de recursos",
             (1, "Shaders") => "Shaders",
@@ -2569,7 +2579,7 @@ fn pavo_launcher_text(text: &str) -> String {
         raise SystemExit("Could not locate Android launcher frame entry point.")
     source = source.replace(
         draw_anchor,
-        draw_anchor + "        horizon_client::ui_theme::set_launcher_language(&self.catalog.config.language);\n",
+        draw_anchor + "        horizon_client::ui_theme::set_launcher_language(&self.catalog.config.language);\n        horizon_client::ui_theme::set_content_library_context(matches!(self.catalog.page, Page::Installed | Page::Skins));\n",
         1,
     )
     pages.write_text(source, encoding="utf-8")
