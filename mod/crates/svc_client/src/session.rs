@@ -376,6 +376,16 @@ mod tests {
             other => panic!("expected Mic, got {other:?}"),
         }
 
+        // An empty mic packet explicitly ends the current speaking burst.
+        s.push_mic(&[]);
+        match srv.recv_packet() {
+            ToServer::Mic { data, sequence, .. } => {
+                assert!(data.is_empty());
+                assert_eq!(sequence, 2);
+            }
+            other => panic!("expected empty Mic stop packet, got {other:?}"),
+        }
+
         // A nearby player is heard; a far one is not.
         s.set_position(22, [3.0, 4.0, 0.0]);
         srv.send_packet(&FromServer::Positional {
