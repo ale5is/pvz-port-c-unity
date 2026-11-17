@@ -147,7 +147,8 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
     if !game.native_on("simple-voice-chat") || game.player.is_none() {
         return;
     }
-    if pressed && key == "key.keyboard.h" {
+    let hud_toggle = game.native_mod_key("simple-voice-chat", "hud_toggle", "key.keyboard.h");
+    if pressed && key == hud_toggle {
         let mut g = locked();
         g.hud_open = !g.hud_open;
         return;
@@ -204,6 +205,7 @@ pub fn register_mod(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
         description: "Voice chat with nearby players. Configure push-to-talk and independent mute controls.".into(),
         keys: vec![
             ["ptt".into(), "Push to Talk".into(), "key.keyboard.v".into()],
+            ["hud_toggle".into(), "Toggle Connection HUD".into(), "key.keyboard.h".into()],
             ["mute_mic".into(), "Mute My Microphone".into(), "key.keyboard.m".into()],
             ["mute_players".into(), "Mute Other Players".into(), "key.keyboard.b".into()],
             ["mute_all".into(), "Mute Microphone + Players".into(), "key.keyboard.n".into()],
