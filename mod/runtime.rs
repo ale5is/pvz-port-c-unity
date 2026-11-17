@@ -132,9 +132,7 @@ pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration)
             if let Some(position) = listener_position {
                 session.set_listener(position);
             }
-            for (uuid, position) in resolved_positions {
-                session.set_position(uuid, position);
-            }
+            session.replace_positions(resolved_positions);
         }
         let _ = g.on_frame(Instant::now());
         std::mem::take(&mut g.reconnect_pending)
