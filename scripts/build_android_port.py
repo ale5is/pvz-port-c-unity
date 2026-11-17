@@ -245,6 +245,21 @@ def patch_android_launcher_branding(stage):
             "Android launcher top-left title",
         ),
         (
+            '''        let version_line = format!("Android {}", crate::backend::VERSION);
+        let fitted_version = ui.fit_text(Face::Regular, 11.0, &version_line, brand_w);
+        ui.text(
+            Face::Regular,
+            11.0,
+            54.0,
+            30.0,
+            my3_muted(),
+            &fitted_version,
+        );
+''',
+            '',
+            "Remove upstream Android 0.7.8 subtitle from launcher header",
+        ),
+        (
             '''                let migration_y = line_y + 24.0;
                 let migration_w = (content_w - 52.0) * 0.5;
                 button(
