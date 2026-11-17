@@ -1,48 +1,59 @@
 name: Publish PavoHorizon 0.7.8 SVC release
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/publish-horizon-078-svc-release.yml
   workflow_dispatch:
 
 permissions:
   actions: read
   contents: write
 
+concurrency:
+  group: publish-pavohorizon-078-svc
+  cancel-in-progress: false
+
 jobs:
   publish:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: Download the verified Android ARM64 artifact from build #207
+      - name: Find successful APK build for this exact commit
+        id: build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/build-horizon-078-svc-jade.yml/runs?branch=main&status=success&per_page=50" --jq '[.workflow_runs[] | select(.head_sha == env.GITHUB_SHA) | .id][0] // empty')"
+          test -n "$RUN_ID" || { echo "No successful PavoHorizon APK build exists for commit $GITHUB_SHA"; exit 1; }
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Download verified PavoHorizon artifact
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p "$RUNNER_TEMP/artifact"
-          gh run download 43613060886 \
+          gh run download "${{ steps.build.outputs.run_id }}" \
             --repo "$GITHUB_REPOSITORY" \
-            --name pavorizon-0.7.8-svc-arm64-apk \
+            --name PavoHorizon-0.7.8-SVC-Jade-arm64-v8a \
             --dir "$RUNNER_TEMP/artifact"
-          test -s "$RUNNER_TEMP/artifact/PavoHorizon.apk"
+          test -s "$RUNNER_TEMP/artifact/PavoHorizon-0.7.8-SVC-Jade-arm64-v8a.apk"
+          test -s "$RUNNER_TEMP/artifact/SHA256SUMS.txt"
+          test -s "$RUNNER_TEMP/artifact/BUILD-INFO.txt"
 
-      - name: Verify APK checksum
+      - name: Verify checksum and source commit
         run: |
-          APK="$RUNNER_TEMP/artifact/PavoHorizon.apk"
-          printf '%s  %s\n' \
-            '402fb3b95203c8251380982da86bfe72577a598f1b9ef61a180d2df1681c830f' \
-            "$APK" | sha256sum --check -
+          cd "$RUNNER_TEMP/artifact"
+          sha256sum --check SHA256SUMS.txt
+          grep -F "Built from commit: $GITHUB_SHA" BUILD-INFO.txt
 
-      - name: Publish GitHub prerelease with APK
+      - name: Publish commit-specific GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd "$RUNNER_TEMP/artifact"
-          gh release create v0.7.8-svc-android \
-            PavoHorizon.apk SHA256SUMS.txt SIGNING-INFO.txt \
+          TAG="v0.7.8-svc-android-${GITHUB_SHA:0:7}"
+          gh release create "$TAG" \
+            PavoHorizon-0.7.8-SVC-Jade-arm64-v8a.apk SHA256SUMS.txt BUILD-INFO.txt \
             --repo "$GITHUB_REPOSITORY" \
-            --target bf7fc9dc0f729cdda3d056ae9efe0d3e82000dbb \
-            --title "PavoHorizon 0.7.8 + Simple Voice Chat (Android ARM64)" \
+            --target "$GITHUB_SHA" \
+            --title "PavoHorizon 0.7.8 + Simple Voice Chat + Jade (Android ARM64)" \
             --prerelease \
-            --notes "Android ARM64 build from successful GitHub Actions run #207 (commit bf7fc9dc0f729cdda3d056ae9efe0d3e82000dbb). Includes the Horizon 0.7.8 Android port and the SVC API-80 integration work. This release is a test build: successful CI packaging does not establish end-to-end voice functionality on a physical device. The native loader was disabled in this build; verify runtime mod loading and audio before treating voice chat as operational."
+            --notes "Built from commit $GITHUB_SHA. Includes the Horizon 0.7.8 Android port, Simple Voice Chat and the initial Jade block tooltip adaptation. The workflow verifies the APK checksum and build source commit. Physical-device installation, microphone permission and end-to-end voice behavior still require testing; CI success alone does not establish runtime compatibility."
