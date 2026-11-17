@@ -637,7 +637,7 @@ mod tests {
         assert!(g.ptt_held);
         g.on_key("KeyV", false);
         assert!(!g.ptt_held);
-        assert_eq!(g.on_key("KeyM", true), Some("voice muted".into()));
+        assert_eq!(g.on_key("KeyM", true), Some("microphone muted".into()));
         assert!(g.cfg.muted);
     }
 
@@ -645,7 +645,7 @@ mod tests {
     fn commands_reply_and_send() {
         let mut g = glue();
         let (reply, sends) = g.on_command("svc mute");
-        assert_eq!(reply, "voice muted");
+        assert_eq!(reply, "microphone muted");
         assert!(g.cfg.muted);
         let (reply, sends) = g.on_command("vcgroup create den");
         assert!(reply.contains("den"));
