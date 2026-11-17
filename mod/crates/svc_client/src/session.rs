@@ -2,6 +2,7 @@
 //! mic and voice streams, driven one call at a time by the mod's mixins.
 
 use std::collections::HashMap;
+use std::io::ErrorKind;
 use std::net::{SocketAddr, UdpSocket};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -56,6 +57,10 @@ pub struct Session {
     last_ping: Instant,
     last_seen: Instant,
     events: Vec<Event>,
+    udp_tx: u64,
+    udp_rx: u64,
+    udp_invalid: u64,
+    last_udp_error: Option<String>,
 }
 
 impl Session {
@@ -79,11 +84,21 @@ impl Session {
             last_ping: Instant::now(),
             last_seen: Instant::now(),
             events: Vec::new(),
+            udp_tx: 0,
+            udp_rx: 0,
+            udp_invalid: 0,
+            last_udp_error: None,
         }
     }
 
     pub fn state(&self) -> State {
         self.state
+    }
+    pub fn udp_counts(&self) -> (u64, u64, u64) {
+        (self.udp_tx, self.udp_rx, self.udp_invalid)
+    }
+    pub fn last_udp_error(&self) -> Option<&str> {
+        self.last_udp_error.as_deref()
     }
     pub fn muted(&self) -> bool {
         self.muted
@@ -150,10 +165,14 @@ impl Session {
         };
         let Some(socket) = &self.socket else { return };
         let Some(sealed) = cipher.seal(&self.rng, &packet.write()) else {
+            self.last_udp_error = Some("No se pudo cifrar el paquete UDP".into());
             return;
         };
         let datagram = client_datagram(self.player, &sealed);
-        let _ = socket.send_to(&datagram, server);
+        match socket.send_to(&datagram, server) {
+            Ok(_) => self.udp_tx = self.udp_tx.saturating_add(1),
+            Err(error) => self.last_udp_error = Some(error.to_string()),
+        }
     }
 
     /// One 20 ms Opus frame from the mic; an empty frame stops the stream.
@@ -190,14 +209,24 @@ impl Session {
     /// Read what arrived and return this frame's events; call once per frame.
     pub fn pump(&mut self) -> Vec<Event> {
         let mut datagrams = Vec::new();
+        let mut receive_error = None;
         if let Some(socket) = &self.socket {
             let mut buf = [0u8; 4096];
             loop {
                 match socket.recv_from(&mut buf) {
                     Ok((n, _)) => datagrams.push(buf[..n].to_vec()),
-                    Err(_) => break,
+                    Err(error) if error.kind() == ErrorKind::WouldBlock => break,
+                    Err(error) if error.kind() == ErrorKind::Interrupted => continue,
+                    Err(error) => {
+                        receive_error = Some(error.to_string());
+                        break;
+                    }
                 }
             }
+        }
+        self.udp_rx = self.udp_rx.saturating_add(datagrams.len() as u64);
+        if let Some(error) = receive_error {
+            self.last_udp_error = Some(error);
         }
         for d in &datagrams {
             self.ingest(d);
@@ -211,19 +240,35 @@ impl Session {
 
     fn ingest(&mut self, datagram: &[u8]) {
         let plain = {
-            let Some(cipher) = self.cipher.as_ref() else { return };
+            let Some(cipher) = self.cipher.as_ref() else {
+                self.udp_invalid = self.udp_invalid.saturating_add(1);
+                self.last_udp_error = Some("Paquete UDP recibido sin clave de sesión".into());
+                return;
+            };
             let sealed = match server_datagram(datagram) {
                 Ok(s) => s,
-                Err(_) => return,
+                Err(error) => {
+                    self.udp_invalid = self.udp_invalid.saturating_add(1);
+                    self.last_udp_error = Some(format!("Datagrama UDP inválido: {error:?}"));
+                    return;
+                }
             };
             match cipher.open(sealed) {
                 Some(p) => p,
-                None => return,
+                None => {
+                    self.udp_invalid = self.udp_invalid.saturating_add(1);
+                    self.last_udp_error = Some("No se pudo autenticar/descifrar el paquete UDP".into());
+                    return;
+                }
             }
         };
         let packet = match FromServer::read(&plain) {
             Ok(p) => p,
-            Err(_) => return,
+            Err(error) => {
+                self.udp_invalid = self.udp_invalid.saturating_add(1);
+                self.last_udp_error = Some(format!("Paquete SVC inválido: {error:?}"));
+                return;
+            }
         };
         self.last_seen = Instant::now();
         match packet {
