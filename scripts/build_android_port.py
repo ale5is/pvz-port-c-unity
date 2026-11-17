@@ -586,12 +586,15 @@ fn default_language() -> String {
 
     pages = stage / "crates/horizon-client/src/android/launcher_pages.rs"
     source = pages.read_text(encoding="utf-8")
+    action_enum_anchor = "pub(super) enum Action {\n"
+    if source.count(action_enum_anchor) != 1:
+        raise SystemExit("Could not uniquely locate the Android launcher Action enum.")
+    source = source.replace(
+        action_enum_anchor,
+        action_enum_anchor + "    CycleLanguage,\n",
+        1,
+    )
     patches = [
-        (
-            "    UiScale,\n",
-            "    UiScale,\n    CycleLanguage,\n",
-            "Android language action",
-        ),
         (
             "                let count = 12;\n",
             "                let count = 13;\n",
