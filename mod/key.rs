@@ -1,3 +1,3 @@
-fn svc_key_hook(key_name: &str, pressed: bool) {
-    crate::game::simple_voice_chat::on_key(key_name, pressed);
+fn svc_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
+    crate::game::simple_voice_chat::on_key(game, key, pressed);
 }
