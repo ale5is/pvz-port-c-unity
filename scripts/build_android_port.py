@@ -207,6 +207,112 @@ def patch_android_identity(stage):
     print("Android identity: label=PavoHorizon, applicationId=com.ale5is.pavohorizon; release audit aligned; Gradle project name preserved for upstream build compatibility.", flush=True)
 
 
+
+def patch_android_launcher_branding(stage):
+    launcher = stage / "crates/horizon-client/src/android/launcher_pages.rs"
+    source = launcher.read_text(encoding="utf-8")
+
+    replacements = [
+        (
+            '    StarlingDownload,\n',
+            '',
+            "StarlingDownload action",
+        ),
+        (
+            '''                ui.text(
+                    Face::SemiBold,
+                    15.0,
+                    content_x + 22.0,
+                    card_y + 84.0,
+                    my3_text(),
+                    "Horizon Android is becoming Starling",
+                );
+                let notice = "Some Horizon Android features are still being transferred and merged. Export your worlds through Android Files (SAF) before moving.";''',
+            '''                ui.text(
+                    Face::SemiBold,
+                    15.0,
+                    content_x + 22.0,
+                    card_y + 84.0,
+                    my3_text(),
+                    "PavoHorizon para Android",
+                );
+                let notice = "Tu instancia de PavoHorizon está lista. Puedes exportar tus mundos desde Android Files (SAF) cuando lo necesites.";''',
+            "Android launcher migration notice",
+        ),
+        (
+            '''                let migration_y = line_y + 24.0;
+                let migration_w = (content_w - 52.0) * 0.5;
+                button(
+                    &mut ui,
+                    &mut self.targets,
+                    [content_x + 22.0, migration_y, migration_w, 34.0],
+                    "Download Starling",
+                    Action::StarlingDownload,
+                    false,
+                );
+                button(
+                    &mut ui,
+                    &mut self.targets,
+                    [
+                        content_x + 30.0 + migration_w,
+                        migration_y,
+                        migration_w,
+                        34.0,
+                    ],
+                    "Export worlds (SAF)",
+                    Action::WorldFiles,
+                    false,
+                );''',
+            '''                let migration_y = line_y + 24.0;
+                button(
+                    &mut ui,
+                    &mut self.targets,
+                    [content_x + 22.0, migration_y, content_w - 44.0, 34.0],
+                    "Exportar mundos (SAF)",
+                    Action::WorldFiles,
+                    false,
+                );''',
+            "Android launcher migration buttons",
+        ),
+        (
+            '''            Some(Action::StarlingDownload) => {
+                if !crate::platform::open_url(
+                    "https://github.com/JuanLuci/starling/releases/latest",
+                ) {
+                    self.catalog.status =
+                        "Open github.com/JuanLuci/starling/releases to download Starling.".into();
+                }
+            }
+''',
+            '',
+            "Starling download action handler",
+        ),
+        (
+            '''                    "In Android Files, select a complete world folder, then Copy to a folder you choose. Keep Horizon Android installed until you verify your worlds in Starling."
+                } else { "Open system Files > Horizon Android > Worlds. Copy complete world folders while the game is closed." }.into();''',
+            '''                    "En Android Files, selecciona una carpeta de mundo completa y cópiala a la ubicación que prefieras."
+                } else { "Abre Archivos > PavoHorizon > Worlds. Copia carpetas completas de mundos con el juego cerrado." }.into();''',
+            "World export migration text",
+        ),
+        (
+            '''                } else { "Open system Files > Horizon Android." }.into();''',
+            '''                } else { "Abre Archivos del sistema > PavoHorizon." }.into();''',
+            "Game files fallback label",
+        ),
+    ];
+
+    for (old, new, label) in replacements:
+        count = source.count(old)
+        if count != 1:
+            raise SystemExit(f"Could not uniquely locate {label} in pinned Horizon source (found {count}).")
+        source = source.replace(old, new, 1)
+
+    if "Starling" in source or "starling" in source:
+        raise SystemExit("Starling references remain in the patched Android launcher source.")
+
+    launcher.write_text(source, encoding="utf-8")
+    print("Android launcher branding: PavoHorizon; Starling migration/download entry removed; world export retained.", flush=True)
+
 def verify_no_starlight_in_apk(apk):
     import zipfile
 
@@ -308,6 +414,7 @@ def main():
             stream.write("\n")
     patch_android_microphone(stage)
     patch_android_identity(stage)
+    patch_android_launcher_branding(stage)
 
     command = [
         sys.executable,
