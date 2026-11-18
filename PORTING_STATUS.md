@@ -11,9 +11,10 @@
 
 ## Jade API-80 adaptation
 - Jade is registered as a native mod and has a block look-at tooltip using Horizon 0.7.8's existing raycast, block facts and HUD atlas.
-- The tooltip can now be enabled/disabled from Options > Mods > Jade.
-- Registry identifier, block coordinates and block-state properties have independent persistent toggles in Jade's settings.
-- The settings are stored through Horizon's native-mod settings directory and default to enabled, preserving the existing tooltip appearance.
+- The tooltip can be enabled/disabled from Options > Mods > Jade.
+- Registry identifier, block coordinates, block-state properties, and block hardness/tool requirement have independent persistent toggles in Jade's settings.
+- Block-state properties are read from the pinned Horizon block registry (`game.pack.assets.registry.state`), not from `StateFacts`; hardness and tool requirements are read from the matching `StateFacts` entry.
+- The settings are stored through Horizon's native-mod settings directory and default to enabled.
 - This remains a limited block-provider adaptation. Entity providers, block-entity/plugin data, server extensions, themes, profiles, full configuration screens, keybinds and commands are not implemented yet.
 - Upstream reference: https://github.com/Joeypc6/Jade-Horizon, revision `9f63f5c78c5e4938d4544c9567e06feb45649656`.
 - Jade is licensed CC BY-NC-SA 4.0; this adaptation is non-commercial and must retain that licence.
