@@ -104,9 +104,9 @@ jobs:
       - name: Name APK and calculate SHA-256
         run: |
           mkdir -p dist
-          cp .build/horizon-078-android/.local/android/apk/arm64-v8a/horizon-android-public.apk dist/PavoHorizon 1.0.0.apk
+          cp .build/horizon-078-android/.local/android/apk/arm64-v8a/horizon-android-public.apk "dist/PavoHorizon 1.0.0.apk"
           cd dist
-          sha256sum PavoHorizon 1.0.0.apk > SHA256SUMS.txt
+          sha256sum "PavoHorizon 1.0.0.apk" > SHA256SUMS.txt
           printf '%s\n' "Built from commit: $GITHUB_SHA" "Horizon: 68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29" "Jade API-80 adaptation: block tooltip; upstream reference 9f63f5c78c5e4938d4544c9567e06feb45649656" "Architecture: arm64-v8a" "Build: public release candidate; debug signing key" > BUILD-INFO.txt
 
       - name: Upload Android APK artifact
@@ -114,7 +114,7 @@ jobs:
         with:
           name: PavoHorizon-1.0.0-Android-arm64-v8a
           path: |
-            dist/PavoHorizon 1.0.0.apk
+            "dist/PavoHorizon 1.0.0.apk"
             dist/SHA256SUMS.txt
             dist/BUILD-INFO.txt
           if-no-files-found: error
