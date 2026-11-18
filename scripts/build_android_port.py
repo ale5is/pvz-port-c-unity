@@ -357,14 +357,14 @@ def patch_android_launcher_branding(stage):
                     false,
                 );
                 let language_label = match self.catalog.config.language.as_str() {
-                    "es_es" => "Español v",
-                    "pt_br" => "Português v",
-                    "fr_fr" => "Français v",
-                    "it_it" => "Italiano v",
-                    "de_de" => "Deutsch v",
-                    "ja_jp" => "日本語 v",
-                    "zh_cn" => "简体中文 v",
-                    _ => "English v",
+                    "es_es" => "Español",
+                    "pt_br" => "Português",
+                    "fr_fr" => "Français",
+                    "it_it" => "Italiano",
+                    "de_de" => "Deutsch",
+                    "ja_jp" => "日本語",
+                    "zh_cn" => "简体中文",
+                    _ => "English",
                 };
                 button(
                     &mut ui,
@@ -1606,14 +1606,14 @@ fn default_language() -> String {
                         },
                         SettingControl::Button(
                             match c.language.as_str() {
-                                "es_es" => "Español v",
-                                "pt_br" => "Português v",
-                                "fr_fr" => "Français v",
-                                "it_it" => "Italiano v",
-                                "de_de" => "Deutsch v",
-                                "ja_jp" => "日本語 v",
-                                "zh_cn" => "简体中文 v",
-                                _ => "English v",
+                                "es_es" => "Español",
+                                "pt_br" => "Português",
+                                "fr_fr" => "Français",
+                                "it_it" => "Italiano",
+                                "de_de" => "Deutsch",
+                                "ja_jp" => "日本語",
+                                "zh_cn" => "简体中文",
+                                _ => "English",
                             },
                             Action::CycleLanguage,
                             false,
@@ -2962,6 +2962,29 @@ fn pavo_profile_touch_text(lang: u8, text: &str) -> Option<String> {
 fn pavo_launcher_text(text: &str) -> String {
     PAVO_LAUNCHER_LANGUAGE.with(|current| {
         let lang = current.get();
+        if let Some((title, reason)) = text.split_once(" doesn't run in Horizon: ") {
+            let phrase = match lang {
+                1 => "no es compatible con Horizon",
+                2 => "não é compatível com o Horizon",
+                3 => "n’est pas compatible avec Horizon",
+                4 => "non è compatibile con Horizon",
+                5 => "ist nicht mit Horizon kompatibel",
+                6 => "Horizon と互換性がありません",
+                7 => "与 Horizon 不兼容",
+                _ => "doesn't run in Horizon",
+            };
+            let translated_reason = match (lang, reason) {
+                (1, "Not a Fabric, NeoForge or Forge mod.") => "No es un mod de Fabric, NeoForge ni Forge.",
+                (2, "Not a Fabric, NeoForge or Forge mod.") => "Não é um mod Fabric, NeoForge ou Forge.",
+                (3, "Not a Fabric, NeoForge or Forge mod.") => "Ce n’est pas un mod Fabric, NeoForge ou Forge.",
+                (4, "Not a Fabric, NeoForge or Forge mod.") => "Non è una mod Fabric, NeoForge o Forge.",
+                (5, "Not a Fabric, NeoForge or Forge mod.") => "Kein Fabric-, NeoForge- oder Forge-Mod.",
+                (6, "Not a Fabric, NeoForge or Forge mod.") => "Fabric、NeoForge、Forge の mod ではありません。",
+                (7, "Not a Fabric, NeoForge or Forge mod.") => "不是 Fabric、NeoForge 或 Forge 模组。",
+                _ => reason,
+            };
+            return format!("{title} {phrase}: {translated_reason}");
+        }
         if let Some(translated) = pavo_profile_touch_text(lang, text) { return translated; }
         if let Some(id) = text.strip_prefix("Profile ") {
             if !id.is_empty() && id.chars().all(|c| c.is_ascii_digit()) {
@@ -4196,7 +4219,7 @@ fn pavo_launcher_text(text: &str) -> String {
             (1, "Servers") => "Servidores",
             (1, "Language") => "Idioma",
             (1, "Change the launcher and in-game language") => "Cambia el idioma del launcher y del juego",
-            (1, "English v") => "Español v",
+            (1, "English") => "Español",
             (2, "Resource Pack") => "Pacote de recursos",
             (2, "Shaders") => "Shaders",
             (2, "Theme Customization") => "Personalização do tema",
@@ -4226,7 +4249,7 @@ fn pavo_launcher_text(text: &str) -> String {
             (2, "Servers") => "Servidores",
             (2, "Worlds") => "Mundos",
             (2, "Language") => "Idioma",
-            (2, "English v") => "Português v",
+            (2, "English") => "Português",
             (3, "Resource Pack") => "Pack de ressources",
             (3, "Shaders") => "Shaders",
             (3, "Theme Customization") => "Personnalisation du thème",
@@ -4256,7 +4279,7 @@ fn pavo_launcher_text(text: &str) -> String {
             (3, "Servers") => "Serveurs",
             (3, "Worlds") => "Mondes",
             (3, "Language") => "Langue",
-            (3, "English v") => "Français v",
+            (3, "English") => "Français",
             (4, "Resource Pack") => "Pacchetto risorse",
             (4, "Shaders") => "Shader",
             (4, "Theme Customization") => "Personalizzazione tema",
@@ -4286,7 +4309,7 @@ fn pavo_launcher_text(text: &str) -> String {
             (4, "Servers") => "Server",
             (4, "Worlds") => "Mondi",
             (4, "Language") => "Lingua",
-            (4, "English v") => "Italiano v",
+            (4, "English") => "Italiano",
             (5, "Resource Pack") => "Ressourcenpaket",
             (5, "Shaders") => "Shader",
             (5, "Theme Customization") => "Design anpassen",
@@ -4316,7 +4339,7 @@ fn pavo_launcher_text(text: &str) -> String {
             (5, "Servers") => "Server",
             (5, "Worlds") => "Welten",
             (5, "Language") => "Sprache",
-            (5, "English v") => "Deutsch v",
+            (5, "English") => "Deutsch",
             (6, "Resource Pack") => "リソースパック",
             (6, "Shaders") => "シェーダー",
             (6, "Theme Customization") => "テーマのカスタマイズ",
@@ -4346,7 +4369,7 @@ fn pavo_launcher_text(text: &str) -> String {
             (6, "Servers") => "サーバー",
             (6, "Worlds") => "ワールド",
             (6, "Language") => "言語",
-            (6, "English v") => "日本語 v",
+            (6, "English") => "日本語",
             (7, "Resource Pack") => "资源包",
             (7, "Shaders") => "光影",
             (7, "Theme Customization") => "主题自定义",
@@ -4376,7 +4399,7 @@ fn pavo_launcher_text(text: &str) -> String {
             (7, "Servers") => "服务器",
             (7, "Worlds") => "世界",
             (7, "Language") => "语言",
-            (7, "English v") => "简体中文 v",
+            (7, "English") => "简体中文",
             (1, "Shader Packs") => "Paquetes de shaders",
             (1, "Available Versions") => "Versiones disponibles",
             (1, "Search catalog...") => "Buscar en el catálogo...",
@@ -8292,7 +8315,7 @@ def patch_android_catalog_compatibility(stage):
             && project.source == browser::SourceId::Modrinth)
         {
             if let browser::Support::No(reason) = project.support() {
-                self.status = format!("{} is not compatible with Horizon: {reason}", project.title);
+                self.status = format!("{} doesn't run in Horizon: {reason}", project.title);
                 return;
             }
         }
@@ -8319,6 +8342,16 @@ def patch_android_catalog_compatibility(stage):
 
     pages = stage / "crates/horizon-client/src/android/launcher_pages.rs"
     source = pages.read_text(encoding="utf-8")
+
+    profile_anchor = """                        &format!("Profile {} v", self.catalog.config.profile + 1),"""
+    profile_replacement = """                        &format!("{} {}", match self.catalog.config.language.as_str() {
+                            "es_es" => "Perfil", "pt_br" => "Perfil", "fr_fr" => "Profil",
+                            "it_it" => "Profilo", "de_de" => "Profil", "ja_jp" => "プロフィール",
+                            "zh_cn" => "配置文件", _ => "Profile",
+                        }, self.catalog.config.profile + 1),"""
+    if source.count(profile_anchor) != 1:
+        raise SystemExit("Could not uniquely locate the Play-page profile selector label.")
+    source = source.replace(profile_anchor, profile_replacement, 1)
 
     row_anchor = """                let download = self.catalog.download_label(p);
                 let card_rect = [content_x, y, content_w - 118.0, 64.0];"""
@@ -8371,7 +8404,19 @@ def patch_android_catalog_compatibility(stage):
                     (_, crate::browser::Support::Partial(_)) => "Partly",
                     (_, crate::browser::Support::No(_)) => "Doesn't run",
                 };
-                let (support_label, can_install) = if crate::catalog::source_only_mod(p) {
+                let rejected = self.catalog.failed.as_ref().is_some_and(|(source, id)|
+                    *source == p.source && *id == p.id
+                ) && (self.catalog.status.contains("doesn't run in Horizon:")
+                    || self.catalog.status.contains("has no Fabric, NeoForge or Forge version Horizon can port."));
+                let incompatible = match lang {
+                    "es_es" => "No compatible", "pt_br" => "Incompatível",
+                    "fr_fr" => "Incompatible", "it_it" => "Non compatibile",
+                    "de_de" => "Nicht kompatibel", "ja_jp" => "非対応",
+                    "zh_cn" => "不兼容", _ => "Not compatible",
+                };
+                let (support_label, can_install) = if rejected {
+                    (incompatible, false)
+                } else if crate::catalog::source_only_mod(p) {
                     (unavailable, false)
                 } else if p.kind == crate::browser::Kind::Shader
                     && p.source == crate::browser::SourceId::Modrinth
@@ -8448,6 +8493,46 @@ def patch_android_catalog_compatibility(stage):
     if source.count(target) != 1:
         raise SystemExit("Could not uniquely locate Android catalog install button block.")
     source = source.replace(target, replacement, 1)
+
+    modal_button = """        button(
+            ui,
+            &mut self.targets,
+            [mx + 136.0, my + mh - 48.0, mw - 154.0, 38.0],
+            &install_label,
+            Action::InstallModalProject,
+            true,
+        );"""
+    modal_replacement = """        let rejected = self.catalog.failed.as_ref().is_some_and(|(source, id)|
+            *source == modal.project.source && *id == modal.project.id
+        ) && (self.catalog.status.contains("doesn't run in Horizon:")
+            || self.catalog.status.contains("has no Fabric, NeoForge or Forge version Horizon can port."));
+        if modal.project.support().installable() && !rejected {
+            button(
+                ui,
+                &mut self.targets,
+                [mx + 136.0, my + mh - 48.0, mw - 154.0, 38.0],
+                &install_label,
+                Action::InstallModalProject,
+                true,
+            );
+        } else {
+            let disabled_label = match self.catalog.config.language.as_str() {
+                "es_es" => "No compatible", "pt_br" => "Incompatível",
+                "fr_fr" => "Incompatible", "it_it" => "Non compatibile",
+                "de_de" => "Nicht kompatible", "ja_jp" => "非対応",
+                "zh_cn" => "不兼容", _ => "Not compatible",
+            };
+            let rect = [mx + 136.0, my + mh - 48.0, mw - 154.0, 38.0];
+            ui.rounded(rect[0], rect[1], rect[2], rect[3], 19.0, my3_surface_high());
+            ui.border(rect[0], rect[1], rect[2], rect[3], 19.0, my3_border());
+            let fitted = ui.fit_text(Face::Medium, 13.0, disabled_label, rect[2] - 16.0);
+            let tw = ui.measure(Face::Medium, 13.0, &fitted);
+            ui.text(Face::Medium, 13.0, rect[0] + (rect[2] - tw) * 0.5,
+                rect[1] + 10.0, my3_muted(), &fitted);
+        }"""
+    if source.count(modal_button) != 1:
+        raise SystemExit("Could not uniquely locate the project modal install button.")
+    source = source.replace(modal_button, modal_replacement, 1)
 
     page_anchor = """            Some(Action::Page(page)) => {
                 if page == Page::Skins {"""
