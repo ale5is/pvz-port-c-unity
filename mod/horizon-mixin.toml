@@ -153,7 +153,7 @@ id = "jade_settings"
 kind = "HEAD"
 hook = "settings"
 hook_version = 1
-helper = "settings.rs"
+helper = "settings_jade.rs"
 bindings = [
   { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
   { name = "mod_id", ty = "&str", value = "mod_id" },
@@ -165,7 +165,7 @@ id = "jade_settings_click"
 kind = "HEAD"
 hook = "settings_click"
 hook_version = 1
-helper = "settings_click.rs"
+helper = "settings_click_jade.rs"
 bindings = [
   { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
   { name = "mod_id", ty = "&str", value = "mod_id" },
