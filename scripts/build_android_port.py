@@ -4526,7 +4526,7 @@ fn pavo_launcher_text(text: &str) -> String {
             (7, "Play Minecraft 26.3") => "开始游戏 Minecraft 26.3",
             (7, "Launching...") => "正在启动...",
             (1, "Client JAR") => "Archivo JAR del cliente",
-            (1, "Exit Horizon Android?") => "¿Salir de PavoHorizon?",
+            (1, "Exit PavoHorizon?") => "¿Salir de PavoHorizon?",
             (1, "Syncing account session & skins...") => "Sincronizando la sesión de la cuenta y los aspectos...",
             (1, "About Project") => "Acerca del proyecto",
             (1, "Diagnostics & Runtime Health Summary") => "Resumen de diagnóstico y estado del sistema",
@@ -4888,12 +4888,19 @@ fn pavo_launcher_text(text: &str) -> String {
             (5, "Client JAR") => "Client-JAR",
             (6, "Client JAR") => "クライアントJAR",
             (7, "Client JAR") => "客户端 JAR",
-            (2, "Exit Horizon Android?") => "Sair do PavoHorizon?",
-            (3, "Exit Horizon Android?") => "Quitter PavoHorizon ?",
-            (4, "Exit Horizon Android?") => "Uscire da PavoHorizon?",
-            (5, "Exit Horizon Android?") => "PavoHorizon beenden?",
-            (6, "Exit Horizon Android?") => "PavoHorizonを終了しますか？",
-            (7, "Exit Horizon Android?") => "退出 PavoHorizon？",
+            (2, "Exit PavoHorizon?") => "Sair do PavoHorizon?",
+            (3, "Exit PavoHorizon?") => "Quitter PavoHorizon ?",
+            (4, "Exit PavoHorizon?") => "Uscire da PavoHorizon?",
+            (5, "Exit PavoHorizon?") => "PavoHorizon beenden?",
+            (6, "Exit PavoHorizon?") => "PavoHorizonを終了しますか？",
+            (7, "Exit PavoHorizon?") => "退出 PavoHorizon？",
+            (1, "Exit") => "Salir",
+            (2, "Exit") => "Sair",
+            (3, "Exit") => "Quitter",
+            (4, "Exit") => "Esci",
+            (5, "Exit") => "Beenden",
+            (6, "Exit") => "終了",
+            (7, "Exit") => "退出",
             (2, "Syncing account session & skins...") => "Sincronizando sessão da conta e skins...",
             (3, "Syncing account session & skins...") => "Synchronisation de la session du compte et des skins...",
             (4, "Syncing account session & skins...") => "Sincronizzazione della sessione account e delle skin...",
@@ -8492,6 +8499,38 @@ def patch_android_catalog_compatibility(stage):
 
 
 
+
+def patch_pavo_brand_mark(stage):
+    ui_theme = stage / "crates/horizon-client/src/ui_theme.rs"
+    source = ui_theme.read_text(encoding="utf-8")
+
+    old = """        Icon::HorizonLogo => {
+            let left_bar = seg_dist(u, v, 0.22, 0.16, 0.22, 0.84) <= 0.095;
+            let right_bar = seg_dist(u, v, 0.78, 0.16, 0.78, 0.84) <= 0.095;
+            let bridge = seg_dist(u, v, 0.22, 0.56, 0.78, 0.42) <= 0.088;
+            left_bar || right_bar || bridge
+        }"""
+    new = """        Icon::HorizonLogo => {
+            let stem = seg_dist(u, v, 0.27, 0.16, 0.27, 0.84) <= 0.095;
+            let top = seg_dist(u, v, 0.27, 0.18, 0.70, 0.18) <= 0.095;
+            let upper_right = seg_dist(u, v, 0.70, 0.18, 0.76, 0.25) <= 0.095;
+            let right = seg_dist(u, v, 0.76, 0.25, 0.76, 0.43) <= 0.095;
+            let middle = seg_dist(u, v, 0.27, 0.50, 0.70, 0.50) <= 0.095;
+            stem || top || upper_right || right || middle
+        }"""
+    if source.count(old) != 1:
+        raise SystemExit("Could not uniquely locate the shared Horizon H icon geometry.")
+    source = source.replace(old, new, 1)
+
+    doc_old = "    /// Draw the stylized two-tone Horizon `H` mark at `(x, y)` in `size x size` dp."
+    doc_new = "    /// Draw the stylized two-tone PavoHorizon `P` mark at `(x, y)` in `size x size` dp."
+    if source.count(doc_old) != 1:
+        raise SystemExit("Could not uniquely locate the shared Horizon logo documentation.")
+    source = source.replace(doc_old, doc_new, 1)
+    ui_theme.write_text(source, encoding="utf-8")
+    print("PavoHorizon branding: shared launcher and in-game Horizon mark now renders as P.", flush=True)
+
+
 def verify_no_starlight_in_apk(apk):
     import zipfile
 
@@ -8597,6 +8636,7 @@ def main():
     patch_android_launcher_branding(stage)
     patch_android_language(stage)
     patch_android_catalog_compatibility(stage)
+    patch_pavo_brand_mark(stage)
 
     command = [
         sys.executable,
