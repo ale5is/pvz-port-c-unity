@@ -83,6 +83,10 @@ pub fn settings(
         "Show block states", "Mostrar estados del bloque", "Mostrar estados do bloco", "Afficher l’état du bloc",
         "Mostra stati del blocco", "Blockzustände anzeigen", "ブロック状態を表示", "显示方块状态",
     ]));
+    buttons.push(option_label(game, "show_block_info", [
+        "Show block info", "Mostrar información del bloque", "Mostrar informações do bloco", "Afficher les infos du bloc",
+        "Mostra info blocco", "Blockinfos anzeigen", "ブロック情報を表示", "显示方块信息",
+    ]));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -94,6 +98,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         1 => "show_registry_id",
         2 => "show_coordinates",
         3 => "show_block_states",
+        4 => "show_block_info",
         _ => return,
     };
     let next = !enabled(game, key, true);
@@ -125,7 +130,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         None => short_name.to_owned(),
     }.replace('_', " ");
 
-    let mut details = Vec::with_capacity(3);
+    let mut details = Vec::with_capacity(4);
     if enabled(game, "show_registry_id", true) {
         details.push(name.to_owned());
     }
@@ -140,6 +145,20 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         details.push(format!("{}: {}", tr([
             "State", "Estado", "Estado", "État", "Stato", "Zustand", "状態", "状态",
         ]), properties));
+    }
+    if enabled(game, "show_block_info", true) {
+        let facts = game.res.facts().get(state);
+        let hardness = if facts.hardness < 0.0 {
+            tr(["Unbreakable", "Irrompible", "Inquebrável", "Incassable", "Indistruttibile", "Unzerstörbar", "破壊不可", "不可破坏"])
+        } else {
+            format!("{}: {:.1}", tr(["Hardness", "Dureza", "Dureza", "Dureté", "Durezza", "Härte", "硬度", "硬度"]), facts.hardness)
+        };
+        let tool = if facts.requires_tool {
+            tr(["Tool required", "Requiere herramienta", "Requer ferramenta", "Outil requis", "Richiede strumento", "Werkzeug erforderlich", "道具が必要", "需要工具"])
+        } else {
+            tr(["No tool required", "No requiere herramienta", "Não requer ferramenta", "Aucun outil requis", "Non richiede strumenti", "Kein Werkzeug nötig", "道具不要", "不需要工具"])
+        };
+        details.push(format!("{hardness} · {tool}"));
     }
     let atlas = &game.gui.atlas;
     let title_width = horizon_client::hud::HudBatch::text_width(atlas, &title);
