@@ -690,7 +690,7 @@ fn default_language() -> String {
             raise SystemExit(f"Missing launcher locale file: {locale_file}")
         locale_data = json.loads(locale_file.read_text(encoding="utf-8"))
         locale_data.update(translations)
-        locale_file.write_text(json.dumps(locale_data, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+        locale_file.write_text(json.dumps(locale_data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     core_lang = stage / "crates/horizon-client-core/src/lang.rs"
     core_source = core_lang.read_text(encoding="utf-8")
