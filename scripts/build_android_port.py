@@ -8451,7 +8451,38 @@ def patch_android_catalog_compatibility(stage):
         raise SystemExit("Could not uniquely locate classic shader compatibility label.")
     source = source.replace(shader_anchor, shader_replacement, 1)
     pages.write_text(source, encoding="utf-8")
-    print("Android catalog: Modrinth mods use game-version/loader facets; classic shaders require a matching game version and cannot install otherwise.", flush=True)
+
+    # Initialize profile and wardrobe storage before either screen is constructed.
+    # Doing this only when navigating to Installed/Skins is too late for first-run
+    # constructors and can make the first visit behave differently from later visits.
+    launcher = stage / "crates/horizon-client/src/android/launcher.rs"
+    source = launcher.read_text(encoding="utf-8")
+    startup_anchor = """        let mut catalog = Catalog::new(&home);
+"""
+    startup_replacement = """        let mut catalog = Catalog::new(&home);
+        let game_home = catalog.config.game_home(&home);
+        let storage_result = (|| -> std::io::Result<()> {
+            std::fs::create_dir_all(&game_home)?;
+            for kind in horizon_client::content_files::Kind::ALL {
+                std::fs::create_dir_all(game_home.join(kind.folder()))?;
+            }
+            let wardrobe_home = home.join("wardrobe");
+            std::fs::create_dir_all(&wardrobe_home)?;
+            std::fs::create_dir_all(wardrobe_home.join("images"))?;
+            std::fs::create_dir_all(wardrobe_home.join("heads"))?;
+            std::fs::create_dir_all(home.join("performance"))?;
+            Ok(())
+        })();
+        if let Err(error) = storage_result {
+            log::warn!("Could not initialize Installed/Skins storage: {error}");
+            catalog.status = format!("Could not initialize local storage: {error}");
+        }
+"""
+    if source.count(startup_anchor) != 1:
+        raise SystemExit("Could not uniquely locate launcher startup catalog initialization.")
+    source = source.replace(startup_anchor, startup_replacement, 1)
+    launcher.write_text(source, encoding="utf-8")
+    print("Android catalog and profile/wardrobe storage initialized before first screen construction.", flush=True)
 
 
 
