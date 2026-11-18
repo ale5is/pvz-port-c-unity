@@ -2982,6 +2982,30 @@ fn pavo_launcher_text(text: &str) -> String {
                 return format!("{label} {id}");
             }
         }
+        // Keep the Skins navigation label translated on every launcher page.
+        // The content-library translator is intentionally scoped to Installed/Skins,
+        // but the navigation rail remains visible while other pages are selected.
+        let skin_label = match (lang, text) {
+            (1, "Skin") => Some("Aspecto"),
+            (1, "Skins") => Some("Aspectos"),
+            (2, "Skin") => Some("Visual"),
+            (2, "Skins") => Some("Visuais"),
+            (3, "Skin") => Some("Skin"),
+            (3, "Skins") => Some("Skins"),
+            (4, "Skin") => Some("Skin"),
+            (4, "Skins") => Some("Skin"),
+            (5, "Skin") => Some("Skin"),
+            (5, "Skins") => Some("Skins"),
+            (6, "Skin") => Some("スキン"),
+            (6, "Skins") => Some("スキン"),
+            (7, "Skin") => Some("皮肤"),
+            (7, "Skins") => Some("皮肤"),
+            _ => None,
+        };
+        if let Some(label) = skin_label {
+            return label.to_owned();
+        }
+
         if PAVO_CONTENT_LIBRARY_CONTEXT.with(|active| active.get()) {
             if let Some(translated) = pavo_content_library_text(lang, text) {
                 return translated;
