@@ -7789,6 +7789,111 @@ impl Fonts {
     login.write_text(login_source, encoding="utf-8")
     print("PavoHorizon language support: detects Android locale, persists manual override, and translates launcher UI plus Minecraft.", flush=True)
 
+def patch_android_catalog_compatibility(stage):
+    catalog = stage / "crates/horizon-client/src/android/catalog.rs"
+    source = catalog.read_text(encoding="utf-8")
+
+    install_anchor = """        let Some(project) = self.results.get(index).cloned() else {
+            return;
+        };
+
+        if source_only_mod(&project) {"""
+    install_replacement = """        let Some(project) = self.results.get(index).cloned() else {
+            return;
+        };
+
+        if let browser::Support::No(reason) = project.support() {
+            self.status = format!("{} is not compatible with Horizon: {reason}", project.title);
+            return;
+        }
+
+        if source_only_mod(&project) {"""
+    if source.count(install_anchor) != 1:
+        raise SystemExit("Could not uniquely locate Android mod compatibility install guard.")
+    source = source.replace(install_anchor, install_replacement, 1)
+
+    fallback = """                    Err(first_err)
+                        if project.kind == Kind::Mod
+                            && project.source == browser::SourceId::Modrinth =>
+                    {
+                        // Fallback for Modrinth Java mods without port-pack content: download the
+                        // primary .jar into horizon-mods/ and register it in Installed.
+                        install_modrinth_jar_fallback(source.as_ref(), &project, &game, &report)
+                            .map_err(|_| first_err)?
+                    }
+                    Err(e) => return Err(e),"""
+    safe_install = """                    Err(e) => return Err(e),"""
+    if source.count(fallback) != 1:
+        raise SystemExit("Could not uniquely locate the unsafe raw-JAR fallback.")
+    source = source.replace(fallback, safe_install, 1)
+    catalog.write_text(source, encoding="utf-8")
+
+    pages = stage / "crates/horizon-client/src/android/launcher_pages.rs"
+    source = pages.read_text(encoding="utf-8")
+    target = """                let meta_tag = if p.downloads > 0 {
+                    format!(
+                        "{} • {} downloads • Tap for versions & screenshots",
+                        p.source.label(),
+                        format_downloads(p.downloads)
+                    )
+                } else {
+                    format!(
+                        "{} • Tap for versions, description & screenshots",
+                        p.source.label()
+                    )
+                };
+                let fitted_meta = ui.fit_text(Face::Medium, 11.0, &meta_tag, text_max);"""
+    replacement = """                let meta_tag = if p.downloads > 0 {
+                    format!(
+                        "{} • {} downloads • Tap for versions & screenshots",
+                        p.source.label(),
+                        format_downloads(p.downloads)
+                    )
+                } else {
+                    format!(
+                        "{} • Tap for versions, description & screenshots",
+                        p.source.label()
+                    )
+                };
+                let support = p.support();
+                let (support_label, can_install) = if crate::catalog::source_only_mod(p) {
+                    ("Unavailable on Android", false)
+                } else if p.kind == crate::browser::Kind::Shader
+                    && p.source == crate::browser::SourceId::Modrinth
+                {
+                    ("Experimental", true)
+                } else {
+                    (support.label(), support.installable())
+                };
+                let meta_tag = format!("{meta_tag} • {support_label}");
+                let fitted_meta = ui.fit_text(Face::Medium, 11.0, &meta_tag, text_max);"""
+    if source.count(target) != 1:
+        raise SystemExit("Could not uniquely locate Android catalog compatibility badge.")
+    source = source.replace(target, replacement, 1)
+
+    target = """                if download.is_none() {
+                    self.list_targets.push((btn_rect, Action::Install(i)));
+                }"""
+    replacement = """                if download.is_none() && can_install {
+                    self.list_targets.push((btn_rect, Action::Install(i)));
+                }"""
+    if source.count(target) != 1:
+        raise SystemExit("Could not uniquely locate Android catalog install hit target.")
+    source = source.replace(target, replacement, 1)
+
+    target = """                        Action::Install(i),
+                        true,
+                    );"""
+    replacement = """                        Action::Install(i),
+                        can_install,
+                    );"""
+    if source.count(target) != 1:
+        raise SystemExit("Could not uniquely locate Android catalog install button.")
+    source = source.replace(target, replacement, 1)
+    pages.write_text(source, encoding="utf-8")
+    print("Android catalog compatibility: incompatible mods are labelled and blocked; raw Java-JAR fallback removed; classic shader ZIPs are marked experimental.", flush=True)
+
+
 def verify_no_starlight_in_apk(apk):
     import zipfile
 
@@ -7893,6 +7998,7 @@ def main():
     patch_android_identity(stage)
     patch_android_launcher_branding(stage)
     patch_android_language(stage)
+    patch_android_catalog_compatibility(stage)
 
     command = [
         sys.executable,
