@@ -8254,39 +8254,17 @@ def patch_android_catalog_compatibility(stage):
                             .map_err(|_| first_err)?
                     }
                     Err(e) => return Err(e),"""
-    safe_install = """                    Err(e) => return Err(e),"""
     if source.count(fallback) != 1:
         raise SystemExit("Could not uniquely locate the unsafe raw-JAR fallback.")
-    source = source.replace(fallback, safe_install, 1)
+    source = source.replace(fallback, "                    Err(e) => return Err(e),", 1)
     catalog.write_text(source, encoding="utf-8")
 
     pages = stage / "crates/horizon-client/src/android/launcher_pages.rs"
     source = pages.read_text(encoding="utf-8")
-    target = """                let meta_tag = if p.downloads > 0 {
-                    format!(
-                        "{} • {} downloads • Tap for versions & screenshots",
-                        p.source.label(),
-                        format_downloads(p.downloads)
-                    )
-                } else {
-                    format!(
-                        "{} • Tap for versions, description & screenshots",
-                        p.source.label()
-                    )
-                };
-                let fitted_meta = ui.fit_text(Face::Medium, 11.0, &meta_tag, text_max);"""
-    replacement = """                let meta_tag = if p.downloads > 0 {
-                    format!(
-                        "{} • {} downloads • Tap for versions & screenshots",
-                        p.source.label(),
-                        format_downloads(p.downloads)
-                    )
-                } else {
-                    format!(
-                        "{} • Tap for versions, description & screenshots",
-                        p.source.label()
-                    )
-                };
+
+    row_anchor = """                let download = self.catalog.download_label(p);
+                let card_rect = [content_x, y, content_w - 118.0, 64.0];"""
+    row_replacement = """                let download = self.catalog.download_label(p);
                 let support = p.support();
                 let lang = self.catalog.config.language.as_str();
                 let unavailable = match lang {
@@ -8344,11 +8322,19 @@ def patch_android_catalog_compatibility(stage):
                 } else {
                     (support_label, support.installable())
                 };
+                let card_rect = [content_x, y, content_w - 118.0, 64.0];"""
+    if source.count(row_anchor) != 1:
+        raise SystemExit("Could not uniquely locate the Android catalog result row.")
+    source = source.replace(row_anchor, row_replacement, 1)
+
+    meta_anchor = """                };
+                let fitted_meta = ui.fit_text(Face::Medium, 11.0, &meta_tag, text_max);"""
+    meta_replacement = """                };
                 let meta_tag = format!("{meta_tag} • {support_label}");
                 let fitted_meta = ui.fit_text(Face::Medium, 11.0, &meta_tag, text_max);"""
-    if source.count(target) != 1:
-        raise SystemExit("Could not uniquely locate Android catalog compatibility badge.")
-    source = source.replace(target, replacement, 1)
+    if source.count(meta_anchor) != 1:
+        raise SystemExit("Could not uniquely locate Android catalog metadata label.")
+    source = source.replace(meta_anchor, meta_replacement, 1)
 
     target = """                if download.is_none() {
                     self.list_targets.push((btn_rect, Action::Install(i)));
@@ -8369,8 +8355,36 @@ def patch_android_catalog_compatibility(stage):
     if source.count(target) != 1:
         raise SystemExit("Could not uniquely locate Android catalog install button.")
     source = source.replace(target, replacement, 1)
+
+    page_anchor = """            Some(Action::Page(page)) => {
+                if page == Page::Skins {"""
+    page_replacement = """            Some(Action::Page(page)) => {
+                if page == Page::Installed || page == Page::Skins {
+                    let game_home = self.catalog.config.game_home(&self.home);
+                    let initialized = (|| -> std::io::Result<()> {
+                        std::fs::create_dir_all(&game_home)?;
+                        for kind in horizon_client::content_files::Kind::ALL {
+                            std::fs::create_dir_all(game_home.join(kind.folder()))?;
+                        }
+                        std::fs::create_dir_all(self.home.join("wardrobe"))?;
+                        std::fs::create_dir_all(self.home.join("performance"))?;
+                        Ok(())
+                    })();
+                    if let Err(error) = initialized {
+                        self.error = Some(format!("Could not prepare local game folders: {error}"));
+                    }
+                    if page == Page::Installed {
+                        self.catalog.refresh(&self.home);
+                    }
+                }
+                if page == Page::Skins {"""
+    if source.count(page_anchor) != 1:
+        raise SystemExit("Could not uniquely locate Android page navigation action.")
+    source = source.replace(page_anchor, page_replacement, 1)
+
     pages.write_text(source, encoding="utf-8")
-    print("Android catalog compatibility: incompatible mods are labelled and blocked; raw Java-JAR fallback removed; classic shader ZIPs are marked experimental.", flush=True)
+    print("Android catalog compatibility and first-open storage initialization hardened.", flush=True)
+
 
 
 def verify_no_starlight_in_apk(apk):
