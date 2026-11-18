@@ -2669,6 +2669,55 @@ fn pavo_launcher_text(text: &str) -> String {
             };
             return format!("{prefix}{link}{suffix}");
         }
+        if let Some(detail) = text.strip_suffix(" · Current") {
+            let current = match lang {
+                1 => "Actual", 2 => "Atual", 3 => "Actuel", 4 => "Attuale",
+                5 => "Aktuell", 6 => "現在", 7 => "当前", _ => "Current",
+            };
+            return format!("{} · {current}", pavo_launcher_text(detail));
+        }
+        if let Some(name) = text.strip_prefix("Signed in as ") {
+            let prefix = match lang {
+                1 => "Sesión iniciada como ", 2 => "Conectado como ", 3 => "Connecté en tant que ",
+                4 => "Accesso effettuato come ", 5 => "Angemeldet als ", 6 => "サインイン中：",
+                7 => "已登录为 ", _ => "Signed in as ",
+            };
+            return format!("{prefix}{name}");
+        }
+        if let Some(name) = text.strip_prefix("Sign in required for ") {
+            let prefix = match lang {
+                1 => "Se necesita iniciar sesión para ", 2 => "É necessário entrar para ",
+                3 => "Connexion requise pour ", 4 => "Accesso richiesto per ",
+                5 => "Anmeldung erforderlich für ", 6 => "サインインが必要：",
+                7 => "需要登录才能使用 ", _ => "Sign in required for ",
+            };
+            return format!("{prefix}{name}");
+        }
+        if let Some(name) = text.strip_prefix("Sign in to use ") {
+            let prefix = match lang {
+                1 => "Inicia sesión para usar ", 2 => "Entre para usar ",
+                3 => "Connectez-vous pour utiliser ", 4 => "Accedi per usare ",
+                5 => "Melde dich an, um ", 6 => "次を使用するにはサインイン：",
+                7 => "登录以使用 ", _ => "Sign in to use ",
+            };
+            return format!("{prefix}{name}");
+        }
+        if let Some(name) = text.strip_prefix("Offline: ") {
+            let prefix = match lang {
+                1 => "Sin conexión: ", 2 => "Offline: ", 3 => "Hors ligne : ",
+                4 => "Offline: ", 5 => "Offline: ", 6 => "オフライン：",
+                7 => "离线：", _ => "Offline: ",
+            };
+            return format!("{prefix}{name}");
+        }
+        if let Some(count) = text.strip_suffix("/16 characters") {
+            let suffix = match lang {
+                1 => "/16 caracteres", 2 => "/16 caracteres", 3 => "/16 caractères",
+                4 => "/16 caratteri", 5 => "/16 Zeichen", 6 => "/16文字",
+                7 => "/16 个字符", _ => "/16 characters",
+            };
+            return format!("{count}{suffix}");
+        }
         let translated = match (lang, text) {
             (1, "Accounts") => "Cuentas",
             (2, "Accounts") => "Contas",
@@ -6958,6 +7007,275 @@ fn pavo_launcher_text(text: &str) -> String {
     if source.count(clipped_old) != 1:
         raise SystemExit("Could not locate Horizon clipped text fitting.")
     source = source.replace(clipped_old, clipped_new, 1)
+    font_import_old = "use ab_glyph::{Font as _, FontRef, PxScale, ScaleFont as _};"
+    font_import_new = "use ab_glyph::{Font as _, FontRef, FontVec, PxScale, ScaleFont as _};"
+    if source.count(font_import_old) != 1:
+        raise SystemExit("Could not locate Android UI font imports.")
+    source = source.replace(font_import_old, font_import_new, 1)
+
+    fonts_struct_old = """struct Fonts {
+    faces: [FontRef<'static>; 4],
+}
+impl Fonts {
+    fn load() -> Self {
+        let f = |b: &'static [u8]| FontRef::try_from_slice(b).expect("bundled font");
+        Self {
+            faces: [
+                f(horizon_theme::fonts::GEIST_REGULAR),
+                f(horizon_theme::fonts::GEIST_MEDIUM),
+                f(horizon_theme::fonts::GEIST_SEMIBOLD),
+                f(horizon_theme::fonts::GEIST_MONO),
+            ],
+        }
+    }
+    fn face(&self, f: Face) -> &FontRef<'static> {
+        &self.faces[f as usize]
+    }
+    /// The ab_glyph scale for an em size in pixels.
+    fn scale(&self, f: Face, px: f32) -> PxScale {
+        let font = self.face(f);
+        let upem = font.units_per_em().unwrap_or(1000.0);
+        PxScale::from(px * font.height_unscaled() / upem)
+    }
+}
+"""
+    fonts_struct_new = """struct Fonts {
+    faces: [FontRef<'static>; 4],
+    cjk: Option<FontVec>,
+}
+impl Fonts {
+    fn load() -> Self {
+        let f = |b: &'static [u8]| FontRef::try_from_slice(b).expect("bundled font");
+        let language = PAVO_LAUNCHER_LANGUAGE.with(|current| current.get());
+        let candidates: &[(&str, u32)] = match language {
+            6 => &[
+                ("/system/fonts/NotoSansCJK-Regular.ttc", 0),
+                ("/product/fonts/NotoSansCJK-Regular.ttc", 0),
+                ("/system_ext/fonts/NotoSansCJK-Regular.ttc", 0),
+                ("/system/fonts/NotoSansJP-Regular.otf", 0),
+                ("/system/fonts/DroidSansFallback.ttf", 0),
+            ],
+            7 => &[
+                ("/system/fonts/NotoSansCJK-Regular.ttc", 2),
+                ("/product/fonts/NotoSansCJK-Regular.ttc", 2),
+                ("/system_ext/fonts/NotoSansCJK-Regular.ttc", 2),
+                ("/system/fonts/NotoSansSC-Regular.otf", 0),
+                ("/system/fonts/DroidSansFallback.ttf", 0),
+            ],
+            _ => &[],
+        };
+        let cjk = candidates.iter().find_map(|(path, index)| {
+            let bytes = std::fs::read(path).ok()?;
+            FontVec::try_from_vec_and_index(bytes, *index).ok()
+        });
+        if matches!(language, 6 | 7) && cjk.is_none() {
+            log::warn!("PavoHorizon: no Android CJK fallback font found; Japanese/Chinese glyphs may be missing");
+        }
+        Self {
+            faces: [
+                f(horizon_theme::fonts::GEIST_REGULAR),
+                f(horizon_theme::fonts::GEIST_MEDIUM),
+                f(horizon_theme::fonts::GEIST_SEMIBOLD),
+                f(horizon_theme::fonts::GEIST_MONO),
+            ],
+            cjk,
+        }
+    }
+    fn face(&self, f: Face) -> &FontRef<'static> {
+        &self.faces[f as usize]
+    }
+    fn glyph(&self, f: Face, ch: char) -> (ab_glyph::GlyphId, bool) {
+        let id = self.face(f).glyph_id(ch);
+        if id.0 != 0 {
+            return (id, false);
+        }
+        if let Some(font) = &self.cjk {
+            let fallback = font.glyph_id(ch);
+            if fallback.0 != 0 {
+                return (fallback, true);
+            }
+        }
+        (id, false)
+    }
+    fn scale(&self, f: Face, px: f32) -> PxScale {
+        let font = self.face(f);
+        let upem = font.units_per_em().unwrap_or(1000.0);
+        PxScale::from(px * font.height_unscaled() / upem)
+    }
+    fn cjk_scale(&self, px: f32) -> PxScale {
+        let font = self.cjk.as_ref().expect("CJK fallback font");
+        let upem = font.units_per_em().unwrap_or(1000.0);
+        PxScale::from(px * font.height_unscaled() / upem)
+    }
+}
+"""
+    if source.count(fonts_struct_old) != 1:
+        raise SystemExit("Could not locate Android UI bundled font registry.")
+    source = source.replace(fonts_struct_old, fonts_struct_new, 1)
+
+    key_old = "    Glyph(Face, u16, u16),"
+    key_new = "    Glyph(Face, u16, u16, bool),"
+    if source.count(key_old) != 1:
+        raise SystemExit("Could not locate Android UI glyph cache key.")
+    source = source.replace(key_old, key_new, 1)
+
+    glyph_old = """    fn glyph(&mut self, atlas: &HudAtlas, face: Face, id: ab_glyph::GlyphId, px: f32) -> Cached {
+        let size = (px * 4.0).round() as u16;
+        let key = Key::Glyph(face, id.0, size);
+        if let Some(c) = self.entries.get(&key) {
+            return *c;
+        }
+        let scale = self.fonts.scale(face, f32::from(size) / 4.0);
+        let glyph = id.with_scale_and_position(scale, ab_glyph::point(0.0, 0.0));
+        let made = match self.fonts.face(face).outline_glyph(glyph) {
+"""
+    glyph_new = """    fn glyph(&mut self, atlas: &HudAtlas, face: Face, id: ab_glyph::GlyphId, px: f32, cjk: bool) -> Cached {
+        let size = (px * 4.0).round() as u16;
+        let key = Key::Glyph(face, id.0, size, cjk);
+        if let Some(c) = self.entries.get(&key) {
+            return *c;
+        }
+        let scale = if cjk {
+            self.fonts.cjk_scale(f32::from(size) / 4.0)
+        } else {
+            self.fonts.scale(face, f32::from(size) / 4.0)
+        };
+        let glyph = id.with_scale_and_position(scale, ab_glyph::point(0.0, 0.0));
+        let outline = if cjk {
+            self.fonts.cjk.as_ref().and_then(|font| font.outline_glyph(glyph))
+        } else {
+            self.fonts.face(face).outline_glyph(glyph)
+        };
+        let made = match outline {
+"""
+    if source.count(glyph_old) != 1:
+        raise SystemExit("Could not locate Android UI glyph rasterizer.")
+    source = source.replace(glyph_old, glyph_new, 1)
+
+    fit_old = """        with_cache(self.atlas, |cache| {
+            let font = cache.fonts.face(face);
+            let scaled = font.as_scaled(cache.fonts.scale(face, px));
+            let mut total = 0.0;
+            let mut prev = None;
+            for ch in text.chars() {
+                let id = font.glyph_id(ch);
+                if let Some(p) = prev {
+                    total += scaled.kern(p, id);
+                }
+                total += scaled.h_advance(id);
+                prev = Some(id);
+            }
+            if total <= max_px {
+                return text.to_owned();
+            }
+            crate::ui_text::fit(text, max_px, |previous, ch| {
+                let id = font.glyph_id(ch);
+                previous.map_or(0.0, |p| scaled.kern(font.glyph_id(p), id)) + scaled.h_advance(id)
+            })
+        })
+"""
+    fit_new = """        with_cache(self.atlas, |cache| {
+            let advance = |ch: char| {
+                let (id, cjk) = cache.fonts.glyph(face, ch);
+                if cjk {
+                    cache.fonts.cjk.as_ref().map_or(0.0, |font| {
+                        font.as_scaled(cache.fonts.cjk_scale(px)).h_advance(id)
+                    })
+                } else {
+                    cache.fonts.face(face).as_scaled(cache.fonts.scale(face, px)).h_advance(id)
+                }
+            };
+            let mut total = 0.0;
+            for ch in text.chars() {
+                total += advance(ch);
+            }
+            if total <= max_px {
+                return text.to_owned();
+            }
+            crate::ui_text::fit(text, max_px, |_, ch| advance(ch))
+        })
+"""
+    if source.count(fit_old) != 1:
+        raise SystemExit("Could not locate Android UI text fitting implementation.")
+    source = source.replace(fit_old, fit_new, 1)
+
+    measure_old = """            let font = c.fonts.face(face);
+            let scaled = font.as_scaled(c.fonts.scale(face, px));
+            let mut w = 0.0;
+            let mut prev = None;
+            for ch in text.chars() {
+                let id = font.glyph_id(ch);
+                if let Some(p) = prev {
+                    w += scaled.kern(p, id);
+                }
+                w += scaled.h_advance(id);
+                prev = Some(id);
+            }
+            w / self.density
+"""
+    measure_new = """            let mut w = 0.0;
+            for ch in text.chars() {
+                let (id, cjk) = c.fonts.glyph(face, ch);
+                w += if cjk {
+                    c.fonts.cjk.as_ref().map_or(0.0, |font| {
+                        font.as_scaled(c.fonts.cjk_scale(px)).h_advance(id)
+                    })
+                } else {
+                    c.fonts.face(face).as_scaled(c.fonts.scale(face, px)).h_advance(id)
+                };
+            }
+            w / self.density
+"""
+    if source.count(measure_old) != 1:
+        raise SystemExit("Could not locate Android UI text measurement implementation.")
+    source = source.replace(measure_old, measure_new, 1)
+
+    baseline_old = """            let (ascent, descent) = {
+                let f = c.fonts.face(face).as_scaled(scale);
+                (f.ascent(), f.descent())
+            };
+"""
+    baseline_new = """            let (mut ascent, mut descent) = {
+                let f = c.fonts.face(face).as_scaled(scale);
+                (f.ascent(), f.descent())
+            };
+            if let Some(font) = &c.fonts.cjk {
+                let fallback = font.as_scaled(c.fonts.cjk_scale(px));
+                ascent = ascent.max(fallback.ascent());
+                descent = descent.min(fallback.descent());
+            }
+"""
+    if source.count(baseline_old) != 1:
+        raise SystemExit("Could not locate Android UI text baseline metrics.")
+    source = source.replace(baseline_old, baseline_new, 1)
+
+    draw_old = """                let (id, advance, kern) = {
+                    let font = c.fonts.face(face);
+                    let id = font.glyph_id(ch);
+                    let f = font.as_scaled(scale);
+                    (id, f.h_advance(id), prev.map_or(0.0, |p| f.kern(p, id)))
+                };
+                pen += kern;
+                if real && !ch.is_whitespace() {
+                    let g = c.glyph(atlas, face, id, px);
+"""
+    draw_new = """                let (id, cjk) = c.fonts.glyph(face, ch);
+                let (advance, kern) = if cjk {
+                    let font = c.fonts.cjk.as_ref().expect("CJK fallback font");
+                    let f = font.as_scaled(c.fonts.cjk_scale(px));
+                    (f.h_advance(id), 0.0)
+                } else {
+                    let font = c.fonts.face(face);
+                    let f = font.as_scaled(scale);
+                    (f.h_advance(id), 0.0)
+                };
+                pen += kern;
+                if real && !ch.is_whitespace() {
+                    let g = c.glyph(atlas, face, id, px, cjk);
+"""
+    if source.count(draw_old) != 1:
+        raise SystemExit("Could not locate Android UI text drawing glyph selection.")
+    source = source.replace(draw_old, draw_new, 1)
     ui_theme.write_text(source, encoding="utf-8")
 
     touch_ui = stage / "crates/horizon-client/src/touch_ui.rs"
