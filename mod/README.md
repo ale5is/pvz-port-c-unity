@@ -13,8 +13,8 @@ The bundle contains the API-80 adaptation of Simple Voice Chat 2.6.x client prot
 ## Jade
 The current Jade API-80 adaptation is deliberately scoped to the in-world block tooltip:
 - Shows the display name of the block currently targeted.
-- Optional registry identifier and X/Y/Z coordinates.
-- Options > Mods > Jade exposes persistent toggles for the tooltip, registry identifier and coordinates.
+- Optional registry identifier, X/Y/Z coordinates and the block state's properties (for example, facing, half, type or waterlogged).
+- Options > Mods > Jade exposes persistent toggles for the tooltip, registry identifier, coordinates and block-state properties.
 - All three options default to enabled. Settings are stored using Horizon's native-mod settings directory.
 - The implementation uses the pinned game's existing raycast, block facts and HUD atlas. It does not rewrite upstream compatibility metadata or force newer Horizon APIs.
 
