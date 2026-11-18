@@ -8392,7 +8392,9 @@ def patch_android_catalog_compatibility(stage):
             {
                 query.everything = true;
                 browser::modrinth::Modrinth.search(&query)"""
-    query_replacement = """            } else if page == Page::Packs {
+    query_replacement = """            } else if page == Page::Packs
+                || (page == Page::Mods && source == browser::SourceId::Modrinth)
+            {
                 query.everything = true;
                 browser::modrinth::Modrinth.search(&query)"""
     if source.count(query_anchor) != 1:
