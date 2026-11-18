@@ -25,11 +25,11 @@ fn language_index() -> usize {
     else { 0 }
 }
 
-fn tr(values: [&str; 8]) -> &'static str {
+fn tr(values: [&'static str; 8]) -> &'static str {
     values[language_index()]
 }
 
-fn option_label(game: &super::Game<'_>, key: &str, label: [&str; 8]) -> String {
+fn option_label(game: &super::Game<'_>, key: &str, label: [&'static str; 8]) -> String {
     let value = if enabled(game, key, true) {
         tr(["ON", "ACTIVADO", "ATIVADO", "ACTIVÉ", "ATTIVO", "EIN", "オン", "开启"])
     } else {
