@@ -8414,6 +8414,14 @@ def patch_android_catalog_compatibility(stage):
                     "de_de" => "Nicht kompatibel", "ja_jp" => "非対応",
                     "zh_cn" => "不兼容", _ => "Not compatible",
                 };
+                let precheck_mod = p.kind == crate::browser::Kind::Mod
+                    && p.source == crate::browser::SourceId::Modrinth;
+                let check_label = match lang {
+                    "es_es" => "Comprobar", "pt_br" => "Verificar",
+                    "fr_fr" => "Vérifier", "it_it" => "Verifica",
+                    "de_de" => "Prüfen", "ja_jp" => "確認",
+                    "zh_cn" => "检查", _ => "Check",
+                };
                 let (support_label, can_install) = if rejected {
                     (incompatible, false)
                 } else if crate::catalog::source_only_mod(p) {
@@ -8443,7 +8451,11 @@ def patch_android_catalog_compatibility(stage):
                     self.list_targets.push((btn_rect, Action::Install(i)));
                 }"""
     replacement = """                if download.is_none() && can_install {
-                    self.list_targets.push((btn_rect, Action::Install(i)));
+                    self.list_targets.push((btn_rect, if precheck_mod {
+                        Action::OpenProject(i)
+                    } else {
+                        Action::Install(i)
+                    }));
                 }"""
     if source.count(target) != 1:
         raise SystemExit("Could not uniquely locate Android catalog install hit target.")
@@ -8464,8 +8476,8 @@ def patch_android_catalog_compatibility(stage):
                         &mut ui,
                         &mut self.targets,
                         btn_rect,
-                        self.catalog.install_button(p),
-                        Action::Install(i),
+                        if precheck_mod { check_label } else { self.catalog.install_button(p) },
+                        if precheck_mod { Action::OpenProject(i) } else { Action::Install(i) },
                         true,
                     );
                 } else {
@@ -8506,7 +8518,16 @@ def patch_android_catalog_compatibility(stage):
             *source == modal.project.source && *id == modal.project.id
         ) && (self.catalog.status.contains("doesn't run in Horizon:")
             || self.catalog.status.contains("has no Fabric, NeoForge or Forge version Horizon can port."));
-        if modal.project.support().installable() && !rejected {
+        let cached_incompatible = modal.project.kind == crate::browser::Kind::Mod
+            && modal.project.source == crate::browser::SourceId::Modrinth
+            && modal.versions.get(modal.selected_version)
+                .and_then(|version| version.file())
+                .and_then(|file| crate::browser::java::cached(&self.home, file))
+                .is_some_and(|check| matches!(
+                    crate::browser::java::support_of(&check),
+                    crate::browser::Support::No(_)
+                ));
+        if modal.project.support().installable() && !rejected && !cached_incompatible {
             button(
                 ui,
                 &mut self.targets,
@@ -8533,6 +8554,40 @@ def patch_android_catalog_compatibility(stage):
     if source.count(modal_button) != 1:
         raise SystemExit("Could not uniquely locate the project modal install button.")
     source = source.replace(modal_button, modal_replacement, 1)
+
+    modal_label_anchor = """            let version = modal
+                .versions
+                .get(modal.selected_version)
+                .map_or_else(|| "Latest".to_owned(), |v| v.number.clone());
+            if let Some(bundled) = modal.bundled_id {"""
+    modal_label_replacement = """            let version = modal
+                .versions
+                .get(modal.selected_version)
+                .map_or_else(|| "Latest".to_owned(), |v| v.number.clone());
+            let cached_incompatible = modal.project.kind == crate::browser::Kind::Mod
+                && modal.project.source == crate::browser::SourceId::Modrinth
+                && modal.versions.get(modal.selected_version)
+                    .and_then(|version| version.file())
+                    .and_then(|file| crate::browser::java::cached(&self.home, file))
+                    .is_some_and(|check| matches!(
+                        crate::browser::java::support_of(&check),
+                        crate::browser::Support::No(_)
+                    ));
+            if cached_incompatible {
+                match self.catalog.config.language.as_str() {
+                    "es_es" => "No compatible".to_owned(),
+                    "pt_br" => "Incompatível".to_owned(),
+                    "fr_fr" => "Incompatible".to_owned(),
+                    "it_it" => "Non compatibile".to_owned(),
+                    "de_de" => "Nicht kompatibel".to_owned(),
+                    "ja_jp" => "非対応".to_owned(),
+                    "zh_cn" => "不兼容".to_owned(),
+                    _ => "Not compatible".to_owned(),
+                }
+            } else if let Some(bundled) = modal.bundled_id {"""
+    if source.count(modal_label_anchor) != 1:
+        raise SystemExit("Could not uniquely locate project modal install label.")
+    source = source.replace(modal_label_anchor, modal_label_replacement, 1)
 
     page_anchor = """            Some(Action::Page(page)) => {
                 if page == Page::Skins {"""
