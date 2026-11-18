@@ -7860,14 +7860,61 @@ def patch_android_catalog_compatibility(stage):
                     )
                 };
                 let support = p.support();
+                let lang = self.catalog.config.language.as_str();
+                let unavailable = match lang {
+                    "es_es" => "No disponible en Android",
+                    "pt_br" => "Indisponível no Android",
+                    "fr_fr" => "Indisponible sur Android",
+                    "it_it" => "Non disponibile su Android",
+                    "de_de" => "Auf Android nicht verfügbar",
+                    "ja_jp" => "Androidでは利用不可",
+                    "zh_cn" => "Android 上不可用",
+                    _ => "Unavailable on Android",
+                };
+                let experimental = match lang {
+                    "es_es" => "Experimental",
+                    "pt_br" => "Experimental",
+                    "fr_fr" => "Expérimental",
+                    "it_it" => "Sperimentale",
+                    "de_de" => "Experimentell",
+                    "ja_jp" => "実験的",
+                    "zh_cn" => "实验性",
+                    _ => "Experimental",
+                };
+                let support_label = match (lang, &support) {
+                    ("es_es", crate::browser::Support::Works) => "Compatible",
+                    ("es_es", crate::browser::Support::Partial(_)) => "Parcial",
+                    ("es_es", crate::browser::Support::No(_)) => "No compatible",
+                    ("pt_br", crate::browser::Support::Works) => "Compatível",
+                    ("pt_br", crate::browser::Support::Partial(_)) => "Parcial",
+                    ("pt_br", crate::browser::Support::No(_)) => "Incompatível",
+                    ("fr_fr", crate::browser::Support::Works) => "Compatible",
+                    ("fr_fr", crate::browser::Support::Partial(_)) => "Partiel",
+                    ("fr_fr", crate::browser::Support::No(_)) => "Incompatible",
+                    ("it_it", crate::browser::Support::Works) => "Compatibile",
+                    ("it_it", crate::browser::Support::Partial(_)) => "Parziale",
+                    ("it_it", crate::browser::Support::No(_)) => "Non compatibile",
+                    ("de_de", crate::browser::Support::Works) => "Kompatibel",
+                    ("de_de", crate::browser::Support::Partial(_)) => "Teilweise",
+                    ("de_de", crate::browser::Support::No(_)) => "Nicht kompatibel",
+                    ("ja_jp", crate::browser::Support::Works) => "対応",
+                    ("ja_jp", crate::browser::Support::Partial(_)) => "一部対応",
+                    ("ja_jp", crate::browser::Support::No(_)) => "非対応",
+                    ("zh_cn", crate::browser::Support::Works) => "兼容",
+                    ("zh_cn", crate::browser::Support::Partial(_)) => "部分兼容",
+                    ("zh_cn", crate::browser::Support::No(_)) => "不兼容",
+                    (_, crate::browser::Support::Works) => "Works",
+                    (_, crate::browser::Support::Partial(_)) => "Partly",
+                    (_, crate::browser::Support::No(_)) => "Doesn't run",
+                };
                 let (support_label, can_install) = if crate::catalog::source_only_mod(p) {
-                    ("Unavailable on Android", false)
+                    (unavailable, false)
                 } else if p.kind == crate::browser::Kind::Shader
                     && p.source == crate::browser::SourceId::Modrinth
                 {
-                    ("Experimental", true)
+                    (experimental, true)
                 } else {
-                    (support.label(), support.installable())
+                    (support_label, support.installable())
                 };
                 let meta_tag = format!("{meta_tag} • {support_label}");
                 let fitted_meta = ui.fit_text(Face::Medium, 11.0, &meta_tag, text_max);"""
