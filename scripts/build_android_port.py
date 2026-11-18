@@ -8589,6 +8589,29 @@ def patch_android_catalog_compatibility(stage):
         raise SystemExit("Could not uniquely locate project modal install label.")
     source = source.replace(modal_label_anchor, modal_label_replacement, 1)
 
+    modal_check_label_anchor = """            } else if let Some(state) = self.catalog.download_label(&modal.project) {
+                state
+            } else {"""
+    modal_check_label_replacement = """            } else if modal.project.kind == crate::browser::Kind::Mod
+                && modal.project.source == crate::browser::SourceId::Modrinth
+            {
+                match self.catalog.config.language.as_str() {
+                    "es_es" => "Comprobar e instalar".to_owned(),
+                    "pt_br" => "Verificar e instalar".to_owned(),
+                    "fr_fr" => "Vérifier et installer".to_owned(),
+                    "it_it" => "Verifica e installa".to_owned(),
+                    "de_de" => "Prüfen und installieren".to_owned(),
+                    "ja_jp" => "確認してインストール".to_owned(),
+                    "zh_cn" => "检查并安装".to_owned(),
+                    _ => "Check & install".to_owned(),
+                }
+            } else if let Some(state) = self.catalog.download_label(&modal.project) {
+                state
+            } else {"""
+    if source.count(modal_check_label_anchor) != 1:
+        raise SystemExit("Could not uniquely locate the Modrinth mod modal action label.")
+    source = source.replace(modal_check_label_anchor, modal_check_label_replacement, 1)
+
     page_anchor = """            Some(Action::Page(page)) => {
                 if page == Page::Skins {"""
     page_replacement = """            Some(Action::Page(page)) => {
