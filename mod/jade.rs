@@ -79,10 +79,6 @@ pub fn settings(
         "Show coordinates", "Mostrar coordenadas", "Mostrar coordenadas", "Afficher les coordonnées",
         "Mostra coordinate", "Koordinaten anzeigen", "座標を表示", "显示坐标",
     ]));
-    buttons.push(option_label(game, "show_block_states", [
-        "Show block states", "Mostrar estados del bloque", "Mostrar estados do bloco", "Afficher l’état du bloc",
-        "Mostra stati del blocco", "Blockzustände anzeigen", "ブロック状態を表示", "显示方块状态",
-    ]));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -93,7 +89,6 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         0 => "display_tooltip",
         1 => "show_registry_id",
         2 => "show_coordinates",
-        3 => "show_block_states",
         _ => return,
     };
     let next = !enabled(game, key, true);
@@ -131,16 +126,6 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     if enabled(game, "show_coordinates", true) {
         details.push(format!("X: {}  Y: {}  Z: {}", hit.pos[0], hit.pos[1], hit.pos[2]));
     }
-    if enabled(game, "show_block_states", true) && !block_state.properties.is_empty() {
-        let properties = block_state.properties.iter()
-            .map(|(key, value)| format!("{key}={value}"))
-            .collect::<Vec<_>>()
-            .join(", ");
-        details.push(format!("{}: {}", tr([
-            "State", "Estado", "Estado", "État", "Stato", "Zustand", "状態", "状态",
-        ]), properties));
-    }
-
     let atlas = &game.gui.atlas;
     let title_width = horizon_client::hud::HudBatch::text_width(atlas, &title);
     let detail_width = details.iter()
