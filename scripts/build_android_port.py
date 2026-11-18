@@ -7233,7 +7233,7 @@ impl Fonts {
     if source.count(previous_glyph_old) != 1:
         raise SystemExit("Could not locate Android UI previous-glyph state.")
     source = source.replace(previous_glyph_old, previous_glyph_new, 1)
-    previous_glyph_assignment_old = "                pen += advance;\\n                prev = Some(id);"
+    previous_glyph_assignment_old = "                pen += advance;\n                prev = Some(id);"
     previous_glyph_assignment_new = "                pen += advance;\\n                prev = Some((id, cjk));"
     if source.count(previous_glyph_assignment_old) != 1:
         raise SystemExit("Could not locate Android UI previous-glyph assignment.")
