@@ -2792,6 +2792,20 @@ fn pavo_launcher_text(text: &str) -> String {
 
 
         let translated = match (lang, text) {
+            (1, "Ely.by returned no game session.") => "Ely.by no devolvió una sesión de juego.",
+            (2, "Ely.by returned no game session.") => "O Ely.by não retornou uma sessão de jogo.",
+            (3, "Ely.by returned no game session.") => "Ely.by n’a renvoyé aucune session de jeu.",
+            (4, "Ely.by returned no game session.") => "Ely.by non ha restituito una sessione di gioco.",
+            (5, "Ely.by returned no game session.") => "Ely.by hat keine Spielsitzung zurückgegeben.",
+            (6, "Ely.by returned no game session.") => "Ely.by がゲームセッションを返しませんでした。",
+            (7, "Ely.by returned no game session.") => "Ely.by 未返回游戏会话。",
+            (1, "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.") => "Los nombres sin conexión requieren una cuenta Microsoft que tenga Minecraft: Java Edition en el launcher.",
+            (2, "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.") => "Nomes offline exigem uma conta Microsoft que possua Minecraft: Java Edition no launcher.",
+            (3, "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.") => "Les noms hors ligne nécessitent un compte Microsoft possédant Minecraft: Java Edition dans le launcher.",
+            (4, "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.") => "I nomi offline richiedono un account Microsoft che possieda Minecraft: Java Edition nel launcher.",
+            (5, "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.") => "Offline-Namen benötigen ein Microsoft-Konto mit Minecraft: Java Edition im Launcher.",
+            (6, "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.") => "オフライン名を使用するには、ランチャーに Minecraft: Java Edition を所有する Microsoft アカウントが必要です。",
+            (7, "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.") => "离线名称需要启动器中有一个拥有 Minecraft: Java Edition 的 Microsoft 账户。",
             (1, "Sign-in required for ") => "Se requiere iniciar sesión para ",
             (2, "Sign-in required for ") => "É necessário entrar para ",
             (3, "Sign-in required for ") => "Connexion requise pour ",
