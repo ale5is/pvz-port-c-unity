@@ -7802,9 +7802,13 @@ def patch_android_catalog_compatibility(stage):
             return;
         };
 
-        if let browser::Support::No(reason) = project.support() {
-            self.status = format!("{} is not compatible with Horizon: {reason}", project.title);
-            return;
+        if !(project.kind == Kind::Shader
+            && project.source == browser::SourceId::Modrinth)
+        {
+            if let browser::Support::No(reason) = project.support() {
+                self.status = format!("{} is not compatible with Horizon: {reason}", project.title);
+                return;
+            }
         }
 
         if source_only_mod(&project) {"""
