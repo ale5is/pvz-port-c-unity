@@ -8383,7 +8383,73 @@ def patch_android_catalog_compatibility(stage):
     source = source.replace(page_anchor, page_replacement, 1)
 
     pages.write_text(source, encoding="utf-8")
-    print("Android catalog compatibility and first-open storage initialization hardened.", flush=True)
+
+    # Keep Modrinth mod searches restricted to the game's version and supported loaders.
+    catalog = stage / "crates/horizon-client/src/android/catalog.rs"
+    source = catalog.read_text(encoding="utf-8")
+    query_anchor = """            } else if page == Page::Packs
+                || (page == Page::Mods && source == browser::SourceId::Modrinth)
+            {
+                query.everything = true;
+                browser::modrinth::Modrinth.search(&query)"""
+    query_replacement = """            } else if page == Page::Packs {
+                query.everything = true;
+                browser::modrinth::Modrinth.search(&query)"""
+    if source.count(query_anchor) != 1:
+        raise SystemExit("Could not uniquely locate Modrinth mod search compatibility filter.")
+    source = source.replace(query_anchor, query_replacement, 1)
+    catalog.write_text(source, encoding="utf-8")
+
+    # A classic Modrinth shader ZIP is experimental only for the exact game version.
+    shader = stage / "crates/horizon-client/src/android/shader_catalog.rs"
+    source = shader.read_text(encoding="utf-8")
+    version_anchor = """    versions
+        .iter()
+        .filter(usable)
+        .find(|v| v.game_versions.iter().any(|g| g == browser::GAME))
+        .or_else(|| versions.iter().find(usable))"""
+    version_replacement = """    versions
+        .iter()
+        .filter(usable)
+        .find(|v| v.game_versions.iter().any(|g| g == browser::GAME))"""
+    if source.count(version_anchor) != 1:
+        raise SystemExit("Could not uniquely locate shader version compatibility fallback.")
+    source = source.replace(version_anchor, version_replacement, 1)
+    shader.write_text(source, encoding="utf-8")
+
+    # Show and enforce the actual version compatibility state on shader search results.
+    pages = stage / "crates/horizon-client/src/android/launcher_pages.rs"
+    source = pages.read_text(encoding="utf-8")
+    shader_anchor = """                } else if p.kind == crate::browser::Kind::Shader
+                    && p.source == crate::browser::SourceId::Modrinth
+                {
+                    (experimental, true)
+                } else {"""
+    shader_replacement = """                } else if p.kind == crate::browser::Kind::Shader
+                    && p.source == crate::browser::SourceId::Modrinth
+                    && p.game_versions.iter().any(|version| version == crate::browser::GAME)
+                {
+                    (experimental, true)
+                } else if p.kind == crate::browser::Kind::Shader
+                    && p.source == crate::browser::SourceId::Modrinth
+                {
+                    let incompatible = match lang {
+                        "es_es" => "No compatible",
+                        "pt_br" => "Incompatível",
+                        "fr_fr" => "Incompatible",
+                        "it_it" => "Non compatibile",
+                        "de_de" => "Nicht kompatibel",
+                        "ja_jp" => "非対応",
+                        "zh_cn" => "不兼容",
+                        _ => "Not compatible",
+                    };
+                    (incompatible, false)
+                } else {"""
+    if source.count(shader_anchor) != 1:
+        raise SystemExit("Could not uniquely locate classic shader compatibility label.")
+    source = source.replace(shader_anchor, shader_replacement, 1)
+    pages.write_text(source, encoding="utf-8")
+    print("Android catalog: Modrinth mods use game-version/loader facets; classic shaders require a matching game version and cannot install otherwise.", flush=True)
 
 
 
