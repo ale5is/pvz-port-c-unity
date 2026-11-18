@@ -586,6 +586,112 @@ fn default_language() -> String {
     )
     catalog.write_text(source, encoding="utf-8")
 
+    account_translations = {
+    "es": {
+        "Microsoft sign-in is coming soon. Until then the game plays offline: single player, LAN and servers in offline mode work.": "El inicio de sesión de Microsoft llegará próximamente. Mientras tanto, puedes jugar sin conexión: funcionan el modo individual, la LAN y los servidores en modo offline.",
+        "This account doesn't own Minecraft: Java Edition.": "Esta cuenta no tiene Minecraft: Java Edition.",
+        "This account has no Minecraft profile yet. Create one at minecraft.net, then sign in again.": "Esta cuenta todavía no tiene un perfil de Minecraft. Crea uno en minecraft.net y vuelve a iniciar sesión.",
+        "The Microsoft account now has another Minecraft profile. Sign in again.": "La cuenta Microsoft ahora tiene otro perfil de Minecraft. Vuelve a iniciar sesión.",
+        "Your Microsoft sign-in expired. Sign in again.": "Tu inicio de sesión de Microsoft caducó. Vuelve a iniciar sesión.",
+        "Sign-in was declined in the browser.": "Se rechazó el inicio de sesión en el navegador.",
+        "The sign-in code expired. Start again.": "El código de inicio de sesión caducó. Vuelve a empezar.",
+        "The sign-in code was not recognised. Start again.": "No se reconoció el código de inicio de sesión. Vuelve a empezar.",
+        "Microsoft refused this launcher's app registration (client ID).": "Microsoft rechazó el registro de la aplicación de este launcher (ID de cliente).",
+        "Microsoft sign-in failed.": "Falló el inicio de sesión de Microsoft.",
+        "This Microsoft account has no Xbox profile yet. Sign in once at xbox.com to create one, then try again.": "Esta cuenta Microsoft todavía no tiene un perfil de Xbox. Inicia sesión en xbox.com para crearlo y vuelve a intentarlo.",
+        "Xbox Live is not available in your country or region.": "Xbox Live no está disponible en tu país o región.",
+        "This account needs adult verification on xbox.com before it can play.": "Esta cuenta necesita una verificación de adulto en xbox.com antes de poder jugar.",
+        "This is a child account: an adult has to add it to a Microsoft family first.": "Esta es una cuenta infantil: un adulto debe agregarla primero a una familia de Microsoft."
+    },
+    "pt-br": {
+        "Microsoft sign-in is coming soon. Until then the game plays offline: single player, LAN and servers in offline mode work.": "O login da Microsoft estará disponível em breve. Até lá, você pode jogar offline: modo solo, LAN e servidores offline funcionam.",
+        "This account doesn't own Minecraft: Java Edition.": "Esta conta não possui Minecraft: Java Edition.",
+        "This account has no Minecraft profile yet. Create one at minecraft.net, then sign in again.": "Esta conta ainda não tem um perfil do Minecraft. Crie um em minecraft.net e entre novamente.",
+        "The Microsoft account now has another Minecraft profile. Sign in again.": "A conta Microsoft agora tem outro perfil do Minecraft. Entre novamente.",
+        "Your Microsoft sign-in expired. Sign in again.": "Seu login da Microsoft expirou. Entre novamente.",
+        "Sign-in was declined in the browser.": "O login foi recusado no navegador.",
+        "The sign-in code expired. Start again.": "O código de acesso expirou. Comece novamente.",
+        "The sign-in code was not recognised. Start again.": "O código de acesso não foi reconhecido. Comece novamente.",
+        "Microsoft refused this launcher's app registration (client ID).": "A Microsoft recusou o registro do aplicativo deste launcher (ID do cliente).",
+        "Microsoft sign-in failed.": "Falha no login da Microsoft.",
+        "This Microsoft account has no Xbox profile yet. Sign in once at xbox.com to create one, then try again.": "Esta conta Microsoft ainda não tem um perfil do Xbox. Entre em xbox.com para criá-lo e tente novamente.",
+        "Xbox Live is not available in your country or region.": "O Xbox Live não está disponível no seu país ou região.",
+        "This account needs adult verification on xbox.com before it can play.": "Esta conta precisa de verificação de adulto em xbox.com antes de jogar.",
+        "This is a child account: an adult has to add it to a Microsoft family first.": "Esta é uma conta infantil: um adulto precisa adicioná-la primeiro a uma família Microsoft."
+    },
+    "fr": {
+        "Microsoft sign-in is coming soon. Until then the game plays offline: single player, LAN and servers in offline mode work.": "La connexion Microsoft sera bientôt disponible. En attendant, vous pouvez jouer hors ligne : solo, LAN et serveurs hors ligne fonctionnent.",
+        "This account doesn't own Minecraft: Java Edition.": "Ce compte ne possède pas Minecraft: Java Edition.",
+        "This account has no Minecraft profile yet. Create one at minecraft.net, then sign in again.": "Ce compte n’a pas encore de profil Minecraft. Créez-en un sur minecraft.net, puis reconnectez-vous.",
+        "The Microsoft account now has another Minecraft profile. Sign in again.": "Le compte Microsoft possède maintenant un autre profil Minecraft. Reconnectez-vous.",
+        "Your Microsoft sign-in expired. Sign in again.": "Votre connexion Microsoft a expiré. Reconnectez-vous.",
+        "Sign-in was declined in the browser.": "La connexion a été refusée dans le navigateur.",
+        "The sign-in code expired. Start again.": "Le code de connexion a expiré. Recommencez.",
+        "The sign-in code was not recognised. Start again.": "Le code de connexion n’a pas été reconnu. Recommencez.",
+        "Microsoft refused this launcher's app registration (client ID).": "Microsoft a refusé l’enregistrement de l’application de ce launcher (ID client).",
+        "Microsoft sign-in failed.": "Échec de la connexion Microsoft.",
+        "This Microsoft account has no Xbox profile yet. Sign in once at xbox.com to create one, then try again.": "Ce compte Microsoft n’a pas encore de profil Xbox. Connectez-vous sur xbox.com pour en créer un, puis réessayez.",
+        "Xbox Live is not available in your country or region.": "Xbox Live n’est pas disponible dans votre pays ou votre région.",
+        "This account needs adult verification on xbox.com before it can play.": "Ce compte nécessite une vérification par un adulte sur xbox.com avant de pouvoir jouer.",
+        "This is a child account: an adult has to add it to a Microsoft family first.": "Il s’agit d’un compte enfant : un adulte doit d’abord l’ajouter à une famille Microsoft."
+    },
+    "de": {
+        "Microsoft sign-in is coming soon. Until then the game plays offline: single player, LAN and servers in offline mode work.": "Die Microsoft-Anmeldung kommt bald. Bis dahin kannst du offline spielen: Einzelspieler, LAN und Offline-Server funktionieren.",
+        "This account doesn't own Minecraft: Java Edition.": "Dieses Konto besitzt Minecraft: Java Edition nicht.",
+        "This account has no Minecraft profile yet. Create one at minecraft.net, then sign in again.": "Dieses Konto hat noch kein Minecraft-Profil. Erstelle eines auf minecraft.net und melde dich erneut an.",
+        "The Microsoft account now has another Minecraft profile. Sign in again.": "Das Microsoft-Konto hat jetzt ein anderes Minecraft-Profil. Bitte erneut anmelden.",
+        "Your Microsoft sign-in expired. Sign in again.": "Deine Microsoft-Anmeldung ist abgelaufen. Bitte erneut anmelden.",
+        "Sign-in was declined in the browser.": "Die Anmeldung wurde im Browser abgelehnt.",
+        "The sign-in code expired. Start again.": "Der Anmeldecode ist abgelaufen. Starte erneut.",
+        "The sign-in code was not recognised. Start again.": "Der Anmeldecode wurde nicht erkannt. Starte erneut.",
+        "Microsoft refused this launcher's app registration (client ID).": "Microsoft hat die App-Registrierung dieses Launchers abgelehnt (Client-ID).",
+        "Microsoft sign-in failed.": "Microsoft-Anmeldung fehlgeschlagen.",
+        "This Microsoft account has no Xbox profile yet. Sign in once at xbox.com to create one, then try again.": "Dieses Microsoft-Konto hat noch kein Xbox-Profil. Melde dich auf xbox.com an, um eines zu erstellen, und versuche es erneut.",
+        "Xbox Live is not available in your country or region.": "Xbox Live ist in deinem Land oder deiner Region nicht verfügbar.",
+        "This account needs adult verification on xbox.com before it can play.": "Dieses Konto benötigt vor dem Spielen eine Altersbestätigung auf xbox.com.",
+        "This is a child account: an adult has to add it to a Microsoft family first.": "Dies ist ein Kinderkonto: Ein Erwachsener muss es zuerst einer Microsoft-Familie hinzufügen."
+    },
+    "ja": {
+        "Microsoft sign-in is coming soon. Until then the game plays offline: single player, LAN and servers in offline mode work.": "Microsoftサインインは近日対応予定です。それまではオフラインでプレイできます。シングルプレイ、LAN、オフラインサーバーが利用できます。",
+        "This account doesn't own Minecraft: Java Edition.": "このアカウントはMinecraft: Java Editionを所有していません。",
+        "This account has no Minecraft profile yet. Create one at minecraft.net, then sign in again.": "このアカウントにはMinecraftプロフィールがありません。minecraft.netで作成してから再度サインインしてください。",
+        "The Microsoft account now has another Minecraft profile. Sign in again.": "Microsoftアカウントに別のMinecraftプロフィールが設定されています。再度サインインしてください。",
+        "Your Microsoft sign-in expired. Sign in again.": "Microsoftのサインインの有効期限が切れました。再度サインインしてください。",
+        "Sign-in was declined in the browser.": "ブラウザーでサインインが拒否されました。",
+        "The sign-in code expired. Start again.": "サインインコードの有効期限が切れました。最初からやり直してください。",
+        "The sign-in code was not recognised. Start again.": "サインインコードが認識されませんでした。最初からやり直してください。",
+        "Microsoft refused this launcher's app registration (client ID).": "Microsoftがこのランチャーのアプリ登録（クライアントID）を拒否しました。",
+        "Microsoft sign-in failed.": "Microsoftのサインインに失敗しました。",
+        "This Microsoft account has no Xbox profile yet. Sign in once at xbox.com to create one, then try again.": "このMicrosoftアカウントにはXboxプロフィールがありません。xbox.comに一度サインインして作成し、再試行してください。",
+        "Xbox Live is not available in your country or region.": "お住まいの国または地域ではXbox Liveを利用できません。",
+        "This account needs adult verification on xbox.com before it can play.": "このアカウントでプレイするには、xbox.comで成人による確認が必要です。",
+        "This is a child account: an adult has to add it to a Microsoft family first.": "これは子ども用アカウントです。大人が先にMicrosoftファミリーへ追加する必要があります。"
+    },
+    "zh": {
+        "Microsoft sign-in is coming soon. Until then the game plays offline: single player, LAN and servers in offline mode work.": "Microsoft 登录功能即将推出。在此之前可以离线游玩：单人、局域网和离线模式服务器均可使用。",
+        "This account doesn't own Minecraft: Java Edition.": "此账户未拥有 Minecraft: Java Edition。",
+        "This account has no Minecraft profile yet. Create one at minecraft.net, then sign in again.": "此账户尚无 Minecraft 资料。请在 minecraft.net 创建资料后重新登录。",
+        "The Microsoft account now has another Minecraft profile. Sign in again.": "Microsoft 账户现在关联了另一个 Minecraft 资料。请重新登录。",
+        "Your Microsoft sign-in expired. Sign in again.": "Microsoft 登录已过期。请重新登录。",
+        "Sign-in was declined in the browser.": "浏览器中的登录请求已被拒绝。",
+        "The sign-in code expired. Start again.": "登录代码已过期。请重新开始。",
+        "The sign-in code was not recognised. Start again.": "无法识别登录代码。请重新开始。",
+        "Microsoft refused this launcher's app registration (client ID).": "Microsoft 拒绝了此启动器的应用注册（客户端 ID）。",
+        "Microsoft sign-in failed.": "Microsoft 登录失败。",
+        "This Microsoft account has no Xbox profile yet. Sign in once at xbox.com to create one, then try again.": "此 Microsoft 账户尚无 Xbox 资料。请先登录 xbox.com 创建资料，然后重试。",
+        "Xbox Live is not available in your country or region.": "Xbox Live 在你所在的国家或地区不可用。",
+        "This account needs adult verification on xbox.com before it can play.": "此账户需要先在 xbox.com 完成成人验证才能进行游戏。",
+        "This is a child account: an adult has to add it to a Microsoft family first.": "这是儿童账户：必须先由成年人将其添加到 Microsoft 家庭组。"
+    }
+}
+    for locale, translations in account_translations.items():
+        locale_file = stage / "launcher" / "lang" / f"{locale}.json"
+        if not locale_file.is_file():
+            raise SystemExit(f"Missing launcher locale file: {locale_file}")
+        locale_data = json.loads(locale_file.read_text(encoding="utf-8"))
+        locale_data.update(translations)
+        locale_file.write_text(json.dumps(locale_data, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+
     core_lang = stage / "crates/horizon-client-core/src/lang.rs"
     core_source = core_lang.read_text(encoding="utf-8")
     bundled_anchor = '            _ => return None,\n'
