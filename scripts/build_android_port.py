@@ -7677,6 +7677,60 @@ impl Fonts {
         1,
     )
     pages.write_text(source, encoding="utf-8")
+    login = stage / "crates/horizon-client/src/android/login.rs"
+    login_source = login.read_text(encoding="utf-8")
+    paragraph_old = """fn paragraph(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str, tone: u32, max_lines: usize) -> f32 {
+    let limit = (w / 6.8).max(16.0) as usize;
+    let mut line = String::new();
+    let mut row = 0usize;
+    for word in text.split_whitespace() {
+        if !line.is_empty() && line.len() + word.len() + 1 > limit {
+            ui.text(Face::Regular, 12.5, x, y + row as f32 * 18.0, tone, &line);
+            row += 1;
+            line.clear();
+            if row >= max_lines {
+                break;
+            }
+        }
+        if !line.is_empty() {
+            line.push(' ');
+        }
+        line.push_str(word);
+    }
+    if row < max_lines && !line.is_empty() {
+        ui.text(Face::Regular, 12.5, x, y + row as f32 * 18.0, tone, &line);
+        row += 1;
+    }
+    y + row as f32 * 18.0
+}
+"""
+    paragraph_new = """fn paragraph(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str, tone: u32, max_lines: usize) -> f32 {
+    let mut line = String::new();
+    let mut row = 0usize;
+    for ch in text.chars() {
+        let mut candidate = line.clone();
+        candidate.push(ch);
+        if !line.is_empty() && ui.measure(Face::Regular, 12.5, &candidate) > w {
+            ui.text(Face::Regular, 12.5, x, y + row as f32 * 18.0, tone, &line);
+            row += 1;
+            line.clear();
+            if row >= max_lines {
+                return y + row as f32 * 18.0;
+            }
+        }
+        line.push(ch);
+    }
+    if row < max_lines && !line.is_empty() {
+        ui.text(Face::Regular, 12.5, x, y + row as f32 * 18.0, tone, &line);
+        row += 1;
+    }
+    y + row as f32 * 18.0
+}
+"""
+    if login_source.count(paragraph_old) != 1:
+        raise SystemExit("Could not locate Android account message wrapping.")
+    login_source = login_source.replace(paragraph_old, paragraph_new, 1)
+    login.write_text(login_source, encoding="utf-8")
     print("PavoHorizon language support: detects Android locale, persists manual override, and translates launcher UI plus Minecraft.", flush=True)
 
 def verify_no_starlight_in_apk(apk):
