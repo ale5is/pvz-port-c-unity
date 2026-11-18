@@ -2762,6 +2762,11 @@ fn pavo_launcher_text(text: &str) -> String {
             (1, "Select one or more items to delete.") => "Selecciona uno o más elementos para eliminar.",
             (1, "installed & enabled") => "instalado y activado",
             (1, "No additional description available.") => "No hay ninguna descripción adicional disponible.",
+            (1, "Built-in • Tap for info") => "Integrado • Toca para ver información",
+            (1, "Horizon Built-in • Tap for versions, Modrinth info & screenshots") => "Integrado de PavoHorizon • Toca para ver versiones, información de Modrinth y capturas",
+            (1, "Native .hnmod temporarily unsupported on Android; built-in mods are available.") => "Los mods .hnmod nativos no son compatibles temporalmente con Android; puedes usar los mods integrados.",
+            (1, "Native .hnmod temporarily unsupported on Android") => "Los mods .hnmod nativos no son compatibles temporalmente con Android",
+            (1, "Horizon Built-in") => "Integrado de PavoHorizon",
             _ => text,
         };
         translated.to_owned()
