@@ -6257,6 +6257,39 @@ fn pavo_launcher_text(text: &str) -> String {
         );""",
         ),
         (
+            """            ui.text(
+                Face::SemiBold,
+                13.5,
+                dx + 16.0,
+                dy + 12.0,
+                text_c,
+                &title_str,
+            );
+            ui.text(Face::Regular, 10.0, dx + 16.0, dy + 31.0, muted_c, sub_str);""",
+            """            ui.centered_fit(
+                Face::SemiBold, 13.5,
+                [dx + 16.0, dy + 8.0, dw - 32.0, 22.0], text_c, &title_str,
+            );
+            ui.centered_fit(
+                Face::Regular, 10.0,
+                [dx + 16.0, dy + 30.0, dw - 32.0, 20.0], muted_c, sub_str,
+            );""",
+        ),
+        (
+            """            ui.text(
+                Face::SemiBold,
+                13.0,
+                dx + 14.0,
+                dy + 11.0,
+                text_c,
+                &title_str,
+            );""",
+            """            ui.text_clipped(
+                Face::SemiBold, 13.0, dx + 14.0, dy + 11.0,
+                (dw - 104.0).max(100.0), text_c, &title_str,
+            );""",
+        ),
+        (
             """        ui.text(
             Face::SemiBold,
             9.5,
