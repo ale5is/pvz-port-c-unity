@@ -1715,6 +1715,12 @@ pub fn set_launcher_language(language: &str) {
 }
 
 fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
+    // English is the source locale. Return it explicitly through the same
+    // content-library translation path instead of falling through to the
+    // generic launcher text translator.
+    if lang == 0 {
+        return Some(text.to_owned());
+    }
     let exact = match (lang, text) {
             (1, "Content Library") => Some("Biblioteca de contenido"),
             (1, "Profile File Manager") => Some("Administrador de archivos del perfil"),
