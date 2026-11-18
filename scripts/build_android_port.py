@@ -6330,9 +6330,15 @@ fn pavo_launcher_text(text: &str) -> String {
         ),
     ]
     for old, new in touch_replacements:
-        if touch_source.count(old) != 1:
-            raise SystemExit("Could not locate a GoyControl text layout anchor: " + old[:80])
-        touch_source = touch_source.replace(old, new, 1)
+        matches = touch_source.count(old)
+        if old.startswith("    let pod_w = if ed.pod_expanded"):
+            if matches < 1:
+                raise SystemExit("Could not locate GoyControl floating menu width anchor.")
+            touch_source = touch_source.replace(old, new)
+        else:
+            if matches != 1:
+                raise SystemExit("Could not locate a GoyControl text layout anchor: " + old[:80])
+            touch_source = touch_source.replace(old, new, 1)
     touch_ui.write_text(touch_source, encoding="utf-8")
 
     source = pages.read_text(encoding="utf-8")
