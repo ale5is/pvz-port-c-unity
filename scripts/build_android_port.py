@@ -8505,6 +8505,21 @@ def patch_android_catalog_compatibility(stage):
         raise SystemExit("Could not uniquely locate Android catalog install button block.")
     source = source.replace(target, replacement, 1)
 
+    modal_rejected_anchor = """        let Some(modal) = &mut self.catalog.project_modal else {
+            return;
+        };"""
+    modal_rejected_replacement = """        let rejected = self.catalog.project_modal.as_ref().is_some_and(|modal| {
+            self.catalog.install_button(&modal.project) == "Retry"
+                && (self.catalog.status.contains("doesn't run in Horizon:")
+                    || self.catalog.status.contains("has no Fabric, NeoForge or Forge version Horizon can port."))
+        });
+        let Some(modal) = &mut self.catalog.project_modal else {
+            return;
+        };"""
+    if source.count(modal_rejected_anchor) != 1:
+        raise SystemExit("Could not uniquely locate the project modal borrow.")
+    source = source.replace(modal_rejected_anchor, modal_rejected_replacement, 1)
+
     modal_button = """        button(
             ui,
             &mut self.targets,
@@ -8513,10 +8528,7 @@ def patch_android_catalog_compatibility(stage):
             Action::InstallModalProject,
             true,
         );"""
-    modal_replacement = """        let rejected = self.catalog.install_button(&modal.project) == "Retry"
-            && (self.catalog.status.contains("doesn't run in Horizon:")
-                || self.catalog.status.contains("has no Fabric, NeoForge or Forge version Horizon can port."));
-        let cached_incompatible = modal.project.kind == crate::browser::Kind::Mod
+    modal_replacement = """        let cached_incompatible = modal.project.kind == crate::browser::Kind::Mod
             && modal.project.source == crate::browser::SourceId::Modrinth
             && modal.versions.get(modal.selected_version)
                 .and_then(|version| version.file())
