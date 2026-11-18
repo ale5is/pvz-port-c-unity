@@ -87,6 +87,10 @@ pub fn settings(
         "Show block info", "Mostrar información del bloque", "Mostrar informações do bloco", "Afficher les infos du bloc",
         "Mostra info blocco", "Blockinfos anzeigen", "ブロック情報を表示", "显示方块信息",
     ]));
+    buttons.push(option_label(game, "show_item_mod_name", [
+        "Show item mod name", "Mostrar mod del objeto", "Mostrar mod do item", "Afficher le mod de l’objet",
+        "Mostra mod oggetto", "Item-Mod anzeigen", "アイテムのMod名を表示", "显示物品模组名称",
+    ]));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -99,6 +103,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         2 => "show_coordinates",
         3 => "show_block_states",
         4 => "show_block_info",
+        5 => "show_item_mod_name",
         _ => return,
     };
     let next = !enabled(game, key, true);
