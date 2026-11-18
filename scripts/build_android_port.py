@@ -8404,10 +8404,9 @@ def patch_android_catalog_compatibility(stage):
                     (_, crate::browser::Support::Partial(_)) => "Partly",
                     (_, crate::browser::Support::No(_)) => "Doesn't run",
                 };
-                let rejected = self.catalog.failed.as_ref().is_some_and(|(source, id)|
-                    *source == p.source && *id == p.id
-                ) && (self.catalog.status.contains("doesn't run in Horizon:")
-                    || self.catalog.status.contains("has no Fabric, NeoForge or Forge version Horizon can port."));
+                let rejected = self.catalog.install_button(p) == "Retry"
+                    && (self.catalog.status.contains("doesn't run in Horizon:")
+                        || self.catalog.status.contains("has no Fabric, NeoForge or Forge version Horizon can port."));
                 let incompatible = match lang {
                     "es_es" => "No compatible", "pt_br" => "Incompatível",
                     "fr_fr" => "Incompatible", "it_it" => "Non compatibile",
@@ -8514,10 +8513,9 @@ def patch_android_catalog_compatibility(stage):
             Action::InstallModalProject,
             true,
         );"""
-    modal_replacement = """        let rejected = self.catalog.failed.as_ref().is_some_and(|(source, id)|
-            *source == modal.project.source && *id == modal.project.id
-        ) && (self.catalog.status.contains("doesn't run in Horizon:")
-            || self.catalog.status.contains("has no Fabric, NeoForge or Forge version Horizon can port."));
+    modal_replacement = """        let rejected = self.catalog.install_button(&modal.project) == "Retry"
+            && (self.catalog.status.contains("doesn't run in Horizon:")
+                || self.catalog.status.contains("has no Fabric, NeoForge or Forge version Horizon can port."));
         let cached_incompatible = modal.project.kind == crate::browser::Kind::Mod
             && modal.project.source == crate::browser::SourceId::Modrinth
             && modal.versions.get(modal.selected_version)
