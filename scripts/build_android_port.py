@@ -946,7 +946,7 @@ fn default_language() -> String {
         "horizon.touch.feedback": "Control Hub & Feedback",
         "horizon.touch.hud": "HUD Buttons & Layout",
         "horizon.touch.actions": "Joystick, Actions & Gyroscope",
-        "horizon.touch.customize": "Customize Touch & GoyControl Layout..."
+        "horizon.touch.customize": "Customize Touch & GoyControl Layout...",
         "horizon.touch.control_scheme": "Control scheme",
         "horizon.touch.gestures": "Touch gestures",
         "horizon.touch.look_while_attacking": "Look while attacking",
@@ -1019,7 +1019,7 @@ fn default_language() -> String {
         "horizon.touch.feedback": "Centro de controles y respuesta",
         "horizon.touch.hud": "Botones y distribución del HUD",
         "horizon.touch.actions": "Joystick, acciones y giroscopio",
-        "horizon.touch.customize": "Personalizar controles táctiles y GoyControl..."
+        "horizon.touch.customize": "Personalizar controles táctiles y GoyControl...",
         "horizon.touch.control_scheme": "Esquema de controles",
         "horizon.touch.gestures": "Gestos táctiles",
         "horizon.touch.look_while_attacking": "Mirar al atacar",
@@ -1092,7 +1092,7 @@ fn default_language() -> String {
         "horizon.touch.feedback": "Central de controles e resposta",
         "horizon.touch.hud": "Botões e layout do HUD",
         "horizon.touch.actions": "Joystick, ações e giroscópio",
-        "horizon.touch.customize": "Personalizar controles de toque e GoyControl..."
+        "horizon.touch.customize": "Personalizar controles de toque e GoyControl...",
         "horizon.touch.control_scheme": "Esquema de controle",
         "horizon.touch.gestures": "Gestos de toque",
         "horizon.touch.look_while_attacking": "Olhar ao atacar",
@@ -1165,7 +1165,7 @@ fn default_language() -> String {
         "horizon.touch.feedback": "Centre de contrôle et retour haptique",
         "horizon.touch.hud": "Boutons et disposition du HUD",
         "horizon.touch.actions": "Joystick, actions et gyroscope",
-        "horizon.touch.customize": "Personnaliser les commandes tactiles et GoyControl..."
+        "horizon.touch.customize": "Personnaliser les commandes tactiles et GoyControl...",
         "horizon.touch.control_scheme": "Schéma de commande",
         "horizon.touch.gestures": "Gestes tactiles",
         "horizon.touch.look_while_attacking": "Regarder en attaquant",
@@ -1238,7 +1238,7 @@ fn default_language() -> String {
         "horizon.touch.feedback": "Centro di controllo e feedback",
         "horizon.touch.hud": "Pulsanti e disposizione HUD",
         "horizon.touch.actions": "Joystick, azioni e giroscopio",
-        "horizon.touch.customize": "Personalizza i comandi touch e GoyControl..."
+        "horizon.touch.customize": "Personalizza i comandi touch e GoyControl...",
         "horizon.touch.control_scheme": "Schema di controllo",
         "horizon.touch.gestures": "Gesti touch",
         "horizon.touch.look_while_attacking": "Visuale durante l'attacco",
@@ -1311,7 +1311,7 @@ fn default_language() -> String {
         "horizon.touch.feedback": "Steuerzentrale und Rückmeldung",
         "horizon.touch.hud": "HUD-Tasten und Anordnung",
         "horizon.touch.actions": "Joystick, Aktionen und Gyroskop",
-        "horizon.touch.customize": "Touch-Steuerung und GoyControl anpassen..."
+        "horizon.touch.customize": "Touch-Steuerung und GoyControl anpassen...",
         "horizon.touch.control_scheme": "Steuerungsschema",
         "horizon.touch.gestures": "Touch-Gesten",
         "horizon.touch.look_while_attacking": "Beim Angreifen umsehen",
@@ -1384,7 +1384,7 @@ fn default_language() -> String {
         "horizon.touch.feedback": "コントロールハブとフィードバック",
         "horizon.touch.hud": "HUDボタンとレイアウト",
         "horizon.touch.actions": "ジョイスティック、アクション、ジャイロスコープ",
-        "horizon.touch.customize": "タッチ操作とGoyControlのレイアウトをカスタマイズ..."
+        "horizon.touch.customize": "タッチ操作とGoyControlのレイアウトをカスタマイズ...",
         "horizon.touch.control_scheme": "操作方式",
         "horizon.touch.gestures": "タッチジェスチャー",
         "horizon.touch.look_while_attacking": "攻撃中に視点操作",
@@ -1457,7 +1457,7 @@ fn default_language() -> String {
         "horizon.touch.feedback": "控制中心与反馈",
         "horizon.touch.hud": "HUD 按钮与布局",
         "horizon.touch.actions": "摇杆、动作与陀螺仪",
-        "horizon.touch.customize": "自定义触控与 GoyControl 布局..."
+        "horizon.touch.customize": "自定义触控与 GoyControl 布局...",
         "horizon.touch.control_scheme": "控制方案",
         "horizon.touch.gestures": "触控手势",
         "horizon.touch.look_while_attacking": "攻击时视角控制",
