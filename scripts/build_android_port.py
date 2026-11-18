@@ -2713,6 +2713,27 @@ fn pavo_launcher_text(text: &str) -> String {
             };
             return format!("{prefix}{name}");
         }
+        if let Some(name) = text.strip_prefix("No offline name ") {
+            let prefix = match lang {
+                1 => "No existe el nombre sin conexión ", 2 => "O nome offline não existe ",
+                3 => "Le nom hors ligne n’existe pas : ", 4 => "Il nome offline non esiste ",
+                5 => "Der Offline-Name existiert nicht: ", 6 => "オフライン名が見つかりません：",
+                7 => "离线名称不存在：", _ => "No offline name ",
+            };
+            return format!("{prefix}{}", name.trim_end_matches('.'));
+        }
+        if let Some(name) = text.strip_suffix(": an offline name is 3 to 16 letters, digits or _") {
+            let suffix = match lang {
+                1 => ": el nombre debe tener entre 3 y 16 caracteres (letras, números o _)",
+                2 => ": o nome deve ter de 3 a 16 caracteres (letras, números ou _)",
+                3 => " : le nom doit comporter de 3 à 16 caractères (lettres, chiffres ou _)",
+                4 => ": il nome deve contenere da 3 a 16 caratteri (lettere, numeri o _)",
+                5 => ": der Name muss 3 bis 16 Zeichen enthalten (Buchstaben, Zahlen oder _)",
+                6 => "：名前は英字・数字・_ の3～16文字にしてください",
+                7 => "：名称必须为 3 到 16 个字符（字母、数字或 _）", _ => ": an offline name is 3 to 16 letters, digits or _",
+            };
+            return format!("{name}{suffix}");
+        }
         if let Some(name) = text.strip_prefix("Sign-in required for ") {
             let prefix = match lang {
                 1 => "Se requiere iniciar sesión para ", 2 => "É necessário entrar para ",
@@ -2756,6 +2777,20 @@ fn pavo_launcher_text(text: &str) -> String {
             };
             return format!("{count}{suffix}");
         }
+            (1, "Ely.by returned no game session.") => "Ely.by no devolvió una sesión de juego.",
+            (2, "Ely.by returned no game session.") => "O Ely.by não retornou uma sessão de jogo.",
+            (3, "Ely.by returned no game session.") => "Ely.by n’a renvoyé aucune session de jeu.",
+            (4, "Ely.by returned no game session.") => "Ely.by non ha restituito una sessione di gioco.",
+            (5, "Ely.by returned no game session.") => "Ely.by hat keine Spielsitzung zurückgegeben.",
+            (6, "Ely.by returned no game session.") => "Ely.by がゲームセッションを返しませんでした。",
+            (7, "Ely.by returned no game session.") => "Ely.by 未返回游戏会话。",
+            (1, "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.") => "Los nombres sin conexión requieren una cuenta Microsoft que tenga Minecraft: Java Edition en el launcher.",
+            (2, "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.") => "Nomes offline exigem uma conta Microsoft que possua Minecraft: Java Edition no launcher.",
+            (3, "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.") => "Les noms hors ligne nécessitent un compte Microsoft possédant Minecraft: Java Edition dans le launcher.",
+            (4, "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.") => "I nomi offline richiedono un account Microsoft che possieda Minecraft: Java Edition nel launcher.",
+            (5, "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.") => "Offline-Namen benötigen ein Microsoft-Konto mit Minecraft: Java Edition im Launcher.",
+            (6, "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.") => "オフライン名を使用するには、ランチャーに Minecraft: Java Edition を所有する Microsoft アカウントが必要です。",
+            (7, "Offline names need a Microsoft account that owns Minecraft: Java Edition in the launcher.") => "离线名称需要启动器中有一个拥有 Minecraft: Java Edition 的 Microsoft 账户。",
         let translated = match (lang, text) {
             (1, "Sign-in required for ") => "Se requiere iniciar sesión para ",
             (2, "Sign-in required for ") => "É necessário entrar para ",
