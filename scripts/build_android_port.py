@@ -2713,6 +2713,15 @@ fn pavo_launcher_text(text: &str) -> String {
             };
             return format!("{prefix}{name}");
         }
+        if let Some(name) = text.strip_prefix("Sign-in required for ") {
+            let prefix = match lang {
+                1 => "Se requiere iniciar sesión para ", 2 => "É necessário entrar para ",
+                3 => "Connexion requise pour ", 4 => "Accesso richiesto per ",
+                5 => "Anmeldung erforderlich für ", 6 => "サインインが必要：",
+                7 => "需要登录才能使用 ", _ => "Sign-in required for ",
+            };
+            return format!("{prefix}{name}");
+        }
         if let Some(name) = text.strip_prefix("Sign in required for ") {
             let prefix = match lang {
                 1 => "Se necesita iniciar sesión para ", 2 => "É necessário entrar para ",
