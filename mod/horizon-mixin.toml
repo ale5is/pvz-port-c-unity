@@ -182,3 +182,14 @@ bindings = [
   { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
   { name = "mods", ty = "&mut Vec<crate::game::native_hooks::NativeMod>", value = "&mut *mods" },
 ]
+
+[[injection]]
+id = "jade_item_mod_name"
+kind = "RETURN"
+target = "horizon_client::game::stations::Game<'_>::stack_tooltip"
+helper = "jade_item_tooltip.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
+  { name = "stack", ty = "&horizon_client::items::ItemStack", value = "stack" },
+  { name = "lines", ty = "Vec<(horizon_client::text::Text, u32)>", value = "$value" },
+]
