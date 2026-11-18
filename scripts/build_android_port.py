@@ -2973,17 +2973,17 @@ fn pavo_launcher_text(text: &str) -> String {
                 7 => "与 Horizon 不兼容",
                 _ => "doesn't run in Horizon",
             };
-            let translated_reason = match (lang, reason) {
-                (1, "Not a Fabric, NeoForge or Forge mod.") => "No es un mod de Fabric, NeoForge ni Forge.",
-                (2, "Not a Fabric, NeoForge or Forge mod.") => "Não é um mod Fabric, NeoForge ou Forge.",
-                (3, "Not a Fabric, NeoForge or Forge mod.") => "Ce n’est pas un mod Fabric, NeoForge ou Forge.",
-                (4, "Not a Fabric, NeoForge or Forge mod.") => "Non è una mod Fabric, NeoForge o Forge.",
-                (5, "Not a Fabric, NeoForge or Forge mod.") => "Kein Fabric-, NeoForge- oder Forge-Mod.",
-                (6, "Not a Fabric, NeoForge or Forge mod.") => "Fabric、NeoForge、Forge の mod ではありません。",
-                (7, "Not a Fabric, NeoForge or Forge mod.") => "不是 Fabric、NeoForge 或 Forge 模组。",
+            let explanation = match lang {
+                1 => "El análisis del archivo indica que no se puede portar.",
+                2 => "A análise do arquivo indica que ele não pode ser portado.",
+                3 => "L’analyse du fichier indique qu’il ne peut pas être porté.",
+                4 => "L’analisi del file indica che non può essere convertito.",
+                5 => "Die Dateiprüfung zeigt, dass es nicht portiert werden kann.",
+                6 => "ファイルの解析結果、この mod は移植できません。",
+                7 => "文件分析结果表明该模组无法移植。",
                 _ => reason,
             };
-            return format!("{title} {phrase}: {translated_reason}");
+            return format!("{title} {phrase}: {explanation}");
         }
         if let Some(translated) = pavo_profile_touch_text(lang, text) { return translated; }
         if let Some(id) = text.strip_prefix("Profile ") {
