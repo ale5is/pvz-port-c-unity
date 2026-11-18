@@ -2982,6 +2982,27 @@ fn pavo_launcher_text(text: &str) -> String {
                 return format!("{label} {id}");
             }
         }
+        let profile_label = match (lang, text) {
+            (1, "Profile") => Some("Perfil"),
+            (1, "Profiles") => Some("Perfiles"),
+            (2, "Profile") => Some("Perfil"),
+            (2, "Profiles") => Some("Perfis"),
+            (3, "Profile") => Some("Profil"),
+            (3, "Profiles") => Some("Profils"),
+            (4, "Profile") => Some("Profilo"),
+            (4, "Profiles") => Some("Profili"),
+            (5, "Profile") => Some("Profil"),
+            (5, "Profiles") => Some("Profile"),
+            (6, "Profile") => Some("プロフィール"),
+            (6, "Profiles") => Some("プロフィール"),
+            (7, "Profile") => Some("配置文件"),
+            (7, "Profiles") => Some("配置文件"),
+            _ => None,
+        };
+        if let Some(label) = profile_label {
+            return label.to_owned();
+        }
+
         // Keep the Skins navigation label translated on every launcher page.
         // The content-library translator is intentionally scoped to Installed/Skins,
         // but the navigation rail remains visible while other pages are selected.
@@ -8383,14 +8404,49 @@ def patch_android_catalog_compatibility(stage):
         raise SystemExit("Could not uniquely locate Android catalog install hit target.")
     source = source.replace(target, replacement, 1)
 
-    target = """                        Action::Install(i),
+    target = """                } else {
+                    button(
+                        &mut ui,
+                        &mut self.targets,
+                        btn_rect,
+                        self.catalog.install_button(p),
+                        Action::Install(i),
                         true,
-                    );"""
-    replacement = """                        Action::Install(i),
-                        can_install,
-                    );"""
+                    );
+                }"""
+    replacement = """                } else if can_install {
+                    button(
+                        &mut ui,
+                        &mut self.targets,
+                        btn_rect,
+                        self.catalog.install_button(p),
+                        Action::Install(i),
+                        true,
+                    );
+                } else {
+                    ui.rounded(
+                        btn_rect[0], btn_rect[1], btn_rect[2], btn_rect[3], 19.0,
+                        my3_surface_high(),
+                    );
+                    ui.border(
+                        btn_rect[0], btn_rect[1], btn_rect[2], btn_rect[3], 19.0,
+                        my3_border(),
+                    );
+                    let disabled_label = ui.fit_text(
+                        Face::Medium, 13.0, support_label, (btn_rect[2] - 16.0).max(16.0),
+                    );
+                    let disabled_width = ui.measure(Face::Medium, 13.0, &disabled_label);
+                    ui.text(
+                        Face::Medium,
+                        13.0,
+                        btn_rect[0] + ((btn_rect[2] - disabled_width) * 0.5).max(8.0),
+                        btn_rect[1] + 10.0,
+                        my3_muted(),
+                        &disabled_label,
+                    );
+                }"""
     if source.count(target) != 1:
-        raise SystemExit("Could not uniquely locate Android catalog install button.")
+        raise SystemExit("Could not uniquely locate Android catalog install button block.")
     source = source.replace(target, replacement, 1)
 
     page_anchor = """            Some(Action::Page(page)) => {
