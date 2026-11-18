@@ -1409,7 +1409,13 @@ pub fn set_launcher_language(language: &str) {
         "es_es" => 1, "pt_br" => 2, "fr_fr" => 3, "it_it" => 4,
         "de_de" => 5, "ja_jp" => 6, "zh_cn" => 7, _ => 0,
     };
-    PAVO_LAUNCHER_LANGUAGE.with(|current| current.set(index));
+    let changed = PAVO_LAUNCHER_LANGUAGE.with(|current| {
+        let previous = current.replace(index);
+        previous != index
+    });
+    if changed {
+        reset_atlas();
+    }
 }
 
 fn pavo_content_library_text(lang: u8, text: &str) -> Option<String> {
@@ -2676,11 +2682,34 @@ fn pavo_launcher_text(text: &str) -> String {
             };
             return format!("{} · {current}", pavo_launcher_text(detail));
         }
-        if let Some(name) = text.strip_prefix("Signed in as ") {
+        if let Some(rest) = text.strip_prefix("Signed in as ") {
+            if let Some((name, provider)) = rest.split_once(" with ") {
+                let (prefix, connector) = match lang {
+                    1 => ("Sesión iniciada como ", " con "),
+                    2 => ("Conectado como ", " com "),
+                    3 => ("Connecté en tant que ", " avec "),
+                    4 => ("Accesso effettuato come ", " con "),
+                    5 => ("Angemeldet als ", " mit "),
+                    6 => ("サインイン中：", "（"),
+                    7 => ("已登录为 ", "，使用 "),
+                    _ => ("Signed in as ", " with "),
+                };
+                let suffix = if lang == 6 { "）" } else { "" };
+                return format!("{prefix}{name}{connector}{provider}{suffix}");
+            }
             let prefix = match lang {
                 1 => "Sesión iniciada como ", 2 => "Conectado como ", 3 => "Connecté en tant que ",
                 4 => "Accesso effettuato come ", 5 => "Angemeldet als ", 6 => "サインイン中：",
                 7 => "已登录为 ", _ => "Signed in as ",
+            };
+            return format!("{prefix}{rest}");
+        }
+        if let Some(name) = text.strip_prefix("Already signed in as ") {
+            let prefix = match lang {
+                1 => "Ya has iniciado sesión como ", 2 => "Já conectado como ",
+                3 => "Déjà connecté en tant que ", 4 => "Già connesso come ",
+                5 => "Bereits angemeldet als ", 6 => "次のアカウントでサインイン済み：",
+                7 => "已登录为 ", _ => "Already signed in as ",
             };
             return format!("{prefix}{name}");
         }
