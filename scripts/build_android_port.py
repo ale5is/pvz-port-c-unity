@@ -2867,13 +2867,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (5, "Switch account") => "Konto wechseln",
             (6, "Switch account") => "アカウントを切り替え",
             (7, "Switch account") => "切换账户",
-            (1, "Close") => "Cerrar",
-            (2, "Close") => "Fechar",
-            (3, "Close") => "Fermer",
-            (4, "Close") => "Chiudi",
-            (5, "Close") => "Schließen",
-            (6, "Close") => "閉じる",
-            (7, "Close") => "关闭",
             (1, "Current") => "Actual",
             (2, "Current") => "Atual",
             (3, "Current") => "Actuel",
@@ -2895,13 +2888,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (5, "Add account") => "Konto hinzufügen",
             (6, "Add account") => "アカウントを追加",
             (7, "Add account") => "添加账户",
-            (1, "Done") => "Listo",
-            (2, "Done") => "Concluído",
-            (3, "Done") => "Terminé",
-            (4, "Done") => "Fatto",
-            (5, "Done") => "Fertig",
-            (6, "Done") => "完了",
-            (7, "Done") => "完成",
             (1, "Username or email") => "Nombre de usuario o correo",
             (2, "Username or email") => "Nome de usuário ou e-mail",
             (3, "Username or email") => "Nom d’utilisateur ou e-mail",
@@ -3077,13 +3063,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (5, "Device code") => "Gerätecode",
             (6, "Device code") => "デバイスコード",
             (7, "Device code") => "设备代码",
-            (1, "Cancel") => "Cancelar",
-            (2, "Cancel") => "Cancelar",
-            (3, "Cancel") => "Annuler",
-            (4, "Cancel") => "Annulla",
-            (5, "Cancel") => "Abbrechen",
-            (6, "Cancel") => "キャンセル",
-            (7, "Cancel") => "取消",
             (1, "Sign out") => "Cerrar sesión",
             (2, "Sign out") => "Sair",
             (3, "Sign out") => "Se déconnecter",
@@ -3091,13 +3070,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (5, "Sign out") => "Abmelden",
             (6, "Sign out") => "サインアウト",
             (7, "Sign out") => "退出登录",
-            (1, "Back") => "Volver",
-            (2, "Back") => "Voltar",
-            (3, "Back") => "Retour",
-            (4, "Back") => "Indietro",
-            (5, "Back") => "Zurück",
-            (6, "Back") => "戻る",
-            (7, "Back") => "返回",
             (1, "Offline / Sign in") => "Sin conexión / Iniciar sesión",
             (2, "Offline / Sign in") => "Offline / Entrar",
             (3, "Offline / Sign in") => "Hors ligne / Connexion",
@@ -5684,7 +5656,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (1, "Unsaved Layout Changes") => "Cambios de distribución sin guardar",
             (1, "You have modified your control layout in this session.") => "Has modificado la distribución de los controles durante esta sesión.",
             (1, "Save your changes before leaving, or go back without saving?") => "¿Quieres guardar los cambios antes de salir o volver sin guardar?",
-            (1, "Back") => "Volver",
             (1, "Joystick & Analog Base Inspector") => "Inspector del joystick y la base analógica",
             (1, "Customize stick knob, analog base ring, active zone & visibility") => "Personaliza la palanca, el aro de la base analógica, la zona activa y la visibilidad",
             (1, "Component Properties") => "Propiedades del componente",
@@ -5706,7 +5677,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (1, "Save Preset Details") => "Guardar detalles de la preconfiguración",
             (1, "Save Layout") => "Guardar distribución",
             (1, "Discard & Exit") => "Descartar y salir",
-            (1, "Cancel") => "Cancelar",
             (1, "Option A: Replace existing preset (Protected)") => "Opción A: Reemplazar la preconfiguración existente (protegida)",
             (1, "Option A: Replace existing preset") => "Opción A: Reemplazar la preconfiguración existente",
             (1, "Default layout cannot be overwritten. Please create a new preset below.") => "La distribución predeterminada no se puede sobrescribir. Crea una nueva preconfiguración abajo.",
@@ -5726,7 +5696,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (2, "Unsaved Layout Changes") => "Alterações de layout não salvas",
             (2, "You have modified your control layout in this session.") => "Você modificou o layout dos controles nesta sessão.",
             (2, "Save your changes before leaving, or go back without saving?") => "Deseja salvar as alterações antes de sair ou voltar sem salvar?",
-            (2, "Back") => "Voltar",
             (2, "Joystick & Analog Base Inspector") => "Inspetor do joystick e da base analógica",
             (2, "Customize stick knob, analog base ring, active zone & visibility") => "Personalize o controle do analógico, o anel da base, a zona ativa e a visibilidade",
             (2, "Component Properties") => "Propriedades do componente",
@@ -5748,7 +5717,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (2, "Save Preset Details") => "Salvar detalhes da predefinição",
             (2, "Save Layout") => "Salvar layout",
             (2, "Discard & Exit") => "Descartar e sair",
-            (2, "Cancel") => "Cancelar",
             (2, "Option A: Replace existing preset (Protected)") => "Opção A: Substituir a predefinição existente (protegida)",
             (2, "Option A: Replace existing preset") => "Opção A: Substituir a predefinição existente",
             (2, "Default layout cannot be overwritten. Please create a new preset below.") => "O layout padrão não pode ser sobrescrito. Crie uma nova predefinição abaixo.",
@@ -5768,7 +5736,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (3, "Unsaved Layout Changes") => "Modifications de disposition non enregistrées",
             (3, "You have modified your control layout in this session.") => "Vous avez modifié la disposition des commandes pendant cette session.",
             (3, "Save your changes before leaving, or go back without saving?") => "Enregistrer les modifications avant de quitter ou revenir sans enregistrer ?",
-            (3, "Back") => "Retour",
             (3, "Joystick & Analog Base Inspector") => "Inspecteur du joystick et de la base analogique",
             (3, "Customize stick knob, analog base ring, active zone & visibility") => "Personnalisez le manche, l’anneau de base, la zone active et la visibilité",
             (3, "Component Properties") => "Propriétés du composant",
@@ -5790,7 +5757,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (3, "Save Preset Details") => "Enregistrer les détails du préréglage",
             (3, "Save Layout") => "Enregistrer la disposition",
             (3, "Discard & Exit") => "Abandonner et quitter",
-            (3, "Cancel") => "Annuler",
             (3, "Option A: Replace existing preset (Protected)") => "Option A : Remplacer le préréglage existant (protégé)",
             (3, "Option A: Replace existing preset") => "Option A : Remplacer le préréglage existant",
             (3, "Default layout cannot be overwritten. Please create a new preset below.") => "La disposition par défaut ne peut pas être remplacée. Créez un nouveau préréglage ci-dessous.",
@@ -5810,7 +5776,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (4, "Unsaved Layout Changes") => "Modifiche al layout non salvate",
             (4, "You have modified your control layout in this session.") => "Hai modificato la disposizione dei controlli durante questa sessione.",
             (4, "Save your changes before leaving, or go back without saving?") => "Vuoi salvare le modifiche prima di uscire o tornare indietro senza salvare?",
-            (4, "Back") => "Indietro",
             (4, "Joystick & Analog Base Inspector") => "Ispettore joystick e base analogica",
             (4, "Customize stick knob, analog base ring, active zone & visibility") => "Personalizza levetta, anello della base, zona attiva e visibilità",
             (4, "Component Properties") => "Proprietà componente",
@@ -5832,7 +5797,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (4, "Save Preset Details") => "Salva dettagli preimpostazione",
             (4, "Save Layout") => "Salva layout",
             (4, "Discard & Exit") => "Scarta ed esci",
-            (4, "Cancel") => "Annulla",
             (4, "Option A: Replace existing preset (Protected)") => "Opzione A: Sostituisci la preimpostazione esistente (protetta)",
             (4, "Option A: Replace existing preset") => "Opzione A: Sostituisci la preimpostazione esistente",
             (4, "Default layout cannot be overwritten. Please create a new preset below.") => "Il layout predefinito non può essere sovrascritto. Crea una nuova preimpostazione qui sotto.",
@@ -5852,7 +5816,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (5, "Unsaved Layout Changes") => "Nicht gespeicherte Layoutänderungen",
             (5, "You have modified your control layout in this session.") => "Du hast das Steuerungslayout in dieser Sitzung geändert.",
             (5, "Save your changes before leaving, or go back without saving?") => "Möchtest du vor dem Verlassen speichern oder ohne Speichern zurückgehen?",
-            (5, "Back") => "Zurück",
             (5, "Joystick & Analog Base Inspector") => "Joystick- und Analogbasis-Inspektor",
             (5, "Customize stick knob, analog base ring, active zone & visibility") => "Joystick-Knauf, Analogbasisring, aktive Zone und Sichtbarkeit anpassen",
             (5, "Component Properties") => "Komponenteneigenschaften",
@@ -5874,7 +5837,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (5, "Save Preset Details") => "Presetdetails speichern",
             (5, "Save Layout") => "Layout speichern",
             (5, "Discard & Exit") => "Verwerfen und beenden",
-            (5, "Cancel") => "Abbrechen",
             (5, "Option A: Replace existing preset (Protected)") => "Option A: Vorhandenes Preset ersetzen (geschützt)",
             (5, "Option A: Replace existing preset") => "Option A: Vorhandenes Preset ersetzen",
             (5, "Default layout cannot be overwritten. Please create a new preset below.") => "Das Standardlayout kann nicht überschrieben werden. Erstelle unten ein neues Preset.",
@@ -5894,7 +5856,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (6, "Unsaved Layout Changes") => "未保存のレイアウト変更",
             (6, "You have modified your control layout in this session.") => "このセッションで操作レイアウトを変更しました。",
             (6, "Save your changes before leaving, or go back without saving?") => "終了する前に変更を保存しますか？保存せずに戻ることもできます。",
-            (6, "Back") => "戻る",
             (6, "Joystick & Analog Base Inspector") => "ジョイスティックとアナログベースのインスペクター",
             (6, "Customize stick knob, analog base ring, active zone & visibility") => "スティック、アナログベースリング、有効範囲、表示状態をカスタマイズ",
             (6, "Component Properties") => "コンポーネントのプロパティ",
@@ -5916,7 +5877,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (6, "Save Preset Details") => "プリセットの詳細を保存",
             (6, "Save Layout") => "レイアウトを保存",
             (6, "Discard & Exit") => "破棄して終了",
-            (6, "Cancel") => "キャンセル",
             (6, "Option A: Replace existing preset (Protected)") => "オプションA：既存のプリセットを置換（保護）",
             (6, "Option A: Replace existing preset") => "オプションA：既存のプリセットを置換",
             (6, "Default layout cannot be overwritten. Please create a new preset below.") => "既定のレイアウトは上書きできません。下で新しいプリセットを作成してください。",
@@ -5936,7 +5896,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (7, "Unsaved Layout Changes") => "未保存的布局更改",
             (7, "You have modified your control layout in this session.") => "你在本次会话中修改了控制布局。",
             (7, "Save your changes before leaving, or go back without saving?") => "离开前要保存更改，还是不保存直接返回？",
-            (7, "Back") => "返回",
             (7, "Joystick & Analog Base Inspector") => "摇杆与模拟底座检查器",
             (7, "Customize stick knob, analog base ring, active zone & visibility") => "自定义摇杆帽、模拟底座环、活动区域和可见性",
             (7, "Component Properties") => "组件属性",
@@ -5958,7 +5917,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (7, "Save Preset Details") => "保存预设详情",
             (7, "Save Layout") => "保存布局",
             (7, "Discard & Exit") => "放弃并退出",
-            (7, "Cancel") => "取消",
             (7, "Option A: Replace existing preset (Protected)") => "选项 A：替换现有预设（受保护）",
             (7, "Option A: Replace existing preset") => "选项 A：替换现有预设",
             (7, "Default layout cannot be overwritten. Please create a new preset below.") => "默认布局无法覆盖。请在下方创建新预设。",
@@ -6598,13 +6556,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (5, "Discard & Exit") => "Verwerfen und beenden",
             (6, "Discard & Exit") => "破棄して終了",
             (7, "Discard & Exit") => "放弃并退出",
-            (1, "Cancel") => "Cancelar",
-            (2, "Cancel") => "Cancelar",
-            (3, "Cancel") => "Annuler",
-            (4, "Cancel") => "Annulla",
-            (5, "Cancel") => "Abbrechen",
-            (6, "Cancel") => "キャンセル",
-            (7, "Cancel") => "取消",
             (1, "Option A: Replace existing preset (Protected)") => "Opción A: Reemplazar el preajuste existente (protegido)",
             (2, "Option A: Replace existing preset (Protected)") => "Opção A: Substituir a predefinição existente (protegida)",
             (3, "Option A: Replace existing preset (Protected)") => "Option A : Remplacer le préréglage existant (protégé)",
@@ -6906,13 +6857,6 @@ fn pavo_launcher_text(text: &str) -> String {
             (5, "Right ▶") => "Rechts ▶",
             (6, "Right ▶") => "右 ▶",
             (7, "Right ▶") => "右 ▶",
-            (1, "Back") => "Volver",
-            (2, "Back") => "Voltar",
-            (3, "Back") => "Retour",
-            (4, "Back") => "Indietro",
-            (5, "Back") => "Zurück",
-            (6, "Back") => "戻る",
-            (7, "Back") => "返回",
             (1, "Send Custom Input — Full PC Keyboard (Tap or Swipe)") => "Enviar entrada personalizada — teclado completo de PC (toca o desliza)",
             (2, "Send Custom Input — Full PC Keyboard (Tap or Swipe)") => "Enviar entrada personalizada — teclado completo de PC (toque ou deslize)",
             (3, "Send Custom Input — Full PC Keyboard (Tap or Swipe)") => "Envoyer une entrée personnalisée — clavier PC complet (appuyer ou balayer)",
@@ -7278,6 +7222,23 @@ impl Fonts {
         raise SystemExit("Could not locate Android UI text baseline metrics.")
     source = source.replace(baseline_old, baseline_new, 1)
 
+    previous_glyph_old = """            let mut pen = x0;
+            let mut prev = None;
+            for ch in text.chars() {
+"""
+    previous_glyph_new = """            let mut pen = x0;
+            let mut prev: Option<(ab_glyph::GlyphId, bool)> = None;
+            for ch in text.chars() {
+"""
+    if source.count(previous_glyph_old) != 1:
+        raise SystemExit("Could not locate Android UI previous-glyph state.")
+    source = source.replace(previous_glyph_old, previous_glyph_new, 1)
+    previous_glyph_assignment_old = "                pen += advance;\\n                prev = Some(id);"
+    previous_glyph_assignment_new = "                pen += advance;\\n                prev = Some((id, cjk));"
+    if source.count(previous_glyph_assignment_old) != 1:
+        raise SystemExit("Could not locate Android UI previous-glyph assignment.")
+    source = source.replace(previous_glyph_assignment_old, previous_glyph_assignment_new, 1)
+
     draw_old = """                let (id, advance, kern) = {
                     let font = c.fonts.face(face);
                     let id = font.glyph_id(ch);
@@ -7296,7 +7257,10 @@ impl Fonts {
                 } else {
                     let font = c.fonts.face(face);
                     let f = font.as_scaled(scale);
-                    (f.h_advance(id), 0.0)
+                    let kern = prev.map_or(0.0, |(previous, previous_cjk)| {
+                        if previous_cjk { 0.0 } else { f.kern(previous, id) }
+                    });
+                    (f.h_advance(id), kern)
                 };
                 pen += kern;
                 if real && !ch.is_whitespace() {
