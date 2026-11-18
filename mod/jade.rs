@@ -105,6 +105,30 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
     game.native_set_setting(ID, key, if next { "true" } else { "false" });
 }
 
+pub fn item_tooltip(
+    game: &super::Game<'_>,
+    stack: &horizon_client::items::ItemStack,
+    mut lines: Vec<(horizon_client::text::Text, u32)>,
+) -> Vec<(horizon_client::text::Text, u32)> {
+    if !enabled(game, "show_item_mod_name", true) {
+        return lines;
+    }
+    let Some((namespace, _)) = stack.item.split_once(':') else {
+        return lines;
+    };
+    if namespace == "minecraft" || namespace.is_empty() {
+        return lines;
+    }
+    let label = tr([
+        "Mod", "Mod", "Mod", "Mod", "Mod", "Mod", "Mod", "模组",
+    ]);
+    lines.push((
+        horizon_client::text::Text::literal(format!("{label}: {namespace}")),
+        horizon_client::hud::rgba(170, 170, 170, 255),
+    ));
+    lines
+}
+
 pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch) {
     if !game.native_on(ID) || !enabled(game, "display_tooltip", true) {
         return;
