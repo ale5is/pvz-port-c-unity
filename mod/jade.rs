@@ -231,7 +231,10 @@ pub fn register_mod(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
             "見ているブロックの情報を表示します。",
             "显示你正在注视的方块信息。",
         ]).into(),
-        keys: Vec::new(),
+        keys: vec![
+            ["show_overlay".into(), tr(["Toggle Jade overlay", "Mostrar/ocultar HUD de Jade", "Alternar HUD do Jade", "Afficher/masquer Jade", "Mostra/nascondi HUD Jade", "Jade-HUD umschalten", "Jade HUD切替", "切换Jade提示框"]).into(), "key.keyboard.keypad_0".into()],
+            ["show_details".into(), tr(["Toggle Jade details", "Mostrar/ocultar detalles de Jade", "Alternar detalhes do Jade", "Afficher/masquer les détails Jade", "Mostra/nascondi dettagli Jade", "Jade-Details umschalten", "Jade詳細切替", "切换Jade详情"]).into(), "key.keyboard.keypad_1".into()],
+        ],
     });
 }
 
@@ -446,6 +449,23 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
     log::info!("Jade setting after write: key={key}, expected={next}, actual={saved}");
 }
 
+pub fn on_key(game: &super::Game<'_>, key: &str, pressed: bool) {
+    if !pressed || !game.native_on(ID) || game.player.is_none() {
+        return;
+    }
+    let overlay_key = game.native_mod_key(ID, "show_overlay", "key.keyboard.keypad_0");
+    if key == overlay_key {
+        let next = !enabled(game, "display_tooltip", true);
+        save_enabled(game, "display_tooltip", next);
+        return;
+    }
+    let details_key = game.native_mod_key(ID, "show_details", "key.keyboard.keypad_1");
+    if key == details_key {
+        let next = !enabled(game, "show_registry_id", true);
+        save_enabled(game, "show_registry_id", next);
+    }
+}
+
 pub fn item_tooltip(
     game: &super::Game<'_>,
     stack: &horizon_client::items::ItemStack,
@@ -615,17 +635,6 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                             };
                             details.push(format!("{effect_name} ({duration})"));
                         }
-                    }
-                    if enabled(game, "show_next_entity_drop", false)
-                        && mob.extra.egg_time > 0 && mob.extra.egg_time < 48000
-                        && matches!(id, "minecraft:chicken" | "minecraft:armadillo")
-                    {
-                        let item = if id == "minecraft:chicken" {
-                            tr(["Next egg", "Próximo huevo", "Próximo ovo", "Prochain œuf", "Prossimo uovo", "Nächstes Ei", "次の卵", "下一个鸡蛋"])
-                        } else {
-                            tr(["Next scute", "Próxima escama", "Próxima escama", "Prochaine écaille", "Prossima scaglia", "Nächste Hornschild", "次の甲羅", "下一个鳞甲"])
-                        };
-                        details.push(format!("{item}: {}:{:02}", mob.extra.egg_time / 1200, (mob.extra.egg_time / 20) % 60));
                     }
                     if enabled(game, "show_villager_profession", false)
                         && matches!(id, "minecraft:villager" | "minecraft:zombie_villager")
