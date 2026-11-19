@@ -5,16 +5,21 @@ const ID: &str = "jade";
 
 fn icon_sprite(atlas: &horizon_client::hud::HudAtlas, id: &str, entity: bool) -> Option<String> {
     let (namespace, path) = id.split_once(':').unwrap_or(("minecraft", id));
-    let sprite_path = if entity {
-        format!("{namespace}:item/{}_spawn_egg", path)
+    let prefix = if namespace == "minecraft" {
+        String::new()
     } else {
-        format!("{namespace}:item/{path}")
+        format!("{namespace}:")
+    };
+    let sprite_path = if entity {
+        format!("{prefix}item/{}_spawn_egg", path)
+    } else {
+        format!("{prefix}item/{path}")
     };
     if atlas.sprites.contains_key(&sprite_path) {
         return Some(sprite_path);
     }
     if !entity {
-        let block_path = format!("{namespace}:block/{path}");
+        let block_path = format!("{prefix}block/{path}");
         if atlas.sprites.contains_key(&block_path) {
             return Some(block_path);
         }
