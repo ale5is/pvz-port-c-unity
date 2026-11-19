@@ -140,6 +140,7 @@ fn setting_default(key: &str) -> bool {
             | "show_relative_coordinates" | "show_crop_progress" | "show_redstone_info"
             | "show_note_block_info" | "show_tnt_stability" | "show_beehive_honey" | "show_block_amount"
             | "show_entity_armor" | "show_entity_age" | "show_entity_breeding" | "show_horse_stats"
+            | "show_entity_effects" | "show_next_entity_drop" | "show_villager_profession"
     )
 }
 
@@ -334,6 +335,18 @@ pub fn settings(
         "Show horse stats", "Mostrar estadísticas de caballos", "Mostrar estatísticas dos cavalos", "Afficher les statistiques des chevaux",
         "Mostra statistiche cavalli", "Pferdewerte anzeigen", "馬の能力値", "显示马匹属性",
     ], false));
+    buttons.push(option_label_with_default(game, "show_entity_effects", [
+        "Show entity effects", "Mostrar efectos de entidades", "Mostrar efeitos das entidades", "Afficher les effets des entités",
+        "Mostra effetti entità", "Entitätseffekte anzeigen", "エンティティの効果", "显示实体效果",
+    ], false));
+    buttons.push(option_label_with_default(game, "show_next_entity_drop", [
+        "Show next entity drop", "Mostrar próxima recompensa", "Mostrar próximo item", "Afficher le prochain objet",
+        "Mostra prossima ricompensa", "Nächsten Drop anzeigen", "次のドロップ", "显示下次掉落",
+    ], false));
+    buttons.push(option_label_with_default(game, "show_villager_profession", [
+        "Show villager profession", "Mostrar profesión del aldeano", "Mostrar profissão do aldeão", "Afficher le métier du villageois",
+        "Mostra professione abitante", "Dorfbewohner-Beruf anzeigen", "村人の職業", "显示村民职业",
+    ], false));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -371,6 +384,9 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         27 => "show_entity_age",
         28 => "show_entity_breeding",
         29 => "show_horse_stats",
+        30 => "show_entity_effects",
+        31 => "show_next_entity_drop",
+        32 => "show_villager_profession",
         _ => return,
     };
     let default = setting_default(key);
@@ -509,6 +525,56 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                         details.push(format!("{}: {:.2} m/s", tr([
                             "Speed", "Velocidad", "Velocidade", "Vitesse", "Velocità", "Geschwindigkeit", "速度", "速度",
                         ]), speed));
+                    }
+                    if enabled(game, "show_entity_effects", false) {
+                        for (effect, ticks, amplifier) in mob.extra.effects.iter().take(3) {
+                            let short = effect.strip_prefix("minecraft:").unwrap_or(effect);
+                            let mut effect_name = game.translate(&format!("effect.minecraft.{short}"), short);
+                            if *amplifier > 0 {
+                                effect_name.push_str(&format!(" {}", amplifier + 1));
+                            }
+                            let duration = if *ticks < 0 {
+                                "∞".to_owned()
+                            } else {
+                                format!("{}:{:02}", ticks / 1200, (ticks / 20) % 60)
+                            };
+                            details.push(format!("{effect_name} ({duration})"));
+                        }
+                    }
+                    if enabled(game, "show_next_entity_drop", false)
+                        && mob.extra.egg_time > 0 && mob.extra.egg_time < 48000
+                        && matches!(id, "minecraft:chicken" | "minecraft:armadillo")
+                    {
+                        let item = if id == "minecraft:chicken" {
+                            tr(["Next egg", "Próximo huevo", "Próximo ovo", "Prochain œuf", "Prossimo uovo", "Nächstes Ei", "次の卵", "下一个鸡蛋"])
+                        } else {
+                            tr(["Next scute", "Próxima escama", "Próxima escama", "Prochaine écaille", "Prossima scaglia", "Nächste Hornschild", "次の甲羅", "下一个鳞甲"])
+                        };
+                        details.push(format!("{item}: {}:{:02}", mob.extra.egg_time / 1200, (mob.extra.egg_time / 20) % 60));
+                    }
+                    if enabled(game, "show_villager_profession", false)
+                        && matches!(id, "minecraft:villager" | "minecraft:zombie_villager")
+                    {
+                        const PROFESSIONS: [&str; 15] = [
+                            "none", "armorer", "butcher", "cartographer", "cleric", "farmer", "fisherman",
+                            "fletcher", "leatherworker", "librarian", "mason", "nitwit", "shepherd", "toolsmith", "weaponsmith",
+                        ];
+                        let profession = PROFESSIONS[mob.extra.variant2 as usize % PROFESSIONS.len()];
+                        let profession_name = game.translate(&format!("entity.minecraft.villager.{profession}"), profession);
+                        let level = mob.extra.variant3;
+                        let level_name = match level {
+                            1 => tr(["Novice", "Principiante", "Novato", "Novice", "Principiante", "Anfänger", "新米", "新手"]),
+                            2 => tr(["Apprentice", "Aprendiz", "Aprendiz", "Apprenti", "Apprendista", "Lehrling", "見習い", "学徒"]),
+                            3 => tr(["Journeyman", "Oficial", "Profissional", "Compagnon", "Qualificato", "Geselle", "熟練者", "熟练工"]),
+                            4 => tr(["Expert", "Experto", "Especialista", "Expert", "Esperto", "Experte", "専門家", "专家"]),
+                            5 => tr(["Master", "Maestro", "Mestre", "Maître", "Maestro", "Meister", "達人", "大师"]),
+                            _ => "",
+                        };
+                        details.push(if level_name.is_empty() {
+                            profession_name
+                        } else {
+                            format!("{profession_name} - {level_name}")
+                        });
                     }
                     if enabled(game, "show_mod_name", true) {
                         if let Some((namespace, _)) = id.split_once(':') {
