@@ -115,10 +115,14 @@ fn shear_block(game: &super::Game<'_>, block: &str) -> bool {
 fn harvest_tools(game: &super::Game<'_>, block: &str) -> Vec<String> {
     let items = game.res.items();
     TOOL_TYPES.iter().filter_map(|tiers| {
-        tiers.iter().find(|tool| {
+        tiers.iter().copied().filter(|tool| {
             tier_correct(items, tool, block)
-                || (**tool == "minecraft:shears" && shear_block(game, block))
-        }).map(|tool| (*tool).to_owned())
+                || (*tool == "minecraft:shears" && shear_block(game, block))
+        }).max_by(|a, b| {
+            let a_stack = horizon_client::items::ItemStack::new(a, 1);
+            let b_stack = horizon_client::items::ItemStack::new(b, 1);
+            items.mining_speed(Some(&a_stack), block).total_cmp(&items.mining_speed(Some(&b_stack), block))
+        }).map(str::to_owned)
     }).collect()
 }
 
@@ -414,7 +418,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     }
                     if let Some(health) = health_line {
                         let y = panel_y + 16.0 + details.len() as f32 * 11.0;
-                        batch.text(atlas, "♥", panel_x + text_x, y, 0xFFFF5555, true);
+                        batch.text(atlas, "❤", panel_x + text_x, y, 0xFFFF0000, true);
                         batch.text(atlas, &health, panel_x + text_x + 9.0, y, 0xFFB8B8B8, true);
                     }
                     return;
@@ -622,7 +626,8 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             details.push(format!("{}: {:.1}", tr(["Hardness", "Dureza", "Dureza", "Dureté", "Durezza", "Härte", "硬度", "硬度"]), facts.hardness));
         }
     }
-    if enabled(game, "show_block_info", true) && facts.requires_tool {
+    if enabled(game, "show_block_info", true) {
+        // Show the most effective tool even when the block can also be broken by hand.
         required_tools = harvest_tools(game, name);
     }
     let atlas = &game.gui.atlas;
@@ -633,11 +638,9 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     let detail_width = details.iter()
         .map(|line| horizon_client::hud::HudBatch::text_width(atlas, line))
         .fold(0.0_f32, f32::max);
-    let tool_label = tr(["Tool", "Herramienta", "Ferramenta", "Outil", "Strumento", "Werkzeug", "道具", "工具"]);
-    let has_tool_row = enabled(game, "show_block_info", true) && facts.requires_tool && !required_tools.is_empty();
+    let has_tool_row = enabled(game, "show_block_info", true) && !required_tools.is_empty();
     let tool_row_width = if has_tool_row {
-        horizon_client::hud::HudBatch::text_width(atlas, tool_label)
-            + required_tools.len() as f32 * 10.0 + 16.0
+        required_tools.len() as f32 * 18.0 + 12.0
     } else {
         0.0
     };
@@ -645,7 +648,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         .min((batch.width - 16.0).max(0.0));
     let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
     let panel_y = 8.0;
-    let panel_height = 17.0 + details.len() as f32 * 12.0 + if has_tool_row { 11.0 } else { 0.0 };
+    let panel_height = 17.0 + details.len() as f32 * 12.0 + if has_tool_row { 19.0 } else { 0.0 };
 
     batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), 0xD0101010);
     if has_icon {
@@ -664,19 +667,18 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     }
     if has_tool_row {
         let row_y = panel_y + 16.0 + details.len() as f32 * 11.0;
-        batch.text(atlas, tool_label, panel_x + text_x, row_y, 0xFFB8B8B8, true);
-        let mut icon_x = panel_x + text_x + horizon_client::hud::HudBatch::text_width(atlas, tool_label) + 3.0;
+        let mut icon_x = panel_x + text_x;
         for tool in &required_tools {
-            let _ = game.native_item(batch, tool, [icon_x, row_y], 8.0);
-            icon_x += 10.0;
+            let _ = game.native_item(batch, tool, [icon_x, row_y], 16.0);
+            icon_x += 18.0;
         }
         let correct = game.res.items().correct_for_drops(game.held(), name);
         batch.text(
             atlas,
-            if correct { "✔" } else { "✕" },
+            if correct { "✔" } else { "✖" },
             icon_x + 1.0,
-            row_y,
-            if correct { 0xFF55FF55 } else { 0xFFFF5555 },
+            row_y + 3.0,
+            if correct { 0xFF55FF55 } else { 0xFFFF0000 },
             true,
         );
     }
