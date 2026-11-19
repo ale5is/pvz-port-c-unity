@@ -1187,15 +1187,15 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         let block_distance = game.aim().and_then(|(eye, _)| game.pick_unfiltered().map(|b| (0..3).map(|a| (b.point[a] - eye[a]).powi(2)).sum::<f64>().sqrt()));
         if block_distance.is_none_or(|d| distance < d) && distance <= nearest_target_distance + 0.0001 {
             if let Some(falling) = game.falling.get(index) {
-                if let Some(state) = game.pack.assets.registry.state(falling.state) {
-                    let id = state.name.as_ref(); let short = id.split_once(':').map_or(id, |(_, p)| p);
-                    let title = game.translate(&format!("block.{}", id.replace(':', ".")), short);
-                    let mut details = Vec::new();
-                    if enabled(game, "show_entity_registry_id", false) { details.push(id.to_owned()); }
-                    if enabled(game, "show_entity_distance", false) { details.push(format!("{}: {:.1} m", tr(["Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离"]), distance)); }
-                    draw_target_panel(game, batch, id, &title, false, None, &details);
-                    return;
-                }
+                let state = game.res.facts().get(falling.state);
+                let id = state.name.as_ref();
+                let short = id.split_once(':').map_or(id, |(_, p)| p);
+                let title = game.translate(&format!("block.{}", id.replace(':', ".")), short);
+                let mut details = Vec::new();
+                if enabled(game, "show_entity_registry_id", false) { details.push(id.to_owned()); }
+                if enabled(game, "show_entity_distance", false) { details.push(format!("{}: {:.1} m", tr(["Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离"]), distance)); }
+                draw_target_panel(game, batch, id, &title, false, None, &details);
+                return;
             }
         }
     }
