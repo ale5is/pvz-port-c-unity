@@ -634,8 +634,22 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         }
     }
     if enabled(game, "show_block_info", true) {
-        // Show the most effective tool even when the block can also be broken by hand.
+        // Jade's provider selects the lowest valid tier per tool type. This port
+        // displays only the single fastest valid tool to keep the overlay compact.
         required_tools = harvest_tools(game, name);
+        let items = game.res.items();
+        required_tools.sort_by(|a, b| {
+            let speed_a = items.mining_speed(
+                Some(&horizon_client::items::ItemStack::new(a, 1)),
+                name,
+            );
+            let speed_b = items.mining_speed(
+                Some(&horizon_client::items::ItemStack::new(b, 1)),
+                name,
+            );
+            speed_b.total_cmp(&speed_a)
+        });
+        required_tools.truncate(1);
     }
     let atlas = &game.gui.atlas;
     let has_icon = enabled(game, "show_target_icon", true)
@@ -682,7 +696,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         let correct = game.res.items().correct_for_drops(game.held(), name);
         batch.text(
             atlas,
-            if correct { "✔" } else { "X" },
+            if correct { "✔" } else { "✕" },
             icon_x + 1.0,
             row_y + 3.0,
             if correct { 0xFF55FF55 } else { 0xFFFF0000 },
