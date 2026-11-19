@@ -74,6 +74,33 @@ fn stack_name(
         .map_or_else(|| fallback.to_owned(), |(text, _)| text.plain())
 }
 
+fn draw_target_panel(
+    game: &super::Game<'_>,
+    batch: &mut horizon_client::hud::HudBatch,
+    id: &str,
+    title: &str,
+    entity: bool,
+    stack: Option<&horizon_client::items::ItemStack>,
+    details: &[String],
+) {
+    let atlas = &game.gui.atlas;
+    let has_icon = enabled(game, "show_target_icon", true)
+        && icon_available(game, atlas, id, entity, stack);
+    let text_x = if has_icon { 26.0 } else { 6.0 };
+    let title_width = horizon_client::hud::HudBatch::text_width(atlas, title);
+    let detail_width = details.iter().map(|line| horizon_client::hud::HudBatch::text_width(atlas, line)).fold(0.0_f32, f32::max);
+    let panel_width = (title_width.max(detail_width) + if has_icon { 32.0 } else { 12.0 }).min((batch.width - 16.0).max(0.0));
+    let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
+    let panel_y = 8.0;
+    let panel_height = 17.0 + details.len() as f32 * 12.0;
+    batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), 0xD0101010);
+    if has_icon { let _ = draw_icon(game, batch, atlas, id, entity, stack, panel_x + 6.0, panel_y + 2.0); }
+    batch.text(atlas, title, panel_x + text_x, panel_y + 4.0, 0xFFFFFFFF, true);
+    for (index, detail) in details.iter().enumerate() {
+        batch.text(atlas, detail, panel_x + text_x, panel_y + 16.0 + index as f32 * 11.0, 0xFFB8B8B8, true);
+    }
+}
+
 const TOOL_TYPES: [&[&str]; 6] = [
     &["minecraft:wooden_pickaxe", "minecraft:golden_pickaxe", "minecraft:stone_pickaxe", "minecraft:copper_pickaxe", "minecraft:iron_pickaxe", "minecraft:diamond_pickaxe", "minecraft:netherite_pickaxe"],
     &["minecraft:wooden_axe", "minecraft:golden_axe", "minecraft:stone_axe", "minecraft:copper_axe", "minecraft:iron_axe", "minecraft:diamond_axe", "minecraft:netherite_axe"],
@@ -356,6 +383,11 @@ pub fn settings(
         "Show tame status", "Mostrar estado de domesticación", "Mostrar estado de domesticação", "Afficher l’état d’apprivoisement",
         "Mostra stato addomesticamento", "Zähmungsstatus anzeigen", "懐き状態", "显示驯服状态",
     ], false));
+    buttons.push(option_label(game, "display_item_frames", ["Display item frames", "Mostrar marcos", "Exibir molduras", "Afficher les cadres", "Mostra cornici", "Rahmen anzeigen", "額縁を表示", "显示物品展示框"]));
+    buttons.push(option_label(game, "display_paintings", ["Display paintings", "Mostrar cuadros", "Exibir pinturas", "Afficher les tableaux", "Mostra dipinti", "Gemälde anzeigen", "絵画を表示", "显示画"]));
+    buttons.push(option_label(game, "display_boats", ["Display boats", "Mostrar botes", "Exibir barcos", "Afficher les bateaux", "Mostra barche", "Boote anzeigen", "ボートを表示", "显示船"]));
+    buttons.push(option_label(game, "display_minecarts", ["Display minecarts", "Mostrar vagonetas", "Exibir carrinhos", "Afficher les wagonnets", "Mostra carrelli", "Loren anzeigen", "トロッコを表示", "显示矿车"]));
+    buttons.push(option_label(game, "display_falling_blocks", ["Display falling blocks", "Mostrar bloques en caída", "Exibir blocos em queda", "Afficher les blocs qui tombent", "Mostra blocchi in caduta", "Fallende Blöcke anzeigen", "落下ブロックを表示", "显示下落方块"]));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -398,6 +430,11 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         32 => "show_villager_profession",
         33 => "show_entity_equipment",
         34 => "show_animal_tame_status",
+        35 => "display_item_frames",
+        36 => "display_paintings",
+        37 => "display_boats",
+        38 => "display_minecarts",
+        39 => "display_falling_blocks",
         _ => return,
     };
     let default = setting_default(key);
@@ -466,6 +503,34 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         None
     };
 
+    let frame_hit = if enabled(game, "display_item_frames", true) { game.frame_hit() } else { None };
+    let painting_hit = if enabled(game, "display_paintings", true) { game.painting_hit() } else { None };
+    let boat_hit = if enabled(game, "display_boats", true) {
+        game.aim().and_then(|(eye, dir)| game.boats.iter().enumerate()
+            .filter_map(|(i, boat)| super::ray_box(eye, dir, game.entity_reach, boat.bounds()).map(|d| (i, d)))
+            .min_by(|a, b| a.1.total_cmp(&b.1)))
+    } else { None };
+    let cart_hit = if enabled(game, "display_minecarts", true) {
+        game.aim().and_then(|(eye, dir)| game.carts.iter().enumerate()
+            .filter_map(|(i, cart)| super::ray_box(eye, dir, game.entity_reach, cart.bounds()).map(|d| (i, d)))
+            .min_by(|a, b| a.1.total_cmp(&b.1)))
+    } else { None };
+    let falling_hit = if enabled(game, "display_falling_blocks", true) {
+        game.aim().and_then(|(eye, dir)| game.falling.iter().enumerate().filter_map(|(i, falling)| {
+            let p = falling.position;
+            let bounds = horizon_core::geometry::Aabb::new(
+                horizon_core::geometry::Vec3::new(p.x - 0.49, p.y, p.z - 0.49),
+                horizon_core::geometry::Vec3::new(p.x + 0.49, p.y + 0.98, p.z + 0.49),
+            );
+            super::ray_box(eye, dir, game.entity_reach, bounds).map(|d| (i, d))
+        }).min_by(|a, b| a.1.total_cmp(&b.1)))
+    } else { None };
+    let nearest_target_distance = [
+        game.mob_hit().map(|(_, d)| d), item_hit.map(|(_, d)| d), armor_stand_hit.map(|(_, d)| d),
+        frame_hit.map(|(_, d)| d), painting_hit.map(|(_, d)| d), boat_hit.map(|(_, d)| d),
+        cart_hit.map(|(_, d)| d), falling_hit.map(|(_, d)| d),
+    ].into_iter().flatten().fold(f64::INFINITY, f64::min);
+
     // Jade's entity providers: an entity is shown only when its hit is nearer than
     // the first block outline, so walls continue to occlude the overlay.
     if enabled(game, "display_entities", true) {
@@ -477,8 +542,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     .sqrt()
             });
             if block_distance.is_none_or(|block_distance| distance < block_distance)
-                && item_hit.is_none_or(|(_, item_distance)| distance <= item_distance)
-                && armor_stand_hit.is_none_or(|(_, stand_distance)| distance <= stand_distance)
+                && distance <= nearest_target_distance + 0.0001
             {
                 if let Some(mob) = game.mobs.get(index) {
                     let id: &str = mob.kind.id.as_str();
@@ -679,8 +743,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         });
         let mob_distance = game.mob_hit().map(|(_, mob_distance)| mob_distance);
         if block_distance.is_none_or(|block_distance| distance < block_distance)
-            && mob_distance.is_none_or(|mob_distance| distance < mob_distance)
-            && armor_stand_hit.is_none_or(|(_, stand_distance)| distance < stand_distance)
+            && distance <= nearest_target_distance + 0.0001
         {
             if let Some(item) = game.dropped.get(index) {
                 let id = item.stack.item.as_ref();
@@ -754,8 +817,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         let mob_distance = game.mob_hit().map(|(_, mob_distance)| mob_distance);
         let item_distance = item_hit.map(|(_, item_distance)| item_distance);
         if block_distance.is_none_or(|block_distance| distance < block_distance)
-            && mob_distance.is_none_or(|mob_distance| distance < mob_distance)
-            && item_distance.is_none_or(|item_distance| distance < item_distance)
+            && distance <= nearest_target_distance + 0.0001
         {
             if let Some(stand) = game.armor_stands.get(index) {
                 let title = game.translate("entity.minecraft.armor_stand", "Armor Stand");
@@ -814,6 +876,99 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     );
                 }
                 return;
+            }
+        }
+    }
+
+    if let Some((index, distance)) = frame_hit {
+        let block_distance = game.aim().and_then(|(eye, _)| game.pick_unfiltered().map(|b| (0..3).map(|a| (b.point[a] - eye[a]).powi(2)).sum::<f64>().sqrt()));
+        if block_distance.is_none_or(|d| distance < d) && distance <= nearest_target_distance + 0.0001 {
+            if let Some(frame) = game.item_frames.get(index) {
+                let (title, stack) = if let Some(stack) = frame.item.as_ref() {
+                    let id = stack.item.as_ref(); let short = id.split_once(':').map_or(id, |(_, p)| p);
+                    (stack_name(game, stack, short), Some(stack))
+                } else {
+                    let fallback = if frame.glow { "Glow Item Frame" } else { "Item Frame" };
+                    let key = if frame.glow { "entity.minecraft.glow_item_frame" } else { "entity.minecraft.item_frame" };
+                    (game.translate(key, fallback), None)
+                };
+                let mut details = Vec::new();
+                if enabled(game, "show_entity_registry_id", false) { details.push(if frame.glow { "minecraft:glow_item_frame".into() } else { "minecraft:item_frame".into() }); }
+                if enabled(game, "show_entity_distance", false) { details.push(format!("{}: {:.1} m", tr(["Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离"]), distance)); }
+                if let Some(stack) = stack {
+                    details.push(format!("{}: {}", tr(["Displayed item", "Objeto mostrado", "Item exibido", "Objet affiché", "Oggetto esposto", "Angezeigter Gegenstand", "表示アイテム", "展示物品"]), stack_name(game, stack, stack.item.as_ref())));
+                    details.push(format!("{}: {}/8", tr(["Rotation", "Rotación", "Rotação", "Rotation", "Rotazione", "Drehung", "回転", "旋转"]), frame.rotation));
+                }
+                draw_target_panel(game, batch, stack.map_or("minecraft:item_frame", |s| s.item.as_ref()), &title, false, stack, &details);
+                return;
+            }
+        }
+    }
+
+    if let Some((index, distance)) = painting_hit {
+        let block_distance = game.aim().and_then(|(eye, _)| game.pick_unfiltered().map(|b| (0..3).map(|a| (b.point[a] - eye[a]).powi(2)).sum::<f64>().sqrt()));
+        if block_distance.is_none_or(|d| distance < d) && distance <= nearest_target_distance + 0.0001 {
+            if let Some(painting) = game.paintings.get(index) {
+                let variant = painting.variant.as_ref(); let short = variant.split_once(':').map_or(variant, |(_, p)| p);
+                let title = game.translate(&format!("painting.minecraft.{short}"), short);
+                let mut details = Vec::new();
+                if enabled(game, "show_entity_registry_id", false) { details.push(variant.to_owned()); }
+                if enabled(game, "show_entity_distance", false) { details.push(format!("{}: {:.1} m", tr(["Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离"]), distance)); }
+                details.push(format!("{}: {}×{}", tr(["Size", "Tamaño", "Tamanho", "Taille", "Dimensione", "Größe", "サイズ", "尺寸"]), painting.width, painting.height));
+                draw_target_panel(game, batch, "minecraft:painting", &title, false, None, &details);
+                return;
+            }
+        }
+    }
+
+    if let Some((index, distance)) = boat_hit {
+        let block_distance = game.aim().and_then(|(eye, _)| game.pick_unfiltered().map(|b| (0..3).map(|a| (b.point[a] - eye[a]).powi(2)).sum::<f64>().sqrt()));
+        if block_distance.is_none_or(|d| distance < d) && distance <= nearest_target_distance + 0.0001 {
+            if let Some(boat) = game.boats.get(index) {
+                let id = if boat.chest { format!("minecraft:{}_chest_boat", boat.wood) } else { format!("minecraft:{}_boat", boat.wood) };
+                let path = id.split_once(':').map_or(id.as_str(), |(_, p)| p);
+                let title = game.translate(&format!("item.minecraft.{path}"), path);
+                let mut details = Vec::new();
+                if enabled(game, "show_entity_registry_id", false) { details.push(id.clone()); }
+                if enabled(game, "show_entity_distance", false) { details.push(format!("{}: {:.1} m", tr(["Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离"]), distance)); }
+                if boat.chest { details.push(tr(["Has chest", "Tiene cofre", "Tem baú", "Avec coffre", "Con cassa", "Mit Truhe", "チェスト付き", "带箱子"]).to_owned()); }
+                draw_target_panel(game, batch, &id, &title, false, None, &details);
+                return;
+            }
+        }
+    }
+
+    if let Some((index, distance)) = cart_hit {
+        let block_distance = game.aim().and_then(|(eye, _)| game.pick_unfiltered().map(|b| (0..3).map(|a| (b.point[a] - eye[a]).powi(2)).sum::<f64>().sqrt()));
+        if block_distance.is_none_or(|d| distance < d) && distance <= nearest_target_distance + 0.0001 {
+            if let Some(cart) = game.carts.get(index) {
+                let id = cart.kind.id(); let item = cart.kind.item();
+                let path = item.split_once(':').map_or(item, |(_, p)| p);
+                let title = game.translate(&format!("item.minecraft.{path}"), path);
+                let mut details = Vec::new();
+                if enabled(game, "show_entity_registry_id", false) { details.push(id.to_owned()); }
+                if enabled(game, "show_entity_distance", false) { details.push(format!("{}: {:.1} m", tr(["Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离"]), distance)); }
+                if cart.fuse >= 0 { details.push(format!("{}: {} s", tr(["Fuse", "Mecha", "Pavio", "Mèche", "Miccia", "Zünder", "導火線", "引信"]), cart.fuse / 20)); }
+                if cart.fuel > 0 { details.push(format!("{}: {} s", tr(["Fuel", "Combustible", "Combustível", "Carburant", "Carburante", "Treibstoff", "燃料", "燃料"]), cart.fuel / 20)); }
+                draw_target_panel(game, batch, item, &title, false, None, &details);
+                return;
+            }
+        }
+    }
+
+    if let Some((index, distance)) = falling_hit {
+        let block_distance = game.aim().and_then(|(eye, _)| game.pick_unfiltered().map(|b| (0..3).map(|a| (b.point[a] - eye[a]).powi(2)).sum::<f64>().sqrt()));
+        if block_distance.is_none_or(|d| distance < d) && distance <= nearest_target_distance + 0.0001 {
+            if let Some(falling) = game.falling.get(index) {
+                if let Some(state) = game.pack.assets.registry.state(falling.state) {
+                    let id = state.name.as_str(); let short = id.split_once(':').map_or(id, |(_, p)| p);
+                    let title = game.translate(&format!("block.{}", id.replace(':', ".")), short);
+                    let mut details = Vec::new();
+                    if enabled(game, "show_entity_registry_id", false) { details.push(id.to_owned()); }
+                    if enabled(game, "show_entity_distance", false) { details.push(format!("{}: {:.1} m", tr(["Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离"]), distance)); }
+                    draw_target_panel(game, batch, id, &title, false, None, &details);
+                    return;
+                }
             }
         }
     }
