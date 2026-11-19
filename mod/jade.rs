@@ -137,7 +137,8 @@ fn setting_default(key: &str) -> bool {
         key,
         "show_coordinates" | "show_block_states" | "show_hardness" | "show_item_count"
             | "show_block_face" | "show_distance" | "show_entity_distance" | "show_entity_registry_id"
-            | "show_relative_coordinates"
+            | "show_relative_coordinates" | "show_crop_progress" | "show_redstone_info"
+            | "show_note_block_info" | "show_tnt_stability" | "show_beehive_honey" | "show_block_amount"
     )
 }
 
@@ -292,6 +293,30 @@ pub fn settings(
         "Show relative coordinates", "Mostrar coordenadas relativas", "Mostrar coordenadas relativas", "Afficher les coordonnées relatives",
         "Mostra coordinate relative", "Relative Koordinaten anzeigen", "相対座標を表示", "显示相对坐标",
     ], false));
+    buttons.push(option_label_with_default(game, "show_crop_progress", [
+        "Show crop growth", "Mostrar crecimiento de cultivos", "Mostrar crescimento das plantações", "Afficher la croissance des cultures",
+        "Mostra crescita colture", "Pflanzenwachstum anzeigen", "作物の成長を表示", "显示作物生长",
+    ], false));
+    buttons.push(option_label_with_default(game, "show_redstone_info", [
+        "Show redstone info", "Mostrar información de redstone", "Mostrar informações de redstone", "Afficher les informations de redstone",
+        "Mostra informazioni redstone", "Redstone-Informationen anzeigen", "レッドストーン情報", "显示红石信息",
+    ], false));
+    buttons.push(option_label_with_default(game, "show_note_block_info", [
+        "Show note block info", "Mostrar información del bloque musical", "Mostrar informações do bloco musical", "Afficher les informations du bloc musical",
+        "Mostra informazioni blocco musicale", "Notenblock-Informationen anzeigen", "音符ブロック情報", "显示音符盒信息",
+    ], false));
+    buttons.push(option_label_with_default(game, "show_tnt_stability", [
+        "Show TNT stability", "Mostrar estabilidad de TNT", "Mostrar estabilidade da TNT", "Afficher la stabilité du TNT",
+        "Mostra stabilità TNT", "TNT-Stabilität anzeigen", "TNTの安定性", "显示TNT稳定性",
+    ], false));
+    buttons.push(option_label_with_default(game, "show_beehive_honey", [
+        "Show beehive honey", "Mostrar nivel de miel", "Mostrar nível de mel", "Afficher le niveau de miel",
+        "Mostra livello miele", "Honigstand anzeigen", "ハチミツ量を表示", "显示蜂蜜等级",
+    ], false));
+    buttons.push(option_label_with_default(game, "show_block_amount", [
+        "Show block amount", "Mostrar cantidad del bloque", "Mostrar quantidade do bloco", "Afficher la quantité du bloc",
+        "Mostra quantità blocco", "Blockmenge anzeigen", "ブロックの数を表示", "显示方块数量",
+    ], false));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -319,6 +344,12 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         17 => "show_entity_distance",
         18 => "show_entity_registry_id",
         19 => "show_relative_coordinates",
+        20 => "show_crop_progress",
+        21 => "show_redstone_info",
+        22 => "show_note_block_info",
+        23 => "show_tnt_stability",
+        24 => "show_beehive_honey",
+        25 => "show_block_amount",
         _ => return,
     };
     let default = setting_default(key);
@@ -648,7 +679,12 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         });
 
     let facts = game.res.facts().get(state);
-    let mut details = Vec::with_capacity(5);
+    let property = |key: &str| {
+        block_state.properties.iter()
+            .find(|(name, _)| name.as_str() == key)
+            .map(|(_, value)| value.as_str())
+    };
+    let mut details = Vec::with_capacity(12);
     let mut required_tools = Vec::new();
     if enabled(game, "show_mod_name", true) {
         if let Some((namespace, _)) = name.split_once(':') {
@@ -708,6 +744,79 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             details.push(tr(["Unbreakable", "Irrompible", "Inquebrável", "Incassable", "Indistruttibile", "Unzerstörbar", "破壊不可", "不可破坏"]).to_owned());
         } else {
             details.push(format!("{}: {:.1}", tr(["Hardness", "Dureza", "Dureza", "Dureté", "Durezza", "Härte", "硬度", "硬度"]), facts.hardness));
+        }
+    }
+    if enabled(game, "show_crop_progress", false) {
+        if let Some(age) = property("age").and_then(|value| value.parse::<u32>().ok()) {
+            let maximum = match name {
+                "minecraft:beetroots" => 3,
+                "minecraft:cocoa" => 2,
+                "minecraft:nether_wart" => 3,
+                "minecraft:sweet_berry_bush" => 3,
+                "minecraft:torchflower_crop" => 2,
+                "minecraft:pitcher_crop" => 4,
+                _ if name.ends_with("_stem") => 7,
+                _ => 7,
+            };
+            let crop = name.ends_with("_crop") || name.ends_with("_stem") || matches!(name,
+                "minecraft:wheat" | "minecraft:carrots" | "minecraft:potatoes" | "minecraft:beetroots"
+                | "minecraft:nether_wart" | "minecraft:sweet_berry_bush" | "minecraft:cocoa"
+                | "minecraft:torchflower_crop" | "minecraft:pitcher_crop");
+            if crop {
+                let percent = (age.min(maximum) * 100) / maximum.max(1);
+                details.push(if age >= maximum {
+                    tr(["Mature", "Maduro", "Madura", "Mûr", "Maturo", "Ausgereift", "成熟", "成熟"]).to_owned()
+                } else {
+                    format!("{}: {}%", tr(["Growth", "Crecimiento", "Crescimento", "Croissance", "Crescita", "Wachstum", "成長", "生长"]), percent)
+                });
+            }
+        }
+    }
+    if enabled(game, "show_redstone_info", false) {
+        if name == "minecraft:lever" {
+            let on = property("powered") == Some("true");
+            details.push(format!("{}: {}", tr(["State", "Estado", "Estado", "État", "Stato", "Status", "状態", "状态"]),
+                if on { tr(["On", "Activado", "Ativado", "Activé", "Attivo", "Ein", "オン", "开启"]) }
+                else { tr(["Off", "Desactivado", "Desativado", "Désactivé", "Disattivo", "Aus", "オフ", "关闭"]) }));
+        } else if name == "minecraft:repeater" {
+            if let Some(delay) = property("delay") {
+                details.push(format!("{}: {}", tr(["Delay", "Retardo", "Atraso", "Délai", "Ritardo", "Verzögerung", "遅延", "延迟"]), delay));
+            }
+        } else if name == "minecraft:comparator" {
+            if let Some(mode) = property("mode") {
+                details.push(format!("{}: {}", tr(["Mode", "Modo", "Modo", "Mode", "Modalità", "Modus", "モード", "模式"]), mode));
+            }
+        } else if let Some(power) = property("power") {
+            details.push(format!("{}: {}", tr(["Power", "Potencia", "Potência", "Puissance", "Potenza", "Stärke", "信号強度", "信号强度"]), power));
+        }
+    }
+    if enabled(game, "show_note_block_info", false) && name == "minecraft:note_block" {
+        let instrument = property("instrument").unwrap_or("harp").replace('_', " ");
+        let note = property("note").and_then(|value| value.parse::<usize>().ok()).unwrap_or(0).min(24);
+        const NOTES: [&str; 12] = ["F♯", "G", "G♯", "A", "A♯", "B", "C", "C♯", "D", "D♯", "E", "F"];
+        let octave = if note < 6 { 1 } else if note < 18 { 2 } else { 3 };
+        details.push(format!("{}: {} - {}{}", tr(["Instrument", "Instrumento", "Instrumento", "Instrument", "Strumento", "Instrument", "楽器", "乐器"]), instrument, NOTES[note % 12], octave));
+    }
+    if enabled(game, "show_tnt_stability", false) && name == "minecraft:tnt" && property("unstable") == Some("true") {
+        details.push(tr(["Unstable", "Inestable", "Instável", "Instable", "Instabile", "Instabil", "不安定", "不稳定"]).to_owned());
+    }
+    if enabled(game, "show_beehive_honey", false) {
+        if let Some(level) = property("honey_level") {
+            details.push(format!("{}: {}/5", tr(["Honey", "Miel", "Mel", "Miel", "Miele", "Honig", "ハチミツ", "蜂蜜"]), level));
+        }
+    }
+    if enabled(game, "show_block_amount", false) {
+        for (key, label) in [
+            ("pickles", tr(["Pickles", "Pepinillos", "Picles", "Cornichons", "Cetrioli", "Gurken", "ピクルス", "泡菜"])),
+            ("candles", tr(["Candles", "Velas", "Velas", "Bougies", "Candele", "Kerzen", "ろうそく", "蜡烛"])),
+            ("eggs", tr(["Eggs", "Huevos", "Ovos", "Œufs", "Uova", "Eier", "卵", "鸡蛋"])),
+            ("bites", tr(["Bites", "Mordiscos", "Mordidas", "Bouchées", "Morsi", "Bissen", "かじった回数", "咬痕"])),
+            ("layers", tr(["Layers", "Capas", "Camadas", "Couches", "Strati", "Schichten", "層", "层"])),
+        ] {
+            if let Some(value) = property(key) {
+                details.push(format!("{label}: {value}"));
+                break;
+            }
         }
     }
     if enabled(game, "show_block_info", true) {
