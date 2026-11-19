@@ -141,6 +141,7 @@ fn setting_default(key: &str) -> bool {
             | "show_note_block_info" | "show_tnt_stability" | "show_beehive_honey" | "show_block_amount"
             | "show_entity_armor" | "show_entity_age" | "show_entity_breeding" | "show_horse_stats"
             | "show_entity_effects" | "show_next_entity_drop" | "show_villager_profession"
+            | "show_entity_equipment" | "show_animal_tame_status"
     )
 }
 
@@ -347,6 +348,14 @@ pub fn settings(
         "Show villager profession", "Mostrar profesión del aldeano", "Mostrar profissão do aldeão", "Afficher le métier du villageois",
         "Mostra professione abitante", "Dorfbewohner-Beruf anzeigen", "村人の職業", "显示村民职业",
     ], false));
+    buttons.push(option_label_with_default(game, "show_entity_equipment", [
+        "Show entity equipment", "Mostrar equipo de entidades", "Mostrar equipamento das entidades", "Afficher l’équipement des entités",
+        "Mostra equipaggiamento entità", "Entitätsausrüstung anzeigen", "エンティティ装備", "显示实体装备",
+    ], false));
+    buttons.push(option_label_with_default(game, "show_animal_tame_status", [
+        "Show tame status", "Mostrar estado de domesticación", "Mostrar estado de domesticação", "Afficher l’état d’apprivoisement",
+        "Mostra stato addomesticamento", "Zähmungsstatus anzeigen", "懐き状態", "显示驯服状态",
+    ], false));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -387,6 +396,8 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         30 => "show_entity_effects",
         31 => "show_next_entity_drop",
         32 => "show_villager_profession",
+        33 => "show_entity_equipment",
+        34 => "show_animal_tame_status",
         _ => return,
     };
     let default = setting_default(key);
@@ -575,6 +586,35 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                         } else {
                             format!("{profession_name} - {level_name}")
                         });
+                    }
+                    if enabled(game, "show_entity_equipment", false) {
+                        let mut equipment = Vec::new();
+                        for stack in mob.extra.armor.iter().flatten() {
+                            let short = stack.item.split_once(':').map_or(stack.item.as_ref(), |(_, path)| path);
+                            equipment.push(stack_name(game, stack, short));
+                        }
+                        for (label, held) in [
+                            (tr(["Main hand", "Mano principal", "Mão principal", "Main", "Mano principale", "Haupthand", "メインハンド", "主手"]), mob.extra.main_hand.as_deref()),
+                            (tr(["Off hand", "Mano secundaria", "Mão secundária", "Seconde main", "Mano secondaria", "Nebenhand", "オフハンド", "副手"]), mob.extra.off_hand.as_deref()),
+                        ] {
+                            if let Some(item) = held {
+                                let short = item.split_once(':').map_or(item, |(_, path)| path);
+                                equipment.push(format!("{label}: {}", game.translate(&format!("item.minecraft.{short}"), short)));
+                            }
+                        }
+                        if !equipment.is_empty() {
+                            details.push(format!("{}: {}", tr(["Equipment", "Equipo", "Equipamento", "Équipement", "Equipaggiamento", "Ausrüstung", "装備", "装备"]), equipment.join(", ")));
+                        }
+                    }
+                    if enabled(game, "show_animal_tame_status", false)
+                        && matches!(id, "minecraft:wolf" | "minecraft:cat" | "minecraft:parrot" | "minecraft:horse" | "minecraft:donkey" | "minecraft:mule" | "minecraft:llama" | "minecraft:trader_llama")
+                    {
+                        let status = if mob.extra.owner.is_some() {
+                            tr(["Tamed", "Domesticado", "Domesticado", "Apprivoisé", "Addomesticato", "Gezähmt", "懐いている", "已驯服"])
+                        } else {
+                            tr(["Wild", "Salvaje", "Selvagem", "Sauvage", "Selvatico", "Wild", "野生", "野生"])
+                        };
+                        details.push(status.to_owned());
                     }
                     if enabled(game, "show_mod_name", true) {
                         if let Some((namespace, _)) = id.split_once(':') {
