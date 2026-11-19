@@ -136,7 +136,7 @@ fn setting_default(key: &str) -> bool {
     !matches!(
         key,
         "show_coordinates" | "show_block_states" | "show_hardness" | "show_item_count"
-            | "show_block_face" | "show_distance"
+            | "show_block_face" | "show_distance" | "show_entity_distance" | "show_entity_registry_id"
     )
 }
 
@@ -276,9 +276,17 @@ pub fn settings(
         "Mostra faccia del blocco", "Blockseite anzeigen", "ブロック面を表示", "显示方块面",
     ]));
     buttons.push(option_label(game, "show_distance", [
-        "Show distance", "Mostrar distancia", "Mostrar distância", "Afficher la distance",
-        "Mostra distanza", "Entfernung anzeigen", "距離を表示", "显示距离",
+        "Show block distance", "Mostrar distancia al bloque", "Mostrar distância do bloco", "Afficher la distance du bloc",
+        "Mostra distanza blocco", "Blockentfernung anzeigen", "ブロックまでの距離", "显示方块距离",
     ]));
+    buttons.push(option_label_with_default(game, "show_entity_distance", [
+        "Show entity distance", "Mostrar distancia de entidades", "Mostrar distância das entidades", "Afficher la distance des entités",
+        "Mostra distanza entità", "Entfernung zu Entitäten anzeigen", "エンティティまでの距離", "显示实体距离",
+    ], false));
+    buttons.push(option_label_with_default(game, "show_entity_registry_id", [
+        "Show entity registry ID", "Mostrar ID de entidad", "Mostrar ID da entidade", "Afficher l’identifiant de l’entité",
+        "Mostra ID entità", "Entitäts-Registrierungs-ID anzeigen", "エンティティ登録ID", "显示实体注册ID",
+    ], false));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -303,6 +311,8 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         14 => "show_armor_stand_equipment",
         15 => "show_block_face",
         16 => "show_distance",
+        17 => "show_entity_distance",
+        18 => "show_entity_registry_id",
         _ => return,
     };
     let default = setting_default(key);
@@ -392,7 +402,15 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                         let (namespace, path) = id.split_once(':').unwrap_or(("minecraft", id));
                         game.translate(&format!("entity.{namespace}.{path}"), path)
                     });
-                    let mut details = Vec::with_capacity(2);
+                    let mut details = Vec::with_capacity(4);
+                    if enabled(game, "show_entity_registry_id", false) {
+                        details.push(id.to_owned());
+                    }
+                    if enabled(game, "show_entity_distance", false) {
+                        details.push(format!("{}: {:.1} m", tr([
+                            "Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离",
+                        ]), distance));
+                    }
                     if enabled(game, "show_mod_name", true) {
                         if let Some((namespace, _)) = id.split_once(':') {
                             if namespace != "minecraft" && !namespace.is_empty() {
@@ -463,7 +481,12 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                 let id = item.stack.item.as_ref();
                 let short_name = id.split_once(':').map_or(id, |(_, name)| name);
                 let title = stack_name(game, &item.stack, short_name);
-                let mut details = Vec::with_capacity(3);
+                let mut details = Vec::with_capacity(4);
+                if enabled(game, "show_entity_distance", false) {
+                    details.push(format!("{}: {:.1} m", tr([
+                        "Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离",
+                    ]), distance));
+                }
                 if enabled(game, "show_item_mod_name", true) {
                     if let Some((namespace, _)) = id.split_once(':') {
                         if namespace != "minecraft" && !namespace.is_empty() {
@@ -532,6 +555,14 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             if let Some(stand) = game.armor_stands.get(index) {
                 let title = game.translate("entity.minecraft.armor_stand", "Armor Stand");
                 let mut details = Vec::new();
+                if enabled(game, "show_entity_registry_id", false) {
+                    details.push("minecraft:armor_stand".to_owned());
+                }
+                if enabled(game, "show_entity_distance", false) {
+                    details.push(format!("{}: {:.1} m", tr([
+                        "Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离",
+                    ]), distance));
+                }
                 if enabled(game, "show_armor_stand_equipment", true) {
                     let equipment = stand.equipment.iter().flatten().map(|stack| {
                         let id = stack.item.as_ref();
