@@ -891,6 +891,7 @@ fn valid_registry_id(id: &str) -> bool {
         && !id.chars().any(char::is_whitespace)
         && id.contains(':')
         && !id.contains(';')
+        && !id.contains(',')
 }
 
 const PROFILE_BOOL_SETTINGS: &[&str] = &[
