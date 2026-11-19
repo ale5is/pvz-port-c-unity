@@ -472,7 +472,7 @@ fn setting_default(key: &str) -> bool {
             | "show_entity_armor" | "show_entity_age" | "show_entity_breeding" | "show_horse_stats"
             | "show_entity_effects" | "show_villager_profession"
             | "show_entity_equipment" | "show_animal_tame_status" | "show_block_entity_info"
-            | "show_access_info" | "show_entity_variant" | "show_entity_access"
+            | "show_access_info" | "show_entity_variant" | "show_entity_access" | "show_next_entity_drop"
     )
 }
 
@@ -696,6 +696,7 @@ pub fn settings(
     buttons.push(option_label_with_default(game, "show_entity_variant", ["Show entity variants", "Mostrar variantes de entidades", "Mostrar variantes das entidades", "Afficher les variantes", "Mostra varianti entità", "Entitätsvarianten anzeigen", "エンティティの種類を表示", "显示实体变种"], false));
     buttons.push(option_label_with_default(game, "show_entity_access", ["Show entity status", "Mostrar estados de entidades", "Mostrar estados das entidades", "Afficher les états des entités", "Mostra stati entità", "Entitätsstatus anzeigen", "エンティティ状態を表示", "显示实体状态"], false));
     buttons.push(option_label_with_default(game, "display_fluids", ["Display fluids", "Mostrar líquidos", "Exibir fluidos", "Afficher les fluides", "Mostra fluidi", "Flüssigkeiten anzeigen", "液体を表示", "显示流体"], false));
+    buttons.push(option_label_with_default(game, "show_next_entity_drop", ["Show next entity drop", "Mostrar próxima puesta", "Mostrar próxima postura", "Afficher la prochaine ponte", "Mostra prossima deposizione", "Nächsten Drop anzeigen", "次のドロップを表示", "显示下次掉落"], false));
     let reach = extra_reach(game);
     buttons.push(format!("{}: +{reach:.1}", tr(["Extra entity reach", "Alcance extra de entidades", "Alcance extra de entidades", "Portée supplémentaire", "Portata extra entità", "Zusätzliche Reichweite", "エンティティ追加距離", "实体额外距离"])));
     buttons.push(format!("{}: {}", tr(["Overlay theme", "Tema del HUD", "Tema do HUD", "Thème du HUD", "Tema HUD", "HUD-Design", "HUDテーマ", "提示框主题"]), theme_name(game)));
@@ -710,7 +711,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
     if mod_id != ID {
         return;
     }
-    if button == 44 {
+    if button == 45 {
         let current = extra_reach(game);
         let next = match current as u8 {
             0 => 1, 1 => 2, 2 => 3, 3 => 4, 4 => 6, 6 => 8, _ => 0,
@@ -721,7 +722,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         }
         return;
     }
-    if button == 45 {
+    if button == 46 {
         let next = match theme_index(game) { 0 => "light", 1 => "purple", 2 => "high_contrast", _ => "dark" };
         game.native_set_setting(ID, "theme", next);
         if game.native_setting(ID, "theme").as_deref() != Some(next) {
@@ -729,7 +730,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         }
         return;
     }
-    if button == 46 {
+    if button == 47 {
         let current = game.native_setting(ID, "text_background_opacity")
             .and_then(|value| value.parse::<u8>().ok())
             .unwrap_or(82);
@@ -792,6 +793,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         41 => "show_entity_variant",
         42 => "show_entity_access",
         43 => "display_fluids",
+        44 => "show_next_entity_drop",
         _ => return,
     };
     let default = setting_default(key);
@@ -863,6 +865,7 @@ pub fn on_command(game: &super::Game<'_>, command: &str, ran: &mut bool) {
                 "show_animal_tame_status", "display_item_frames", "display_paintings", "display_boats",
                 "display_minecarts", "display_falling_blocks", "show_block_entity_info",
                 "show_access_info", "show_entity_variant", "show_entity_access", "display_fluids",
+                "show_next_entity_drop",
             ];
             if BOOL_SETTINGS.contains(&key) {
                 match value {
@@ -1108,9 +1111,30 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                             details.push(tr(["Baby", "Bebé", "Filhote", "Bébé", "Cucciolo", "Baby", "子ども", "幼年"]).to_owned());
                         }
                     }
+                    if enabled(game, "show_next_entity_drop", false) && mob.extra.age >= 0 {
+                        if matches!(id, "minecraft:chicken" | "minecraft:armadillo")
+                            && (1..48000).contains(&mob.extra.egg_time)
+                        {
+                            let label = if id == "minecraft:chicken" {
+                                tr(["Next egg", "Próximo huevo", "Próximo ovo", "Prochain œuf", "Prossimo uovo", "Nächstes Ei", "次の卵", "下一个蛋"])
+                            } else {
+                                tr(["Next scute", "Próxima escama", "Próxima placa", "Prochaine écaille", "Prossima scaglia", "Nächste Hornplatte", "次の甲", "下一个鳞甲"])
+                            };
+                            details.push(format!("{label}: {} s", (mob.extra.egg_time + 19) / 20));
+                        }
+                        if id == "minecraft:sniffer"
+                            && let Some(memories) = mob.extra.animal_brain.as_deref().map(|brain| &brain.mem)
+                            && memories.sniff_cooldown.present()
+                        {
+                            let ticks = memories.sniff_cooldown.hz_jade_ttl();
+                            if (1..48000).contains(&ticks) {
+                                details.push(format!("{}: {} s", tr(["Dig cooldown", "Enfriamiento de excavación", "Recarga de escavação", "Recharge de fouille", "Ricarica scavo", "Grab-Abklingzeit", "掘るクールダウン", "挖掘冷却"]), (ticks + 19) / 20));
+                            }
+                        }
+                    }
                     if enabled(game, "show_entity_breeding", false) {
                         if id == "minecraft:allay" && mob.extra.egg_time > 0 {
-                            details.push(tr(["Duplication cooldown", "Enfriamiento de duplicación", "Recarga de duplicação", "Recharge de duplication", "Ricarica duplicazione", "Duplizierungs-Abklingzeit", "複製クールダウン", "复制冷却"]).to_owned());
+                            details.push(format!("{}: {} s", tr(["Duplication cooldown", "Enfriamiento de duplicación", "Recarga de duplicação", "Recharge de duplication", "Ricarica duplicazione", "Duplizierungs-Abklingzeit", "複製クールダウン", "复制冷却"]), (mob.extra.egg_time + 19) / 20));
                         } else if mob.extra.in_love > 0 {
                             details.push(format!("{}: {} s", tr([
                                 "Breeding", "Reproducción", "Reprodução", "Reproduction", "Riproduzione", "Zucht", "繁殖", "繁殖",
