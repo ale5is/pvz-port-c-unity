@@ -524,7 +524,8 @@ fn setting_default(key: &str) -> bool {
             | "show_entity_armor" | "show_entity_age" | "show_entity_breeding" | "show_horse_stats"
             | "show_entity_effects" | "show_villager_profession"
             | "show_entity_equipment" | "show_animal_tame_status" | "show_block_entity_info"
-            | "show_access_info" | "show_entity_variant" | "show_entity_access" | "show_next_entity_drop"
+            | "show_access_info" | "show_entity_variant" | "show_entity_access" | "display_fluids"
+            | "show_next_entity_drop"
     )
 }
 
