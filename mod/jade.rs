@@ -95,6 +95,14 @@ pub fn settings(
         "Show block mod name", "Mostrar mod del bloque", "Mostrar mod do bloco", "Afficher le mod du bloc",
         "Mostra mod del blocco", "Block-Mod anzeigen", "ブロックのMod名を表示", "显示方块模组名称",
     ]));
+    buttons.push(option_label(game, "display_entities", [
+        "Display entities", "Mostrar entidades", "Exibir entidades", "Afficher les entités",
+        "Mostra entità", "Entitäten anzeigen", "エンティティを表示", "显示实体",
+    ]));
+    buttons.push(option_label(game, "show_entity_health", [
+        "Show entity health", "Mostrar vida de entidades", "Mostrar vida das entidades", "Afficher la santé des entités",
+        "Mostra salute entità", "Entitätsgesundheit anzeigen", "エンティティの体力を表示", "显示实体生命值",
+    ]));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -109,6 +117,8 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         4 => "show_block_info",
         5 => "show_item_mod_name",
         6 => "show_mod_name",
+        7 => "display_entities",
+        8 => "show_entity_health",
         _ => return,
     };
     let next = !enabled(game, key, true);
@@ -142,6 +152,69 @@ pub fn item_tooltip(
 pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch) {
     if !game.native_on(ID) || !enabled(game, "display_tooltip", true) {
         return;
+    }
+
+    // Jade's entity providers: an entity is shown only when its hit is nearer than
+    // the first block outline, so walls continue to occlude the overlay.
+    if enabled(game, "display_entities", true) {
+        if let (Some((index, distance)), Some((eye, _))) = (game.mob_hit(), game.aim()) {
+            let block_distance = game.pick_unfiltered().map(|block| {
+                (0..3)
+                    .map(|axis| (block.point[axis] - eye[axis]).powi(2))
+                    .sum::<f64>()
+                    .sqrt()
+            });
+            if block_distance.is_none_or(|block_distance| distance < block_distance) {
+                if let Some(mob) = game.mobs.get(index) {
+                    let id = mob.kind.id.as_ref();
+                    let short_name = id.split_once(':').map_or(id, |(_, name)| name);
+                    let title = mob.custom_name.clone().unwrap_or_else(|| {
+                        game.translate(&format!("entity.minecraft.{short_name}"), short_name)
+                    });
+                    let mut details = Vec::with_capacity(2);
+                    if enabled(game, "show_mod_name", true) {
+                        if let Some((namespace, _)) = id.split_once(':') {
+                            if namespace != "minecraft" && !namespace.is_empty() {
+                                details.push(format!("{}: {}", tr([
+                                    "Mod", "Mod", "Mod", "Mod", "Mod", "Mod", "Mod", "模组",
+                                ]), namespace));
+                            }
+                        }
+                    }
+                    if enabled(game, "show_entity_health", true) {
+                        details.push(format!(
+                            "{}: {:.1}/{:.1}",
+                            tr(["Health", "Vida", "Vida", "Santé", "Salute", "Gesundheit", "体力", "生命值"]),
+                            mob.health.max(0.0),
+                            mob.attrs.max_health.max(1.0),
+                        ));
+                    }
+                    let atlas = &game.gui.atlas;
+                    let title_width = horizon_client::hud::HudBatch::text_width(atlas, &title);
+                    let detail_width = details.iter()
+                        .map(|line| horizon_client::hud::HudBatch::text_width(atlas, line))
+                        .fold(0.0_f32, f32::max);
+                    let panel_width = (title_width.max(detail_width) + 12.0)
+                        .min((batch.width - 16.0).max(0.0));
+                    let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
+                    let panel_y = 8.0;
+                    let panel_height = 17.0 + details.len() as f32 * 12.0;
+                    batch.fill(atlas, panel_x, panel_y, panel_width, panel_height, 0xD0101010);
+                    batch.text(atlas, &title, panel_x + 6.0, panel_y + 4.0, 0xFFFFFFFF, true);
+                    for (line_index, detail) in details.iter().enumerate() {
+                        batch.text(
+                            atlas,
+                            detail,
+                            panel_x + 6.0,
+                            panel_y + 16.0 + line_index as f32 * 11.0,
+                            0xFFB8B8B8,
+                            true,
+                        );
+                    }
+                    return;
+                }
+            }
+        }
     }
 
     let Some(hit) = game.pick() else {
