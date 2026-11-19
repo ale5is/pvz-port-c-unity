@@ -29,13 +29,22 @@ fn tr(values: [&'static str; 8]) -> &'static str {
     values[language_index()]
 }
 
-fn option_label(game: &super::Game<'_>, key: &str, label: [&'static str; 8]) -> String {
-    let value = if enabled(game, key, true) {
+fn option_label_with_default(
+    game: &super::Game<'_>,
+    key: &str,
+    label: [&'static str; 8],
+    default: bool,
+) -> String {
+    let value = if enabled(game, key, default) {
         tr(["ON", "ACTIVADO", "ATIVADO", "ACTIVÉ", "ATTIVO", "EIN", "オン", "开启"])
     } else {
         tr(["OFF", "DESACTIVADO", "DESATIVADO", "DÉSACTIVÉ", "DISATTIVO", "AUS", "オフ", "关闭"])
     };
     format!("{}: {}", tr(label), value)
+}
+
+fn option_label(game: &super::Game<'_>, key: &str, label: [&'static str; 8]) -> String {
+    option_label_with_default(game, key, label, true)
 }
 
 pub fn register_mod(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
@@ -75,14 +84,14 @@ pub fn settings(
         "Show registry ID", "Mostrar ID del registro", "Mostrar ID do registro", "Afficher l’identifiant",
         "Mostra ID registro", "Registrierungs-ID anzeigen", "登録 ID を表示", "显示注册 ID",
     ]));
-    buttons.push(option_label(game, "show_coordinates", [
+    buttons.push(option_label_with_default(game, "show_coordinates", [
         "Show coordinates", "Mostrar coordenadas", "Mostrar coordenadas", "Afficher les coordonnées",
         "Mostra coordinate", "Koordinaten anzeigen", "座標を表示", "显示坐标",
-    ]));
-    buttons.push(option_label(game, "show_block_states", [
+    ], false));
+    buttons.push(option_label_with_default(game, "show_block_states", [
         "Show block states", "Mostrar estados del bloque", "Mostrar estados do bloco", "Afficher l’état du bloc",
         "Mostra stati del blocco", "Blockzustände anzeigen", "ブロック状態を表示", "显示方块状态",
-    ]));
+    ], false));
     buttons.push(option_label(game, "show_block_info", [
         "Show block info", "Mostrar información del bloque", "Mostrar informações do bloco", "Afficher les infos du bloc",
         "Mostra info blocco", "Blockinfos anzeigen", "ブロック情報を表示", "显示方块信息",
@@ -131,7 +140,8 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         10 => "show_item_count",
         _ => return,
     };
-    let next = !enabled(game, key, true);
+    let default = matches!(button, 2 | 3);
+    let next = !enabled(game, key, default);
     game.native_set_setting(ID, key, if next { "true" } else { "false" });
 }
 
