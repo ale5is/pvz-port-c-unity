@@ -799,17 +799,32 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                             | "minecraft:dolphin" | "minecraft:camel" | "minecraft:sniffer" | "minecraft:happy_ghast"
                         )
                     {
-                        details.push(if mob.extra.age < 0 {
-                            tr(["Baby", "Bebé", "Filhote", "Bébé", "Cucciolo", "Baby", "子ども", "幼年"]).to_owned()
-                        } else {
-                            tr(["Adult", "Adulto", "Adulto", "Adulte", "Adulto", "Erwachsen", "大人", "成年"]).to_owned()
-                        });
+                        if mob.extra.age < -1 {
+                            let remaining = mob.extra.age.saturating_neg();
+                            let time = format!("{}:{:02}", remaining / 1200, (remaining / 20) % 60);
+                            details.push(if mob.extra.age_locked {
+                                tr(["Growth paused", "Crecimiento pausado", "Crescimento pausado", "Croissance en pause", "Crescita in pausa", "Wachstum pausiert", "成長停止中", "生长暂停"]).to_owned()
+                            } else {
+                                format!("{}: {time}", tr(["Growing time", "Tiempo de crecimiento", "Tempo de crescimento", "Temps de croissance", "Tempo di crescita", "Wachstumszeit", "成長時間", "生长时间"]))
+                            });
+                        } else if mob.extra.age == -1 {
+                            details.push(tr(["Baby", "Bebé", "Filhote", "Bébé", "Cucciolo", "Baby", "子ども", "幼年"]).to_owned());
+                        }
                     }
-                    if enabled(game, "show_entity_breeding", false) && mob.extra.in_love > 0 {
-                        details.push(tr([
-                            "Ready to breed", "Listo para reproducirse", "Pronto para reproduzir", "Prêt à se reproduire",
-                            "Pronto per riprodursi", "Paarungsbereit", "繁殖可能", "可以繁殖",
-                        ]).to_owned());
+                    if enabled(game, "show_entity_breeding", false) {
+                        if id == "minecraft:allay" && mob.extra.egg_time > 0 {
+                            details.push(tr(["Duplication cooldown", "Enfriamiento de duplicación", "Recarga de duplicação", "Recharge de duplication", "Ricarica duplicazione", "Duplizierungs-Abklingzeit", "複製クールダウン", "复制冷却"]).to_owned());
+                        } else if mob.extra.in_love > 0 {
+                            details.push(format!("{}: {} s", tr([
+                                "Breeding", "Reproducción", "Reprodução", "Reproduction", "Riproduzione", "Zucht", "繁殖", "繁殖",
+                            ]), mob.extra.in_love / 20));
+                        } else if mob.extra.age > 0 {
+                            let remaining = mob.extra.age;
+                            let time = format!("{}:{:02}", remaining / 1200, (remaining / 20) % 60);
+                            details.push(format!("{}: {time}", tr([
+                                "Breeding cooldown", "Enfriamiento de reproducción", "Recarga de reprodução", "Recharge de reproduction", "Ricarica riproduzione", "Zucht-Abklingzeit", "繁殖クールダウン", "繁殖冷却",
+                            ])));
+                        }
                     }
                     if enabled(game, "show_horse_stats", false)
                         && matches!(id, "minecraft:horse" | "minecraft:donkey" | "minecraft:mule" | "minecraft:skeleton_horse" | "minecraft:zombie_horse")
