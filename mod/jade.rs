@@ -120,6 +120,14 @@ pub fn settings(
         "Show item count", "Mostrar cantidad de objetos", "Mostrar quantidade de itens", "Afficher la quantité",
         "Mostra quantità oggetti", "Gegenstandsanzahl anzeigen", "アイテム数を表示", "显示物品数量",
     ]));
+    buttons.push(option_label(game, "display_armor_stands", [
+        "Display armor stands", "Mostrar soportes para armaduras", "Exibir suportes de armadura", "Afficher les porte-armures",
+        "Mostra supporti per armature", "Rüstungsständer anzeigen", "防具立てを表示", "显示盔甲架",
+    ]));
+    buttons.push(option_label(game, "show_armor_stand_equipment", [
+        "Show armor stand equipment", "Mostrar equipo del soporte", "Mostrar equipamento do suporte", "Afficher l’équipement du porte-armure",
+        "Mostra equipaggiamento supporto", "Ausrüstung des Ständers anzeigen", "防具立ての装備を表示", "显示盔甲架装备",
+    ]));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -138,6 +146,8 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         8 => "show_entity_health",
         9 => "display_dropped_items",
         10 => "show_item_count",
+        11 => "display_armor_stands",
+        12 => "show_armor_stand_equipment",
         _ => return,
     };
     let default = matches!(button, 2 | 3);
@@ -188,6 +198,20 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         None
     };
 
+    let armor_stand_hit = if enabled(game, "display_armor_stands", true) {
+        game.aim().and_then(|(eye, dir)| {
+            game.armor_stands.iter().enumerate()
+                .filter(|(_, stand)| !stand.marker && !stand.invisible)
+                .filter_map(|(index, stand)| {
+                    super::ray_box(eye, dir, game.entity_reach, stand.bounds())
+                        .map(|distance| (index, distance))
+                })
+                .min_by(|a, b| a.1.total_cmp(&b.1))
+        })
+    } else {
+        None
+    };
+
     // Jade's entity providers: an entity is shown only when its hit is nearer than
     // the first block outline, so walls continue to occlude the overlay.
     if enabled(game, "display_entities", true) {
@@ -200,6 +224,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             });
             if block_distance.is_none_or(|block_distance| distance < block_distance)
                 && item_hit.is_none_or(|(_, item_distance)| distance <= item_distance)
+                && armor_stand_hit.is_none_or(|(_, stand_distance)| distance <= stand_distance)
             {
                 if let Some(mob) = game.mobs.get(index) {
                     let id: &str = mob.kind.id.as_str();
@@ -265,6 +290,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         let mob_distance = game.mob_hit().map(|(_, mob_distance)| mob_distance);
         if block_distance.is_none_or(|block_distance| distance < block_distance)
             && mob_distance.is_none_or(|mob_distance| distance < mob_distance)
+            && armor_stand_hit.is_none_or(|(_, stand_distance)| distance < stand_distance)
         {
             if let Some(item) = game.dropped.get(index) {
                 let id = item.stack.item.as_ref();
@@ -287,6 +313,68 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     details.push(format!("{}: {}", tr([
                         "Count", "Cantidad", "Quantidade", "Quantité", "Quantità", "Anzahl", "個数", "数量",
                     ]), item.stack.count));
+                }
+                let atlas = &game.gui.atlas;
+                let title_width = horizon_client::hud::HudBatch::text_width(atlas, &title);
+                let detail_width = details.iter()
+                    .map(|line| horizon_client::hud::HudBatch::text_width(atlas, line))
+                    .fold(0.0_f32, f32::max);
+                let panel_width = (title_width.max(detail_width) + 12.0)
+                    .min((batch.width - 16.0).max(0.0));
+                let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
+                let panel_y = 8.0;
+                let panel_height = 17.0 + details.len() as f32 * 12.0;
+                batch.fill(atlas, panel_x, panel_y, panel_width, panel_height, 0xD0101010);
+                batch.text(atlas, &title, panel_x + 6.0, panel_y + 4.0, 0xFFFFFFFF, true);
+                for (line_index, detail) in details.iter().enumerate() {
+                    batch.text(
+                        atlas,
+                        detail,
+                        panel_x + 6.0,
+                        panel_y + 16.0 + line_index as f32 * 11.0,
+                        0xFFB8B8B8,
+                        true,
+                    );
+                }
+                return;
+            }
+        }
+    }
+
+    if let Some((index, distance)) = armor_stand_hit {
+        let block_distance = game.aim().and_then(|(eye, _)| {
+            game.pick_unfiltered().map(|block| {
+                (0..3)
+                    .map(|axis| (block.point[axis] - eye[axis]).powi(2))
+                    .sum::<f64>()
+                    .sqrt()
+            })
+        });
+        let mob_distance = game.mob_hit().map(|(_, mob_distance)| mob_distance);
+        let item_distance = item_hit.map(|(_, item_distance)| item_distance);
+        if block_distance.is_none_or(|block_distance| distance < block_distance)
+            && mob_distance.is_none_or(|mob_distance| distance < mob_distance)
+            && item_distance.is_none_or(|item_distance| distance < item_distance)
+        {
+            if let Some(stand) = game.armor_stands.get(index) {
+                let title = game.translate("entity.minecraft.armor_stand", "Armor Stand");
+                let mut details = Vec::new();
+                if enabled(game, "show_armor_stand_equipment", true) {
+                    let equipment = stand.equipment.iter().flatten().map(|stack| {
+                        let id = stack.item.as_ref();
+                        let short_name = id.split_once(':').map_or(id, |(_, name)| name);
+                        let name = game.translate(&format!("item.{id}"), short_name);
+                        if stack.count > 1 {
+                            format!("{name} x{}", stack.count)
+                        } else {
+                            name
+                        }
+                    }).collect::<Vec<_>>();
+                    if !equipment.is_empty() {
+                        details.push(format!("{}: {}", tr([
+                            "Equipment", "Equipo", "Equipamento", "Équipement", "Equipaggiamento", "Ausrüstung", "装備", "装备",
+                        ]), equipment.join(", ")));
+                    }
                 }
                 let atlas = &game.gui.atlas;
                 let title_width = horizon_client::hud::HudBatch::text_width(atlas, &title);
