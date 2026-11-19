@@ -357,6 +357,7 @@ fn setting_default(key: &str) -> bool {
             | "show_entity_armor" | "show_entity_age" | "show_entity_breeding" | "show_horse_stats"
             | "show_entity_effects" | "show_villager_profession"
             | "show_entity_equipment" | "show_animal_tame_status" | "show_block_entity_info"
+            | "show_access_info"
     )
 }
 
@@ -576,6 +577,7 @@ pub fn settings(
     buttons.push(option_label(game, "display_minecarts", ["Display minecarts", "Mostrar vagonetas", "Exibir carrinhos", "Afficher les wagonnets", "Mostra carrelli", "Loren anzeigen", "トロッコを表示", "显示矿车"]));
     buttons.push(option_label(game, "display_falling_blocks", ["Display falling blocks", "Mostrar bloques en caída", "Exibir blocos em queda", "Afficher les blocs qui tombent", "Mostra blocchi in caduta", "Fallende Blöcke anzeigen", "落下ブロックを表示", "显示下落方块"]));
     buttons.push(option_label_with_default(game, "show_block_entity_info", ["Show block entity data", "Mostrar datos especiales del bloque", "Mostrar dados especiais do bloco", "Afficher les données du bloc", "Mostra dati speciali del blocco", "Blockentitätsdaten anzeigen", "ブロックエンティティ情報", "显示方块实体数据"], false));
+    buttons.push(option_label_with_default(game, "show_access_info", ["Show block access states", "Mostrar estados de acceso", "Mostrar estados de acesso", "Afficher les états d’accès", "Mostra stati di accesso", "Block-Zugriffszustände anzeigen", "ブロックの状態を表示", "显示方块访问状态"], false));
     buttons.push(format!("{}: {}", tr(["Overlay theme", "Tema del HUD", "Tema do HUD", "Thème du HUD", "Tema HUD", "HUD-Design", "HUDテーマ", "提示框主题"]), theme_name(game)));
     let opacity = game.native_setting(ID, "text_background_opacity")
         .and_then(|value| value.parse::<u8>().ok())
@@ -588,7 +590,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
     if mod_id != ID {
         return;
     }
-    if button == 40 {
+    if button == 41 {
         let next = match theme_index(game) { 0 => "light", 1 => "purple", 2 => "high_contrast", _ => "dark" };
         game.native_set_setting(ID, "theme", next);
         if game.native_setting(ID, "theme").as_deref() != Some(next) {
@@ -596,7 +598,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         }
         return;
     }
-    if button == 41 {
+    if button == 42 {
         let current = game.native_setting(ID, "text_background_opacity")
             .and_then(|value| value.parse::<u8>().ok())
             .unwrap_or(82);
@@ -655,6 +657,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         37 => "display_minecarts",
         38 => "display_falling_blocks",
         39 => "show_block_entity_info",
+        40 => "show_access_info",
         _ => return,
     };
     let default = setting_default(key);
@@ -1312,8 +1315,50 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             .find(|(name, _)| name.as_str() == key)
             .map(|(_, value)| value.as_str())
     };
-    let mut details = Vec::with_capacity(12);
+    let mut details = Vec::with_capacity(16);
     let mut required_tools = Vec::new();
+    if enabled(game, "show_access_info", false) {
+        let mut access = Vec::new();
+        let yes = |key: &str| property(key) == Some("true");
+        if property("open").is_some() && name != "minecraft:barrel" {
+            access.push(if yes("open") {
+                tr(["Open", "Abierto", "Aberto", "Ouvert", "Aperto", "Offen", "開", "开启"])
+            } else {
+                tr(["Closed", "Cerrado", "Fechado", "Fermé", "Chiuso", "Geschlossen", "閉", "关闭"])
+            });
+        }
+        for (key, label) in [
+            ("waterlogged", tr(["Waterlogged", "Inundado", "Alagado", "Noyé", "Allagato", "Wassergefüllt", "水没", "含水"])),
+            ("lit", tr(["Lit", "Encendido", "Aceso", "Allumé", "Acceso", "Beleuchtet", "点灯", "已点亮"])),
+            ("inverted", tr(["Inverted", "Invertido", "Invertido", "Inversé", "Invertito", "Invertiert", "反転", "反转"])),
+            ("eye", tr(["Has eye", "Tiene ojo", "Tem olho", "Avec œil", "Con occhio", "Mit Auge", "目あり", "有眼"])),
+            ("ominous", tr(["Ominous", "Amenazante", "Sinistro", "Menaçant", "Minaccioso", "Unheilvoll", "不吉", "不祥"])),
+            ("locked", tr(["Locked", "Bloqueado", "Trancado", "Verrouillé", "Bloccato", "Verriegelt", "施錠", "已锁定"])),
+            ("extended", tr(["Extended", "Extendido", "Estendido", "Étendu", "Esteso", "Ausgefahren", "伸長", "已伸展"])),
+            ("can_summon", tr(["Summonable", "Puede invocar", "Pode invocar", "Invocable", "Evocabile", "Beschwörbar", "召喚可能", "可召唤"])),
+        ] {
+            if yes(key) { access.push(label); }
+        }
+        if property("moisture") == Some("7") {
+            access.push(tr(["Hydrated", "Hidratado", "Hidratado", "Hydraté", "Idratato", "Bewässert", "湿潤", "已湿润"]));
+        }
+        if name.ends_with("_stairs") && property("half") == Some("top") {
+            access.push(tr(["Upside-down", "Invertidas", "Invertidas", "À l’envers", "Capovolte", "Kopfüber", "上下反転", "倒置"]));
+        }
+        match property("hatch") {
+            Some("1") => access.push(tr(["Slightly cracked", "Ligeramente agrietado", "Ligeiramente rachado", "Légèrement fissuré", "Leggermente incrinato", "Leicht rissig", "少しひび割れ", "轻微裂纹"])),
+            Some("2") => access.push(tr(["Cracked", "Agrietado", "Rachado", "Fissuré", "Incrinato", "Rissig", "ひび割れ", "裂纹"])),
+            _ => {}
+        }
+        let active = property("vault_state") == Some("active")
+            || property("trial_spawner_state") == Some("active")
+            || (name == "minecraft:creaking_heart" && property("creaking_heart_state") != Some("uprooted"));
+        if active { access.push(tr(["Active", "Activo", "Ativo", "Actif", "Attivo", "Aktiv", "稼働中", "活动中"])); }
+        if yes("powered") && (name == "minecraft:repeater" || name.ends_with("rail") || name.ends_with("_shelf")) {
+            access.push(tr(["Powered", "Con energía", "Energizado", "Alimenté", "Alimentato", "Aktiviert", "通電", "已通电"]));
+        }
+        details.extend(access.into_iter().map(str::to_owned));
+    }
     if enabled(game, "show_mod_name", true) {
         if let Some((namespace, _)) = name.split_once(':') {
             if namespace != "minecraft" && !namespace.is_empty() {
