@@ -886,7 +886,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             [0, 0, 1] => tr(["South", "Sur", "Sul", "Sud", "Sud", "Süden", "南", "南"]),
             [0, 0, -1] => tr(["North", "Norte", "Norte", "Nord", "Nord", "Norden", "北", "北"]),
             _ => tr(["Unknown", "Desconocida", "Desconhecida", "Inconnue", "Sconosciuta", "Unbekannt", "不明", "未知"]),
-        ];
+        };
         details.push(format!("{}: {face}", tr(["Face", "Cara", "Face", "Face", "Faccia", "Seite", "面", "面"])));
     }
     if enabled(game, "show_distance", false) {
