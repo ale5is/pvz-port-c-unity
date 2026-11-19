@@ -132,6 +132,13 @@ fn enabled(game: &super::Game<'_>, key: &str, default: bool) -> bool {
         .unwrap_or(default)
 }
 
+fn setting_default(key: &str) -> bool {
+    !matches!(
+        key,
+        "show_coordinates" | "show_block_states" | "show_hardness" | "show_item_count"
+    )
+}
+
 fn language_index() -> usize {
     let code = horizon_client::lang::code().to_ascii_lowercase();
     if code.starts_with("es") { 1 }
@@ -163,7 +170,7 @@ fn option_label_with_default(
 }
 
 fn option_label(game: &super::Game<'_>, key: &str, label: [&'static str; 8]) -> String {
-    option_label_with_default(game, key, label, true)
+    option_label_with_default(game, key, label, setting_default(key))
 }
 
 fn save_enabled(game: &super::Game<'_>, key: &str, value: bool) {
@@ -287,7 +294,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         14 => "show_armor_stand_equipment",
         _ => return,
     };
-    let default = matches!(button, 3 | 4 | 6 | 12);
+    let default = setting_default(key);
     let current = enabled(game, key, default);
     let next = !current;
     log::info!("Jade settings click received: button={button}, key={key}, current={current}, next={next}");
