@@ -607,8 +607,9 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
             80..=99 => 100,
             _ => 20,
         };
-        game.native_set_setting(ID, "text_background_opacity", &next.to_string());
-        if game.native_setting(ID, "text_background_opacity").as_deref() != Some(&next.to_string()) {
+        let next_text = next.to_string();
+        game.native_set_setting(ID, "text_background_opacity", &next_text);
+        if game.native_setting(ID, "text_background_opacity").as_deref() != Some(next_text.as_str()) {
             log::warn!("Jade: background opacity setting did not verify after writing");
         }
         return;
@@ -1008,7 +1009,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     }
                     if let Some(health) = health_line {
                         let y = panel_y + 16.0 + details.len() as f32 * 11.0;
-                        batch.text(atlas, "♥", panel_x + text_x, y, 0xFF0000FF, true);
+                        batch.text(atlas, "♥", panel_x + text_x, y, horizon_client::hud::rgba(255, 0, 0, 255), true);
                         batch.text(atlas, &health, panel_x + text_x + 9.0, y, panel_detail_color, true);
                     }
                     return;
@@ -1514,7 +1515,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                 if correct { "✔" } else { "X" },
                 icon_x + 18.0,
                 row_y + 3.0,
-                if correct { 0xFF55FF55 } else { 0xFF0000FF },
+                if correct { 0xFF55FF55 } else { horizon_client::hud::rgba(255, 0, 0, 255) },
                 true,
             );
         }
