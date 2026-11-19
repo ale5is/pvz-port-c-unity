@@ -91,6 +91,10 @@ pub fn settings(
         "Show item mod name", "Mostrar mod del objeto", "Mostrar mod do item", "Afficher le mod de l’objet",
         "Mostra mod oggetto", "Item-Mod anzeigen", "アイテムのMod名を表示", "显示物品模组名称",
     ]));
+    buttons.push(option_label(game, "show_mod_name", [
+        "Show block mod name", "Mostrar mod del bloque", "Mostrar mod do bloco", "Afficher le mod du bloc",
+        "Mostra mod del blocco", "Block-Mod anzeigen", "ブロックのMod名を表示", "显示方块模组名称",
+    ]));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -104,6 +108,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         3 => "show_block_states",
         4 => "show_block_info",
         5 => "show_item_mod_name",
+        6 => "show_mod_name",
         _ => return,
     };
     let next = !enabled(game, key, true);
@@ -159,7 +164,16 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         None => short_name.to_owned(),
     }.replace('_', " ");
 
-    let mut details = Vec::with_capacity(4);
+    let mut details = Vec::with_capacity(5);
+    if enabled(game, "show_mod_name", true) {
+        if let Some((namespace, _)) = name.split_once(':') {
+            if namespace != "minecraft" && !namespace.is_empty() {
+                details.push(format!("{}: {}", tr([
+                    "Mod", "Mod", "Mod", "Mod", "Mod", "Mod", "Mod", "模组",
+                ]), namespace));
+            }
+        }
+    }
     if enabled(game, "show_registry_id", true) {
         details.push(name.to_owned());
     }
