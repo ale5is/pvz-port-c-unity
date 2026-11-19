@@ -475,7 +475,15 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                         ]), mob.kind.armor));
                     }
                     if enabled(game, "show_entity_age", false)
-                        && matches!(mob.kind.species, horizon_client::mobs::Species::Animal | horizon_client::mobs::Species::WaterAnimal)
+                        && matches!(id,
+                            "minecraft:pig" | "minecraft:cow" | "minecraft:mooshroom" | "minecraft:sheep"
+                            | "minecraft:chicken" | "minecraft:rabbit" | "minecraft:horse" | "minecraft:donkey"
+                            | "minecraft:mule" | "minecraft:llama" | "minecraft:trader_llama" | "minecraft:goat"
+                            | "minecraft:panda" | "minecraft:polar_bear" | "minecraft:fox" | "minecraft:wolf"
+                            | "minecraft:cat" | "minecraft:ocelot" | "minecraft:parrot" | "minecraft:bee"
+                            | "minecraft:turtle" | "minecraft:armadillo" | "minecraft:frog" | "minecraft:axolotl"
+                            | "minecraft:dolphin" | "minecraft:camel" | "minecraft:sniffer" | "minecraft:happy_ghast"
+                        )
                     {
                         details.push(if mob.extra.age < 0 {
                             tr(["Baby", "Bebé", "Filhote", "Bébé", "Cucciolo", "Baby", "子ども", "幼年"]).to_owned()
