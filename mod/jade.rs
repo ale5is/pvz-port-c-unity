@@ -954,7 +954,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     }
                     if let Some(health) = health_line {
                         let y = panel_y + 16.0 + details.len() as f32 * 11.0;
-                        batch.text(atlas, "♥", panel_x + text_x, y, 0xFFFF0000, true);
+                        batch.text(atlas, "♥", panel_x + text_x, y, 0xFF0000FF, true);
                         batch.text(atlas, &health, panel_x + text_x + 9.0, y, panel_detail_color, true);
                     }
                     return;
@@ -1460,7 +1460,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                 if correct { "✔" } else { "X" },
                 icon_x + 18.0,
                 row_y + 3.0,
-                if correct { 0xFF55FF55 } else { 0xFFFF0000 },
+                if correct { 0xFF55FF55 } else { 0xFF0000FF },
                 true,
             );
         }
