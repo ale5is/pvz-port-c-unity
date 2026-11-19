@@ -716,8 +716,9 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         let next = match current as u8 {
             0 => 1, 1 => 2, 2 => 3, 3 => 4, 4 => 6, 6 => 8, _ => 0,
         };
-        game.native_set_setting(ID, "reach_distance", &next.to_string());
-        if game.native_setting(ID, "reach_distance").as_deref() != Some(next.to_string().as_str()) {
+        let next_text = next.to_string();
+        game.native_set_setting(ID, "reach_distance", &next_text);
+        if game.native_setting(ID, "reach_distance").as_deref() != Some(next_text.as_str()) {
             log::warn!("Jade: reach setting did not verify after writing");
         }
         return;
