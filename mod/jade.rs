@@ -322,7 +322,7 @@ fn setting_default(key: &str) -> bool {
             | "show_relative_coordinates" | "show_crop_progress" | "show_redstone_info"
             | "show_note_block_info" | "show_tnt_stability" | "show_beehive_honey" | "show_block_amount"
             | "show_entity_armor" | "show_entity_age" | "show_entity_breeding" | "show_horse_stats"
-            | "show_entity_effects" | "show_next_entity_drop" | "show_villager_profession"
+            | "show_entity_effects" | "show_villager_profession"
             | "show_entity_equipment" | "show_animal_tame_status"
     )
 }
@@ -525,10 +525,6 @@ pub fn settings(
         "Show entity effects", "Mostrar efectos de entidades", "Mostrar efeitos das entidades", "Afficher les effets des entités",
         "Mostra effetti entità", "Entitätseffekte anzeigen", "エンティティの効果", "显示实体效果",
     ], false));
-    buttons.push(option_label_with_default(game, "show_next_entity_drop", [
-        "Show next entity drop", "Mostrar próxima recompensa", "Mostrar próximo item", "Afficher le prochain objet",
-        "Mostra prossima ricompensa", "Nächsten Drop anzeigen", "次のドロップ", "显示下次掉落",
-    ], false));
     buttons.push(option_label_with_default(game, "show_villager_profession", [
         "Show villager profession", "Mostrar profesión del aldeano", "Mostrar profissão do aldeão", "Afficher le métier du villageois",
         "Mostra professione abitante", "Dorfbewohner-Beruf anzeigen", "村人の職業", "显示村民职业",
@@ -554,7 +550,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
     if mod_id != ID {
         return;
     }
-    if button == 41 {
+    if button == 40 {
         let next = match theme_index(game) { 0 => "light", 1 => "purple", 2 => "high_contrast", _ => "dark" };
         game.native_set_setting(ID, "theme", next);
         if game.native_setting(ID, "theme").as_deref() != Some(next) {
@@ -594,16 +590,15 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         28 => "show_entity_breeding",
         29 => "show_horse_stats",
         30 => "show_entity_effects",
-        31 => "show_next_entity_drop",
-        32 => "show_villager_profession",
-        33 => "show_entity_equipment",
-        34 => "show_animal_tame_status",
-        35 => "display_item_frames",
-        36 => "display_paintings",
-        37 => "display_boats",
-        38 => "display_minecarts",
-        39 => "display_falling_blocks",
-        40 => "show_block_entity_info",
+        31 => "show_villager_profession",
+        32 => "show_entity_equipment",
+        33 => "show_animal_tame_status",
+        34 => "display_item_frames",
+        35 => "display_paintings",
+        36 => "display_boats",
+        37 => "display_minecarts",
+        38 => "display_falling_blocks",
+        39 => "show_block_entity_info",
         _ => return,
     };
     let default = setting_default(key);
