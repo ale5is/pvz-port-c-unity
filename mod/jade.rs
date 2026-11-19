@@ -178,6 +178,14 @@ fn block_entity_details(game: &super::Game<'_>, pos: [i32; 3]) -> Vec<String> {
             if !text.is_empty() { out.push(text); }
             if sign.waxed { out.push(tr(["Waxed", "Encertrado", "Encerado", "Ciré", "Cerato", "Gewachst", "ワックス済み", "已涂蜡"]).to_owned()); }
         }
+        BlockEntity::Banner(banner) => {
+            out.push(format!("{}: {}", tr(["Patterns", "Diseños", "Padrões", "Motifs", "Motivi", "Muster", "模様", "图案"]), banner.layers.len()));
+            if let Some(name) = banner.name.as_deref() { out.push(name.to_owned()); }
+        }
+        BlockEntity::CreakingHeart(heart) => {
+            out.push(format!("{}: {}", tr(["Output signal", "Señal de salida", "Sinal de saída", "Signal de sortie", "Segnale in uscita", "Ausgangssignal", "出力信号", "输出信号"]), heart.output_signal));
+            if heart.emitter > 0 { out.push(format!("{}: {} s", tr(["Hurt pulse", "Pulso de daño", "Pulso de dano", "Impulsion de dégâts", "Impulso danno", "Schadenspuls", "攻撃パルス", "伤害脉冲"]), heart.emitter / 20)); }
+        }
         BlockEntity::Brushable(brushable) => {
             if let Some(stack) = brushable.item.as_ref() {
                 let id = stack.item.as_ref(); let short = id.split_once(':').map_or(id, |(_, p)| p);
