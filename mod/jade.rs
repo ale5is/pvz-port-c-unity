@@ -395,7 +395,7 @@ fn setting_default(key: &str) -> bool {
             | "show_entity_armor" | "show_entity_age" | "show_entity_breeding" | "show_horse_stats"
             | "show_entity_effects" | "show_villager_profession"
             | "show_entity_equipment" | "show_animal_tame_status" | "show_block_entity_info"
-            | "show_access_info" | "show_entity_variant"
+            | "show_access_info" | "show_entity_variant" | "show_entity_access"
     )
 }
 
@@ -617,6 +617,7 @@ pub fn settings(
     buttons.push(option_label_with_default(game, "show_block_entity_info", ["Show block entity data", "Mostrar datos especiales del bloque", "Mostrar dados especiais do bloco", "Afficher les données du bloc", "Mostra dati speciali del blocco", "Blockentitätsdaten anzeigen", "ブロックエンティティ情報", "显示方块实体数据"], false));
     buttons.push(option_label_with_default(game, "show_access_info", ["Show block access states", "Mostrar estados de acceso", "Mostrar estados de acesso", "Afficher les états d’accès", "Mostra stati di accesso", "Block-Zugriffszustände anzeigen", "ブロックの状態を表示", "显示方块访问状态"], false));
     buttons.push(option_label_with_default(game, "show_entity_variant", ["Show entity variants", "Mostrar variantes de entidades", "Mostrar variantes das entidades", "Afficher les variantes", "Mostra varianti entità", "Entitätsvarianten anzeigen", "エンティティの種類を表示", "显示实体变种"], false));
+    buttons.push(option_label_with_default(game, "show_entity_access", ["Show entity status", "Mostrar estados de entidades", "Mostrar estados das entidades", "Afficher les états des entités", "Mostra stati entità", "Entitätsstatus anzeigen", "エンティティ状態を表示", "显示实体状态"], false));
     buttons.push(format!("{}: {}", tr(["Overlay theme", "Tema del HUD", "Tema do HUD", "Thème du HUD", "Tema HUD", "HUD-Design", "HUDテーマ", "提示框主题"]), theme_name(game)));
     let opacity = game.native_setting(ID, "text_background_opacity")
         .and_then(|value| value.parse::<u8>().ok())
@@ -629,7 +630,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
     if mod_id != ID {
         return;
     }
-    if button == 42 {
+    if button == 43 {
         let next = match theme_index(game) { 0 => "light", 1 => "purple", 2 => "high_contrast", _ => "dark" };
         game.native_set_setting(ID, "theme", next);
         if game.native_setting(ID, "theme").as_deref() != Some(next) {
@@ -637,7 +638,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         }
         return;
     }
-    if button == 43 {
+    if button == 44 {
         let current = game.native_setting(ID, "text_background_opacity")
             .and_then(|value| value.parse::<u8>().ok())
             .unwrap_or(82);
@@ -698,6 +699,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         39 => "show_block_entity_info",
         40 => "show_access_info",
         41 => "show_entity_variant",
+        42 => "show_entity_access",
         _ => return,
     };
     let default = setting_default(key);
@@ -882,6 +884,46 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                             details.push(format!("{}: {variant}", tr([
                                 "Variant", "Variante", "Variante", "Variante", "Variante", "Variante", "種類", "变种",
                             ])));
+                        }
+                    }
+                    if enabled(game, "show_entity_access", false) {
+                        match id {
+                            "minecraft:creeper" if mob.extra.charged => {
+                                details.push(tr(["Charged", "Cargado", "Carregado", "Chargé", "Caricato", "Geladen", "帯電", "充能"]).to_owned());
+                            }
+                            "minecraft:wither" if mob.health <= mob.attrs.max_health / 2.0 => {
+                                details.push(tr(["Powered", "Potenciado", "Fortalecido", "Renforcé", "Potenziato", "Verstärkt", "強化", "强化"]).to_owned());
+                            }
+                            "minecraft:zombie_villager" => {
+                                if let Some(cure) = horizon_client::mobs::zombie_villager::cure(mob) {
+                                    let seconds = (cure.time.max(0) + 19) / 20;
+                                    details.push(format!("{}: {} s", tr(["Curing", "Curándose", "Em cura", "Guérison", "Guarigione", "Heilung", "治療中", "治疗中"]), seconds));
+                                }
+                            }
+                            "minecraft:goat" if mob.extra.lost_horns == [true, true] => {
+                                details.push(tr(["Hornless", "Sin cuernos", "Sem chifres", "Sans cornes", "Senza corna", "Hornlos", "角なし", "无角"]).to_owned());
+                            }
+                            "minecraft:bee" => {
+                                if horizon_client::mobs::bee::has_nectar(mob) {
+                                    details.push(tr(["Has nectar", "Tiene néctar", "Tem néctar", "A du nectar", "Ha nettare", "Hat Nektar", "花粉あり", "携带花蜜"]).to_owned());
+                                }
+                                if mob.extra.anger > 0 {
+                                    details.push(tr(["Angry", "Enojada", "Zangada", "En colère", "Arrabbiata", "Wütend", "怒り", "愤怒"]).to_owned());
+                                }
+                            }
+                            "minecraft:slime" | "minecraft:magma_cube" if mob.extra.size > 0 => {
+                                details.push(format!("{}: {}", tr(["Size", "Tamaño", "Tamanho", "Taille", "Dimensione", "Größe", "サイズ", "大小"]), mob.extra.size));
+                            }
+                            "minecraft:copper_golem" => {
+                                let state = match mob.extra.variant {
+                                    1 => Some(tr(["Exposed", "Expuesto", "Exposto", "Exposé", "Esposto", "Angelaufen", "露出", "裸露"])),
+                                    2 => Some(tr(["Weathered", "Desgastado", "Desgastado", "Patiné", "Usurato", "Verwittert", "風化", "风化"])),
+                                    3 => Some(tr(["Oxidized", "Oxidado", "Oxidado", "Oxydé", "Ossidato", "Oxidiert", "酸化", "氧化"])),
+                                    _ => None,
+                                };
+                                if let Some(state) = state { details.push(state.to_owned()); }
+                            }
+                            _ => {}
                         }
                     }
                     if enabled(game, "show_entity_registry_id", false) {
