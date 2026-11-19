@@ -749,7 +749,8 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         }).min_by(|a, b| a.1.total_cmp(&b.1)))
     } else { None };
     let nearest_target_distance = [
-        game.mob_hit().map(|(_, d)| d), item_hit.map(|(_, d)| d), armor_stand_hit.map(|(_, d)| d),
+        if enabled(game, "display_entities", true) { game.mob_hit().map(|(_, d)| d) } else { None },
+        item_hit.map(|(_, d)| d), armor_stand_hit.map(|(_, d)| d),
         frame_hit.map(|(_, d)| d), painting_hit.map(|(_, d)| d), boat_hit.map(|(_, d)| d),
         cart_hit.map(|(_, d)| d), falling_hit.map(|(_, d)| d),
     ].into_iter().flatten().fold(f64::INFINITY, f64::min);
