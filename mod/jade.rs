@@ -1319,9 +1319,8 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                         .fold(0.0_f32, f32::max);
                     let panel_width = (title_width.max(detail_width) + if has_icon { 32.0 } else { 12.0 })
                         .min((batch.width - 16.0).max(0.0));
-                    let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
-                    let panel_y = 8.0;
                     let panel_height = 17.0 + (details.len() + usize::from(health_line.is_some())) as f32 * 12.0;
+                    let (panel_x, panel_y) = panel_position(game, batch, panel_width, panel_height);
                     batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), panel_background);
                     if has_icon {
                         let _ = draw_icon(game, batch, atlas, id, true, None, panel_x + 6.0, panel_y + 2.0);
@@ -1398,9 +1397,8 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     .fold(0.0_f32, f32::max);
                 let panel_width = (title_width.max(detail_width) + if has_icon { 32.0 } else { 12.0 })
                     .min((batch.width - 16.0).max(0.0));
-                let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
-                let panel_y = 8.0;
                 let panel_height = 17.0 + details.len() as f32 * 12.0;
+                let (panel_x, panel_y) = panel_position(game, batch, panel_width, panel_height);
                 batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), panel_background);
                 if has_icon {
                     let _ = draw_icon(game, batch, atlas, id, false, Some(&item.stack), panel_x + 6.0, panel_y + 2.0);
@@ -1473,9 +1471,8 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     .fold(0.0_f32, f32::max);
                 let panel_width = (title_width.max(detail_width) + if has_icon { 32.0 } else { 12.0 })
                     .min((batch.width - 16.0).max(0.0));
-                let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
-                let panel_y = 8.0;
                 let panel_height = 17.0 + details.len() as f32 * 12.0;
+                let (panel_x, panel_y) = panel_position(game, batch, panel_width, panel_height);
                 batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), panel_background);
                 if has_icon {
                     let _ = draw_icon(game, batch, atlas, "minecraft:armor_stand", true, None, panel_x + 6.0, panel_y + 2.0);
@@ -1924,9 +1921,8 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     };
     let panel_width = (title_width.max(detail_width).max(tool_row_width) + if has_icon { 32.0 } else { 12.0 })
         .min((batch.width - 16.0).max(0.0));
-    let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
-    let panel_y = 8.0;
     let panel_height = 17.0 + details.len() as f32 * 12.0 + if has_tool_row { 19.0 } else { 0.0 };
+    let (panel_x, panel_y) = panel_position(game, batch, panel_width, panel_height);
 
     batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), panel_background);
     if has_icon {
