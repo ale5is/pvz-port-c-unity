@@ -1049,7 +1049,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             let correct = game.res.items().correct_for_drops(game.held(), name);
             batch.text(
                 atlas,
-                if correct { "✔" } else { "✕" },
+                if correct { "✔" } else { "X" },
                 icon_x + 18.0,
                 row_y + 3.0,
                 if correct { 0xFF55FF55 } else { 0xFFFF0000 },
