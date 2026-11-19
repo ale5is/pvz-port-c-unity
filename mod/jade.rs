@@ -3,6 +3,40 @@
 
 const ID: &str = "jade";
 
+fn icon_sprite(atlas: &horizon_client::hud::HudAtlas, id: &str, entity: bool) -> Option<String> {
+    let (namespace, path) = id.split_once(':').unwrap_or(("minecraft", id));
+    let sprite_path = if entity {
+        format!("{namespace}:item/{}_spawn_egg", path)
+    } else {
+        format!("{namespace}:item/{path}")
+    };
+    if atlas.sprites.contains_key(&sprite_path) {
+        return Some(sprite_path);
+    }
+    if !entity {
+        let block_path = format!("{namespace}:block/{path}");
+        if atlas.sprites.contains_key(&block_path) {
+            return Some(block_path);
+        }
+    }
+    None
+}
+
+fn draw_icon(
+    batch: &mut horizon_client::hud::HudBatch,
+    atlas: &horizon_client::hud::HudAtlas,
+    id: &str,
+    entity: bool,
+    x: f32,
+    y: f32,
+) -> bool {
+    let Some(sprite) = icon_sprite(atlas, id, entity) else {
+        return false;
+    };
+    batch.sprite_scaled(atlas, &sprite, x, y, 16.0, 16.0, u32::MAX);
+    true
+}
+
 fn enabled(game: &super::Game<'_>, key: &str, default: bool) -> bool {
     game.native_setting(ID, key)
         .and_then(|value| match value.as_str() {
@@ -80,6 +114,10 @@ pub fn settings(
         "Display tooltip", "Mostrar información", "Exibir informações", "Afficher l’infobulle",
         "Mostra suggerimento", "Tooltip anzeigen", "ツールチップを表示", "显示提示框",
     ]));
+    buttons.push(option_label(game, "show_target_icon", [
+        "Show target icon", "Mostrar icono del objetivo", "Mostrar ícone do alvo", "Afficher l’icône ciblée",
+        "Mostra icona bersaglio", "Ziel-Symbol anzeigen", "対象アイコンを表示", "显示目标图标",
+    ]));
     buttons.push(option_label(game, "show_registry_id", [
         "Show registry ID", "Mostrar ID del registro", "Mostrar ID do registro", "Afficher l’identifiant",
         "Mostra ID registro", "Registrierungs-ID anzeigen", "登録 ID を表示", "显示注册 ID",
@@ -136,21 +174,22 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
     }
     let key = match button {
         0 => "display_tooltip",
-        1 => "show_registry_id",
-        2 => "show_coordinates",
-        3 => "show_block_states",
-        4 => "show_block_info",
-        5 => "show_item_mod_name",
-        6 => "show_mod_name",
-        7 => "display_entities",
-        8 => "show_entity_health",
-        9 => "display_dropped_items",
-        10 => "show_item_count",
-        11 => "display_armor_stands",
-        12 => "show_armor_stand_equipment",
+        1 => "show_target_icon",
+        2 => "show_registry_id",
+        3 => "show_coordinates",
+        4 => "show_block_states",
+        5 => "show_block_info",
+        6 => "show_item_mod_name",
+        7 => "show_mod_name",
+        8 => "display_entities",
+        9 => "show_entity_health",
+        10 => "display_dropped_items",
+        11 => "show_item_count",
+        12 => "display_armor_stands",
+        13 => "show_armor_stand_equipment",
         _ => return,
     };
-    let default = matches!(button, 2 | 3);
+    let default = matches!(button, 3 | 4);
     let next = !enabled(game, key, default);
     game.native_set_setting(ID, key, if next { "true" } else { "false" });
 }
