@@ -660,8 +660,9 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         .map(|line| horizon_client::hud::HudBatch::text_width(atlas, line))
         .fold(0.0_f32, f32::max);
     let has_tool_row = enabled(game, "show_block_info", true) && !required_tools.is_empty();
+    let show_tool_check = has_tool_row && facts.requires_tool;
     let tool_row_width = if has_tool_row {
-        required_tools.len() as f32 * 18.0 + 12.0
+        30.0 + if show_tool_check { 10.0 } else { 0.0 }
     } else {
         0.0
     };
@@ -688,19 +689,18 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     }
     if has_tool_row {
         let row_y = panel_y + 16.0 + details.len() as f32 * 11.0;
-        let mut icon_x = panel_x + text_x;
-        for tool in &required_tools {
-            let _ = game.native_item(batch, tool, [icon_x, row_y], 16.0);
-            icon_x += 18.0;
+        let icon_x = panel_x + text_x;
+        let _ = game.native_item(batch, &required_tools[0], [icon_x, row_y], 16.0);
+        if show_tool_check {
+            let correct = game.res.items().correct_for_drops(game.held(), name);
+            batch.text(
+                atlas,
+                if correct { "✔" } else { "✕" },
+                icon_x + 18.0,
+                row_y + 3.0,
+                if correct { 0xFF55FF55 } else { 0xFFFF0000 },
+                true,
+            );
         }
-        let correct = game.res.items().correct_for_drops(game.held(), name);
-        batch.text(
-            atlas,
-            if correct { "✔" } else { "✕" },
-            icon_x + 1.0,
-            row_y + 3.0,
-            if correct { 0xFF55FF55 } else { 0xFFFF0000 },
-            true,
-        );
     }
 }
