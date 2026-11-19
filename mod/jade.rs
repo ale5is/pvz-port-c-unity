@@ -323,7 +323,7 @@ fn setting_default(key: &str) -> bool {
             | "show_note_block_info" | "show_tnt_stability" | "show_beehive_honey" | "show_block_amount"
             | "show_entity_armor" | "show_entity_age" | "show_entity_breeding" | "show_horse_stats"
             | "show_entity_effects" | "show_villager_profession"
-            | "show_entity_equipment" | "show_animal_tame_status"
+            | "show_entity_equipment" | "show_animal_tame_status" | "show_block_entity_info"
     )
 }
 
