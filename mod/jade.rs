@@ -872,17 +872,17 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
 
 fn is_ignored(game: &super::Game<'_>, key: &str, id: &str) -> bool {
     game.native_setting(ID, key)
-        .is_some_and(|list| list.split(';').any(|entry| entry == id))
+        .is_some_and(|list| list.split(',').any(|entry| entry == id))
 }
 
 fn update_ignore(game: &super::Game<'_>, key: &str, id: &str, add: bool) {
     let current = game.native_setting(ID, key).unwrap_or_default();
-    let mut entries = current.split(';')
+    let mut entries = current.split(',')
         .filter(|entry| !entry.is_empty() && *entry != id)
         .map(str::to_owned)
         .collect::<Vec<_>>();
     if add { entries.push(id.to_owned()); }
-    game.native_set_setting(ID, key, &entries.join(";"));
+    game.native_set_setting(ID, key, &entries.join(","));
 }
 
 fn valid_registry_id(id: &str) -> bool {
