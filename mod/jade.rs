@@ -333,6 +333,54 @@ fn theme_index(game: &super::Game<'_>) -> usize {
     }
 }
 
+fn overlay_position(game: &super::Game<'_>) -> &'static str {
+    match game.native_setting(ID, "overlay_position").as_deref() {
+        Some("top_left") => "top_left",
+        Some("top_right") => "top_right",
+        Some("middle_left") => "middle_left",
+        Some("middle_center") => "middle_center",
+        Some("middle_right") => "middle_right",
+        Some("bottom_left") => "bottom_left",
+        Some("bottom_center") => "bottom_center",
+        Some("bottom_right") => "bottom_right",
+        _ => "top_center",
+    }
+}
+
+fn overlay_position_name(game: &super::Game<'_>) -> &'static str {
+    match overlay_position(game) {
+        "top_left" => tr(["Top left", "Arriba izquierda", "Superior esquerdo", "En haut à gauche", "In alto a sinistra", "Oben links", "左上", "左上"]),
+        "top_right" => tr(["Top right", "Arriba derecha", "Superior direito", "En haut à droite", "In alto a destra", "Oben rechts", "右上", "右上"]),
+        "middle_left" => tr(["Middle left", "Centro izquierda", "Meio esquerdo", "Au milieu à gauche", "Centro sinistra", "Mitte links", "中央左", "中左"]),
+        "middle_center" => tr(["Middle center", "Centro", "Centro", "Centre", "Centro", "Mitte", "中央", "居中"]),
+        "middle_right" => tr(["Middle right", "Centro derecha", "Meio direito", "Au milieu à droite", "Centro destra", "Mitte rechts", "中央右", "中右"]),
+        "bottom_left" => tr(["Bottom left", "Abajo izquierda", "Inferior esquerdo", "En bas à gauche", "In basso a sinistra", "Unten links", "左下", "左下"]),
+        "bottom_center" => tr(["Bottom center", "Abajo centro", "Inferior centro", "En bas au centre", "In basso al centro", "Unten Mitte", "下中央", "下中"]),
+        "bottom_right" => tr(["Bottom right", "Abajo derecha", "Inferior direito", "En bas à droite", "In basso a destra", "Unten rechts", "右下", "右下"]),
+        _ => tr(["Top center", "Arriba centro", "Superior centro", "En haut au centre", "In alto al centro", "Oben Mitte", "上中央", "上中"]),
+    }
+}
+
+fn panel_position(
+    game: &super::Game<'_>,
+    batch: &horizon_client::hud::HudBatch,
+    width: f32,
+    height: f32,
+) -> (f32, f32) {
+    let position = overlay_position(game);
+    let x = match position {
+        "top_left" | "middle_left" | "bottom_left" => 8.0,
+        "top_right" | "middle_right" | "bottom_right" => (batch.width - width - 8.0).max(8.0),
+        _ => ((batch.width - width) * 0.5).max(8.0),
+    };
+    let y = match position {
+        "middle_left" | "middle_center" | "middle_right" => ((batch.height - height) * 0.5).max(8.0),
+        "bottom_left" | "bottom_center" | "bottom_right" => (batch.height - height - 8.0).max(8.0),
+        _ => 8.0,
+    };
+    (x, y)
+}
+
 fn background_opacity(game: &super::Game<'_>) -> u8 {
     let percent = game.native_setting(ID, "text_background_opacity")
         .and_then(|value| value.parse::<u8>().ok())
@@ -393,9 +441,8 @@ fn draw_target_panel(
     let title_width = horizon_client::hud::HudBatch::text_width(atlas, title);
     let detail_width = details.iter().map(|line| horizon_client::hud::HudBatch::text_width(atlas, line)).fold(0.0_f32, f32::max);
     let panel_width = (title_width.max(detail_width) + if has_icon { 32.0 } else { 12.0 }).min((batch.width - 16.0).max(0.0));
-    let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
-    let panel_y = 8.0;
     let panel_height = 17.0 + details.len() as f32 * 12.0;
+    let (panel_x, panel_y) = panel_position(game, batch, panel_width, panel_height);
     batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), background);
     if has_icon { let _ = draw_icon(game, batch, atlas, id, entity, stack, panel_x + 6.0, panel_y + 2.0); }
     batch.text(atlas, title, panel_x + text_x, panel_y + 4.0, title_color, true);
@@ -705,6 +752,7 @@ pub fn settings(
         .unwrap_or(82)
         .clamp(20, 100);
     buttons.push(format!("{}: {}%", tr(["Background opacity", "Opacidad del fondo", "Opacidade do fundo", "Opacité du fond", "Opacità sfondo", "Hintergrunddeckkraft", "背景の不透明度", "背景不透明度"]), opacity));
+    buttons.push(format!("{}: {}", tr(["Overlay position", "Posición del HUD", "Posição do HUD", "Position de l’overlay", "Posizione HUD", "HUD-Position", "HUD位置", "HUD位置"]), overlay_position_name(game)));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -746,6 +794,20 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         game.native_set_setting(ID, "text_background_opacity", &next_text);
         if game.native_setting(ID, "text_background_opacity").as_deref() != Some(next_text.as_str()) {
             log::warn!("Jade: background opacity setting did not verify after writing");
+        }
+        return;
+    }
+    if button == 48 {
+        const POSITIONS: [&str; 9] = [
+            "top_center", "top_left", "top_right", "middle_left", "middle_center",
+            "middle_right", "bottom_left", "bottom_center", "bottom_right",
+        ];
+        let current = overlay_position(game);
+        let index = POSITIONS.iter().position(|value| *value == current).unwrap_or(0);
+        let next = POSITIONS[(index + 1) % POSITIONS.len()];
+        game.native_set_setting(ID, "overlay_position", next);
+        if game.native_setting(ID, "overlay_position").as_deref() != Some(next) {
+            log::warn!("Jade: overlay position setting did not verify after writing");
         }
         return;
     }
@@ -835,6 +897,11 @@ pub fn on_command(game: &super::Game<'_>, command: &str, ran: &mut bool) {
         "theme" => if let Some(value) = parts.next() {
             if matches!(value, "dark" | "light" | "purple" | "high_contrast") {
                 game.native_set_setting(ID, "theme", value);
+            }
+        },
+        "position" => if let Some(value) = parts.next() {
+            if matches!(value, "top_center" | "top_left" | "top_right" | "middle_left" | "middle_center" | "middle_right" | "bottom_left" | "bottom_center" | "bottom_right") {
+                game.native_set_setting(ID, "overlay_position", value);
             }
         },
         "reach" => if let Some(value) = parts.next() {
