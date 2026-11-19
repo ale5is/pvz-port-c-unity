@@ -167,17 +167,9 @@ fn option_label(game: &super::Game<'_>, key: &str, label: [&'static str; 8]) -> 
 }
 
 fn save_enabled(game: &super::Game<'_>, key: &str, value: bool) {
-    use std::io::Write;
-    let dir = game.native_data_dir(ID);
-    let result = (|| -> std::io::Result<()> {
-        std::fs::create_dir_all(&dir)?;
-        let mut file = std::fs::File::create(dir.join(key))?;
-        file.write_all(if value { b"true" } else { b"false" })?;
-        file.sync_all()
-    })();
-    if let Err(error) = result {
-        log::warn!("Jade: could not persist setting {key}: {error}");
-    } else if game.native_setting(ID, key).as_deref() != Some(if value { "true" } else { "false" }) {
+    let stored = if value { "true" } else { "false" };
+    game.native_set_setting(ID, key, stored);
+    if game.native_setting(ID, key).as_deref() != Some(stored) {
         log::warn!("Jade: setting {key} did not verify after writing");
     }
 }
@@ -232,9 +224,13 @@ pub fn settings(
         "Mostra stati del blocco", "Blockzustände anzeigen", "ブロック状態を表示", "显示方块状态",
     ], false));
     buttons.push(option_label(game, "show_block_info", [
-        "Show block info", "Mostrar información del bloque", "Mostrar informações do bloco", "Afficher les infos du bloc",
-        "Mostra info blocco", "Blockinfos anzeigen", "ブロック情報を表示", "显示方块信息",
+        "Show harvest tools", "Mostrar herramientas necesarias", "Mostrar ferramentas necessárias", "Afficher les outils requis",
+        "Mostra strumenti necessari", "Benötigte Werkzeuge anzeigen", "必要な道具を表示", "显示所需工具",
     ]));
+    buttons.push(option_label_with_default(game, "show_hardness", [
+        "Show block hardness", "Mostrar dureza del bloque", "Mostrar dureza do bloco", "Afficher la dureté du bloc",
+        "Mostra durezza blocco", "Blockhärte anzeigen", "ブロックの硬度を表示", "显示方块硬度",
+    ], false));
     buttons.push(option_label(game, "show_item_mod_name", [
         "Show item mod name", "Mostrar mod del objeto", "Mostrar mod do item", "Afficher le mod de l’objet",
         "Mostra mod oggetto", "Item-Mod anzeigen", "アイテムのMod名を表示", "显示物品模组名称",
@@ -255,10 +251,10 @@ pub fn settings(
         "Display dropped items", "Mostrar objetos tirados", "Exibir itens largados", "Afficher les objets au sol",
         "Mostra oggetti a terra", "Abgeworfene Gegenstände anzeigen", "ドロップアイテムを表示", "显示掉落物品",
     ]));
-    buttons.push(option_label(game, "show_item_count", [
+    buttons.push(option_label_with_default(game, "show_item_count", [
         "Show item count", "Mostrar cantidad de objetos", "Mostrar quantidade de itens", "Afficher la quantité",
         "Mostra quantità oggetti", "Gegenstandsanzahl anzeigen", "アイテム数を表示", "显示物品数量",
-    ]));
+    ], false));
     buttons.push(option_label(game, "display_armor_stands", [
         "Display armor stands", "Mostrar soportes para armaduras", "Exibir suportes de armadura", "Afficher les porte-armures",
         "Mostra supporti per armature", "Rüstungsständer anzeigen", "防具立てを表示", "显示盔甲架",
@@ -280,14 +276,15 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         3 => "show_coordinates",
         4 => "show_block_states",
         5 => "show_block_info",
-        6 => "show_item_mod_name",
-        7 => "show_mod_name",
-        8 => "display_entities",
-        9 => "show_entity_health",
-        10 => "display_dropped_items",
-        11 => "show_item_count",
-        12 => "display_armor_stands",
-        13 => "show_armor_stand_equipment",
+        6 => "show_hardness",
+        7 => "show_item_mod_name",
+        8 => "show_mod_name",
+        9 => "display_entities",
+        10 => "show_entity_health",
+        11 => "display_dropped_items",
+        12 => "show_item_count",
+        13 => "display_armor_stands",
+        14 => "show_armor_stand_equipment",
         _ => return,
     };
     let default = matches!(button, 3 | 4);
@@ -383,14 +380,9 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                             }
                         }
                     }
-                    if enabled(game, "show_entity_health", true) {
-                        details.push(format!(
-                            "{}: {:.1}/{:.1}",
-                            tr(["Health", "Vida", "Vida", "Santé", "Salute", "Gesundheit", "体力", "生命值"]),
-                            mob.health.max(0.0),
-                            mob.attrs.max_health.max(1.0),
-                        ));
-                    }
+                    let health_line = enabled(game, "show_entity_health", true).then(|| {
+                        format!("{:.1}/{:.1}", mob.health.max(0.0), mob.attrs.max_health.max(1.0))
+                    });
                     let atlas = &game.gui.atlas;
                     let has_icon = enabled(game, "show_target_icon", true)
                         && icon_available(game, atlas, id, true, None);
@@ -398,12 +390,13 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     let title_width = horizon_client::hud::HudBatch::text_width(atlas, &title);
                     let detail_width = details.iter()
                         .map(|line| horizon_client::hud::HudBatch::text_width(atlas, line))
+                        .chain(health_line.iter().map(|line| horizon_client::hud::HudBatch::text_width(atlas, &format!("♥ {line}"))))
                         .fold(0.0_f32, f32::max);
                     let panel_width = (title_width.max(detail_width) + if has_icon { 32.0 } else { 12.0 })
                         .min((batch.width - 16.0).max(0.0));
                     let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
                     let panel_y = 8.0;
-                    let panel_height = 17.0 + details.len() as f32 * 12.0;
+                    let panel_height = 17.0 + (details.len() + usize::from(health_line.is_some())) as f32 * 12.0;
                     batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), 0xD0101010);
                     if has_icon {
                         let _ = draw_icon(game, batch, atlas, id, true, None, panel_x + 6.0, panel_y + 2.0);
@@ -418,6 +411,11 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                             0xFFB8B8B8,
                             true,
                         );
+                    }
+                    if let Some(health) = health_line {
+                        let y = panel_y + 16.0 + details.len() as f32 * 11.0;
+                        batch.text(atlas, "♥", panel_x + text_x, y, 0xFFFF5555, true);
+                        batch.text(atlas, &health, panel_x + text_x + 9.0, y, 0xFFB8B8B8, true);
                     }
                     return;
                 }
@@ -456,7 +454,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                 if enabled(game, "show_registry_id", true) {
                     details.push(id.to_owned());
                 }
-                if enabled(game, "show_item_count", true) {
+                if enabled(game, "show_item_count", false) {
                     details.push(format!("{}: {}", tr([
                         "Count", "Cantidad", "Quantidade", "Quantité", "Quantità", "Anzahl", "個数", "数量",
                     ]), item.stack.count));
@@ -617,19 +615,15 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             "State", "Estado", "Estado", "État", "Stato", "Zustand", "状態", "状态",
         ]), properties));
     }
-    if enabled(game, "show_block_info", true) {
-        let hardness = if facts.hardness < 0.0 {
-            tr(["Unbreakable", "Irrompible", "Inquebrável", "Incassable", "Indistruttibile", "Unzerstörbar", "破壊不可", "不可破坏"]).to_owned()
+    if enabled(game, "show_hardness", false) {
+        if facts.hardness < 0.0 {
+            details.push(tr(["Unbreakable", "Irrompible", "Inquebrável", "Incassable", "Indistruttibile", "Unzerstörbar", "破壊不可", "不可破坏"]).to_owned());
         } else {
-            format!("{}: {:.1}", tr(["Hardness", "Dureza", "Dureza", "Dureté", "Durezza", "Härte", "硬度", "硬度"]), facts.hardness)
-        };
-        let tool = if facts.requires_tool {
-            required_tools = harvest_tools(game, name);
-            tr(["Tool required", "Requiere herramienta", "Requer ferramenta", "Outil requis", "Richiede strumento", "Werkzeug erforderlich", "道具が必要", "需要工具"])
-        } else {
-            tr(["No tool required", "No requiere herramienta", "Não requer ferramenta", "Aucun outil requis", "Non richiede strumenti", "Kein Werkzeug nötig", "道具不要", "不需要工具"])
-        };
-        details.push(format!("{hardness} · {tool}"));
+            details.push(format!("{}: {:.1}", tr(["Hardness", "Dureza", "Dureza", "Dureté", "Durezza", "Härte", "硬度", "硬度"]), facts.hardness));
+        }
+    }
+    if enabled(game, "show_block_info", true) && facts.requires_tool {
+        required_tools = harvest_tools(game, name);
     }
     let atlas = &game.gui.atlas;
     let has_icon = enabled(game, "show_target_icon", true)
@@ -640,7 +634,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         .map(|line| horizon_client::hud::HudBatch::text_width(atlas, line))
         .fold(0.0_f32, f32::max);
     let tool_label = tr(["Tool", "Herramienta", "Ferramenta", "Outil", "Strumento", "Werkzeug", "道具", "工具"]);
-    let has_tool_row = facts.requires_tool && !required_tools.is_empty();
+    let has_tool_row = enabled(game, "show_block_info", true) && facts.requires_tool && !required_tools.is_empty();
     let tool_row_width = if has_tool_row {
         horizon_client::hud::HudBatch::text_width(atlas, tool_label)
             + required_tools.len() as f32 * 10.0 + 16.0
