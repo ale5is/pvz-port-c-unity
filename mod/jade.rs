@@ -615,6 +615,42 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
     log::info!("Jade setting after write: key={key}, expected={next}, actual={saved}");
 }
 
+pub fn on_command(game: &super::Game<'_>, command: &str, ran: &mut bool) {
+    if !game.native_on(ID) {
+        return;
+    }
+    let command = command.trim().strip_prefix('/').unwrap_or(command.trim());
+    let mut parts = command.split_whitespace();
+    if parts.next() != Some("jade") {
+        return;
+    }
+    let action = parts.next().unwrap_or("toggle");
+    match action {
+        "show" | "on" => save_enabled(game, "display_tooltip", true),
+        "hide" | "off" => save_enabled(game, "display_tooltip", false),
+        "toggle" => save_enabled(game, "display_tooltip", !enabled(game, "display_tooltip", true)),
+        "id" => if let Some(value) = parts.next() {
+            if value == "on" || value == "true" { save_enabled(game, "show_registry_id", true); }
+            else if value == "off" || value == "false" { save_enabled(game, "show_registry_id", false); }
+        },
+        "coordinates" | "coords" => if let Some(value) = parts.next() {
+            if value == "on" || value == "true" { save_enabled(game, "show_coordinates", true); }
+            else if value == "off" || value == "false" { save_enabled(game, "show_coordinates", false); }
+        },
+        "states" => if let Some(value) = parts.next() {
+            if value == "on" || value == "true" { save_enabled(game, "show_block_states", true); }
+            else if value == "off" || value == "false" { save_enabled(game, "show_block_states", false); }
+        },
+        "theme" => if let Some(value) = parts.next() {
+            if matches!(value, "dark" | "light" | "purple" | "high_contrast") {
+                game.native_set_setting(ID, "theme", value);
+            }
+        },
+        _ => {}
+    }
+    *ran = true;
+}
+
 pub fn on_key(game: &super::Game<'_>, key: &str, pressed: bool) {
     if !pressed || !game.native_on(ID) || game.player.is_none() {
         return;
