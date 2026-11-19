@@ -1488,7 +1488,11 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     .sqrt()
             })
         });
-        let mob_distance = mob_hit(game).map(|(_, mob_distance)| mob_distance);
+        let mob_distance = if enabled(game, "display_entities", true) {
+            mob_hit(game).map(|(_, mob_distance)| mob_distance)
+        } else {
+            None
+        };
         if block_distance.is_none_or(|block_distance| distance < block_distance)
             && distance <= nearest_target_distance + 0.0001
         {
@@ -1560,7 +1564,11 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     .sqrt()
             })
         });
-        let mob_distance = mob_hit(game).map(|(_, mob_distance)| mob_distance);
+        let mob_distance = if enabled(game, "display_entities", true) {
+            mob_hit(game).map(|(_, mob_distance)| mob_distance)
+        } else {
+            None
+        };
         let item_distance = item_hit.map(|(_, item_distance)| item_distance);
         if block_distance.is_none_or(|block_distance| distance < block_distance)
             && distance <= nearest_target_distance + 0.0001
