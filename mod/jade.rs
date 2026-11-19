@@ -874,11 +874,26 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             super::ray_box(eye, dir, game.entity_reach, bounds).map(|d| (i, d))
         }).min_by(|a, b| a.1.total_cmp(&b.1)))
     } else { None };
+    let display_hit = if enabled(game, "display_entities", true) {
+        game.aim().and_then(|(eye, dir)| {
+            game.text_displays.iter().filter_map(|(id, display)| {
+                if display.hz_jade_block().is_none() && display.hz_jade_item().is_none() {
+                    return None;
+                }
+                let p = display.position();
+                let bounds = horizon_core::geometry::Aabb::new(
+                    horizon_core::geometry::Vec3::new(p.x - 0.3, p.y - 0.3, p.z - 0.3),
+                    horizon_core::geometry::Vec3::new(p.x + 0.3, p.y + 0.3, p.z + 0.3),
+                );
+                super::ray_box(eye, dir, game.entity_reach, bounds).map(|distance| (*id, distance))
+            }).min_by(|a, b| a.1.total_cmp(&b.1))
+        })
+    } else { None };
     let nearest_target_distance = [
         if enabled(game, "display_entities", true) { game.mob_hit().map(|(_, d)| d) } else { None },
         item_hit.map(|(_, d)| d), armor_stand_hit.map(|(_, d)| d),
         frame_hit.map(|(_, d)| d), painting_hit.map(|(_, d)| d), boat_hit.map(|(_, d)| d),
-        cart_hit.map(|(_, d)| d), falling_hit.map(|(_, d)| d),
+        cart_hit.map(|(_, d)| d), falling_hit.map(|(_, d)| d), display_hit.map(|(_, d)| d),
     ].into_iter().flatten().fold(f64::INFINITY, f64::min);
 
     // Jade's entity providers: an entity is shown only when its hit is nearer than
@@ -1393,6 +1408,51 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     if enabled(game, "show_entity_registry_id", false) { details.push(id.to_owned()); }
                     if enabled(game, "show_entity_distance", false) { details.push(format!("{}: {:.1} m", tr(["Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离"]), distance)); }
                     draw_target_panel(game, batch, id, &title, false, None, &details);
+                    return;
+                }
+            }
+        }
+    }
+
+    if let Some((display_id, distance)) = display_hit {
+        let block_distance = game.aim().and_then(|(eye, _)| game.pick_unfiltered().map(|block| {
+            (0..3).map(|axis| (block.point[axis] - eye[axis]).powi(2)).sum::<f64>().sqrt()
+        }));
+        if block_distance.is_none_or(|block_distance| distance < block_distance)
+            && distance <= nearest_target_distance + 0.0001
+        {
+            if let Some(display) = game.text_displays.get(&display_id) {
+                if let Some(state) = display.hz_jade_block() {
+                    if let Some(block_state) = game.pack.assets.registry.state(state) {
+                        let id = block_state.name.as_str();
+                        let short = id.split_once(':').map_or(id, |(_, path)| path);
+                        let title = game.translate(&format!("block.{}", id.replace(':', ".")), short);
+                        let mut details = Vec::new();
+                        if enabled(game, "show_entity_registry_id", false) { details.push(id.to_owned()); }
+                        if enabled(game, "show_entity_distance", false) {
+                            details.push(format!("{}: {:.1} m", tr(["Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离"]), distance));
+                        }
+                        draw_target_panel(game, batch, id, &title, false, None, &details);
+                        return;
+                    }
+                }
+                if let Some(stack) = display.hz_jade_item() {
+                    let id = stack.item.as_ref();
+                    let short = id.split_once(':').map_or(id, |(_, path)| path);
+                    let title = stack_name(game, stack, short);
+                    let mut details = Vec::new();
+                    if enabled(game, "show_entity_registry_id", false) { details.push(id.to_owned()); }
+                    if enabled(game, "show_entity_distance", false) {
+                        details.push(format!("{}: {:.1} m", tr(["Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离"]), distance));
+                    }
+                    if enabled(game, "show_item_mod_name", true) {
+                        if let Some((namespace, _)) = id.split_once(':') {
+                            if namespace != "minecraft" && !namespace.is_empty() {
+                                details.push(format!("{}: {namespace}", tr(["Mod", "Mod", "Mod", "Mod", "Mod", "Mod", "Mod", "模组"])));
+                            }
+                        }
+                    }
+                    draw_target_panel(game, batch, id, &title, false, Some(stack), &details);
                     return;
                 }
             }
