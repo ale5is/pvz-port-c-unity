@@ -176,7 +176,7 @@ fn block_entity_details(game: &super::Game<'_>, pos: [i32; 3]) -> Vec<String> {
         BlockEntity::Sign(sign) => {
             let text = sign.front.lines.iter().filter(|line| !line.is_empty()).cloned().collect::<Vec<_>>().join(" / ");
             if !text.is_empty() { out.push(text); }
-            if sign.waxed { out.push(tr(["Waxed", "Encertrado", "Encerado", "Ciré", "Cerato", "Gewachst", "ワックス済み", "已涂蜡"]).to_owned()); }
+            if sign.waxed { out.push(tr(["Waxed", "Encerado", "Encerado", "Ciré", "Cerato", "Gewachst", "ワックス済み", "已涂蜡"]).to_owned()); }
         }
         BlockEntity::Banner(banner) => {
             out.push(format!("{}: {}", tr(["Patterns", "Diseños", "Padrões", "Motifs", "Motivi", "Muster", "模様", "图案"]), banner.layers.len()));
