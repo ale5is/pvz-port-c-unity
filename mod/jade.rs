@@ -103,6 +103,14 @@ pub fn settings(
         "Show entity health", "Mostrar vida de entidades", "Mostrar vida das entidades", "Afficher la santé des entités",
         "Mostra salute entità", "Entitätsgesundheit anzeigen", "エンティティの体力を表示", "显示实体生命值",
     ]));
+    buttons.push(option_label(game, "display_dropped_items", [
+        "Display dropped items", "Mostrar objetos tirados", "Exibir itens largados", "Afficher les objets au sol",
+        "Mostra oggetti a terra", "Abgeworfene Gegenstände anzeigen", "ドロップアイテムを表示", "显示掉落物品",
+    ]));
+    buttons.push(option_label(game, "show_item_count", [
+        "Show item count", "Mostrar cantidad de objetos", "Mostrar quantidade de itens", "Afficher la quantité",
+        "Mostra quantità oggetti", "Gegenstandsanzahl anzeigen", "アイテム数を表示", "显示物品数量",
+    ]));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -119,6 +127,8 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         6 => "show_mod_name",
         7 => "display_entities",
         8 => "show_entity_health",
+        9 => "display_dropped_items",
+        10 => "show_item_count",
         _ => return,
     };
     let next = !enabled(game, key, true);
@@ -154,6 +164,20 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         return;
     }
 
+    // Dropped-item hit test: use the same entity reach and ray/AABB test as mobs.
+    let item_hit = if enabled(game, "display_dropped_items", true) {
+        game.aim().and_then(|(eye, dir)| {
+            game.dropped.iter().enumerate()
+                .filter_map(|(index, item)| {
+                    super::ray_box(eye, dir, game.entity_reach, item.bounds())
+                        .map(|distance| (index, distance))
+                })
+                .min_by(|a, b| a.1.total_cmp(&b.1))
+        })
+    } else {
+        None
+    };
+
     // Jade's entity providers: an entity is shown only when its hit is nearer than
     // the first block outline, so walls continue to occlude the overlay.
     if enabled(game, "display_entities", true) {
@@ -164,7 +188,9 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     .sum::<f64>()
                     .sqrt()
             });
-            if block_distance.is_none_or(|block_distance| distance < block_distance) {
+            if block_distance.is_none_or(|block_distance| distance < block_distance)
+                && item_hit.is_none_or(|(_, item_distance)| distance <= item_distance)
+            {
                 if let Some(mob) = game.mobs.get(index) {
                     let id: &str = mob.kind.id.as_str();
                     let short_name = id.split_once(':').map_or(id, |(_, name)| name);
@@ -213,6 +239,68 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     }
                     return;
                 }
+            }
+        }
+    }
+
+    if let Some((index, distance)) = item_hit {
+        let block_distance = game.aim().and_then(|(eye, _)| {
+            game.pick_unfiltered().map(|block| {
+                (0..3)
+                    .map(|axis| (block.point[axis] - eye[axis]).powi(2))
+                    .sum::<f64>()
+                    .sqrt()
+            })
+        });
+        let mob_distance = game.mob_hit().map(|(_, mob_distance)| mob_distance);
+        if block_distance.is_none_or(|block_distance| distance < block_distance)
+            && mob_distance.is_none_or(|mob_distance| distance < mob_distance)
+        {
+            if let Some(item) = game.dropped.get(index) {
+                let id = item.stack.item.as_ref();
+                let short_name = id.split_once(':').map_or(id, |(_, name)| name);
+                let title = game.translate(&format!("item.{id}"), short_name);
+                let mut details = Vec::with_capacity(3);
+                if enabled(game, "show_mod_name", true) {
+                    if let Some((namespace, _)) = id.split_once(':') {
+                        if namespace != "minecraft" && !namespace.is_empty() {
+                            details.push(format!("{}: {}", tr([
+                                "Mod", "Mod", "Mod", "Mod", "Mod", "Mod", "Mod", "模组",
+                            ]), namespace));
+                        }
+                    }
+                }
+                if enabled(game, "show_registry_id", true) {
+                    details.push(id.to_owned());
+                }
+                if enabled(game, "show_item_count", true) {
+                    details.push(format!("{}: {}", tr([
+                        "Count", "Cantidad", "Quantidade", "Quantité", "Quantità", "Anzahl", "個数", "数量",
+                    ]), item.stack.count));
+                }
+                let atlas = &game.gui.atlas;
+                let title_width = horizon_client::hud::HudBatch::text_width(atlas, &title);
+                let detail_width = details.iter()
+                    .map(|line| horizon_client::hud::HudBatch::text_width(atlas, line))
+                    .fold(0.0_f32, f32::max);
+                let panel_width = (title_width.max(detail_width) + 12.0)
+                    .min((batch.width - 16.0).max(0.0));
+                let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
+                let panel_y = 8.0;
+                let panel_height = 17.0 + details.len() as f32 * 12.0;
+                batch.fill(atlas, panel_x, panel_y, panel_width, panel_height, 0xD0101010);
+                batch.text(atlas, &title, panel_x + 6.0, panel_y + 4.0, 0xFFFFFFFF, true);
+                for (line_index, detail) in details.iter().enumerate() {
+                    batch.text(
+                        atlas,
+                        detail,
+                        panel_x + 6.0,
+                        panel_y + 16.0 + line_index as f32 * 11.0,
+                        0xFFB8B8B8,
+                        true,
+                    );
+                }
+                return;
             }
         }
     }
