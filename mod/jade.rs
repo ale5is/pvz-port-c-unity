@@ -115,13 +115,9 @@ fn shear_block(game: &super::Game<'_>, block: &str) -> bool {
 fn harvest_tools(game: &super::Game<'_>, block: &str) -> Vec<String> {
     let items = game.res.items();
     TOOL_TYPES.iter().filter_map(|tiers| {
-        tiers.iter().copied().filter(|tool| {
+        tiers.iter().copied().find(|tool| {
             tier_correct(items, tool, block)
                 || (*tool == "minecraft:shears" && shear_block(game, block))
-        }).max_by(|a, b| {
-            let a_stack = horizon_client::items::ItemStack::new(a, 1);
-            let b_stack = horizon_client::items::ItemStack::new(b, 1);
-            items.mining_speed(Some(&a_stack), block).total_cmp(&items.mining_speed(Some(&b_stack), block))
         }).map(str::to_owned)
     }).collect()
 }
@@ -675,7 +671,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         let correct = game.res.items().correct_for_drops(game.held(), name);
         batch.text(
             atlas,
-            if correct { "✔" } else { "✖" },
+            if correct { "✔" } else { "X" },
             icon_x + 1.0,
             row_y + 3.0,
             if correct { 0xFF55FF55 } else { 0xFFFF0000 },
