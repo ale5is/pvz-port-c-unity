@@ -131,6 +131,12 @@ path = "crates/svc_client"
 dependent = "horizon-android"
 
 [[module]]
+id = "jade_brain_ttl"
+file = "crates/horizon-client/src/mobs/animal_brain.rs"
+name = "hz_jade_brain"
+source = "jade_brain_ttl.rs"
+
+[[module]]
 id = "jade_display_access"
 file = "crates/horizon-client/src/game/text_displays.rs"
 name = "hz_jade_displays"
