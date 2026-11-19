@@ -288,8 +288,12 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         _ => return,
     };
     let default = matches!(button, 3 | 4);
-    let next = !enabled(game, key, default);
+    let current = enabled(game, key, default);
+    let next = !current;
+    log::info!("Jade settings click received: button={button}, key={key}, current={current}, next={next}");
     save_enabled(game, key, next);
+    let saved = enabled(game, key, default);
+    log::info!("Jade setting after write: key={key}, expected={next}, actual={saved}");
 }
 
 pub fn item_tooltip(
