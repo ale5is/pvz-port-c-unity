@@ -274,7 +274,9 @@ fn mob_hit(game: &super::Game<'_>) -> Option<(usize, f64)> {
     let reach = entity_reach(game);
     let mut best: Option<(usize, f64)> = None;
     for (index, mob) in game.mobs.iter().enumerate() {
-        if mob.removed || Some(mob.id) == game.riding || Some(mob.id) == game.remote_camera_id() {
+        if mob.removed || Some(mob.id) == game.riding || Some(mob.id) == game.remote_camera_id()
+            || is_ignored(game, "ignored_entities", mob.kind.id.as_ref())
+        {
             continue;
         }
         if let Some(distance) = super::ray_box(eye, direction, reach, mob.bounds())
@@ -868,6 +870,29 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
     log::info!("Jade setting after write: key={key}, expected={next}, actual={saved}");
 }
 
+fn is_ignored(game: &super::Game<'_>, key: &str, id: &str) -> bool {
+    game.native_setting(ID, key)
+        .is_some_and(|list| list.split(';').any(|entry| entry == id))
+}
+
+fn update_ignore(game: &super::Game<'_>, key: &str, id: &str, add: bool) {
+    let current = game.native_setting(ID, key).unwrap_or_default();
+    let mut entries = current.split(';')
+        .filter(|entry| !entry.is_empty() && *entry != id)
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    if add { entries.push(id.to_owned()); }
+    game.native_set_setting(ID, key, &entries.join(";"));
+}
+
+fn valid_registry_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 128
+        && !id.chars().any(char::is_whitespace)
+        && id.contains(':')
+        && !id.contains(';')
+}
+
 const PROFILE_BOOL_SETTINGS: &[&str] = &[
     "display_tooltip", "show_target_icon", "show_registry_id", "show_coordinates",
     "show_block_states", "show_block_info", "show_hardness", "show_item_mod_name",
@@ -903,6 +928,9 @@ fn save_profile(game: &super::Game<'_>, name: &str) {
     entries.push(format!("overlay_position={position}"));
     entries.push(format!("text_background_opacity={opacity}"));
     entries.push(format!("reach_distance={reach}"));
+    for key in ["ignored_blocks", "ignored_entities", "ignored_items"] {
+        entries.push(format!("{key}={}", game.native_setting(ID, key).unwrap_or_default()));
+    }
     let key = format!("profile_{name}");
     game.native_set_setting(ID, &key, &entries.join(";"));
 }
@@ -924,6 +952,7 @@ fn load_profile(game: &super::Game<'_>, name: &str) {
                 "overlay_position" if matches!(value, "top_center" | "top_left" | "top_right" | "middle_left" | "middle_center" | "middle_right" | "bottom_left" | "bottom_center" | "bottom_right") => game.native_set_setting(ID, key, value),
                 "text_background_opacity" if value.parse::<u8>().is_ok_and(|v| (20..=100).contains(&v)) => game.native_set_setting(ID, key, value),
                 "reach_distance" if value.parse::<f64>().is_ok_and(|v| v.is_finite() && (0.0..=8.0).contains(&v)) => game.native_set_setting(ID, key, value),
+                "ignored_blocks" | "ignored_entities" | "ignored_items" => game.native_set_setting(ID, key, value),
                 _ => {}
             }
         }
@@ -988,6 +1017,24 @@ pub fn on_command(game: &super::Game<'_>, command: &str, ran: &mut bool) {
                     "load" => load_profile(game, name),
                     _ => {}
                 }
+            }
+        },
+        "ignore" | "unignore" => if let (Some(kind), Some(id)) = (parts.next(), parts.next()) {
+            let key = match kind {
+                "block" => Some("ignored_blocks"),
+                "entity" => Some("ignored_entities"),
+                "item" => Some("ignored_items"),
+                _ => None,
+            };
+            if let Some(key) = key {
+                if valid_registry_id(id) {
+                    update_ignore(game, key, id, action == "ignore");
+                }
+            }
+        },
+        "clear-ignores" => {
+            for key in ["ignored_blocks", "ignored_entities", "ignored_items"] {
+                game.native_set_setting(ID, key, "");
             }
         },
         "set" => if let (Some(key), Some(value)) = (parts.next(), parts.next()) {
@@ -1056,6 +1103,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         game.aim().and_then(|(eye, dir)| {
             game.dropped.iter().enumerate()
                 .filter_map(|(index, item)| {
+                    if is_ignored(game, "ignored_items", item.stack.item.as_ref()) { return None; }
                     super::ray_box(eye, dir, entity_reach(game), item.bounds())
                         .map(|distance| (index, distance))
                 })
@@ -1068,7 +1116,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     let armor_stand_hit = if enabled(game, "display_armor_stands", true) {
         game.aim().and_then(|(eye, dir)| {
             game.armor_stands.iter().enumerate()
-                .filter(|(_, stand)| !stand.marker && !stand.invisible)
+                .filter(|(_, stand)| !stand.marker && !stand.invisible && !is_ignored(game, "ignored_entities", "minecraft:armor_stand"))
                 .filter_map(|(index, stand)| {
                     super::ray_box(eye, dir, entity_reach(game), stand.bounds())
                         .map(|distance| (index, distance))
@@ -1079,16 +1127,28 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         None
     };
 
-    let frame_hit = if enabled(game, "display_item_frames", true) { game.frame_hit() } else { None };
-    let painting_hit = if enabled(game, "display_paintings", true) { game.painting_hit() } else { None };
+    let frame_hit = if enabled(game, "display_item_frames", true)
+        && !is_ignored(game, "ignored_entities", "minecraft:item_frame")
+        && !is_ignored(game, "ignored_entities", "minecraft:glow_item_frame")
+    { game.frame_hit() } else { None };
+    let painting_hit = if enabled(game, "display_paintings", true)
+        && !is_ignored(game, "ignored_entities", "minecraft:painting")
+    { game.painting_hit() } else { None };
     let boat_hit = if enabled(game, "display_boats", true) {
         game.aim().and_then(|(eye, dir)| game.boats.iter().enumerate()
-            .filter_map(|(i, boat)| super::ray_box(eye, dir, entity_reach(game), boat.bounds()).map(|d| (i, d)))
+            .filter_map(|(i, boat)| {
+                let id = if boat.chest { format!("minecraft:{}_chest_boat", boat.wood) } else { format!("minecraft:{}_boat", boat.wood) };
+                if is_ignored(game, "ignored_entities", &id) { return None; }
+                super::ray_box(eye, dir, entity_reach(game), boat.bounds()).map(|d| (i, d))
+            })
             .min_by(|a, b| a.1.total_cmp(&b.1)))
     } else { None };
     let cart_hit = if enabled(game, "display_minecarts", true) {
         game.aim().and_then(|(eye, dir)| game.carts.iter().enumerate()
-            .filter_map(|(i, cart)| super::ray_box(eye, dir, entity_reach(game), cart.bounds()).map(|d| (i, d)))
+            .filter_map(|(i, cart)| {
+                if is_ignored(game, "ignored_entities", cart.kind.id()) { return None; }
+                super::ray_box(eye, dir, entity_reach(game), cart.bounds()).map(|d| (i, d))
+            })
             .min_by(|a, b| a.1.total_cmp(&b.1)))
     } else { None };
     let falling_hit = if enabled(game, "display_falling_blocks", true) {
@@ -1098,12 +1158,23 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                 horizon_core::geometry::Vec3::new(p.x - 0.49, p.y, p.z - 0.49),
                 horizon_core::geometry::Vec3::new(p.x + 0.49, p.y + 0.98, p.z + 0.49),
             );
+            if is_ignored(game, "ignored_entities", "minecraft:falling_block") { return None; }
+            let state = game.pack.assets.registry.state(falling.state)?;
+            if is_ignored(game, "ignored_blocks", state.name.as_ref()) { return None; }
             super::ray_box(eye, dir, entity_reach(game), bounds).map(|d| (i, d))
         }).min_by(|a, b| a.1.total_cmp(&b.1)))
     } else { None };
     let display_hit = if enabled(game, "display_entities", true) {
         game.aim().and_then(|(eye, dir)| {
             game.text_displays.iter().filter_map(|(id, display)| {
+                if let Some(state) = display.hz_jade_block() {
+                    if let Some(block) = game.pack.assets.registry.state(state) {
+                        if is_ignored(game, "ignored_blocks", block.name.as_ref()) { return None; }
+                    }
+                }
+                if let Some(stack) = display.hz_jade_item() {
+                    if is_ignored(game, "ignored_items", stack.item.as_ref()) { return None; }
+                }
                 if display.hz_jade_block().is_none() && display.hz_jade_item().is_none() {
                     return None;
                 }
@@ -1737,7 +1808,9 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         return;
     };
     let name = block_state.name.as_str();
-    if matches!(name, "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air") {
+    if matches!(name, "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air")
+        || is_ignored(game, "ignored_blocks", name)
+    {
         return;
     }
 
