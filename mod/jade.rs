@@ -659,7 +659,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     }
                     if let Some(health) = health_line {
                         let y = panel_y + 16.0 + details.len() as f32 * 11.0;
-                        batch.text(atlas, "❤", panel_x + text_x, y, 0xFFFF0000, true);
+                        batch.text(atlas, "♥", panel_x + text_x, y, 0xFFFF0000, true);
                         batch.text(atlas, &health, panel_x + text_x + 9.0, y, 0xFFB8B8B8, true);
                     }
                     return;
