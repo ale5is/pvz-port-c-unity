@@ -290,22 +290,28 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                         ));
                     }
                     let atlas = &game.gui.atlas;
+                    let has_icon = enabled(game, "show_target_icon", true)
+                        && icon_sprite(atlas, id, true).is_some();
+                    let text_x = if has_icon { 26.0 } else { 6.0 };
                     let title_width = horizon_client::hud::HudBatch::text_width(atlas, &title);
                     let detail_width = details.iter()
                         .map(|line| horizon_client::hud::HudBatch::text_width(atlas, line))
                         .fold(0.0_f32, f32::max);
-                    let panel_width = (title_width.max(detail_width) + 12.0)
+                    let panel_width = (title_width.max(detail_width) + if has_icon { 32.0 } else { 12.0 })
                         .min((batch.width - 16.0).max(0.0));
                     let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
                     let panel_y = 8.0;
                     let panel_height = 17.0 + details.len() as f32 * 12.0;
-                    batch.fill(atlas, panel_x, panel_y, panel_width, panel_height, 0xD0101010);
-                    batch.text(atlas, &title, panel_x + 6.0, panel_y + 4.0, 0xFFFFFFFF, true);
+                    batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), 0xD0101010);
+                    if has_icon {
+                        let _ = draw_icon(batch, atlas, id, true, panel_x + 6.0, panel_y + 2.0);
+                    }
+                    batch.text(atlas, &title, panel_x + text_x, panel_y + 4.0, 0xFFFFFFFF, true);
                     for (line_index, detail) in details.iter().enumerate() {
                         batch.text(
                             atlas,
                             detail,
-                            panel_x + 6.0,
+                            panel_x + text_x,
                             panel_y + 16.0 + line_index as f32 * 11.0,
                             0xFFB8B8B8,
                             true,
@@ -354,22 +360,28 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     ]), item.stack.count));
                 }
                 let atlas = &game.gui.atlas;
+                let has_icon = enabled(game, "show_target_icon", true)
+                    && icon_sprite(atlas, id, false).is_some();
+                let text_x = if has_icon { 26.0 } else { 6.0 };
                 let title_width = horizon_client::hud::HudBatch::text_width(atlas, &title);
                 let detail_width = details.iter()
                     .map(|line| horizon_client::hud::HudBatch::text_width(atlas, line))
                     .fold(0.0_f32, f32::max);
-                let panel_width = (title_width.max(detail_width) + 12.0)
+                let panel_width = (title_width.max(detail_width) + if has_icon { 32.0 } else { 12.0 })
                     .min((batch.width - 16.0).max(0.0));
                 let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
                 let panel_y = 8.0;
                 let panel_height = 17.0 + details.len() as f32 * 12.0;
-                batch.fill(atlas, panel_x, panel_y, panel_width, panel_height, 0xD0101010);
-                batch.text(atlas, &title, panel_x + 6.0, panel_y + 4.0, 0xFFFFFFFF, true);
+                batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), 0xD0101010);
+                if has_icon {
+                    let _ = draw_icon(batch, atlas, id, false, panel_x + 6.0, panel_y + 2.0);
+                }
+                batch.text(atlas, &title, panel_x + text_x, panel_y + 4.0, 0xFFFFFFFF, true);
                 for (line_index, detail) in details.iter().enumerate() {
                     batch.text(
                         atlas,
                         detail,
-                        panel_x + 6.0,
+                        panel_x + text_x,
                         panel_y + 16.0 + line_index as f32 * 11.0,
                         0xFFB8B8B8,
                         true,
@@ -416,22 +428,28 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     }
                 }
                 let atlas = &game.gui.atlas;
+                let has_icon = enabled(game, "show_target_icon", true)
+                    && icon_sprite(atlas, "minecraft:armor_stand", true).is_some();
+                let text_x = if has_icon { 26.0 } else { 6.0 };
                 let title_width = horizon_client::hud::HudBatch::text_width(atlas, &title);
                 let detail_width = details.iter()
                     .map(|line| horizon_client::hud::HudBatch::text_width(atlas, line))
                     .fold(0.0_f32, f32::max);
-                let panel_width = (title_width.max(detail_width) + 12.0)
+                let panel_width = (title_width.max(detail_width) + if has_icon { 32.0 } else { 12.0 })
                     .min((batch.width - 16.0).max(0.0));
                 let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
                 let panel_y = 8.0;
                 let panel_height = 17.0 + details.len() as f32 * 12.0;
-                batch.fill(atlas, panel_x, panel_y, panel_width, panel_height, 0xD0101010);
-                batch.text(atlas, &title, panel_x + 6.0, panel_y + 4.0, 0xFFFFFFFF, true);
+                batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), 0xD0101010);
+                if has_icon {
+                    let _ = draw_icon(batch, atlas, "minecraft:armor_stand", true, panel_x + 6.0, panel_y + 2.0);
+                }
+                batch.text(atlas, &title, panel_x + text_x, panel_y + 4.0, 0xFFFFFFFF, true);
                 for (line_index, detail) in details.iter().enumerate() {
                     batch.text(
                         atlas,
                         detail,
-                        panel_x + 6.0,
+                        panel_x + text_x,
                         panel_y + 16.0 + line_index as f32 * 11.0,
                         0xFFB8B8B8,
                         true,
@@ -502,23 +520,29 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         details.push(format!("{hardness} · {tool}"));
     }
     let atlas = &game.gui.atlas;
+    let has_icon = enabled(game, "show_target_icon", true)
+        && icon_sprite(atlas, name, false).is_some();
+    let text_x = if has_icon { 26.0 } else { 6.0 };
     let title_width = horizon_client::hud::HudBatch::text_width(atlas, &title);
     let detail_width = details.iter()
         .map(|line| horizon_client::hud::HudBatch::text_width(atlas, line))
         .fold(0.0_f32, f32::max);
-    let panel_width = (title_width.max(detail_width) + 12.0)
+    let panel_width = (title_width.max(detail_width) + if has_icon { 32.0 } else { 12.0 })
         .min((batch.width - 16.0).max(0.0));
     let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
     let panel_y = 8.0;
     let panel_height = 17.0 + details.len() as f32 * 12.0;
 
-    batch.fill(atlas, panel_x, panel_y, panel_width, panel_height, 0xD0101010);
-    batch.text(atlas, &title, panel_x + 6.0, panel_y + 4.0, 0xFFFFFFFF, true);
+    batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), 0xD0101010);
+    if has_icon {
+        let _ = draw_icon(batch, atlas, name, false, panel_x + 6.0, panel_y + 2.0);
+    }
+    batch.text(atlas, &title, panel_x + text_x, panel_y + 4.0, 0xFFFFFFFF, true);
     for (index, detail) in details.iter().enumerate() {
         batch.text(
             atlas,
             detail,
-            panel_x + 6.0,
+            panel_x + text_x,
             panel_y + 16.0 + index as f32 * 11.0,
             0xFFB8B8B8,
             true,
