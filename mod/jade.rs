@@ -137,6 +137,7 @@ fn setting_default(key: &str) -> bool {
         key,
         "show_coordinates" | "show_block_states" | "show_hardness" | "show_item_count"
             | "show_block_face" | "show_distance" | "show_entity_distance" | "show_entity_registry_id"
+            | "show_relative_coordinates"
     )
 }
 
@@ -287,6 +288,10 @@ pub fn settings(
         "Show entity registry ID", "Mostrar ID de entidad", "Mostrar ID da entidade", "Afficher l’identifiant de l’entité",
         "Mostra ID entità", "Entitäts-Registrierungs-ID anzeigen", "エンティティ登録ID", "显示实体注册ID",
     ], false));
+    buttons.push(option_label_with_default(game, "show_relative_coordinates", [
+        "Show relative coordinates", "Mostrar coordenadas relativas", "Mostrar coordenadas relativas", "Afficher les coordonnées relatives",
+        "Mostra coordinate relative", "Relative Koordinaten anzeigen", "相対座標を表示", "显示相对坐标",
+    ], false));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -313,6 +318,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         16 => "show_distance",
         17 => "show_entity_distance",
         18 => "show_entity_registry_id",
+        19 => "show_relative_coordinates",
         _ => return,
     };
     let default = setting_default(key);
@@ -658,6 +664,14 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     }
     if enabled(game, "show_coordinates", false) {
         details.push(format!("X: {}  Y: {}  Z: {}", hit.pos[0], hit.pos[1], hit.pos[2]));
+    }
+    if enabled(game, "show_relative_coordinates", false) {
+        if let Some(player) = game.player.as_ref() {
+            let origin = player.position;
+            details.push(format!("{}: {:.1}  {:.1}  {:.1}", tr([
+                "Relative", "Relativas", "Relativas", "Relatives", "Relative", "Relativ", "相対", "相对",
+            ]), hit.pos[0] as f64 + 0.5 - origin.x, hit.pos[1] as f64 + 0.5 - origin.y, hit.pos[2] as f64 + 0.5 - origin.z));
+        }
     }
     if enabled(game, "show_block_face", false) {
         let face = match hit.face {
