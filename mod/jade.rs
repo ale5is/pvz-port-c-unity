@@ -166,7 +166,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             });
             if block_distance.is_none_or(|block_distance| distance < block_distance) {
                 if let Some(mob) = game.mobs.get(index) {
-                    let id = mob.kind.id.as_ref();
+                    let id: &str = mob.kind.id.as_str();
                     let short_name = id.split_once(':').map_or(id, |(_, name)| name);
                     let title = mob.custom_name.clone().unwrap_or_else(|| {
                         game.translate(&format!("entity.minecraft.{short_name}"), short_name)
