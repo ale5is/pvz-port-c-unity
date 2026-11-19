@@ -120,7 +120,7 @@ pub fn item_tooltip(
     stack: &horizon_client::items::ItemStack,
     mut lines: Vec<(horizon_client::text::Text, u32)>,
 ) -> Vec<(horizon_client::text::Text, u32)> {
-    if !enabled(game, "show_item_mod_name", true) {
+    if !game.native_on(ID) || !enabled(game, "show_item_mod_name", true) {
         return lines;
     }
     let Some((namespace, _)) = stack.item.split_once(':') else {
