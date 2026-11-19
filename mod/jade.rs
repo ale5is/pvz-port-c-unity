@@ -218,12 +218,37 @@ fn theme_index(game: &super::Game<'_>) -> usize {
     }
 }
 
+fn background_opacity(game: &super::Game<'_>) -> u8 {
+    let percent = game.native_setting(ID, "text_background_opacity")
+        .and_then(|value| value.parse::<u8>().ok())
+        .unwrap_or(82)
+        .clamp(20, 100);
+    ((percent as u16 * 255) / 100) as u8
+}
+
 fn theme_colors(game: &super::Game<'_>) -> (u32, u32, u32) {
+    let alpha = background_opacity(game);
     match theme_index(game) {
-        1 => (0xD0F0F0F0, 0xFF101010, 0xFF404040),
-        2 => (0xD0251835, 0xFFFFEEFF, 0xFFD7B8FF),
-        3 => (0xF0000000, 0xFFFFFFFF, 0xFFFFFF00),
-        _ => (0xD0101010, 0xFFFFFFFF, 0xFFB8B8B8),
+        1 => (
+            horizon_client::hud::rgba(240, 240, 240, alpha),
+            horizon_client::hud::rgba(16, 16, 16, 255),
+            horizon_client::hud::rgba(64, 64, 64, 255),
+        ),
+        2 => (
+            horizon_client::hud::rgba(37, 24, 53, alpha),
+            horizon_client::hud::rgba(255, 238, 255, 255),
+            horizon_client::hud::rgba(215, 184, 255, 255),
+        ),
+        3 => (
+            horizon_client::hud::rgba(0, 0, 0, alpha),
+            horizon_client::hud::rgba(255, 255, 255, 255),
+            horizon_client::hud::rgba(255, 255, 0, 255),
+        ),
+        _ => (
+            horizon_client::hud::rgba(16, 16, 16, alpha),
+            horizon_client::hud::rgba(255, 255, 255, 255),
+            horizon_client::hud::rgba(184, 184, 184, 255),
+        ),
     }
 }
 
@@ -552,6 +577,11 @@ pub fn settings(
     buttons.push(option_label(game, "display_falling_blocks", ["Display falling blocks", "Mostrar bloques en caída", "Exibir blocos em queda", "Afficher les blocs qui tombent", "Mostra blocchi in caduta", "Fallende Blöcke anzeigen", "落下ブロックを表示", "显示下落方块"]));
     buttons.push(option_label_with_default(game, "show_block_entity_info", ["Show block entity data", "Mostrar datos especiales del bloque", "Mostrar dados especiais do bloco", "Afficher les données du bloc", "Mostra dati speciali del blocco", "Blockentitätsdaten anzeigen", "ブロックエンティティ情報", "显示方块实体数据"], false));
     buttons.push(format!("{}: {}", tr(["Overlay theme", "Tema del HUD", "Tema do HUD", "Thème du HUD", "Tema HUD", "HUD-Design", "HUDテーマ", "提示框主题"]), theme_name(game)));
+    let opacity = game.native_setting(ID, "text_background_opacity")
+        .and_then(|value| value.parse::<u8>().ok())
+        .unwrap_or(82)
+        .clamp(20, 100);
+    buttons.push(format!("{}: {}%", tr(["Background opacity", "Opacidad del fondo", "Opacidade do fundo", "Opacité du fond", "Opacità sfondo", "Hintergrunddeckkraft", "背景の不透明度", "背景不透明度"]), opacity));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -563,6 +593,23 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         game.native_set_setting(ID, "theme", next);
         if game.native_setting(ID, "theme").as_deref() != Some(next) {
             log::warn!("Jade: theme setting did not verify after writing");
+        }
+        return;
+    }
+    if button == 41 {
+        let current = game.native_setting(ID, "text_background_opacity")
+            .and_then(|value| value.parse::<u8>().ok())
+            .unwrap_or(82);
+        let next = match current {
+            0..=39 => 40,
+            40..=59 => 60,
+            60..=79 => 80,
+            80..=99 => 100,
+            _ => 20,
+        };
+        game.native_set_setting(ID, "text_background_opacity", &next.to_string());
+        if game.native_setting(ID, "text_background_opacity").as_deref() != Some(&next.to_string()) {
+            log::warn!("Jade: background opacity setting did not verify after writing");
         }
         return;
     }
@@ -647,6 +694,13 @@ pub fn on_command(game: &super::Game<'_>, command: &str, ran: &mut bool) {
         "theme" => if let Some(value) = parts.next() {
             if matches!(value, "dark" | "light" | "purple" | "high_contrast") {
                 game.native_set_setting(ID, "theme", value);
+            }
+        },
+        "opacity" => if let Some(value) = parts.next() {
+            if let Ok(percent) = value.parse::<u8>() {
+                if (20..=100).contains(&percent) {
+                    game.native_set_setting(ID, "text_background_opacity", &percent.to_string());
+                }
             }
         },
         _ => {}
