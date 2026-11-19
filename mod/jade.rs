@@ -1188,7 +1188,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         if block_distance.is_none_or(|d| distance < d) && distance <= nearest_target_distance + 0.0001 {
             if let Some(falling) = game.falling.get(index) {
                 if let Some(state) = game.pack.assets.registry.state(falling.state) {
-                    let id = state.name.as_str(); let short = id.split_once(':').map_or(id, |(_, p)| p);
+                    let id = state.name.as_ref(); let short = id.split_once(':').map_or(id, |(_, p)| p);
                     let title = game.translate(&format!("block.{}", id.replace(':', ".")), short);
                     let mut details = Vec::new();
                     if enabled(game, "show_entity_registry_id", false) { details.push(id.to_owned()); }
