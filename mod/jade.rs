@@ -1162,7 +1162,16 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                 let mut details = Vec::new();
                 if enabled(game, "show_entity_registry_id", false) { details.push(id.clone()); }
                 if enabled(game, "show_entity_distance", false) { details.push(format!("{}: {:.1} m", tr(["Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离"]), distance)); }
-                if boat.chest { details.push(tr(["Has chest", "Tiene cofre", "Tem baú", "Avec coffre", "Con cassa", "Mit Truhe", "チェスト付き", "带箱子"]).to_owned()); }
+                if boat.chest {
+                    details.push(tr(["Has chest", "Tiene cofre", "Tem baú", "Avec coffre", "Con cassa", "Mit Truhe", "チェスト付き", "带箱子"]).to_owned());
+                    let occupied = boat.items.iter().flatten().count();
+                    details.push(format!("{}: {}/{}", tr(["Stored slots", "Espacios ocupados", "Slots ocupados", "Emplacements utilisés", "Slot occupati", "Belegte Plätze", "使用中スロット", "已占用槽位"]), occupied, boat.items.len()));
+                    for stack in boat.items.iter().flatten().take(3) {
+                        let item_id = stack.item.as_ref();
+                        let short = item_id.split_once(':').map_or(item_id, |(_, p)| p);
+                        details.push(stack_name(game, stack, short));
+                    }
+                }
                 draw_target_panel(game, batch, &id, &title, false, None, &details);
                 return;
             }
@@ -1181,6 +1190,15 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                 if enabled(game, "show_entity_distance", false) { details.push(format!("{}: {:.1} m", tr(["Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离"]), distance)); }
                 if cart.fuse >= 0 { details.push(format!("{}: {} s", tr(["Fuse", "Mecha", "Pavio", "Mèche", "Miccia", "Zünder", "導火線", "引信"]), cart.fuse / 20)); }
                 if cart.fuel > 0 { details.push(format!("{}: {} s", tr(["Fuel", "Combustible", "Combustível", "Carburant", "Carburante", "Treibstoff", "燃料", "燃料"]), cart.fuel / 20)); }
+                if !cart.items.is_empty() {
+                    let occupied = cart.items.iter().flatten().count();
+                    details.push(format!("{}: {}/{}", tr(["Stored slots", "Espacios ocupados", "Slots ocupados", "Emplacements utilisés", "Slot occupati", "Belegte Plätze", "使用中スロット", "已占用槽位"]), occupied, cart.items.len()));
+                    for stack in cart.items.iter().flatten().take(3) {
+                        let item_id = stack.item.as_ref();
+                        let short = item_id.split_once(':').map_or(item_id, |(_, p)| p);
+                        details.push(stack_name(game, stack, short));
+                    }
+                }
                 draw_target_panel(game, batch, item, &title, false, None, &details);
                 return;
             }
