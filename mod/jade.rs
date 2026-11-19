@@ -74,6 +74,133 @@ fn stack_name(
         .map_or_else(|| fallback.to_owned(), |(text, _)| text.plain())
 }
 
+fn block_entity_details(game: &super::Game<'_>, pos: [i32; 3]) -> Vec<String> {
+    use horizon_client::containers::BlockEntity;
+    let Some(entity) = game.world.block_entities.get(&(pos[0], pos[1], pos[2])) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    let count_items = |items: &[Option<horizon_client::items::ItemStack>]| items.iter().flatten().count();
+    let item_names = |items: &[Option<horizon_client::items::ItemStack>]| {
+        items.iter().flatten().take(4).map(|stack| {
+            let id = stack.item.as_ref();
+            let short = id.split_once(':').map_or(id, |(_, path)| path);
+            stack_name(game, stack, short)
+        }).collect::<Vec<_>>().join(", ")
+    };
+    match entity {
+        BlockEntity::Chest(items) => {
+            out.push(format!("{}: {}/{}", tr(["Stored slots", "Espacios ocupados", "Slots ocupados", "Emplacements utilisés", "Slot occupati", "Belegte Plätze", "使用中スロット", "已占用槽位"]), count_items(items), items.len()));
+            let names = item_names(items);
+            if !names.is_empty() { out.push(names); }
+        }
+        BlockEntity::Furnace(furnace) => {
+            if furnace.lit_remaining > 0 { out.push(format!("{}: {} s", tr(["Burn time", "Combustible", "Combustível", "Combustion", "Combustione", "Brennzeit", "燃焼時間", "燃烧时间"]), furnace.lit_remaining / 20)); }
+            if furnace.cooking_total > 0 { out.push(format!("{}: {}%", tr(["Smelting", "Fundición", "Fundição", "Cuisson", "Fusione", "Schmelzen", "精錬", "冶炼"]), (furnace.cooking_timer * 100 / furnace.cooking_total).clamp(0, 100))); }
+            let names = item_names(&furnace.items);
+            if !names.is_empty() { out.push(names); }
+        }
+        BlockEntity::Brewing(brewing) => {
+            out.push(format!("{}: {}/3", tr(["Bottles", "Frascos", "Frascos", "Fioles", "Bottiglie", "Flaschen", "瓶", "药瓶"]), count_items(&brewing.items[..3])));
+            if brewing.brew_time > 0 { out.push(format!("{}: {} s", tr(["Brewing", "Preparando", "Preparando", "Préparation", "Preparazione", "Brauen", "醸造", "酿造"]), brewing.brew_time / 20)); }
+            if brewing.fuel > 0 { out.push(format!("{}: {}", tr(["Fuel", "Combustible", "Combustível", "Carburant", "Carburante", "Brennstoff", "燃料", "燃料"]), brewing.fuel)); }
+        }
+        BlockEntity::Jukebox(jukebox) => {
+            if let Some(record) = jukebox.record() {
+                let id = record.item.as_ref(); let short = id.split_once(':').map_or(id, |(_, p)| p);
+                out.push(format!("{}: {}", tr(["Record", "Disco", "Disco", "Disque", "Disco", "Schallplatte", "レコード", "唱片"]), stack_name(game, record, short)));
+                if jukebox.playing { out.push(format!("{}: {} s", tr(["Playing", "Reproduciendo", "Reproduzindo", "Lecture", "In riproduzione", "Wiedergabe", "再生中", "播放中"]), jukebox.ticks / 20)); }
+            }
+        }
+        BlockEntity::Lectern(lectern) => {
+            if let Some(book) = lectern.book.as_ref() {
+                let id = book.item.as_ref(); let short = id.split_once(':').map_or(id, |(_, p)| p);
+                out.push(format!("{}: {}", tr(["Book", "Libro", "Livro", "Livre", "Libro", "Buch", "本", "书"]), stack_name(game, book, short)));
+                out.push(format!("{}: {}", tr(["Page", "Página", "Página", "Page", "Pagina", "Seite", "ページ", "页"]), lectern.page + 1));
+            }
+        }
+        BlockEntity::Spawner(spawner) => {
+            out.push(format!("{}: {} s", tr(["Spawn delay", "Retraso de aparición", "Atraso de geração", "Délai d’apparition", "Ritardo generazione", "Spawn-Verzögerung", "スポーン遅延", "生成延迟"]), spawner.spawn_delay.max(0) / 20));
+            out.push(format!("{}: {}", tr(["Spawn count", "Cantidad", "Quantidade", "Nombre", "Quantità", "Spawn-Anzahl", "スポーン数", "生成数量"]), spawner.spawn_count));
+        }
+        BlockEntity::TrialSpawner(spawner) => {
+            out.push(format!("{}: {}", tr(["Active mobs", "Mobs activos", "Mobs ativos", "Mobs actifs", "Mob attivi", "Aktive Kreaturen", "出現中のMob", "活跃生物"]), spawner.current_mobs.len()));
+            out.push(format!("{}: {}", tr(["Total spawned", "Total generados", "Total gerados", "Total apparu", "Totale generati", "Insgesamt gespawnt", "累計スポーン", "累计生成"]), spawner.total_mobs_spawned));
+            if spawner.is_ominous { out.push(tr(["Ominous", "Agorero", "Sinistro", "Sinistre", "Minaccioso", "Unheilvoll", "不吉", "不祥"]).to_owned()); }
+        }
+        BlockEntity::Vault(vault) => {
+            out.push(format!("{}: {}", tr(["Rewarded players", "Jugadores recompensados", "Jogadores recompensados", "Joueurs récompensés", "Giocatori premiati", "Belohnte Spieler", "報酬済みプレイヤー", "已奖励玩家"]), vault.rewarded_players.len()));
+            if let Some(stack) = vault.display_item.as_ref() {
+                let id = stack.item.as_ref(); let short = id.split_once(':').map_or(id, |(_, p)| p);
+                out.push(format!("{}: {}", tr(["Display item", "Objeto mostrado", "Item exibido", "Objet affiché", "Oggetto esposto", "Angezeigter Gegenstand", "表示アイテム", "展示物品"]), stack_name(game, stack, short)));
+            }
+        }
+        BlockEntity::Beehive(hive) => {
+            out.push(format!("{}: {}", tr(["Bees inside", "Abejas dentro", "Abelhas dentro", "Abeilles dedans", "Api all'interno", "Bienen im Nest", "中のミツバチ", "蜂巢中的蜜蜂"]), hive.bees.len()));
+        }
+        BlockEntity::Campfire(campfire) => {
+            let cooking = count_items(&campfire.items);
+            out.push(format!("{}: {}/4", tr(["Cooking slots", "Espacios cocinando", "Slots cozinhando", "Emplacements en cuisson", "Slot in cottura", "Kochplätze", "調理スロット", "烹饪槽位"]), cooking));
+            for i in 0..campfire.items.len() {
+                if let Some(stack) = campfire.items[i].as_ref() {
+                    let id = stack.item.as_ref(); let short = id.split_once(':').map_or(id, |(_, p)| p);
+                    let name = stack_name(game, stack, short);
+                    let progress = if campfire.total[i] > 0 { campfire.progress[i] * 100 / campfire.total[i] } else { 0 };
+                    out.push(format!("{name}: {}%", progress.clamp(0, 100)));
+                }
+            }
+        }
+        BlockEntity::Crafter(crafter) => {
+            out.push(format!("{}: {}/9", tr(["Disabled slots", "Espacios desactivados", "Slots desativados", "Emplacements désactivés", "Slot disattivati", "Deaktivierte Plätze", "無効スロット", "禁用槽位"]), crafter.disabled.iter().filter(|v| **v).count()));
+            if crafter.triggered || crafter.crafting_ticks > 0 { out.push(tr(["Crafting", "Fabricando", "Fabricando", "Fabrication", "Fabbricazione", "Herstellung", "クラフト中", "合成中"]).to_owned()); }
+        }
+        BlockEntity::Beacon(beacon) => {
+            out.push(format!("{}: {}", tr(["Levels", "Niveles", "Níveis", "Niveaux", "Livelli", "Stufen", "レベル", "等级"]), beacon.levels));
+            if let Some(effect) = beacon.primary.as_deref() { out.push(format!("{}: {}", tr(["Primary", "Primario", "Primário", "Primaire", "Primario", "Primär", "一次", "主效果"]), effect)); }
+            if let Some(effect) = beacon.secondary.as_deref() { out.push(format!("{}: {}", tr(["Secondary", "Secundario", "Secundário", "Secondaire", "Secondario", "Sekundär", "二次", "副效果"]), effect)); }
+        }
+        BlockEntity::Sculk(sculk) => {
+            out.push(format!("{}: {:?}", tr(["Type", "Tipo", "Tipo", "Type", "Tipo", "Typ", "種類", "类型"]), sculk.kind));
+            if sculk.warning_level > 0 { out.push(format!("{}: {}", tr(["Warning", "Advertencia", "Aviso", "Avertissement", "Avviso", "Warnung", "警告", "警告"]), sculk.warning_level)); }
+        }
+        BlockEntity::CommandBlock(command) => {
+            if !command.command.is_empty() { out.push(format!("{}: {}", tr(["Command", "Comando", "Comando", "Commande", "Comando", "Befehl", "コマンド", "命令"]), command.command.clone())); }
+            out.push(format!("{}: {}", tr(["Success count", "Ejecuciones exitosas", "Execuções bem-sucedidas", "Réussites", "Esecuzioni riuscite", "Erfolgsanzahl", "成功回数", "成功次数"]), command.success_count));
+        }
+        BlockEntity::ChiseledBookshelf(shelf) => {
+            out.push(format!("{}: {}/6", tr(["Books", "Libros", "Livros", "Livres", "Libri", "Bücher", "本", "书"]), count_items(&shelf.items)));
+        }
+        BlockEntity::Shelf(shelf) => {
+            out.push(format!("{}: {}/3", tr(["Displayed items", "Objetos mostrados", "Itens exibidos", "Objets affichés", "Oggetti esposti", "Angezeigte Gegenstände", "表示アイテム", "展示物品"]), count_items(&shelf.items)));
+        }
+        BlockEntity::Sign(sign) => {
+            let text = sign.front.lines.iter().filter(|line| !line.is_empty()).cloned().collect::<Vec<_>>().join(" / ");
+            if !text.is_empty() { out.push(text); }
+            if sign.waxed { out.push(tr(["Waxed", "Encertrado", "Encerado", "Ciré", "Cerato", "Gewachst", "ワックス済み", "已涂蜡"]).to_owned()); }
+        }
+        BlockEntity::Brushable(brushable) => {
+            if let Some(stack) = brushable.item.as_ref() {
+                let id = stack.item.as_ref(); let short = id.split_once(':').map_or(id, |(_, p)| p);
+                out.push(format!("{}: {}", tr(["Hidden item", "Objeto oculto", "Item oculto", "Objet caché", "Oggetto nascosto", "Versteckter Gegenstand", "隠しアイテム", "隐藏物品"]), stack_name(game, stack, short)));
+            }
+        }
+        BlockEntity::EndGateway(gateway) => {
+            out.push(format!("{}: {} s", tr(["Age", "Antigüedad", "Idade", "Âge", "Età", "Alter", "経過時間", "时间"]), gateway.age / 20));
+            if let Some(exit) = gateway.exit_portal { out.push(format!("Exit: {}, {}, {}", exit[0], exit[1], exit[2])); }
+        }
+        BlockEntity::PotentSulfur(sulfur) => {
+            if sulfur.waiting_countdown > 0 { out.push(format!("{}: {} s", tr(["Next change", "Próximo cambio", "Próxima mudança", "Prochain changement", "Prossimo cambio", "Nächste Änderung", "次の変化", "下次变化"]), sulfur.waiting_countdown)); }
+        }
+        BlockEntity::Mod(mod_entity) => {
+            out.push(format!("{}: {}", tr(["Provider", "Proveedor", "Provedor", "Fournisseur", "Fornitore", "Anbieter", "プロバイダー", "提供者"]), mod_entity.id));
+            if !mod_entity.items.is_empty() { out.push(format!("{}: {}/{}", tr(["Stored slots", "Espacios ocupados", "Slots ocupados", "Emplacements utilisés", "Slot occupati", "Belegte Plätze", "使用中スロット", "已占用槽位"]), count_items(&mod_entity.items), mod_entity.items.len())); }
+            if !mod_entity.data.is_empty() { out.push(format!("{}: {}", tr(["Data", "Datos", "Dados", "Données", "Dati", "Daten", "データ", "数据"]), mod_entity.data.iter().map(i32::to_string).collect::<Vec<_>>().join(", "))); }
+        }
+        _ => {}
+    }
+    out
+}
+
 fn draw_target_panel(
     game: &super::Game<'_>,
     batch: &mut horizon_client::hud::HudBatch,
@@ -391,6 +518,7 @@ pub fn settings(
     buttons.push(option_label(game, "display_boats", ["Display boats", "Mostrar botes", "Exibir barcos", "Afficher les bateaux", "Mostra barche", "Boote anzeigen", "ボートを表示", "显示船"]));
     buttons.push(option_label(game, "display_minecarts", ["Display minecarts", "Mostrar vagonetas", "Exibir carrinhos", "Afficher les wagonnets", "Mostra carrelli", "Loren anzeigen", "トロッコを表示", "显示矿车"]));
     buttons.push(option_label(game, "display_falling_blocks", ["Display falling blocks", "Mostrar bloques en caída", "Exibir blocos em queda", "Afficher les blocs qui tombent", "Mostra blocchi in caduta", "Fallende Blöcke anzeigen", "落下ブロックを表示", "显示下落方块"]));
+    buttons.push(option_label_with_default(game, "show_block_entity_info", ["Show block entity data", "Mostrar datos especiales del bloque", "Mostrar dados especiais do bloco", "Afficher les données du bloc", "Mostra dati speciali del blocco", "Blockentitätsdaten anzeigen", "ブロックエンティティ情報", "显示方块实体数据"], false));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -438,6 +566,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         37 => "display_boats",
         38 => "display_minecarts",
         39 => "display_falling_blocks",
+        40 => "show_block_entity_info",
         _ => return,
     };
     let default = setting_default(key);
@@ -1150,6 +1279,9 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                 break;
             }
         }
+    }
+    if enabled(game, "show_block_entity_info", false) {
+        details.extend(block_entity_details(game, hit.pos));
     }
     if enabled(game, "show_block_info", true) {
         // Jade's provider selects the lowest valid tier per tool type. This port
