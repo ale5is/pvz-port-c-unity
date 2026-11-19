@@ -880,7 +880,13 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     });
                     let mut details = Vec::with_capacity(5);
                     if enabled(game, "show_entity_variant", false) {
-                        if let Some(variant) = entity_variant(mob) {
+                        let variant = entity_variant(mob).map(str::to_owned).or_else(|| {
+                            horizon_client::mobs::finalize::variant_component(mob).map(|(_, value)| {
+                                value.split_once(':').map_or(value.as_str(), |(_, path)| path)
+                                    .replace('_', " ")
+                            })
+                        });
+                        if let Some(variant) = variant {
                             details.push(format!("{}: {variant}", tr([
                                 "Variant", "Variante", "Variante", "Variante", "Variante", "Variante", "種類", "变种",
                             ])));
