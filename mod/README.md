@@ -17,6 +17,7 @@ The current Jade API-80 adaptation provides a partial in-world look-at overlay:
 - Mob name, optional health and mod namespace.
 - Dropped-item name, optional registry ID, mod namespace and stack count.
 - Armor-stand targeting with optional equipment listing.
+- Target icon: block/item sprite or the entity's spawn-egg sprite when available in the loaded resource atlas.
 - Independent persistent toggles for supported providers and details in Options > Mods > Jade.
 - Entity overlays respect the first block hit and compare supported targets by ray distance.
 
