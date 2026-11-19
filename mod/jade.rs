@@ -603,10 +603,10 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     if enabled(game, "show_registry_id", true) {
         details.push(name.to_owned());
     }
-    if enabled(game, "show_coordinates", true) {
+    if enabled(game, "show_coordinates", false) {
         details.push(format!("X: {}  Y: {}  Z: {}", hit.pos[0], hit.pos[1], hit.pos[2]));
     }
-    if enabled(game, "show_block_states", true) && !block_state.properties.is_empty() {
+    if enabled(game, "show_block_states", false) && !block_state.properties.is_empty() {
         let properties = block_state.properties.iter()
             .map(|(key, value)| format!("{key}={value}"))
             .collect::<Vec<_>>()
