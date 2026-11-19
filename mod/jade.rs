@@ -209,6 +209,55 @@ fn block_entity_details(game: &super::Game<'_>, pos: [i32; 3]) -> Vec<String> {
     out
 }
 
+fn fluid_hit(game: &super::Game<'_>) -> Option<(f64, [i32; 3], String, u8, bool)> {
+    let (eye, direction) = game.aim()?;
+    let reach = game.block_reach + extra_reach(game);
+    let fluid_at = |pos: [i32; 3]| -> Option<(String, u8, bool)> {
+        let state = game.world.block(pos[0], pos[1], pos[2]);
+        let block = game.pack.assets.registry.state(state)?;
+        let facts = game.res.facts().get(state);
+        match block.name.as_ref() {
+            "minecraft:water" => Some(("minecraft:water".to_owned(), facts.fluid_level.max(1), facts.fluid_falling)),
+            "minecraft:lava" => Some(("minecraft:lava".to_owned(), facts.fluid_level.max(1), facts.fluid_falling)),
+            _ if facts.waterlogged => Some(("minecraft:water".to_owned(), facts.fluid_level.max(1), facts.fluid_falling)),
+            _ => None,
+        }
+    };
+    let mut pos = eye.map(|value| value.floor() as i32);
+    if let Some((name, level, falling)) = fluid_at(pos) {
+        return Some((0.0, pos, name, level, falling));
+    }
+    let step = direction.map(|value| if value > 0.0 { 1 } else { -1 });
+    let delta = direction.map(|value| if value == 0.0 { f64::INFINITY } else { (1.0 / value).abs() });
+    let mut t_max = [0.0; 3];
+    for axis in 0..3 {
+        let edge = f64::from(pos[axis]) + if step[axis] > 0 { 1.0 } else { 0.0 };
+        t_max[axis] = if direction[axis] == 0.0 {
+            f64::INFINITY
+        } else {
+            (edge - eye[axis]) / direction[axis]
+        };
+    }
+    loop {
+        let axis = if t_max[0] <= t_max[1] && t_max[0] <= t_max[2] {
+            0
+        } else if t_max[1] <= t_max[2] {
+            1
+        } else {
+            2
+        };
+        let distance = t_max[axis];
+        if distance > reach {
+            return None;
+        }
+        pos[axis] += step[axis];
+        t_max[axis] += delta[axis];
+        if let Some((name, level, falling)) = fluid_at(pos) {
+            return Some((distance, pos, name, level, falling));
+        }
+    }
+}
+
 fn extra_reach(game: &super::Game<'_>) -> f64 {
     game.native_setting(ID, "reach_distance")
         .and_then(|value| value.parse::<f64>().ok())
@@ -646,6 +695,7 @@ pub fn settings(
     buttons.push(option_label_with_default(game, "show_access_info", ["Show block access states", "Mostrar estados de acceso", "Mostrar estados de acesso", "Afficher les états d’accès", "Mostra stati di accesso", "Block-Zugriffszustände anzeigen", "ブロックの状態を表示", "显示方块访问状态"], false));
     buttons.push(option_label_with_default(game, "show_entity_variant", ["Show entity variants", "Mostrar variantes de entidades", "Mostrar variantes das entidades", "Afficher les variantes", "Mostra varianti entità", "Entitätsvarianten anzeigen", "エンティティの種類を表示", "显示实体变种"], false));
     buttons.push(option_label_with_default(game, "show_entity_access", ["Show entity status", "Mostrar estados de entidades", "Mostrar estados das entidades", "Afficher les états des entités", "Mostra stati entità", "Entitätsstatus anzeigen", "エンティティ状態を表示", "显示实体状态"], false));
+    buttons.push(option_label_with_default(game, "display_fluids", ["Display fluids", "Mostrar líquidos", "Exibir fluidos", "Afficher les fluides", "Mostra fluidi", "Flüssigkeiten anzeigen", "液体を表示", "显示流体"], false));
     let reach = extra_reach(game);
     buttons.push(format!("{}: +{reach:.1}", tr(["Extra entity reach", "Alcance extra de entidades", "Alcance extra de entidades", "Portée supplémentaire", "Portata extra entità", "Zusätzliche Reichweite", "エンティティ追加距離", "实体额外距离"])));
     buttons.push(format!("{}: {}", tr(["Overlay theme", "Tema del HUD", "Tema do HUD", "Thème du HUD", "Tema HUD", "HUD-Design", "HUDテーマ", "提示框主题"]), theme_name(game)));
@@ -660,7 +710,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
     if mod_id != ID {
         return;
     }
-    if button == 43 {
+    if button == 44 {
         let current = extra_reach(game);
         let next = match current as u8 {
             0 => 1, 1 => 2, 2 => 3, 3 => 4, 4 => 6, 6 => 8, _ => 0,
@@ -671,7 +721,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         }
         return;
     }
-    if button == 44 {
+    if button == 45 {
         let next = match theme_index(game) { 0 => "light", 1 => "purple", 2 => "high_contrast", _ => "dark" };
         game.native_set_setting(ID, "theme", next);
         if game.native_setting(ID, "theme").as_deref() != Some(next) {
@@ -679,7 +729,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         }
         return;
     }
-    if button == 45 {
+    if button == 46 {
         let current = game.native_setting(ID, "text_background_opacity")
             .and_then(|value| value.parse::<u8>().ok())
             .unwrap_or(82);
@@ -741,6 +791,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         40 => "show_access_info",
         41 => "show_entity_variant",
         42 => "show_entity_access",
+        43 => "display_fluids",
         _ => return,
     };
     let default = setting_default(key);
@@ -811,7 +862,7 @@ pub fn on_command(game: &super::Game<'_>, command: &str, ran: &mut bool) {
                 "show_entity_effects", "show_villager_profession", "show_entity_equipment",
                 "show_animal_tame_status", "display_item_frames", "display_paintings", "display_boats",
                 "display_minecarts", "display_falling_blocks", "show_block_entity_info",
-                "show_access_info", "show_entity_variant", "show_entity_access",
+                "show_access_info", "show_entity_variant", "show_entity_access", "display_fluids",
             ];
             if BOOL_SETTINGS.contains(&key) {
                 match value {
@@ -938,11 +989,13 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             }).min_by(|a, b| a.1.total_cmp(&b.1))
         })
     } else { None };
+    let fluid_hit = if enabled(game, "display_fluids", false) { fluid_hit(game) } else { None };
     let nearest_target_distance = [
         if enabled(game, "display_entities", true) { mob_hit(game).map(|(_, d)| d) } else { None },
         item_hit.map(|(_, d)| d), armor_stand_hit.map(|(_, d)| d),
         frame_hit.map(|(_, d)| d), painting_hit.map(|(_, d)| d), boat_hit.map(|(_, d)| d),
         cart_hit.map(|(_, d)| d), falling_hit.map(|(_, d)| d), display_hit.map(|(_, d)| d),
+        fluid_hit.map(|(distance, _, _, _, _)| distance),
     ].into_iter().flatten().fold(f64::INFINITY, f64::min);
 
     // Jade's entity providers: an entity is shown only when its hit is nearer than
@@ -1505,6 +1558,28 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     return;
                 }
             }
+        }
+    }
+
+    if let Some((distance, _pos, id, level, falling)) = fluid_hit {
+        let block_distance = game.aim().and_then(|(eye, _)| game.pick_unfiltered().map(|block| {
+            (0..3).map(|axis| (block.point[axis] - eye[axis]).powi(2)).sum::<f64>().sqrt()
+        }));
+        if block_distance.is_none_or(|block_distance| distance < block_distance)
+            && distance <= nearest_target_distance + 0.0001
+        {
+            let path = id.split_once(':').map_or(id.as_str(), |(_, path)| path);
+            let title = game.translate(&format!("block.minecraft.{path}"), path);
+            let mut details = Vec::new();
+            details.push(format!("{}: {level}/8", tr(["Fluid level", "Nivel de líquido", "Nível do fluido", "Niveau de fluide", "Livello fluido", "Flüssigkeitsstand", "液面レベル", "流体等级"])));
+            if falling {
+                details.push(tr(["Falling", "En caída", "Caindo", "En chute", "In caduta", "Fließend", "流下", "流动"]).to_owned());
+            }
+            if enabled(game, "show_distance", false) {
+                details.push(format!("{}: {:.1} m", tr(["Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离"]), distance));
+            }
+            draw_target_panel(game, batch, &id, &title, false, None, &details);
+            return;
         }
     }
 
