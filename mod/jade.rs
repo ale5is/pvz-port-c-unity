@@ -287,7 +287,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         14 => "show_armor_stand_equipment",
         _ => return,
     };
-    let default = matches!(button, 3 | 4);
+    let default = matches!(button, 3 | 4 | 6 | 12);
     let current = enabled(game, key, default);
     let next = !current;
     log::info!("Jade settings click received: button={button}, key={key}, current={current}, next={next}");
