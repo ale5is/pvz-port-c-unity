@@ -87,6 +87,10 @@ jobs:
         run: |
           python horizon-source/tools/android_prepare.py
 
+      - name: Validate Jade Rust syntax before mixin packaging
+        run: |
+          rustfmt --edition 2024 --emit stdout mod/jade.rs > /dev/null
+
       - name: Apply API-80 SVC and Jade bundles and build public ARM64 APK
         run: |
           python scripts/build_android_port.py \
