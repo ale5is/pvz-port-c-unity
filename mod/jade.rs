@@ -215,6 +215,9 @@ fn fluid_hit(game: &super::Game<'_>) -> Option<(f64, [i32; 3], String, u8, bool)
     let fluid_at = |pos: [i32; 3]| -> Option<(String, u8, bool)> {
         let state = game.world.block(pos[0], pos[1], pos[2]);
         let block = game.pack.assets.registry.state(state)?;
+        if is_ignored(game, "ignored_blocks", block.name.as_ref()) {
+            return None;
+        }
         let facts = game.res.facts().get(state);
         match block.name.as_ref() {
             "minecraft:water" => Some(("minecraft:water".to_owned(), facts.fluid_level.max(1), facts.fluid_falling)),
