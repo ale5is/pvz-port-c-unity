@@ -209,6 +209,44 @@ fn block_entity_details(game: &super::Game<'_>, pos: [i32; 3]) -> Vec<String> {
     out
 }
 
+fn entity_variant(mob: &horizon_client::mobs::Mob) -> Option<&'static str> {
+    let variant = usize::from(mob.extra.variant);
+    match mob.kind.id.as_ref() {
+        "minecraft:axolotl" => Some(match variant {
+            0 => tr(["Lucy", "Lucy", "Lucy", "Lucy", "Lucy", "Lucy", "ルーシー", "露西"]),
+            1 => tr(["Wild", "Salvaje", "Selvagem", "Sauvage", "Selvatico", "Wild", "野生", "野生"]),
+            2 => tr(["Gold", "Dorado", "Dourado", "Doré", "Oro", "Gold", "ゴールド", "金色"]),
+            3 => tr(["Cyan", "Cian", "Ciano", "Cyan", "Ciano", "Türkis", "シアン", "青绿色"]),
+            4 => tr(["Blue", "Azul", "Azul", "Bleu", "Blu", "Blau", "ブルー", "蓝色"]),
+            _ => return None,
+        }),
+        "minecraft:rabbit" if variant == 99 => Some(tr(["Killer Bunny", "Conejo asesino", "Coelho assassino", "Lapin tueur", "Coniglio assassino", "Killer-Kaninchen", "殺人ウサギ", "杀手兔"])),
+        "minecraft:rabbit" => Some(match variant {
+            0 => tr(["Brown", "Marrón", "Marrom", "Marron", "Marrone", "Braun", "茶色", "棕色"]),
+            1 => tr(["White", "Blanco", "Branco", "Blanc", "Bianco", "Weiß", "白", "白色"]),
+            2 => tr(["Black", "Negro", "Preto", "Noir", "Nero", "Schwarz", "黒", "黑色"]),
+            3 => tr(["White splotched", "Blanco moteado", "Branco manchado", "Blanc tacheté", "Bianco maculato", "Weiß gefleckt", "白い斑点", "白色斑点"]),
+            4 => tr(["Gold", "Dorado", "Dourado", "Doré", "Oro", "Gold", "ゴールド", "金色"]),
+            5 => tr(["Salt and pepper", "Sal y pimienta", "Sal e pimenta", "Sel et poivre", "Sale e pepe", "Salz und Pfeffer", "胡椒塩", "椒盐"]),
+            _ => return None,
+        }),
+        "minecraft:parrot" => Some(match variant {
+            0 => tr(["Red and blue", "Rojo y azul", "Vermelho e azul", "Rouge et bleu", "Rosso e blu", "Rot und Blau", "赤と青", "红蓝色"]),
+            1 => tr(["Blue", "Azul", "Azul", "Bleu", "Blu", "Blau", "青", "蓝色"]),
+            2 => tr(["Green", "Verde", "Verde", "Vert", "Verde", "Grün", "緑", "绿色"]),
+            3 => tr(["Yellow and blue", "Amarillo y azul", "Amarelo e azul", "Jaune et bleu", "Giallo e blu", "Gelb und Blau", "黄と青", "黄蓝色"]),
+            4 => tr(["Gray", "Gris", "Cinza", "Gris", "Grigio", "Grau", "灰色", "灰色"]),
+            _ => return None,
+        }),
+        "minecraft:fox" => Some(match variant {
+            0 => tr(["Red", "Rojo", "Vermelho", "Roux", "Rosso", "Rot", "赤", "红色"]),
+            1 => tr(["Snow", "Ártico", "Ártico", "Arctique", "Artico", "Schnee", "雪", "雪地"]),
+            _ => return None,
+        }),
+        _ => None,
+    }
+}
+
 fn theme_index(game: &super::Game<'_>) -> usize {
     match game.native_setting(ID, "theme").as_deref() {
         Some("light") => 1,
@@ -357,7 +395,7 @@ fn setting_default(key: &str) -> bool {
             | "show_entity_armor" | "show_entity_age" | "show_entity_breeding" | "show_horse_stats"
             | "show_entity_effects" | "show_villager_profession"
             | "show_entity_equipment" | "show_animal_tame_status" | "show_block_entity_info"
-            | "show_access_info"
+            | "show_access_info" | "show_entity_variant"
     )
 }
 
@@ -578,6 +616,7 @@ pub fn settings(
     buttons.push(option_label(game, "display_falling_blocks", ["Display falling blocks", "Mostrar bloques en caída", "Exibir blocos em queda", "Afficher les blocs qui tombent", "Mostra blocchi in caduta", "Fallende Blöcke anzeigen", "落下ブロックを表示", "显示下落方块"]));
     buttons.push(option_label_with_default(game, "show_block_entity_info", ["Show block entity data", "Mostrar datos especiales del bloque", "Mostrar dados especiais do bloco", "Afficher les données du bloc", "Mostra dati speciali del blocco", "Blockentitätsdaten anzeigen", "ブロックエンティティ情報", "显示方块实体数据"], false));
     buttons.push(option_label_with_default(game, "show_access_info", ["Show block access states", "Mostrar estados de acceso", "Mostrar estados de acesso", "Afficher les états d’accès", "Mostra stati di accesso", "Block-Zugriffszustände anzeigen", "ブロックの状態を表示", "显示方块访问状态"], false));
+    buttons.push(option_label_with_default(game, "show_entity_variant", ["Show entity variants", "Mostrar variantes de entidades", "Mostrar variantes das entidades", "Afficher les variantes", "Mostra varianti entità", "Entitätsvarianten anzeigen", "エンティティの種類を表示", "显示实体变种"], false));
     buttons.push(format!("{}: {}", tr(["Overlay theme", "Tema del HUD", "Tema do HUD", "Thème du HUD", "Tema HUD", "HUD-Design", "HUDテーマ", "提示框主题"]), theme_name(game)));
     let opacity = game.native_setting(ID, "text_background_opacity")
         .and_then(|value| value.parse::<u8>().ok())
@@ -590,7 +629,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
     if mod_id != ID {
         return;
     }
-    if button == 41 {
+    if button == 42 {
         let next = match theme_index(game) { 0 => "light", 1 => "purple", 2 => "high_contrast", _ => "dark" };
         game.native_set_setting(ID, "theme", next);
         if game.native_setting(ID, "theme").as_deref() != Some(next) {
@@ -598,7 +637,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         }
         return;
     }
-    if button == 42 {
+    if button == 43 {
         let current = game.native_setting(ID, "text_background_opacity")
             .and_then(|value| value.parse::<u8>().ok())
             .unwrap_or(82);
@@ -658,6 +697,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         38 => "display_falling_blocks",
         39 => "show_block_entity_info",
         40 => "show_access_info",
+        41 => "show_entity_variant",
         _ => return,
     };
     let default = setting_default(key);
@@ -836,7 +876,14 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                         let (namespace, path) = id.split_once(':').unwrap_or(("minecraft", id));
                         game.translate(&format!("entity.{namespace}.{path}"), path)
                     });
-                    let mut details = Vec::with_capacity(4);
+                    let mut details = Vec::with_capacity(5);
+                    if enabled(game, "show_entity_variant", false) {
+                        if let Some(variant) = entity_variant(mob) {
+                            details.push(format!("{}: {variant}", tr([
+                                "Variant", "Variante", "Variante", "Variante", "Variante", "Variante", "種類", "变种",
+                            ])));
+                        }
+                    }
                     if enabled(game, "show_entity_registry_id", false) {
                         details.push(id.to_owned());
                     }
