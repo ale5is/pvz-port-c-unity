@@ -262,10 +262,10 @@ fn fluid_hit(game: &super::Game<'_>) -> Option<(f64, [i32; 3], String, u8, bool)
 }
 
 fn extra_reach(game: &super::Game<'_>) -> f64 {
-    game.native_setting(ID, "reach_distance")
+    let value = game.native_setting(ID, "reach_distance")
         .and_then(|value| value.parse::<f64>().ok())
-        .unwrap_or(0.0)
-        .clamp(0.0, 8.0)
+        .unwrap_or(0.0);
+    if value.is_finite() { value.clamp(0.0, 8.0) } else { 0.0 }
 }
 
 fn entity_reach(game: &super::Game<'_>) -> f64 {
