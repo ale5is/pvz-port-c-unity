@@ -136,6 +136,7 @@ fn setting_default(key: &str) -> bool {
     !matches!(
         key,
         "show_coordinates" | "show_block_states" | "show_hardness" | "show_item_count"
+            | "show_block_face" | "show_distance"
     )
 }
 
@@ -270,6 +271,14 @@ pub fn settings(
         "Show armor stand equipment", "Mostrar equipo del soporte", "Mostrar equipamento do suporte", "Afficher l’équipement du porte-armure",
         "Mostra equipaggiamento supporto", "Ausrüstung des Ständers anzeigen", "防具立ての装備を表示", "显示盔甲架装备",
     ]));
+    buttons.push(option_label(game, "show_block_face", [
+        "Show block face", "Mostrar cara del bloque", "Mostrar face do bloco", "Afficher la face du bloc",
+        "Mostra faccia del blocco", "Blockseite anzeigen", "ブロック面を表示", "显示方块面",
+    ]));
+    buttons.push(option_label(game, "show_distance", [
+        "Show distance", "Mostrar distancia", "Mostrar distância", "Afficher la distance",
+        "Mostra distanza", "Entfernung anzeigen", "距離を表示", "显示距离",
+    ]));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -292,6 +301,8 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         12 => "show_item_count",
         13 => "display_armor_stands",
         14 => "show_armor_stand_equipment",
+        15 => "show_block_face",
+        16 => "show_distance",
         _ => return,
     };
     let default = setting_default(key);
@@ -616,6 +627,27 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     }
     if enabled(game, "show_coordinates", false) {
         details.push(format!("X: {}  Y: {}  Z: {}", hit.pos[0], hit.pos[1], hit.pos[2]));
+    }
+    if enabled(game, "show_block_face", false) {
+        let face = match hit.face {
+            [0, 1, 0] => tr(["Top", "Arriba", "Cima", "Haut", "Alto", "Oben", "上", "上方"]),
+            [0, -1, 0] => tr(["Bottom", "Abajo", "Baixo", "Bas", "Basso", "Unten", "下", "下方"]),
+            [1, 0, 0] => tr(["East", "Este", "Leste", "Est", "Est", "Osten", "東", "东"]),
+            [-1, 0, 0] => tr(["West", "Oeste", "Oeste", "Ouest", "Ovest", "Westen", "西", "西"]),
+            [0, 0, 1] => tr(["South", "Sur", "Sul", "Sud", "Sud", "Süden", "南", "南"]),
+            [0, 0, -1] => tr(["North", "Norte", "Norte", "Nord", "Nord", "Norden", "北", "北"]),
+            _ => tr(["Unknown", "Desconocida", "Desconhecida", "Inconnue", "Sconosciuta", "Unbekannt", "不明", "未知"]),
+        ];
+        details.push(format!("{}: {face}", tr(["Face", "Cara", "Face", "Face", "Faccia", "Seite", "面", "面"])));
+    }
+    if enabled(game, "show_distance", false) {
+        if let Some((eye, _)) = game.aim() {
+            let distance = (0..3)
+                .map(|axis| (hit.point[axis] - eye[axis]).powi(2))
+                .sum::<f64>()
+                .sqrt();
+            details.push(format!("{}: {:.1} m", tr(["Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离"]), distance));
+        }
     }
     if enabled(game, "show_block_states", false) && !block_state.properties.is_empty() {
         let properties = block_state.properties.iter()
