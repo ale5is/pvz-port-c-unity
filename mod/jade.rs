@@ -868,6 +868,68 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
     log::info!("Jade setting after write: key={key}, expected={next}, actual={saved}");
 }
 
+const PROFILE_BOOL_SETTINGS: &[&str] = &[
+    "display_tooltip", "show_target_icon", "show_registry_id", "show_coordinates",
+    "show_block_states", "show_block_info", "show_hardness", "show_item_mod_name",
+    "show_mod_name", "display_entities", "show_entity_health", "display_dropped_items",
+    "show_item_count", "display_armor_stands", "show_armor_stand_equipment",
+    "show_block_face", "show_distance", "show_entity_distance", "show_entity_registry_id",
+    "show_relative_coordinates", "show_crop_progress", "show_redstone_info",
+    "show_note_block_info", "show_tnt_stability", "show_beehive_honey", "show_block_amount",
+    "show_entity_armor", "show_entity_age", "show_entity_breeding", "show_horse_stats",
+    "show_entity_effects", "show_villager_profession", "show_entity_equipment",
+    "show_animal_tame_status", "display_item_frames", "display_paintings", "display_boats",
+    "display_minecarts", "display_falling_blocks", "show_block_entity_info",
+    "show_access_info", "show_entity_variant", "show_entity_access", "display_fluids",
+    "show_next_entity_drop",
+];
+
+fn valid_profile_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 24
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
+fn save_profile(game: &super::Game<'_>, name: &str) {
+    let mut entries = Vec::new();
+    for key in PROFILE_BOOL_SETTINGS {
+        entries.push(format!("{key}={}", if enabled(game, key, setting_default(key)) { 1 } else { 0 }));
+    }
+    let theme = game.native_setting(ID, "theme").unwrap_or_else(|| "dark".to_owned());
+    let position = game.native_setting(ID, "overlay_position").unwrap_or_else(|| "top_center".to_owned());
+    let opacity = game.native_setting(ID, "text_background_opacity").unwrap_or_else(|| "82".to_owned());
+    let reach = game.native_setting(ID, "reach_distance").unwrap_or_else(|| "0".to_owned());
+    entries.push(format!("theme={theme}"));
+    entries.push(format!("overlay_position={position}"));
+    entries.push(format!("text_background_opacity={opacity}"));
+    entries.push(format!("reach_distance={reach}"));
+    let key = format!("profile_{name}");
+    game.native_set_setting(ID, &key, &entries.join(";"));
+}
+
+fn load_profile(game: &super::Game<'_>, name: &str) {
+    let key = format!("profile_{name}");
+    let Some(snapshot) = game.native_setting(ID, &key) else { return };
+    for entry in snapshot.split(';') {
+        let Some((key, value)) = entry.split_once('=') else { continue };
+        if PROFILE_BOOL_SETTINGS.contains(&key) {
+            match value {
+                "1" => save_enabled(game, key, true),
+                "0" => save_enabled(game, key, false),
+                _ => {}
+            }
+        } else {
+            match key {
+                "theme" if matches!(value, "dark" | "light" | "purple" | "high_contrast") => game.native_set_setting(ID, key, value),
+                "overlay_position" if matches!(value, "top_center" | "top_left" | "top_right" | "middle_left" | "middle_center" | "middle_right" | "bottom_left" | "bottom_center" | "bottom_right") => game.native_set_setting(ID, key, value),
+                "text_background_opacity" if value.parse::<u8>().is_ok_and(|v| (20..=100).contains(&v)) => game.native_set_setting(ID, key, value),
+                "reach_distance" if value.parse::<f64>().is_ok_and(|v| v.is_finite() && (0.0..=8.0).contains(&v)) => game.native_set_setting(ID, key, value),
+                _ => {}
+            }
+        }
+    }
+}
+
 pub fn on_command(game: &super::Game<'_>, command: &str, ran: &mut bool) {
     if !game.native_on(ID) {
         return;
@@ -916,6 +978,15 @@ pub fn on_command(game: &super::Game<'_>, command: &str, ran: &mut bool) {
             if let Ok(percent) = value.parse::<u8>() {
                 if (20..=100).contains(&percent) {
                     game.native_set_setting(ID, "text_background_opacity", &percent.to_string());
+                }
+            }
+        },
+        "profile" => if let (Some(operation), Some(name)) = (parts.next(), parts.next()) {
+            if valid_profile_name(name) {
+                match operation {
+                    "save" => save_profile(game, name),
+                    "load" => load_profile(game, name),
+                    _ => {}
                 }
             }
         },
