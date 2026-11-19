@@ -209,6 +209,34 @@ fn block_entity_details(game: &super::Game<'_>, pos: [i32; 3]) -> Vec<String> {
     out
 }
 
+fn extra_reach(game: &super::Game<'_>) -> f64 {
+    game.native_setting(ID, "reach_distance")
+        .and_then(|value| value.parse::<f64>().ok())
+        .unwrap_or(0.0)
+        .clamp(0.0, 8.0)
+}
+
+fn entity_reach(game: &super::Game<'_>) -> f64 {
+    game.entity_reach + extra_reach(game)
+}
+
+fn mob_hit(game: &super::Game<'_>) -> Option<(usize, f64)> {
+    let (eye, direction) = game.aim()?;
+    let reach = entity_reach(game);
+    let mut best: Option<(usize, f64)> = None;
+    for (index, mob) in game.mobs.iter().enumerate() {
+        if mob.removed || Some(mob.id) == game.riding || Some(mob.id) == game.remote_camera_id() {
+            continue;
+        }
+        if let Some(distance) = super::ray_box(eye, direction, reach, mob.bounds())
+            && best.is_none_or(|current| distance < current.1)
+        {
+            best = Some((index, distance));
+        }
+    }
+    best
+}
+
 fn entity_variant(mob: &horizon_client::mobs::Mob) -> Option<&'static str> {
     let variant = usize::from(mob.extra.variant);
     match mob.kind.id.as_ref() {
@@ -618,6 +646,8 @@ pub fn settings(
     buttons.push(option_label_with_default(game, "show_access_info", ["Show block access states", "Mostrar estados de acceso", "Mostrar estados de acesso", "Afficher les états d’accès", "Mostra stati di accesso", "Block-Zugriffszustände anzeigen", "ブロックの状態を表示", "显示方块访问状态"], false));
     buttons.push(option_label_with_default(game, "show_entity_variant", ["Show entity variants", "Mostrar variantes de entidades", "Mostrar variantes das entidades", "Afficher les variantes", "Mostra varianti entità", "Entitätsvarianten anzeigen", "エンティティの種類を表示", "显示实体变种"], false));
     buttons.push(option_label_with_default(game, "show_entity_access", ["Show entity status", "Mostrar estados de entidades", "Mostrar estados das entidades", "Afficher les états des entités", "Mostra stati entità", "Entitätsstatus anzeigen", "エンティティ状態を表示", "显示实体状态"], false));
+    let reach = extra_reach(game);
+    buttons.push(format!("{}: +{reach:.1}", tr(["Extra entity reach", "Alcance extra de entidades", "Alcance extra de entidades", "Portée supplémentaire", "Portata extra entità", "Zusätzliche Reichweite", "エンティティ追加距離", "实体额外距离"])));
     buttons.push(format!("{}: {}", tr(["Overlay theme", "Tema del HUD", "Tema do HUD", "Thème du HUD", "Tema HUD", "HUD-Design", "HUDテーマ", "提示框主题"]), theme_name(game)));
     let opacity = game.native_setting(ID, "text_background_opacity")
         .and_then(|value| value.parse::<u8>().ok())
@@ -631,6 +661,17 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         return;
     }
     if button == 43 {
+        let current = extra_reach(game);
+        let next = match current as u8 {
+            0 => 1, 1 => 2, 2 => 3, 3 => 4, 4 => 6, 6 => 8, _ => 0,
+        };
+        game.native_set_setting(ID, "reach_distance", &next.to_string());
+        if game.native_setting(ID, "reach_distance").as_deref() != Some(next.to_string().as_str()) {
+            log::warn!("Jade: reach setting did not verify after writing");
+        }
+        return;
+    }
+    if button == 44 {
         let next = match theme_index(game) { 0 => "light", 1 => "purple", 2 => "high_contrast", _ => "dark" };
         game.native_set_setting(ID, "theme", next);
         if game.native_setting(ID, "theme").as_deref() != Some(next) {
@@ -638,7 +679,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         }
         return;
     }
-    if button == 44 {
+    if button == 45 {
         let current = game.native_setting(ID, "text_background_opacity")
             .and_then(|value| value.parse::<u8>().ok())
             .unwrap_or(82);
@@ -742,6 +783,14 @@ pub fn on_command(game: &super::Game<'_>, command: &str, ran: &mut bool) {
                 game.native_set_setting(ID, "theme", value);
             }
         },
+        "reach" => if let Some(value) = parts.next() {
+            if let Ok(distance) = value.parse::<f64>() {
+                if distance.is_finite() && (0.0..=8.0).contains(&distance) {
+                    let distance = format!("{distance:.1}");
+                    game.native_set_setting(ID, "reach_distance", &distance);
+                }
+            }
+        },
         "opacity" => if let Some(value) = parts.next() {
             if let Ok(percent) = value.parse::<u8>() {
                 if (20..=100).contains(&percent) {
@@ -829,7 +878,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         game.aim().and_then(|(eye, dir)| {
             game.dropped.iter().enumerate()
                 .filter_map(|(index, item)| {
-                    super::ray_box(eye, dir, game.entity_reach, item.bounds())
+                    super::ray_box(eye, dir, entity_reach(game), item.bounds())
                         .map(|distance| (index, distance))
                 })
                 .min_by(|a, b| a.1.total_cmp(&b.1))
@@ -843,7 +892,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             game.armor_stands.iter().enumerate()
                 .filter(|(_, stand)| !stand.marker && !stand.invisible)
                 .filter_map(|(index, stand)| {
-                    super::ray_box(eye, dir, game.entity_reach, stand.bounds())
+                    super::ray_box(eye, dir, entity_reach(game), stand.bounds())
                         .map(|distance| (index, distance))
                 })
                 .min_by(|a, b| a.1.total_cmp(&b.1))
@@ -871,7 +920,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                 horizon_core::geometry::Vec3::new(p.x - 0.49, p.y, p.z - 0.49),
                 horizon_core::geometry::Vec3::new(p.x + 0.49, p.y + 0.98, p.z + 0.49),
             );
-            super::ray_box(eye, dir, game.entity_reach, bounds).map(|d| (i, d))
+            super::ray_box(eye, dir, entity_reach(game), bounds).map(|d| (i, d))
         }).min_by(|a, b| a.1.total_cmp(&b.1)))
     } else { None };
     let display_hit = if enabled(game, "display_entities", true) {
@@ -885,12 +934,12 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     horizon_core::geometry::Vec3::new(p.x - 0.3, p.y - 0.3, p.z - 0.3),
                     horizon_core::geometry::Vec3::new(p.x + 0.3, p.y + 0.3, p.z + 0.3),
                 );
-                super::ray_box(eye, dir, game.entity_reach, bounds).map(|distance| (*id, distance))
+                super::ray_box(eye, dir, entity_reach(game), bounds).map(|distance| (*id, distance))
             }).min_by(|a, b| a.1.total_cmp(&b.1))
         })
     } else { None };
     let nearest_target_distance = [
-        if enabled(game, "display_entities", true) { game.mob_hit().map(|(_, d)| d) } else { None },
+        if enabled(game, "display_entities", true) { mob_hit(game).map(|(_, d)| d) } else { None },
         item_hit.map(|(_, d)| d), armor_stand_hit.map(|(_, d)| d),
         frame_hit.map(|(_, d)| d), painting_hit.map(|(_, d)| d), boat_hit.map(|(_, d)| d),
         cart_hit.map(|(_, d)| d), falling_hit.map(|(_, d)| d), display_hit.map(|(_, d)| d),
@@ -899,7 +948,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     // Jade's entity providers: an entity is shown only when its hit is nearer than
     // the first block outline, so walls continue to occlude the overlay.
     if enabled(game, "display_entities", true) {
-        if let (Some((index, distance)), Some((eye, _))) = (game.mob_hit(), game.aim()) {
+        if let (Some((index, distance)), Some((eye, _))) = (mob_hit(game), game.aim()) {
             let block_distance = game.pick_unfiltered().map(|block| {
                 (0..3)
                     .map(|axis| (block.point[axis] - eye[axis]).powi(2))
