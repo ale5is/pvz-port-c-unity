@@ -1,3 +1,5 @@
+const ID: &str = "jade";
+
 // Render item models through Horizon so stack components (notably leather dye) are respected.
 fn icon_item_id(id: &str, entity: bool) -> String {
     if entity {
@@ -41,7 +43,7 @@ fn draw_icon(
     y: f32,
 ) -> bool {
     if let Some(stack) = stack {
-        if game.native_item_stack(batch, stack, [x, y], 16.0) {
+        if game.native_item(batch, &stack.item, [x, y], 16.0) {
             return true;
         }
     }
