@@ -905,12 +905,12 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     let painting_hit = if enabled(game, "display_paintings", true) { game.painting_hit() } else { None };
     let boat_hit = if enabled(game, "display_boats", true) {
         game.aim().and_then(|(eye, dir)| game.boats.iter().enumerate()
-            .filter_map(|(i, boat)| super::ray_box(eye, dir, game.entity_reach, boat.bounds()).map(|d| (i, d)))
+            .filter_map(|(i, boat)| super::ray_box(eye, dir, entity_reach(game), boat.bounds()).map(|d| (i, d)))
             .min_by(|a, b| a.1.total_cmp(&b.1)))
     } else { None };
     let cart_hit = if enabled(game, "display_minecarts", true) {
         game.aim().and_then(|(eye, dir)| game.carts.iter().enumerate()
-            .filter_map(|(i, cart)| super::ray_box(eye, dir, game.entity_reach, cart.bounds()).map(|d| (i, d)))
+            .filter_map(|(i, cart)| super::ray_box(eye, dir, entity_reach(game), cart.bounds()).map(|d| (i, d)))
             .min_by(|a, b| a.1.total_cmp(&b.1)))
     } else { None };
     let falling_hit = if enabled(game, "display_falling_blocks", true) {
@@ -1212,7 +1212,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     .sqrt()
             })
         });
-        let mob_distance = game.mob_hit().map(|(_, mob_distance)| mob_distance);
+        let mob_distance = mob_hit(game).map(|(_, mob_distance)| mob_distance);
         if block_distance.is_none_or(|block_distance| distance < block_distance)
             && distance <= nearest_target_distance + 0.0001
         {
@@ -1285,7 +1285,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     .sqrt()
             })
         });
-        let mob_distance = game.mob_hit().map(|(_, mob_distance)| mob_distance);
+        let mob_distance = mob_hit(game).map(|(_, mob_distance)| mob_distance);
         let item_distance = item_hit.map(|(_, item_distance)| item_distance);
         if block_distance.is_none_or(|block_distance| distance < block_distance)
             && distance <= nearest_target_distance + 0.0001
