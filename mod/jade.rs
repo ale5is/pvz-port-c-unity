@@ -201,6 +201,33 @@ fn block_entity_details(game: &super::Game<'_>, pos: [i32; 3]) -> Vec<String> {
     out
 }
 
+fn theme_index(game: &super::Game<'_>) -> usize {
+    match game.native_setting(ID, "theme").as_deref() {
+        Some("light") => 1,
+        Some("purple") => 2,
+        Some("high_contrast") => 3,
+        _ => 0,
+    }
+}
+
+fn theme_colors(game: &super::Game<'_>) -> (u32, u32, u32) {
+    match theme_index(game) {
+        1 => (0xD0F0F0F0, 0xFF101010, 0xFF404040),
+        2 => (0xD0251835, 0xFFFFEEFF, 0xFFD7B8FF),
+        3 => (0xF0000000, 0xFFFFFFFF, 0xFFFFFF00),
+        _ => (0xD0101010, 0xFFFFFFFF, 0xFFB8B8B8),
+    }
+}
+
+fn theme_name(game: &super::Game<'_>) -> &'static str {
+    match theme_index(game) {
+        1 => tr(["Light", "Claro", "Claro", "Clair", "Chiaro", "Hell", "ライト", "浅色"]),
+        2 => tr(["Purple", "Púrpura", "Roxo", "Violet", "Viola", "Lila", "紫", "紫色"]),
+        3 => tr(["High contrast", "Alto contraste", "Alto contraste", "Contraste élevé", "Alto contrasto", "Hoher Kontrast", "高コントラスト", "高对比度"]),
+        _ => tr(["Dark", "Oscuro", "Escuro", "Sombre", "Scuro", "Dunkel", "ダーク", "深色"]),
+    }
+}
+
 fn draw_target_panel(
     game: &super::Game<'_>,
     batch: &mut horizon_client::hud::HudBatch,
@@ -211,6 +238,7 @@ fn draw_target_panel(
     details: &[String],
 ) {
     let atlas = &game.gui.atlas;
+    let (background, title_color, detail_color) = theme_colors(game);
     let has_icon = enabled(game, "show_target_icon", true)
         && icon_available(game, atlas, id, entity, stack);
     let text_x = if has_icon { 26.0 } else { 6.0 };
@@ -220,11 +248,11 @@ fn draw_target_panel(
     let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
     let panel_y = 8.0;
     let panel_height = 17.0 + details.len() as f32 * 12.0;
-    batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), 0xD0101010);
+    batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), background);
     if has_icon { let _ = draw_icon(game, batch, atlas, id, entity, stack, panel_x + 6.0, panel_y + 2.0); }
-    batch.text(atlas, title, panel_x + text_x, panel_y + 4.0, 0xFFFFFFFF, true);
+    batch.text(atlas, title, panel_x + text_x, panel_y + 4.0, title_color, true);
     for (index, detail) in details.iter().enumerate() {
-        batch.text(atlas, detail, panel_x + text_x, panel_y + 16.0 + index as f32 * 11.0, 0xFFB8B8B8, true);
+        batch.text(atlas, detail, panel_x + text_x, panel_y + 16.0 + index as f32 * 11.0, detail_color, true);
     }
 }
 
@@ -519,10 +547,19 @@ pub fn settings(
     buttons.push(option_label(game, "display_minecarts", ["Display minecarts", "Mostrar vagonetas", "Exibir carrinhos", "Afficher les wagonnets", "Mostra carrelli", "Loren anzeigen", "トロッコを表示", "显示矿车"]));
     buttons.push(option_label(game, "display_falling_blocks", ["Display falling blocks", "Mostrar bloques en caída", "Exibir blocos em queda", "Afficher les blocs qui tombent", "Mostra blocchi in caduta", "Fallende Blöcke anzeigen", "落下ブロックを表示", "显示下落方块"]));
     buttons.push(option_label_with_default(game, "show_block_entity_info", ["Show block entity data", "Mostrar datos especiales del bloque", "Mostrar dados especiais do bloco", "Afficher les données du bloc", "Mostra dati speciali del blocco", "Blockentitätsdaten anzeigen", "ブロックエンティティ情報", "显示方块实体数据"], false));
+    buttons.push(format!("{}: {}", tr(["Overlay theme", "Tema del HUD", "Tema do HUD", "Thème du HUD", "Tema HUD", "HUD-Design", "HUDテーマ", "提示框主题"]), theme_name(game)));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
     if mod_id != ID {
+        return;
+    }
+    if button == 41 {
+        let next = match theme_index(game) { 0 => "light", 1 => "purple", 2 => "high_contrast", _ => "dark" };
+        game.native_set_setting(ID, "theme", next);
+        if game.native_setting(ID, "theme").as_deref() != Some(next) {
+            log::warn!("Jade: theme setting did not verify after writing");
+        }
         return;
     }
     let key = match button {
@@ -623,6 +660,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     if !game.native_on(ID) || !enabled(game, "display_tooltip", true) {
         return;
     }
+    let (panel_background, panel_title_color, panel_detail_color) = theme_colors(game);
 
     // Dropped-item hit test: use the same entity reach and ray/AABB test as mobs.
     let item_hit = if enabled(game, "display_dropped_items", true) {
@@ -844,25 +882,25 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
                     let panel_y = 8.0;
                     let panel_height = 17.0 + (details.len() + usize::from(health_line.is_some())) as f32 * 12.0;
-                    batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), 0xD0101010);
+                    batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), panel_background);
                     if has_icon {
                         let _ = draw_icon(game, batch, atlas, id, true, None, panel_x + 6.0, panel_y + 2.0);
                     }
-                    batch.text(atlas, &title, panel_x + text_x, panel_y + 4.0, 0xFFFFFFFF, true);
+                    batch.text(atlas, &title, panel_x + text_x, panel_y + 4.0, panel_title_color, true);
                     for (line_index, detail) in details.iter().enumerate() {
                         batch.text(
                             atlas,
                             detail,
                             panel_x + text_x,
                             panel_y + 16.0 + line_index as f32 * 11.0,
-                            0xFFB8B8B8,
+                            panel_detail_color,
                             true,
                         );
                     }
                     if let Some(health) = health_line {
                         let y = panel_y + 16.0 + details.len() as f32 * 11.0;
                         batch.text(atlas, "♥", panel_x + text_x, y, 0xFFFF0000, true);
-                        batch.text(atlas, &health, panel_x + text_x + 9.0, y, 0xFFB8B8B8, true);
+                        batch.text(atlas, &health, panel_x + text_x + 9.0, y, panel_detail_color, true);
                     }
                     return;
                 }
@@ -923,18 +961,18 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                 let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
                 let panel_y = 8.0;
                 let panel_height = 17.0 + details.len() as f32 * 12.0;
-                batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), 0xD0101010);
+                batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), panel_background);
                 if has_icon {
                     let _ = draw_icon(game, batch, atlas, id, false, Some(&item.stack), panel_x + 6.0, panel_y + 2.0);
                 }
-                batch.text(atlas, &title, panel_x + text_x, panel_y + 4.0, 0xFFFFFFFF, true);
+                batch.text(atlas, &title, panel_x + text_x, panel_y + 4.0, panel_title_color, true);
                 for (line_index, detail) in details.iter().enumerate() {
                     batch.text(
                         atlas,
                         detail,
                         panel_x + text_x,
                         panel_y + 16.0 + line_index as f32 * 11.0,
-                        0xFFB8B8B8,
+                        panel_detail_color,
                         true,
                     );
                 }
@@ -998,18 +1036,18 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                 let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
                 let panel_y = 8.0;
                 let panel_height = 17.0 + details.len() as f32 * 12.0;
-                batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), 0xD0101010);
+                batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), panel_background);
                 if has_icon {
                     let _ = draw_icon(game, batch, atlas, "minecraft:armor_stand", true, None, panel_x + 6.0, panel_y + 2.0);
                 }
-                batch.text(atlas, &title, panel_x + text_x, panel_y + 4.0, 0xFFFFFFFF, true);
+                batch.text(atlas, &title, panel_x + text_x, panel_y + 4.0, panel_title_color, true);
                 for (line_index, detail) in details.iter().enumerate() {
                     batch.text(
                         atlas,
                         detail,
                         panel_x + text_x,
                         panel_y + 16.0 + line_index as f32 * 11.0,
-                        0xFFB8B8B8,
+                        panel_detail_color,
                         true,
                     );
                 }
@@ -1322,18 +1360,18 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     let panel_y = 8.0;
     let panel_height = 17.0 + details.len() as f32 * 12.0 + if has_tool_row { 19.0 } else { 0.0 };
 
-    batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), 0xD0101010);
+    batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), panel_background);
     if has_icon {
         let _ = draw_icon(game, batch, atlas, name, false, block_stack.as_ref(), panel_x + 6.0, panel_y + 2.0);
     }
-    batch.text(atlas, &title, panel_x + text_x, panel_y + 4.0, 0xFFFFFFFF, true);
+    batch.text(atlas, &title, panel_x + text_x, panel_y + 4.0, panel_title_color, true);
     for (index, detail) in details.iter().enumerate() {
         batch.text(
             atlas,
             detail,
             panel_x + text_x,
             panel_y + 16.0 + index as f32 * 11.0,
-            0xFFB8B8B8,
+            panel_detail_color,
             true,
         );
     }
