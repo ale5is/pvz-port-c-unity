@@ -525,7 +525,6 @@ fn setting_default(key: &str) -> bool {
             | "show_entity_effects" | "show_villager_profession"
             | "show_entity_equipment" | "show_animal_tame_status" | "show_block_entity_info"
             | "show_access_info" | "show_entity_variant" | "show_entity_access" | "display_fluids"
-            | "show_next_entity_drop"
     )
 }
 
@@ -749,7 +748,7 @@ pub fn settings(
     buttons.push(option_label_with_default(game, "show_entity_variant", ["Show entity variants", "Mostrar variantes de entidades", "Mostrar variantes das entidades", "Afficher les variantes", "Mostra varianti entità", "Entitätsvarianten anzeigen", "エンティティの種類を表示", "显示实体变种"], false));
     buttons.push(option_label_with_default(game, "show_entity_access", ["Show entity status", "Mostrar estados de entidades", "Mostrar estados das entidades", "Afficher les états des entités", "Mostra stati entità", "Entitätsstatus anzeigen", "エンティティ状態を表示", "显示实体状态"], false));
     buttons.push(option_label_with_default(game, "display_fluids", ["Display fluids", "Mostrar líquidos", "Exibir fluidos", "Afficher les fluides", "Mostra fluidi", "Flüssigkeiten anzeigen", "液体を表示", "显示流体"], false));
-    buttons.push(option_label_with_default(game, "show_next_entity_drop", ["Show next entity drop", "Mostrar próxima puesta", "Mostrar próxima postura", "Afficher la prochaine ponte", "Mostra prossima deposizione", "Nächsten Drop anzeigen", "次のドロップを表示", "显示下次掉落"], false));
+    buttons.push(option_label_with_default(game, "show_next_entity_drop", ["Show next entity drop", "Mostrar próxima puesta", "Mostrar próxima postura", "Afficher la prochaine ponte", "Mostra prossima deposizione", "Nächsten Drop anzeigen", "次のドロップを表示", "显示下次掉落"], true));
     let reach = extra_reach(game);
     buttons.push(format!("{}: +{reach:.1}", tr(["Extra entity reach", "Alcance extra de entidades", "Alcance extra de entidades", "Portée supplémentaire", "Portata extra entità", "Zusätzliche Reichweite", "エンティティ追加距離", "实体额外距离"])));
     buttons.push(format!("{}: {}", tr(["Overlay theme", "Tema del HUD", "Tema do HUD", "Thème du HUD", "Tema HUD", "HUD-Design", "HUDテーマ", "提示框主题"]), theme_name(game)));
