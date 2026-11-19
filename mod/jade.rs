@@ -1,45 +1,123 @@
-// API-80 adaptation of Jade's in-world look-at overlay for Horizon 0.7.8.
-// This module deliberately uses only the pinned game's existing APIs.
+// Render item models through Horizon so stack components (notably leather dye) are respected.
+fn icon_item_id(id: &str, entity: bool) -> String {
+    if entity {
+        let (namespace, path) = id.split_once(':').unwrap_or(("minecraft", id));
+        format!("{namespace}:{path}_spawn_egg")
+    } else {
+        id.to_owned()
+    }
+}
 
-const ID: &str = "jade";
-
-fn icon_sprite(atlas: &horizon_client::hud::HudAtlas, id: &str, entity: bool) -> Option<String> {
+fn icon_available(
+    game: &super::Game<'_>,
+    atlas: &horizon_client::hud::HudAtlas,
+    id: &str,
+    entity: bool,
+    stack: Option<&horizon_client::items::ItemStack>,
+) -> bool {
+    if let Some(stack) = stack {
+        return game.res.items().get(&stack.item).is_some();
+    }
+    let item = icon_item_id(id, entity);
+    if game.res.items().get(&item).is_some() {
+        return true;
+    }
+    if entity {
+        return false;
+    }
     let (namespace, path) = id.split_once(':').unwrap_or(("minecraft", id));
-    let prefix = if namespace == "minecraft" {
-        String::new()
-    } else {
-        format!("{namespace}:")
-    };
-    let sprite_path = if entity {
-        format!("{prefix}item/{}_spawn_egg", path)
-    } else {
-        format!("{prefix}item/{path}")
-    };
-    if atlas.sprites.contains_key(&sprite_path) {
-        return Some(sprite_path);
-    }
-    if !entity {
-        let block_path = format!("{prefix}block/{path}");
-        if atlas.sprites.contains_key(&block_path) {
-            return Some(block_path);
-        }
-    }
-    None
+    let prefix = if namespace == "minecraft" { String::new() } else { format!("{namespace}:") };
+    atlas.sprites.contains_key(&format!("{prefix}block/{path}"))
 }
 
 fn draw_icon(
+    game: &super::Game<'_>,
     batch: &mut horizon_client::hud::HudBatch,
     atlas: &horizon_client::hud::HudAtlas,
     id: &str,
     entity: bool,
+    stack: Option<&horizon_client::items::ItemStack>,
     x: f32,
     y: f32,
 ) -> bool {
-    let Some(sprite) = icon_sprite(atlas, id, entity) else {
+    if let Some(stack) = stack {
+        if game.native_item_stack(batch, stack, [x, y], 16.0) {
+            return true;
+        }
+    }
+    let item = icon_item_id(id, entity);
+    if game.native_item(batch, &item, [x, y], 16.0) {
+        return true;
+    }
+    if entity {
         return false;
-    };
-    batch.sprite_scaled(atlas, &sprite, x, y, 16.0, 16.0, u32::MAX);
-    true
+    }
+    let (namespace, path) = id.split_once(':').unwrap_or(("minecraft", id));
+    let prefix = if namespace == "minecraft" { String::new() } else { format!("{namespace}:") };
+    let sprite = format!("{prefix}block/{path}");
+    if atlas.sprites.contains_key(&sprite) {
+        batch.sprite_scaled(atlas, &sprite, x, y, 16.0, 16.0, u32::MAX);
+        return true;
+    }
+    false
+}
+
+fn stack_name(
+    game: &super::Game<'_>,
+    stack: &horizon_client::items::ItemStack,
+    fallback: &str,
+) -> String {
+    game.stack_tooltip(stack)
+        .first()
+        .map_or_else(|| fallback.to_owned(), |(text, _)| text.plain())
+}
+
+const TOOL_TYPES: [&[&str]; 6] = [
+    &["minecraft:wooden_pickaxe", "minecraft:golden_pickaxe", "minecraft:stone_pickaxe", "minecraft:copper_pickaxe", "minecraft:iron_pickaxe", "minecraft:diamond_pickaxe", "minecraft:netherite_pickaxe"],
+    &["minecraft:wooden_axe", "minecraft:golden_axe", "minecraft:stone_axe", "minecraft:copper_axe", "minecraft:iron_axe", "minecraft:diamond_axe", "minecraft:netherite_axe"],
+    &["minecraft:wooden_shovel", "minecraft:golden_shovel", "minecraft:stone_shovel", "minecraft:copper_shovel", "minecraft:iron_shovel", "minecraft:diamond_shovel", "minecraft:netherite_shovel"],
+    &["minecraft:wooden_hoe", "minecraft:golden_hoe", "minecraft:stone_hoe", "minecraft:copper_hoe", "minecraft:iron_hoe", "minecraft:diamond_hoe", "minecraft:netherite_hoe"],
+    &["minecraft:wooden_sword"],
+    &["minecraft:shears"],
+];
+
+fn tier_correct(items: &horizon_client::items::Items, tool: &str, block: &str) -> bool {
+    let Some(info) = items.get(tool) else { return false };
+    for rule in &info.tool {
+        if let Some(correct) = rule.correct
+            && rule.blocks.iter().any(|entry| {
+                entry.strip_prefix('#').map_or(entry == block, |tag| items.block_in_tag(tag, block))
+            })
+        {
+            return correct;
+        }
+    }
+    items.mining_speed(
+        Some(&horizon_client::items::ItemStack::new(tool, 1)),
+        block,
+    ) > info.tool_default_speed
+}
+
+fn shear_block(game: &super::Game<'_>, block: &str) -> bool {
+    if block == "minecraft:tripwire" {
+        return true;
+    }
+    let Some((namespace, path)) = block.split_once(':') else { return false };
+    game.native_data(&format!("data/{namespace}/loot_table/blocks/{path}.json"))
+        .is_some_and(|bytes| {
+            let text = String::from_utf8_lossy(&bytes);
+            text.contains("minecraft:match_tool") && text.contains("minecraft:shears")
+        })
+}
+
+fn harvest_tools(game: &super::Game<'_>, block: &str) -> Vec<String> {
+    let items = game.res.items();
+    TOOL_TYPES.iter().filter_map(|tiers| {
+        tiers.iter().find(|tool| {
+            tier_correct(items, tool, block)
+                || (**tool == "minecraft:shears" && shear_block(game, block))
+        }).map(|tool| (*tool).to_owned())
+    }).collect()
 }
 
 fn enabled(game: &super::Game<'_>, key: &str, default: bool) -> bool {
@@ -84,6 +162,22 @@ fn option_label_with_default(
 
 fn option_label(game: &super::Game<'_>, key: &str, label: [&'static str; 8]) -> String {
     option_label_with_default(game, key, label, true)
+}
+
+fn save_enabled(game: &super::Game<'_>, key: &str, value: bool) {
+    use std::io::Write;
+    let dir = game.native_data_dir(ID);
+    let result = (|| -> std::io::Result<()> {
+        std::fs::create_dir_all(&dir)?;
+        let mut file = std::fs::File::create(dir.join(key))?;
+        file.write_all(if value { b"true" } else { b"false" })?;
+        file.sync_all()
+    })();
+    if let Err(error) = result {
+        log::warn!("Jade: could not persist setting {key}: {error}");
+    } else if game.native_setting(ID, key).as_deref() != Some(if value { "true" } else { "false" }) {
+        log::warn!("Jade: setting {key} did not verify after writing");
+    }
 }
 
 pub fn register_mod(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
@@ -196,7 +290,7 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
     };
     let default = matches!(button, 3 | 4);
     let next = !enabled(game, key, default);
-    game.native_set_setting(ID, key, if next { "true" } else { "false" });
+    save_enabled(game, key, next);
 }
 
 pub fn item_tooltip(
@@ -274,7 +368,8 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     let id: &str = mob.kind.id.as_str();
                     let short_name = id.split_once(':').map_or(id, |(_, name)| name);
                     let title = mob.custom_name.clone().unwrap_or_else(|| {
-                        game.translate(&format!("entity.minecraft.{short_name}"), short_name)
+                        let (namespace, path) = id.split_once(':').unwrap_or(("minecraft", id));
+                        game.translate(&format!("entity.{namespace}.{path}"), path)
                     });
                     let mut details = Vec::with_capacity(2);
                     if enabled(game, "show_mod_name", true) {
@@ -345,9 +440,9 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             if let Some(item) = game.dropped.get(index) {
                 let id = item.stack.item.as_ref();
                 let short_name = id.split_once(':').map_or(id, |(_, name)| name);
-                let title = game.translate(&format!("item.{id}"), short_name);
+                let title = stack_name(game, &item.stack, short_name);
                 let mut details = Vec::with_capacity(3);
-                if enabled(game, "show_mod_name", true) {
+                if enabled(game, "show_item_mod_name", true) {
                     if let Some((namespace, _)) = id.split_once(':') {
                         if namespace != "minecraft" && !namespace.is_empty() {
                             details.push(format!("{}: {}", tr([
@@ -419,7 +514,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                     let equipment = stand.equipment.iter().flatten().map(|stack| {
                         let id = stack.item.as_ref();
                         let short_name = id.split_once(':').map_or(id, |(_, name)| name);
-                        let name = game.translate(&format!("item.{id}"), short_name);
+                        let name = stack_name(game, stack, short_name);
                         if stack.count > 1 {
                             format!("{name} x{}", stack.count)
                         } else {
@@ -479,13 +574,22 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     }
 
     let short_name = name.rsplit(':').next().unwrap_or(name);
-    let mut chars = short_name.chars();
-    let title = match chars.next() {
-        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-        None => short_name.to_owned(),
-    }.replace('_', " ");
+    let block_stack = game.picked_stack(hit.pos, false);
+    let fallback_title = {
+        let mut chars = short_name.chars();
+        match chars.next() {
+            Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+            None => short_name.to_owned(),
+        }.replace('_', " ")
+    };
+    let title = block_stack.as_ref().map(|stack| stack_name(game, stack, &fallback_title))
+        .unwrap_or_else(|| {
+            let (namespace, path) = name.split_once(':').unwrap_or(("minecraft", name));
+            game.translate(&format!("block.{namespace}.{path}"), &fallback_title)
+        });
 
     let mut details = Vec::with_capacity(5);
+    let mut required_tools = Vec::new();
     if enabled(game, "show_mod_name", true) {
         if let Some((namespace, _)) = name.split_once(':') {
             if namespace != "minecraft" && !namespace.is_empty() {
@@ -518,6 +622,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             format!("{}: {:.1}", tr(["Hardness", "Dureza", "Dureza", "Dureté", "Durezza", "Härte", "硬度", "硬度"]), facts.hardness)
         };
         let tool = if facts.requires_tool {
+            required_tools = harvest_tools(game, name);
             tr(["Tool required", "Requiere herramienta", "Requer ferramenta", "Outil requis", "Richiede strumento", "Werkzeug erforderlich", "道具が必要", "需要工具"])
         } else {
             tr(["No tool required", "No requiere herramienta", "Não requer ferramenta", "Aucun outil requis", "Non richiede strumenti", "Kein Werkzeug nötig", "道具不要", "不需要工具"])
@@ -526,21 +631,29 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
     }
     let atlas = &game.gui.atlas;
     let has_icon = enabled(game, "show_target_icon", true)
-        && icon_sprite(atlas, name, false).is_some();
+        && icon_available(game, atlas, name, false, block_stack.as_ref());
     let text_x = if has_icon { 26.0 } else { 6.0 };
     let title_width = horizon_client::hud::HudBatch::text_width(atlas, &title);
     let detail_width = details.iter()
         .map(|line| horizon_client::hud::HudBatch::text_width(atlas, line))
         .fold(0.0_f32, f32::max);
-    let panel_width = (title_width.max(detail_width) + if has_icon { 32.0 } else { 12.0 })
+    let tool_label = tr(["Tool", "Herramienta", "Ferramenta", "Outil", "Strumento", "Werkzeug", "道具", "工具"]);
+    let has_tool_row = facts.requires_tool && !required_tools.is_empty();
+    let tool_row_width = if has_tool_row {
+        horizon_client::hud::HudBatch::text_width(atlas, tool_label)
+            + required_tools.len() as f32 * 10.0 + 16.0
+    } else {
+        0.0
+    };
+    let panel_width = (title_width.max(detail_width).max(tool_row_width) + if has_icon { 32.0 } else { 12.0 })
         .min((batch.width - 16.0).max(0.0));
     let panel_x = ((batch.width - panel_width) * 0.5).max(8.0);
     let panel_y = 8.0;
-    let panel_height = 17.0 + details.len() as f32 * 12.0;
+    let panel_height = 17.0 + details.len() as f32 * 12.0 + if has_tool_row { 11.0 } else { 0.0 };
 
     batch.fill(atlas, panel_x, panel_y, panel_width, panel_height.max(if has_icon { 20.0 } else { 0.0 }), 0xD0101010);
     if has_icon {
-        let _ = draw_icon(batch, atlas, name, false, panel_x + 6.0, panel_y + 2.0);
+        let _ = draw_icon(game, batch, atlas, name, false, block_stack.as_ref(), panel_x + 6.0, panel_y + 2.0);
     }
     batch.text(atlas, &title, panel_x + text_x, panel_y + 4.0, 0xFFFFFFFF, true);
     for (index, detail) in details.iter().enumerate() {
@@ -550,6 +663,24 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
             panel_x + text_x,
             panel_y + 16.0 + index as f32 * 11.0,
             0xFFB8B8B8,
+            true,
+        );
+    }
+    if has_tool_row {
+        let row_y = panel_y + 16.0 + details.len() as f32 * 11.0;
+        batch.text(atlas, tool_label, panel_x + text_x, row_y, 0xFFB8B8B8, true);
+        let mut icon_x = panel_x + text_x + horizon_client::hud::HudBatch::text_width(atlas, tool_label) + 3.0;
+        for tool in &required_tools {
+            let _ = game.native_item(batch, tool, [icon_x, row_y], 8.0);
+            icon_x += 10.0;
+        }
+        let correct = game.res.items().correct_for_drops(game.held(), name);
+        batch.text(
+            atlas,
+            if correct { "✔" } else { "✕" },
+            icon_x + 1.0,
+            row_y,
+            if correct { 0xFF55FF55 } else { 0xFFFF5555 },
             true,
         );
     }
