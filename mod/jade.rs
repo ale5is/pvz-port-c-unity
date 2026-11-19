@@ -139,6 +139,7 @@ fn setting_default(key: &str) -> bool {
             | "show_block_face" | "show_distance" | "show_entity_distance" | "show_entity_registry_id"
             | "show_relative_coordinates" | "show_crop_progress" | "show_redstone_info"
             | "show_note_block_info" | "show_tnt_stability" | "show_beehive_honey" | "show_block_amount"
+            | "show_entity_armor" | "show_entity_age" | "show_entity_breeding" | "show_horse_stats"
     )
 }
 
@@ -317,6 +318,22 @@ pub fn settings(
         "Show block amount", "Mostrar cantidad del bloque", "Mostrar quantidade do bloco", "Afficher la quantité du bloc",
         "Mostra quantità blocco", "Blockmenge anzeigen", "ブロックの数を表示", "显示方块数量",
     ], false));
+    buttons.push(option_label_with_default(game, "show_entity_armor", [
+        "Show entity armor", "Mostrar armadura de entidades", "Mostrar armadura das entidades", "Afficher l’armure des entités",
+        "Mostra armatura entità", "Entitätsrüstung anzeigen", "エンティティの防具", "显示实体护甲",
+    ], false));
+    buttons.push(option_label_with_default(game, "show_entity_age", [
+        "Show entity age", "Mostrar edad de entidades", "Mostrar idade das entidades", "Afficher l’âge des entités",
+        "Mostra età entità", "Entitätsalter anzeigen", "エンティティの年齢", "显示实体年龄",
+    ], false));
+    buttons.push(option_label_with_default(game, "show_entity_breeding", [
+        "Show breeding status", "Mostrar estado de reproducción", "Mostrar estado de reprodução", "Afficher l’état de reproduction",
+        "Mostra stato riproduzione", "Zuchtstatus anzeigen", "繁殖状態を表示", "显示繁殖状态",
+    ], false));
+    buttons.push(option_label_with_default(game, "show_horse_stats", [
+        "Show horse stats", "Mostrar estadísticas de caballos", "Mostrar estatísticas dos cavalos", "Afficher les statistiques des chevaux",
+        "Mostra statistiche cavalli", "Pferdewerte anzeigen", "馬の能力値", "显示马匹属性",
+    ], false));
 }
 
 pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
@@ -350,6 +367,10 @@ pub fn settings_click(game: &mut super::Game<'_>, mod_id: &str, button: usize) {
         23 => "show_tnt_stability",
         24 => "show_beehive_honey",
         25 => "show_block_amount",
+        26 => "show_entity_armor",
+        27 => "show_entity_age",
+        28 => "show_entity_breeding",
+        29 => "show_horse_stats",
         _ => return,
     };
     let default = setting_default(key);
@@ -447,6 +468,39 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                         details.push(format!("{}: {:.1} m", tr([
                             "Distance", "Distancia", "Distância", "Distance", "Distanza", "Entfernung", "距離", "距离",
                         ]), distance));
+                    }
+                    if enabled(game, "show_entity_armor", false) && mob.kind.armor > 0.0 {
+                        details.push(format!("{}: {:.0}", tr([
+                            "Armor", "Armadura", "Armadura", "Armure", "Armatura", "Rüstung", "防具", "护甲",
+                        ]), mob.kind.armor));
+                    }
+                    if enabled(game, "show_entity_age", false)
+                        && matches!(mob.kind.species, horizon_client::mobs::Species::Animal | horizon_client::mobs::Species::WaterAnimal)
+                    {
+                        details.push(if mob.extra.age < 0 {
+                            tr(["Baby", "Bebé", "Filhote", "Bébé", "Cucciolo", "Baby", "子ども", "幼年"]).to_owned()
+                        } else {
+                            tr(["Adult", "Adulto", "Adulto", "Adulte", "Adulto", "Erwachsen", "大人", "成年"]).to_owned()
+                        });
+                    }
+                    if enabled(game, "show_entity_breeding", false) && mob.extra.in_love > 0 {
+                        details.push(tr([
+                            "Ready to breed", "Listo para reproducirse", "Pronto para reproduzir", "Prêt à se reproduire",
+                            "Pronto per riprodursi", "Paarungsbereit", "繁殖可能", "可以繁殖",
+                        ]).to_owned());
+                    }
+                    if enabled(game, "show_horse_stats", false)
+                        && matches!(id, "minecraft:horse" | "minecraft:donkey" | "minecraft:mule" | "minecraft:skeleton_horse" | "minecraft:zombie_horse")
+                    {
+                        let jump = 4.53680079 * mob.attrs.jump_strength * mob.attrs.jump_strength
+                            + 1.6143173 * mob.attrs.jump_strength - 0.22656224;
+                        let speed = mob.attrs.speed * 43.17181546666666 - 3.39999999E-7;
+                        details.push(format!("{}: {:.2} m", tr([
+                            "Jump", "Salto", "Salto", "Saut", "Salto", "Sprung", "跳躍", "跳跃",
+                        ]), jump));
+                        details.push(format!("{}: {:.2} m/s", tr([
+                            "Speed", "Velocidad", "Velocidade", "Vitesse", "Velocità", "Geschwindigkeit", "速度", "速度",
+                        ]), speed));
                     }
                     if enabled(game, "show_mod_name", true) {
                         if let Some((namespace, _)) = id.split_once(':') {
