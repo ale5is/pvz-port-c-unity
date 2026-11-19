@@ -991,22 +991,7 @@ pub fn on_command(game: &super::Game<'_>, command: &str, ran: &mut bool) {
             }
         },
         "set" => if let (Some(key), Some(value)) = (parts.next(), parts.next()) {
-            const BOOL_SETTINGS: &[&str] = &[
-                "display_tooltip", "show_target_icon", "show_registry_id", "show_coordinates",
-                "show_block_states", "show_block_info", "show_hardness", "show_item_mod_name",
-                "show_mod_name", "display_entities", "show_entity_health", "display_dropped_items",
-                "show_item_count", "display_armor_stands", "show_armor_stand_equipment",
-                "show_block_face", "show_distance", "show_entity_distance", "show_entity_registry_id",
-                "show_relative_coordinates", "show_crop_progress", "show_redstone_info",
-                "show_note_block_info", "show_tnt_stability", "show_beehive_honey", "show_block_amount",
-                "show_entity_armor", "show_entity_age", "show_entity_breeding", "show_horse_stats",
-                "show_entity_effects", "show_villager_profession", "show_entity_equipment",
-                "show_animal_tame_status", "display_item_frames", "display_paintings", "display_boats",
-                "display_minecarts", "display_falling_blocks", "show_block_entity_info",
-                "show_access_info", "show_entity_variant", "show_entity_access", "display_fluids",
-                "show_next_entity_drop",
-            ];
-            if BOOL_SETTINGS.contains(&key) {
+            if PROFILE_BOOL_SETTINGS.contains(&key) {
                 match value {
                     "on" | "true" => save_enabled(game, key, true),
                     "off" | "false" => save_enabled(game, key, false),
