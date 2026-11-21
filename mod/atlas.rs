@@ -5330,10 +5330,10 @@ impl State {
     /// Keeps every rotated minimap corner inside Horizon's loaded chunk radius.
     /// Horizon scans a square radius and caps it at render_distance; a rotated
     /// square needs sqrt(2) more reach than one side.
-    pub fn mini_zoom_for_render_distance(&self, render_distance: i32) -> f32 {
+    pub fn mini_zoom_for_render_distance(&self, render_distance: i32, rotate: bool) -> f32 {
         let chunks = render_distance.max(2) as f32;
-        let max_blocks_per_pixel =
-            (chunks - 1.0) / (4.0 * std::f32::consts::SQRT_2);
+        let diagonal = if rotate { std::f32::consts::SQRT_2 } else { 1.0 };
+        let max_blocks_per_pixel = (chunks - 1.0) / (4.0 * diagonal);
         self.mini_zoom().min(max_blocks_per_pixel)
     }
 
@@ -8852,13 +8852,17 @@ mod tests {
         let selected = state.mini_zoom();
         let max_at_two_chunks = 1.0 / (4.0 * std::f32::consts::SQRT_2);
         assert!(
-            (state.mini_zoom_for_render_distance(2) - max_at_two_chunks).abs() < 1e-6
+            (state.mini_zoom_for_render_distance(2, true) - max_at_two_chunks).abs() < 1e-6
         );
-        assert_eq!(state.mini_zoom_for_render_distance(2), max_at_two_chunks);
-        assert_eq!(state.mini_zoom_for_render_distance(8), selected);
+        assert_eq!(state.mini_zoom_for_render_distance(2, true), max_at_two_chunks);
+        assert_eq!(state.mini_zoom_for_render_distance(8, true), selected);
         assert_eq!(
-            state.mini_zoom_for_render_distance(2),
-            state.mini_zoom_for_render_distance(1)
+            state.mini_zoom_for_render_distance(2, false),
+            0.25_f32.min(selected)
+        );
+        assert_eq!(
+            state.mini_zoom_for_render_distance(2, true),
+            state.mini_zoom_for_render_distance(1, true)
         );
     }
 
