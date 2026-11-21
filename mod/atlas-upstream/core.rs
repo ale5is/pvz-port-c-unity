@@ -1711,7 +1711,7 @@ settings! {
 
 /// What Options > Mods > Atlas shows: the main switches. The rest are on the
 /// settings screen.
-const QUICK: [&str; 5] = ["minimap", "mode", "dots", "labels", "lock_north"];
+const QUICK: [&str; 5] = ["minimap", "mode", "dots", "labels", "rotate"];
 
 fn on_off(b: bool) -> &'static str {
     if b { "ON" } else { "OFF" }
@@ -8443,7 +8443,7 @@ mod tests {
     fn the_minimap_draws_its_image_dots_waypoints_compass_and_lines() {
         let mut s = State {
             settings: Some(Settings {
-                lock_north: true,
+                rotate: false,
                 biome: true,
                 time: true,
                 ..Settings::default()
@@ -8583,7 +8583,7 @@ mod tests {
     fn overlays_mark_chunks_and_dark_blocks() {
         let mut s = State::default();
         s.maps.store(Cut::Surface).put(0, 0, grass(64));
-        s.settings = Some(Settings { lock_north: true, ..Settings::default() });
+        s.settings = Some(Settings { rotate: false, ..Settings::default() });
         s.update_minimap(8.5, 8.5, 0.0);
         let plain = s.mini_image.clone();
         let mut st = s.settings();
@@ -8849,7 +8849,7 @@ mod tests {
     #[test]
     fn minimap_rotation_is_off_by_default_and_can_be_enabled() {
         assert!(!Settings::default().rotate());
-        assert!(Settings { rotate: true, ..Settings::default() }.rotate());
+        assert!(Settings { rotate: false, ..Settings::default() }.rotate());
     }
 
     #[test]
