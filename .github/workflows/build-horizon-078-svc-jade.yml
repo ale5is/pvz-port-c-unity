@@ -9,6 +9,7 @@ on:
       - "scripts/patch_bundled_native_mods.py"
       - "PAVO_VERSION"
       - "mod/**"
+      - "mod/atlas-upstream/**"
   workflow_dispatch:
 
 permissions:
@@ -104,6 +105,9 @@ jobs:
           echo "ORG_GRADLE_PROJECT_pavoVersionName=$VERSION" >> "$GITHUB_ENV"
           echo "ORG_GRADLE_PROJECT_pavoVersionCode=$VERSION_CODE" >> "$GITHUB_ENV"
           echo "PavoHorizon version=$VERSION versionCode=$VERSION_CODE"
+
+      - name: Run Horizon Atlas core logic tests
+        run: cargo test --manifest-path mod/atlas-upstream/Cargo.toml
 
       - name: Validate Jade Rust syntax before mixin packaging
         run: |
