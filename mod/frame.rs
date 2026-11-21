@@ -11,6 +11,5 @@ fn frame(game: &mut crate::game::Game<'_>, elapsed: std::time::Duration) {
             crate::game::remote::voicechat_network::send_payload(game, &channel, &data);
         }
     }
-}
-
     crate::game::atlas_mod::bridge::frame_api80(game);
+}
