@@ -13,10 +13,17 @@ pub type ClientEntityProvider = for<'a> fn(
     &horizon_client::mobs::Mob,
     &mut Vec<String>,
 );
+pub type ClientItemProvider = for<'a> fn(
+    &super::Game<'a>,
+    &horizon_client::items::ItemStack,
+    &mut Vec<String>,
+);
 
 static CLIENT_BLOCK_PROVIDERS: std::sync::Mutex<Vec<ClientBlockProvider>> =
     std::sync::Mutex::new(Vec::new());
 static CLIENT_ENTITY_PROVIDERS: std::sync::Mutex<Vec<ClientEntityProvider>> =
+    std::sync::Mutex::new(Vec::new());
+static CLIENT_ITEM_PROVIDERS: std::sync::Mutex<Vec<ClientItemProvider>> =
     std::sync::Mutex::new(Vec::new());
 
 /// Register a block detail provider from another native mod.
@@ -30,6 +37,14 @@ pub fn register_client_block_provider(provider: ClientBlockProvider) {
 /// Register an entity detail provider from another native mod.
 pub fn register_client_entity_provider(provider: ClientEntityProvider) {
     CLIENT_ENTITY_PROVIDERS
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .push(provider);
+}
+
+/// Register a dropped-item detail provider from another native mod.
+pub fn register_client_item_provider(provider: ClientItemProvider) {
+    CLIENT_ITEM_PROVIDERS
         .lock()
         .unwrap_or_else(|error| error.into_inner())
         .push(provider);
@@ -61,6 +76,20 @@ fn append_client_entity_providers(
         .clone();
     for provider in providers {
         provider(game, mob, details);
+    }
+}
+
+fn append_client_item_providers(
+    game: &super::Game<'_>,
+    stack: &horizon_client::items::ItemStack,
+    details: &mut Vec<String>,
+) {
+    let providers = CLIENT_ITEM_PROVIDERS
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .clone();
+    for provider in providers {
+        provider(game, stack, details);
     }
 }
 
@@ -1588,6 +1617,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                         "Count", "Cantidad", "Quantidade", "Quantité", "Quantità", "Anzahl", "個数", "数量",
                     ]), item.stack.count));
                 }
+                append_client_item_providers(game, &item.stack, &mut details);
                 let atlas = &game.gui.atlas;
                 let has_icon = enabled(game, "show_target_icon", true)
                     && icon_available(game, atlas, id, false, Some(&item.stack));
