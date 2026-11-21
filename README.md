@@ -1,6 +1,6 @@
-# Horizon Port Pavo
+# PavoHorizon 1.0.0
 
-Native Simple Voice Chat port for Horizon Android 0.7.8.
+PavoHorizon is an Android ARM64 build based on Horizon 0.7.8, with integrated Jade and Simple Voice Chat modules. The Pavo application version is independent of the underlying Horizon engine version.
 
 The target is the Android APK, not a dynamically loaded desktop `.hnmod`. Horizon 0.7.8's `launcher/src/native_mods.rs` compiler builds a desktop `horizon-client` executable; its toolchain does not target Android. The Android app has its own `tools/android_build.py` pipeline. This port therefore uses the same pinned `horizon-mixins` source transformation directly on the Android source tree, then compiles `horizon-android`.
 
@@ -19,7 +19,11 @@ The script installs the exact `horizon-mixins` revision used by Horizon 0.7.8 if
 
 The Opus C/H source is kept under `mod/data/vendor/` because Horizon mixin bundles only permit C/H files inside the `data/` payload area. The mixins staging process places it under `native-data/simple-voice-chat/vendor/`, where the crate build script reads it.
 
-The build is not yet validated. Android microphone permission handling, audio-device capture/playback, UDP connection, and server interoperability still need runtime testing.
+The ARM64 Android build pipeline has completed successfully for the integrated Jade and Simple Voice Chat modules. Real-device microphone permission, audio capture/playback, UDP connection and server interoperability still require runtime testing.
+
+The launcher version is stored in `PAVO_VERSION`. Android in-place updates require the persistent signing key described in [Android updates](docs/ANDROID_UPDATES.md). The current Horizon engine pin remains 0.7.8.
+
+Horizon Atlas 0.3.0 is vendored as the minimap expansion source reference under `mod/atlas-upstream/`. It is not yet integrated: its upstream hooks API 415 and Horizon revision differ from Pavo's API 80 / Horizon 0.7.8. See [the Atlas port plan](docs/ATLAS_PORT_PLAN.md).
 
 ## Source layout
 - `mod/`: adapted hooks, Rust client, protocol and audio implementation.
