@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/build-horizon-078-svc-jade.yml"
       - "scripts/build_android_port.py"
+      - "scripts/patch_bundled_native_mods.py"
       - "mod/**"
   workflow_dispatch:
 
@@ -86,6 +87,10 @@ jobs:
       - name: Prepare pinned Minecraft 26.3 engine tables
         run: |
           python horizon-source/tools/android_prepare.py
+
+      - name: Register Jade and Simple Voice Chat as built-in Android mods
+        run: |
+          python scripts/patch_bundled_native_mods.py horizon-source
 
       - name: Validate Jade Rust syntax before mixin packaging
         run: |
