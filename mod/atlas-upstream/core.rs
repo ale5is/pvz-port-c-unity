@@ -8952,7 +8952,7 @@ mod tests {
     #[test]
     fn every_setting_does_something() {
         // Those the game side reads: it must read them.
-        let bridge = std::fs::read_to_string("mixins/atlas/bridge.rs").unwrap();
+        let bridge = include_str!("bridge.rs");
         const GAME_SIDE: [(&str, &str); 20] = [
             ("server_folder", "settings.server_folder"),
             ("obsidian_roof", "settings.obsidian_roof"),
