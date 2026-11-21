@@ -106,3 +106,5 @@ fn hud(
         game.native_text(batch, &prompt, [prompt_x + 5.0, prompt_y + 4.0], 0xFFFFFF, true);
     }
 }
+
+    crate::game::atlas_mod::bridge::hud_api80(game, batch, corners);
