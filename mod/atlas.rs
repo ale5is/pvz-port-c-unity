@@ -5327,14 +5327,12 @@ impl State {
         if self.cut == Cut::Surface { st.zoom } else { st.zoom / st.cave_zoom.max(1) as f32 }
     }
 
-    /// Keeps every rotated minimap corner inside Horizon's loaded chunk radius.
-    /// Horizon scans a square radius and caps it at render_distance; a rotated
-    /// square needs sqrt(2) more reach than one side.
-    pub fn mini_zoom_for_render_distance(&self, render_distance: i32, rotate: bool) -> f32 {
-        let chunks = render_distance.max(2) as f32;
-        let diagonal = if rotate { std::f32::consts::SQRT_2 } else { 1.0 };
-        let max_blocks_per_pixel = (chunks - 1.0) / (4.0 * diagonal);
-        self.mini_zoom().min(max_blocks_per_pixel)
+    /// The selected zoom is shared by the minimap image and its radar.
+    /// Do not clamp it to render distance: that made several consecutive
+    /// zoom steps collapse to the same value at ordinary view distances.
+    /// Unloaded terrain can remain blank at the edge, as in Atlas itself.
+    pub fn mini_zoom_for_render_distance(&self, _render_distance: i32, _rotate: bool) -> f32 {
+        self.mini_zoom()
     }
 
     /// The enlarge key went down or up.
@@ -8853,23 +8851,22 @@ mod tests {
     }
 
     #[test]
-    fn rotated_minimap_zoom_fits_the_loaded_render_distance() {
+    fn minimap_zoom_steps_are_never_collapsed_by_render_distance_or_rotation() {
         let mut state = State::default();
-        let selected = state.mini_zoom();
-        let max_at_two_chunks = 1.0 / (4.0 * std::f32::consts::SQRT_2);
-        assert!(
-            (state.mini_zoom_for_render_distance(2, true) - max_at_two_chunks).abs() < 1e-6
-        );
-        assert_eq!(state.mini_zoom_for_render_distance(2, true), max_at_two_chunks);
-        assert_eq!(state.mini_zoom_for_render_distance(8, true), selected);
-        assert_eq!(
-            state.mini_zoom_for_render_distance(2, false),
-            0.25_f32.min(selected)
-        );
-        assert_eq!(
-            state.mini_zoom_for_render_distance(2, true),
-            state.mini_zoom_for_render_distance(1, true)
-        );
+        for (distance, rotate) in [(2, false), (2, true), (8, false), (8, true), (32, true)] {
+            assert_eq!(
+                state.mini_zoom_for_render_distance(distance, rotate),
+                state.mini_zoom()
+            );
+        }
+        let mut values = Vec::new();
+        for _ in 0..7 {
+            values.push(state.mini_zoom());
+            state.zoom_key(false);
+        }
+        values.sort_by(f32::total_cmp);
+        values.dedup_by(|a, b| (*a - *b).abs() < f32::EPSILON);
+        assert_eq!(values.len(), 7, "all seven configured zoom levels must be distinct");
     }
 
     #[test]
