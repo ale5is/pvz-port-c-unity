@@ -222,10 +222,10 @@ visibility = "pub"
 [[injection]]
 id = "atlas_native_minimap"
 kind = "HEAD"
-hook = "native_minimap"
+hook = "minimap"
 hook_version = 1
 helper = "atlas_native_minimap.rs"
 bindings = [
-  { name = "game", ty = "&crate::game::Game<'_>", value = "self" },
+  { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
   { name = "minimap", ty = "&mut Option<crate::game::native_hooks::NativeMinimap>", value = "&mut *minimap" },
 ]
