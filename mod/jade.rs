@@ -1,5 +1,70 @@
 const ID: &str = "jade";
 
+// Native mods compiled into Horizon can add Jade-compatible client-side detail providers.
+// Providers receive read-only game state and append plain-text detail rows.
+pub type ClientBlockProvider = for<'a> fn(
+    &super::Game<'a>,
+    [i32; 3],
+    &str,
+    &mut Vec<String>,
+);
+pub type ClientEntityProvider = for<'a> fn(
+    &super::Game<'a>,
+    &horizon_client::mobs::Mob,
+    &mut Vec<String>,
+);
+
+static CLIENT_BLOCK_PROVIDERS: std::sync::Mutex<Vec<ClientBlockProvider>> =
+    std::sync::Mutex::new(Vec::new());
+static CLIENT_ENTITY_PROVIDERS: std::sync::Mutex<Vec<ClientEntityProvider>> =
+    std::sync::Mutex::new(Vec::new());
+
+/// Register a block detail provider from another native mod.
+pub fn register_client_block_provider(provider: ClientBlockProvider) {
+    CLIENT_BLOCK_PROVIDERS
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .push(provider);
+}
+
+/// Register an entity detail provider from another native mod.
+pub fn register_client_entity_provider(provider: ClientEntityProvider) {
+    CLIENT_ENTITY_PROVIDERS
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .push(provider);
+}
+
+fn append_client_block_providers(
+    game: &super::Game<'_>,
+    pos: [i32; 3],
+    block: &str,
+    details: &mut Vec<String>,
+) {
+    let providers = CLIENT_BLOCK_PROVIDERS
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .clone();
+    for provider in providers {
+        provider(game, pos, block, details);
+    }
+}
+
+fn append_client_entity_providers(
+    game: &super::Game<'_>,
+    mob: &horizon_client::mobs::Mob,
+    details: &mut Vec<String>,
+) {
+    let providers = CLIENT_ENTITY_PROVIDERS
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .clone();
+    for provider in providers {
+        provider(game, mob, details);
+    }
+}
+
+
 // Render item models through Horizon so stack components (notably leather dye) are respected.
 fn icon_item_id(id: &str, entity: bool) -> String {
     if entity {
@@ -1436,6 +1501,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
                             }
                         }
                     }
+                    append_client_entity_providers(game, mob, &mut details);
                     let health_line = enabled(game, "show_entity_health", true).then(|| {
                         format!("{:.1}/{:.1}", mob.health.max(0.0), mob.attrs.max_health.max(1.0))
                     });
@@ -2045,6 +2111,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         });
         required_tools.truncate(1);
     }
+    append_client_block_providers(game, hit.pos, name, &mut details);
     let atlas = &game.gui.atlas;
     let has_icon = enabled(game, "show_target_icon", true)
         && icon_available(game, atlas, name, false, block_stack.as_ref());
