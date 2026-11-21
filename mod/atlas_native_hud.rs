@@ -89,6 +89,14 @@ fn atlas_native_hud(
                 continue;
             }
             let is_player = mob.kind.id == "minecraft:player";
+            let dy = mob.position.y - player.y;
+            if is_player
+                && dx.abs() < 0.05
+                && dz.abs() < 0.05
+                && dy.abs() < 0.1
+            {
+                continue;
+            }
             let kind = if is_player {
                 if !settings.show_players { continue; }
                 0
@@ -99,7 +107,6 @@ fn atlas_native_hud(
                 if !settings.show_mobs { continue; }
                 1
             };
-            let dy = mob.position.y - player.y;
             if settings.height_limit > 0
                 && dy.abs() > f64::from(settings.height_limit)
             {
@@ -168,11 +175,6 @@ fn atlas_native_hud(
         let dot_radius = (size / 100.0).clamp(0.5, 2.0)
             * settings.dot_size.clamp(1, 6) as f32
             * 0.5;
-        game.native_fill(
-            batch,
-            [center[0] - 2.0, center[1] - 2.0, 4.0, 4.0],
-            0xFFFFFFFF,
-        );
         for (_, position, kind, name) in entities {
             let dx = position[0] - player.x;
             let dz = position[2] - player.z;
