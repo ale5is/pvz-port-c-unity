@@ -1262,7 +1262,7 @@ pub fn hud(game: &mut super::Game<'_>, batch: &mut horizon_client::hud::HudBatch
         item_hit.map(|(_, d)| d), armor_stand_hit.map(|(_, d)| d),
         frame_hit.map(|(_, d)| d), painting_hit.map(|(_, d)| d), boat_hit.map(|(_, d)| d),
         cart_hit.map(|(_, d)| d), falling_hit.map(|(_, d)| d), display_hit.map(|(_, d)| d),
-        fluid_hit.map(|(distance, _, _, _, _)| distance),
+        fluid_hit.as_ref().map(|(distance, _, _, _, _)| *distance),
     ].into_iter().flatten().fold(f64::INFINITY, f64::min);
 
     // Jade's entity providers: an entity is shown only when its hit is nearer than
