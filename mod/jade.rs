@@ -28,26 +28,41 @@ static CLIENT_ITEM_PROVIDERS: std::sync::Mutex<Vec<ClientItemProvider>> =
 
 /// Register a block detail provider from another native mod.
 pub fn register_client_block_provider(provider: ClientBlockProvider) {
-    CLIENT_BLOCK_PROVIDERS
+    let mut providers = CLIENT_BLOCK_PROVIDERS
         .lock()
-        .unwrap_or_else(|error| error.into_inner())
-        .push(provider);
+        .unwrap_or_else(|error| error.into_inner());
+    if !providers
+        .iter()
+        .any(|registered| std::ptr::fn_addr_eq(*registered, provider))
+    {
+        providers.push(provider);
+    }
 }
 
 /// Register an entity detail provider from another native mod.
 pub fn register_client_entity_provider(provider: ClientEntityProvider) {
-    CLIENT_ENTITY_PROVIDERS
+    let mut providers = CLIENT_ENTITY_PROVIDERS
         .lock()
-        .unwrap_or_else(|error| error.into_inner())
-        .push(provider);
+        .unwrap_or_else(|error| error.into_inner());
+    if !providers
+        .iter()
+        .any(|registered| std::ptr::fn_addr_eq(*registered, provider))
+    {
+        providers.push(provider);
+    }
 }
 
 /// Register a dropped-item detail provider from another native mod.
 pub fn register_client_item_provider(provider: ClientItemProvider) {
-    CLIENT_ITEM_PROVIDERS
+    let mut providers = CLIENT_ITEM_PROVIDERS
         .lock()
-        .unwrap_or_else(|error| error.into_inner())
-        .push(provider);
+        .unwrap_or_else(|error| error.into_inner());
+    if !providers
+        .iter()
+        .any(|registered| std::ptr::fn_addr_eq(*registered, provider))
+    {
+        providers.push(provider);
+    }
 }
 
 fn append_client_block_providers(
