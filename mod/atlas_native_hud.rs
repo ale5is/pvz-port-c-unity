@@ -169,17 +169,6 @@ fn atlas_native_hud(
         let dot_radius = (size / 100.0).clamp(0.5, 2.0)
             * settings.dot_size.clamp(1, 6) as f32
             * 0.5;
-        let mut draw_diamond = |at: [f32; 2], radius: f32, color: u32| {
-            let points = |r: f32| [
-                [at[0], at[1] - r],
-                [at[0] + r, at[1]],
-                [at[0], at[1] + r],
-                [at[0] - r, at[1]],
-            ];
-            game.native_quad(batch, points(radius + 0.7), 0xFF101010);
-            game.native_quad(batch, points(radius), color);
-        };
-
         game.native_fill(
             batch,
             [center[0] - 2.0, center[1] - 2.0, 4.0, 4.0],
@@ -228,9 +217,17 @@ fn atlas_native_hud(
                     crate::game::atlas_mod::fade(color, light, near),
                 );
             } else {
-                draw_diamond(
-                    [px, py],
-                    if kind == 0 { dot_radius * 1.3 } else { dot_radius },
+                let radius = if kind == 0 { dot_radius * 1.3 } else { dot_radius };
+                let points = |r: f32| [
+                    [px, py - r],
+                    [px + r, py],
+                    [px, py + r],
+                    [px - r, py],
+                ];
+                game.native_quad(batch, points(radius + 0.7), 0xFF101010);
+                game.native_quad(
+                    batch,
+                    points(radius),
                     crate::game::atlas_mod::fade(color, light, near),
                 );
             }
