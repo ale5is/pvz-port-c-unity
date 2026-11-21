@@ -8875,6 +8875,7 @@ mod tests {
     #[test]
     fn the_enlarged_minimap_and_zoom_keys_work() {
         let mut s = State::default();
+        s.change_settings(Settings { rotate: true, ..s.settings() });
         let gui = [480.0, 270.0];
         let small = s.mini_side(gui);
         s.enlarge_key(true);
@@ -9027,6 +9028,7 @@ mod tests {
         // Behaviour over time, covered by their own tests.
         let timed = [
             "toggle_enlarged",
+            "keep_rotation",
             "cave_timer",
             "deathpoints",
             "keep_deathpoints",
