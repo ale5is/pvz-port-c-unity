@@ -8849,7 +8849,7 @@ mod tests {
     #[test]
     fn minimap_rotation_is_off_by_default_and_can_be_enabled() {
         assert!(!Settings::default().rotate());
-        assert!(Settings { rotate: false, ..Settings::default() }.rotate());
+        assert!(Settings { rotate: true, ..Settings::default() }.rotate());
     }
 
     #[test]
