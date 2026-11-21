@@ -1,4 +1,4 @@
-pub(super) fn atlas_native_minimap(
+fn atlas_native_minimap(
     game: &crate::game::Game<'_>,
     minimap: &mut Option<crate::game::native_hooks::NativeMinimap>,
 ) {
