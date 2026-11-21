@@ -182,7 +182,16 @@ def patch_android_identity(stage):
     new_app_id = "applicationId providers.gradleProperty('appId').getOrElse('com.ale5is.pavohorizon')"
     if old_app_id not in gradle_text:
         raise SystemExit("Could not locate the default Android application ID.")
-    gradle.write_text(gradle_text.replace(old_app_id, new_app_id, 1), encoding="utf-8")
+    gradle_text = gradle_text.replace(old_app_id, new_app_id, 1)
+    old_version_code = "versionCode providers.gradleProperty('devVersionCode').getOrElse('30').toInteger()"
+    new_version_code = "versionCode providers.gradleProperty('pavoVersionCode').getOrElse('31').toInteger()"
+    old_version_name = "versionName '0.7.8' + (providers.gradleProperty('devVersionCode').isPresent() ? '-dev.' + providers.gradleProperty('devBuild').get() : '')"
+    new_version_name = "versionName providers.gradleProperty('pavoVersionName').getOrElse('1.0.0')"
+    if old_version_code not in gradle_text or old_version_name not in gradle_text:
+        raise SystemExit("Could not locate both Horizon Android version fields.")
+    gradle_text = gradle_text.replace(old_version_code, new_version_code, 1)
+    gradle_text = gradle_text.replace(old_version_name, new_version_name, 1)
+    gradle.write_text(gradle_text, encoding="utf-8")
 
     android_build = stage / "tools/android_build.py"
     build_text = android_build.read_text(encoding="utf-8")
