@@ -18,7 +18,7 @@ The API-80 adaptation provides a configurable in-world look-at overlay for block
 - Chicken egg, armadillo scute, sniffer digging and allay duplication cooldowns.
 - Optional water/lava targeting, block access states, entity reach, ignore lists, profiles, overlay anchors, opacity and four themes.
 - Persistent settings, keybinds and /jade commands.
-- Native mods compiled into Horizon can register local block/entity detail callbacks with crate::game::jade::register_client_block_provider and crate::game::jade::register_client_entity_provider.
+- Native mods compiled into Horizon can register local block/entity detail callbacks with crate::game::jade::register_client_block_provider, crate::game::jade::register_client_entity_provider and crate::game::jade::register_client_item_provider.
 
 The provider callbacks are a compile-time client extension point only. They do not yet implement Jade's server request/data protocol, server-side provider registration, or dynamic third-party mod loading. Other parity gaps include the full draggable configuration editor/profile browser, original theme sprites/nine-slice rendering, boss-bar overlap, TTS, perspective-camera targeting, recipe/uses screens and complete accessibility providers. Some block-entity and entity details remain partial. This is not full Jade-Horizon feature parity.
 
