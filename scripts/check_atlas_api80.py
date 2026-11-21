@@ -8,7 +8,7 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[1]
 ATLAS = ROOT / "mod/atlas-upstream"
 MANIFEST = ATLAS / "horizon-mixin.toml"
-REGISTRY = ROOT / ".build/horizon-source/native-hooks.json"
+REGISTRY = ROOT / "horizon-source/native-hooks.json"
 
 EXPECTED_MISSING = {
     "horizon_client::game::native_hooks::Game<'_>::native_screen_mouse_dragged_pre",
@@ -27,6 +27,12 @@ def main() -> None:
     manifest = tomllib.loads(MANIFEST.read_text(encoding="utf-8"))
     registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
     injections = manifest.get("injection", [])
+    compatibility = manifest.get("compatibility", {})
+    if compatibility.get("horizon_revision") != "9f42064c11efe7ef3e5ed2baad7ddc2a3b36eea0":
+        raise SystemExit("Pinned Atlas upstream revision changed; review its source before continuing.")
+    hook_source = (ROOT / "horizon-source/crates/horizon-client/src/game/native_hooks.rs").read_text(encoding="utf-8")
+    if "NATIVE_HOOKS_API: u32 = 80" not in hook_source:
+        raise SystemExit("The checked-out Horizon source is not the expected hooks API 80.")
     hooks = {item["target"] for item in registry.get("hooks", [])}
 
     if len(injections) != 23:
