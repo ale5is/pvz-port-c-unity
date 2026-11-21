@@ -8847,6 +8847,22 @@ mod tests {
     }
 
     #[test]
+    fn rotated_minimap_zoom_fits_the_loaded_render_distance() {
+        let mut state = State::default();
+        let selected = state.mini_zoom();
+        let max_at_two_chunks = 1.0 / (4.0 * std::f32::consts::SQRT_2);
+        assert!(
+            (state.mini_zoom_for_render_distance(2) - max_at_two_chunks).abs() < 1e-6
+        );
+        assert_eq!(state.mini_zoom_for_render_distance(2), max_at_two_chunks);
+        assert_eq!(state.mini_zoom_for_render_distance(8), selected);
+        assert_eq!(
+            state.mini_zoom_for_render_distance(2),
+            state.mini_zoom_for_render_distance(1)
+        );
+    }
+
+    #[test]
     fn the_enlarged_minimap_and_zoom_keys_work() {
         let mut s = State::default();
         let gui = [480.0, 270.0];
