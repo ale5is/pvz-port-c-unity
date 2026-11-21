@@ -205,3 +205,13 @@ bindings = [
   { name = "stack", ty = "&horizon_client::items::ItemStack", value = "stack" },
   { name = "lines", ty = "Vec<(horizon_client::text::Text, u32)>", value = "$value" },
 ]
+
+# Portable Atlas map, waypoint, tile-cache and persistence logic.
+# This module has no API-415 hooks or game-specific bridge dependencies;
+# API-80 rendering and lifecycle adapters are added in subsequent steps.
+[[module]]
+id = "atlas_core"
+file = "crates/horizon-client/src/game.rs"
+name = "atlas_mod"
+source = "atlas.rs"
+visibility = "pub"
