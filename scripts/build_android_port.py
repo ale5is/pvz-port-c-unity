@@ -8953,6 +8953,24 @@ def main():
             )
             stream.write(jade_license_text)
             stream.write("\n")
+    import base64
+    signing_key = os.environ.get("PAVO_ANDROID_KEYSTORE_BASE64", "").strip()
+    if not signing_key:
+        raise SystemExit(
+            "A persistent PavoHorizon signing key is required for in-place Android updates. "
+            "Create the PAVO_ANDROID_KEYSTORE_BASE64 GitHub Actions secret before building."
+        )
+    try:
+        signing_bytes = base64.b64decode(signing_key, validate=True)
+    except Exception as error:
+        raise SystemExit(f"PAVO_ANDROID_KEYSTORE_BASE64 is not valid base64: {error}")
+    if len(signing_bytes) < 1024:
+        raise SystemExit("The PavoHorizon signing keystore is unexpectedly small.")
+    signing_path = stage / ".local/android/debug.keystore"
+    signing_path.parent.mkdir(parents=True, exist_ok=True)
+    signing_path.write_bytes(signing_bytes)
+    print("Android signing: persistent PavoHorizon keystore loaded.", flush=True)
+
     patch_android_microphone(stage)
     patch_android_identity(stage)
     patch_android_launcher_branding(stage)
