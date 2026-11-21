@@ -12,3 +12,5 @@ fn frame(game: &mut crate::game::Game<'_>, elapsed: std::time::Duration) {
         }
     }
 }
+
+    crate::game::atlas_mod::bridge::frame_api80(game);
