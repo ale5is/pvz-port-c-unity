@@ -8853,6 +8853,7 @@ mod tests {
     #[test]
     fn minimap_zoom_steps_are_never_collapsed_by_render_distance_or_rotation() {
         let mut state = State::default();
+        state.change_settings(Settings { zoom: 0.25, ..state.settings() });
         for (distance, rotate) in [(2, false), (2, true), (8, false), (8, true), (32, true)] {
             assert_eq!(
                 state.mini_zoom_for_render_distance(distance, rotate),
