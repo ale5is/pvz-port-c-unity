@@ -22,9 +22,7 @@ Convert it to Base64:
 
     [Convert]::ToBase64String([IO.File]::ReadAllBytes("$PWD/pavo-release.keystore")) | Set-Clipboard
 
-In the GitHub repository, open Settings → Secrets and variables → Actions → New repository secret. Set its name to:
-
-    PAVO_ANDROID_KEYSTORE_BASE64
+In the GitHub repository, open Settings → Secrets and variables → Actions → New repository secret. Set its name to `PAVO_ANDROID_KEYSTORE_BASE64` for new setups. The workflow also accepts the existing legacy name `PAVO_ANDROID_DEBUG_KEYSTORE_BASE64`, so a key already uploaded under that name does not need to be uploaded again.
 
 Paste the clipboard value as the secret. Do not commit the keystore or its Base64 contents.
 
