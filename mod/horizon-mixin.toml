@@ -215,3 +215,17 @@ file = "crates/horizon-client/src/game.rs"
 name = "atlas_mod"
 source = "atlas.rs"
 visibility = "pub"
+
+
+# Horizon 0.7.8 API 80 owns the minimap renderer. Atlas supplies its
+# configuration through the native minimap hook instead of newer texture APIs.
+[[injection]]
+id = "atlas_native_minimap"
+kind = "HEAD"
+hook = "native_minimap"
+hook_version = 1
+helper = "atlas_native_minimap.rs"
+bindings = [
+  { name = "game", ty = "&crate::game::Game<'_>", value = "self" },
+  { name = "minimap", ty = "&mut Option<crate::game::native_hooks::NativeMinimap>", value = "&mut *minimap" },
+]
