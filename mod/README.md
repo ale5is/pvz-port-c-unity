@@ -25,3 +25,8 @@ The provider callbacks are a compile-time client extension point only. They do n
 Upstream reference: https://github.com/Joeypc6/Jade-Horizon, revision `9f63f5c78c5e4938d4544c9567e06feb45649656`. Jade is licensed CC BY-NC-SA 4.0; this adaptation is non-commercial and must retain the same licence. See `LICENSE` and `THIRD_PARTY_NOTICES.md`.
 
 The Android workflow builds a public ARM64 APK. Only a successful workflow run with its artifact checks passing should be treated as a valid build. Runtime behavior still requires installation and testing on a physical Android device.
+
+
+## Horizon Atlas reference (not bundled)
+
+The upstream Horizon Atlas 0.3.0 source is kept under `atlas-upstream/` only as a porting reference and for standalone core-logic tests. The Android build script explicitly excludes this directory from the Simple Voice Chat bundle. Atlas is not yet integrated or exposed as an in-game toggle; its upstream mixin targets Horizon hooks API 415, while Pavo is pinned to API 80. See `docs/ATLAS_PORT_PLAN.md` for the verified compatibility gaps and port stages.
