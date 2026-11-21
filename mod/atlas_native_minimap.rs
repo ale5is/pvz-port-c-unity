@@ -6,12 +6,13 @@ fn atlas_native_minimap(
         return;
     }
 
+    let render_distance = game.settings.render_distance as i32;
     let (enlarged, rotate, blocks_per_pixel, round) =
         crate::game::atlas_mod::with(|state| {
             (
                 state.enlarged,
                 state.turning(),
-                state.mini_zoom(),
+                state.mini_zoom_for_render_distance(render_distance),
                 state.settings().round,
             )
         });
