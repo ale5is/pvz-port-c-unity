@@ -10,7 +10,6 @@ fn register_native_mods(
         description: crate::game::atlas_mod::DESCRIPTION.to_owned(),
         keys: vec![
             ["enlarge".to_owned(), "Enlarge Minimap".to_owned(), crate::game::atlas_mod::DEFAULT_ENLARGE.to_owned()],
-            ["player_list".to_owned(), "Show Player List".to_owned(), "key.keyboard.tab".to_owned()],
         ],
     });
     let _ = game;
