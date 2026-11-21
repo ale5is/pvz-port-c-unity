@@ -9,26 +9,29 @@ fn atlas_native_hud(
     let Some(player) = game.native_player() else {
         return;
     };
+    let Some(minimap) = game.native_minimap_now() else {
+        return;
+    };
+    if minimap.corner != horizon_client::extras::Corner::TopRight
+        || !game.native_corner_shown(minimap.corner)
+    {
+        return;
+    }
+
     let clock = game.native_clock();
     let day_time = clock
         .filter(|_| player.dimension == "minecraft:overworld")
         .map(|value| value.day_time);
-    let (settings, enlarged, rotate, blocks_per_pixel) =
-        crate::game::atlas_mod::with(|state| {
-            state.set_day_time(day_time);
-            let rotate = state.turning();
-            (
-                state.settings(),
-                state.enlarged,
-                rotate,
-                state.mini_zoom_for_render_distance(
-                    game.settings.render_distance as i32,
-                    rotate,
-                ),
-            )
-        });
-    let show_mobs = settings.dots && settings.show_mobs;
-    if !settings.time && !show_mobs {
+    let settings = crate::game::atlas_mod::with(|state| {
+        state.set_day_time(day_time);
+        state.settings()
+    });
+    let show_radar = settings.dots
+        && (settings.show_players
+            || settings.show_mobs
+            || settings.show_items
+            || settings.show_others);
+    if !settings.time && !show_radar {
         return;
     }
 
@@ -42,73 +45,223 @@ fn atlas_native_hud(
         None => "ATLAS".to_owned(),
     };
 
-    let corner = horizon_client::extras::Corner::TopRight;
-    if !game.native_corner_shown(corner) {
-        return;
-    }
-
-    if show_mobs {
-        let map_size = if enlarged { 160.0 } else { 96.0 };
-        // The native minimap has already reserved its corner. Reserving one
-        // more box of the same size lets us recover its exact top-left point:
-        // the returned y is one map-height plus the HUD gap below the map.
-        let (map_x, after_map_y) = corners.place(corner, map_size, map_size);
-        let map_y = after_map_y - map_size - 2.0;
+    if show_radar {
+        // Use the exact NativeMinimap selected by Horizon for this frame.
+        // Its size, zoom, rotation and shape are the source of truth for both
+        // the map image and every entity marker.
+        let size = minimap.size;
         let center = [
-            map_x + map_size * 0.5,
-            map_y + map_size * 0.5,
+            batch.width - 2.0 - size * 0.5,
+            {
+                let effects = &game.potions.effects.list;
+                let reserved = if effects.is_empty() {
+                    0.0
+                } else {
+                    let harmful = effects.iter().any(|effect| {
+                        horizon_client::brewing::effect(effect.id)
+                            .is_some_and(|info| {
+                                info.category != horizon_client::brewing::Category::Beneficial
+                            })
+                    });
+                    if harmful { 50.0 } else { 25.0 }
+                };
+                reserved + 2.0 + size * 0.5
+            },
         ];
-        let axes = crate::game::atlas_mod::mini_axes(rotate, player.yaw);
-        let scale = f64::from(map_size) / 128.0 / f64::from(blocks_per_pixel);
-        let limit = settings.entity_limit.clamp(1, 128) as usize;
-        let mut nearby: Vec<(f64, f32, f32, u32)> = game
-            .mobs
-            .iter()
-            .filter_map(|mob| {
-                if mob.removed || mob.kind.id == "minecraft:player" {
-                    return None;
+        let axes = crate::game::atlas_mod::mini_axes(minimap.rotate, player.yaw);
+        let scale = f64::from(size) / 128.0 / f64::from(minimap.blocks_per_pixel);
+        let reach = 64.0
+            * f64::from(minimap.blocks_per_pixel)
+            * std::f64::consts::SQRT_2;
+        let limit = settings.entity_limit.clamp(1, 1000) as usize;
+        let mut entities: Vec<(f64, [f64; 3], u8, Option<String>)> = Vec::new();
+
+        for mob in &game.mobs {
+            if mob.removed
+                || (settings.hide_invisible
+                    && (mob.invisible || mob.has_effect("minecraft:invisibility")))
+            {
+                continue;
+            }
+            let dx = mob.position.x - player.x;
+            let dz = mob.position.z - player.z;
+            if dx.abs() > reach || dz.abs() > reach {
+                continue;
+            }
+            let uuid = game.remote_player_uuid(mob.id);
+            let is_player = mob.kind.id == "minecraft:player" || uuid.is_some();
+            let kind = if is_player {
+                if !settings.show_players { continue; }
+                0
+            } else if mob.kind.category == "misc" {
+                if !settings.show_others { continue; }
+                3
+            } else {
+                if !settings.show_mobs { continue; }
+                1
+            };
+            let dy = mob.position.y - player.y;
+            if settings.height_limit > 0
+                && dy.abs() > f64::from(settings.height_limit)
+            {
+                continue;
+            }
+            let name = game
+                .remote_player_name(mob.id)
+                .map(str::to_owned)
+                .or_else(|| Some(mob.kind.id.clone()));
+            entities.push((
+                dx * dx + dz * dz,
+                [mob.position.x, mob.position.y, mob.position.z],
+                kind,
+                name,
+            ));
+        }
+
+        if settings.show_items {
+            for item in &game.dropped {
+                let dx = item.position.x - player.x;
+                let dz = item.position.z - player.z;
+                if dx.abs() > reach || dz.abs() > reach {
+                    continue;
                 }
-                let dx = mob.position.x - player.x;
-                let dz = mob.position.z - player.z;
-                let right = dx * axes.0[0] + dz * axes.0[1];
-                let down = dx * axes.1[0] + dz * axes.1[1];
-                let px = (center[0] as f64 + right * scale) as f32;
-                let py = (center[1] as f64 + down * scale) as f32;
-                let local_x = px - center[0];
-                let local_y = py - center[1];
-                let inside = if settings.round {
-                    local_x * local_x + local_y * local_y
-                        <= (map_size * 0.5 - 3.0).powi(2)
-                } else {
-                    local_x.abs() <= map_size * 0.5 - 3.0
-                        && local_y.abs() <= map_size * 0.5 - 3.0
-                };
-                if !inside {
-                    return None;
+                let dy = item.position.y - player.y;
+                if settings.height_limit > 0
+                    && dy.abs() > f64::from(settings.height_limit)
+                {
+                    continue;
                 }
-                let color = if mob.kind.category == "monster" {
-                    0xFFFF5555
-                } else {
-                    0xFFFFFF55
-                };
-                Some((dx * dx + dz * dz, px, py, color))
-            })
-            .collect();
-        nearby.sort_by(|a, b| a.0.total_cmp(&b.0));
-        nearby.truncate(limit);
+                entities.push((
+                    dx * dx + dz * dz,
+                    [item.position.x, item.position.y, item.position.z],
+                    2,
+                    Some(item.stack.item.to_string()),
+                ));
+            }
+        }
+
+        if settings.show_others {
+            for other in &game.others {
+                let dx = other.position.x - player.x;
+                let dz = other.position.z - player.z;
+                if dx.abs() > reach || dz.abs() > reach {
+                    continue;
+                }
+                let dy = other.position.y - player.y;
+                if settings.height_limit > 0
+                    && dy.abs() > f64::from(settings.height_limit)
+                {
+                    continue;
+                }
+                entities.push((
+                    dx * dx + dz * dz,
+                    [other.position.x, other.position.y, other.position.z],
+                    3,
+                    Some(other.kind.clone()),
+                ));
+            }
+        }
+
+        entities.sort_by(|a, b| a.0.total_cmp(&b.0));
+        entities.truncate(limit);
+
+        let half = size * 0.5;
+        let dot_radius = (size / 100.0).clamp(0.5, 2.0)
+            * settings.dot_size.clamp(1, 6) as f32
+            * 0.5;
+        let mut draw_diamond = |at: [f32; 2], radius: f32, color: u32| {
+            let points = |r: f32| [
+                [at[0], at[1] - r],
+                [at[0] + r, at[1]],
+                [at[0], at[1] + r],
+                [at[0] - r, at[1]],
+            ];
+            game.native_quad(batch, points(radius + 0.7), 0xFF101010);
+            game.native_quad(batch, points(radius), color);
+        };
 
         game.native_fill(
             batch,
             [center[0] - 2.0, center[1] - 2.0, 4.0, 4.0],
             0xFFFFFFFF,
         );
-        for (_, px, py, color) in &nearby {
-            game.native_fill(batch, [*px - 2.0, *py - 2.0, 4.0, 4.0], *color);
+        for (_, position, kind, name) in entities {
+            let dx = position[0] - player.x;
+            let dz = position[2] - player.z;
+            let right = dx * axes.0[0] + dz * axes.0[1];
+            let down = dx * axes.1[0] + dz * axes.1[1];
+            let px = center[0] + (right * scale) as f32;
+            let py = center[1] + (down * scale) as f32;
+            let local_x = px - center[0];
+            let local_y = py - center[1];
+            let inside = if minimap.round {
+                local_x * local_x + local_y * local_y
+                    <= (half - 3.0).powi(2)
+            } else {
+                local_x.abs() <= half - 3.0 && local_y.abs() <= half - 3.0
+            };
+            if !inside {
+                continue;
+            }
+
+            let dy = position[1] - player.y;
+            let near = if settings.depth_fade {
+                crate::game::atlas_mod::height_fade(dy, settings.fade_from as f32)
+            } else {
+                1.0
+            };
+            let light = 0.35 + 0.65 * near;
+            let alpha = (0.3 + 0.7 * near) * 255.0;
+            let color = match kind {
+                0 => 0xFFFFFFFF,
+                1 => 0xFFFFF050,
+                2 => 0xFFFF2020,
+                _ => 0xFFB860FF,
+            };
+            if kind == 2 {
+                let r = dot_radius + 0.7;
+                game.native_fill(batch, [px - r, py - r, r * 2.0, r * 2.0], 0xFF101010);
+                let r = dot_radius;
+                game.native_fill(
+                    batch,
+                    [px - r, py - r, r * 2.0, r * 2.0],
+                    crate::game::atlas_mod::fade(color, light, near),
+                );
+            } else {
+                draw_diamond(
+                    [px, py],
+                    if kind == 0 { dot_radius * 1.3 } else { dot_radius },
+                    crate::game::atlas_mod::fade(color, light, near),
+                );
+            }
+
+            let show_name = settings.names == 2 || (settings.names == 1 && kind == 0);
+            if show_name {
+                if let Some(name) = name.as_deref() {
+                    game.native_text(
+                        batch,
+                        name,
+                        [px + 3.0, py + 2.0],
+                        ((alpha as u32) << 24) | 0x00FFFFFF,
+                        true,
+                    );
+                }
+            }
+            if settings.entity_height {
+                let label = format!("{:+}", dy.round() as i32);
+                game.native_text(
+                    batch,
+                    &label,
+                    [px + 3.0, py - 7.0],
+                    ((alpha as u32) << 24) | 0x00FFFFFF,
+                    true,
+                );
+            }
         }
     }
 
     if settings.time {
-        let (x, y) = corners.place(corner, 112.0, 14.0);
+        let (x, y) = corners.place(minimap.corner, 112.0, 14.0);
         game.native_fill(batch, [x, y, 112.0, 14.0], 0xA0000000);
         game.native_text(
             batch,
