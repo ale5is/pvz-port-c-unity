@@ -229,3 +229,21 @@ bindings = [
   { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
   { name = "minimap", ty = "&mut Option<crate::game::native_hooks::NativeMinimap>", value = "&mut *minimap" },
 ]
+
+[[module]]
+id = "atlas_hud"
+file = "crates/horizon-client/src/game.rs"
+name = "atlas_native_hud"
+source = "atlas_native_hud.rs"
+
+[[injection]]
+id = "atlas_native_hud"
+kind = "HEAD"
+hook = "hud"
+hook_version = 1
+helper = "atlas_native_hud.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "batch", ty = "&mut horizon_client::hud::HudBatch", value = "&mut *batch" },
+  { name = "corners", ty = "&mut horizon_client::extras_hud::Corners", value = "&mut *corners" },
+]
