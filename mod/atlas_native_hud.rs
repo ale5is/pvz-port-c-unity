@@ -88,8 +88,7 @@ fn atlas_native_hud(
             if dx.abs() > reach || dz.abs() > reach {
                 continue;
             }
-            let uuid = game.remote_player_uuid(mob.id);
-            let is_player = mob.kind.id == "minecraft:player" || uuid.is_some();
+            let is_player = mob.kind.id == "minecraft:player";
             let kind = if is_player {
                 if !settings.show_players { continue; }
                 0
@@ -218,18 +217,12 @@ fn atlas_native_hud(
                 );
             } else {
                 let radius = if kind == 0 { dot_radius * 1.3 } else { dot_radius };
-                let points = |r: f32| [
-                    [px, py - r],
-                    [px + r, py],
-                    [px, py + r],
-                    [px - r, py],
-                ];
-                game.native_quad(batch, points(radius + 0.7), 0xFF101010);
-                game.native_quad(
-                    batch,
-                    points(radius),
-                    crate::game::atlas_mod::fade(color, light, near),
-                );
+                let mark = crate::game::atlas_mod::fade(color, light, near);
+                let outer = radius + 0.7;
+                game.native_fill(batch, [px - 1.0, py - outer, 2.0, outer * 2.0], 0xFF101010);
+                game.native_fill(batch, [px - outer, py - 1.0, outer * 2.0, 2.0], 0xFF101010);
+                game.native_fill(batch, [px - 0.7, py - radius, 1.4, radius * 2.0], mark);
+                game.native_fill(batch, [px - radius, py - 0.7, radius * 2.0, 1.4], mark);
             }
 
             let show_name = settings.names == 2 || (settings.names == 1 && kind == 0);
