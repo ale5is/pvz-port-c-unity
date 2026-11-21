@@ -59,7 +59,7 @@ fn atlas_native_hud(
             map_y + map_size * 0.5,
         ];
         let axes = crate::game::atlas_mod::mini_axes(rotate, player.yaw);
-        let scale = map_size / 128.0 / f64::from(blocks_per_pixel);
+        let scale = f64::from(map_size) / 128.0 / f64::from(blocks_per_pixel);
         let limit = settings.entity_limit.clamp(1, 128) as usize;
         let mut nearby: Vec<(f64, f32, f32, u32)> = game
             .mobs
