@@ -698,7 +698,7 @@ pub fn register_mod(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
         ]).into(),
         keys: vec![
             ["show_overlay".into(), tr(["Toggle Jade overlay", "Mostrar/ocultar HUD de Jade", "Alternar HUD do Jade", "Afficher/masquer Jade", "Mostra/nascondi HUD Jade", "Jade-HUD umschalten", "Jade HUD切替", "切换Jade提示框"]).into(), "key.keyboard.keypad_0".into()],
-            ["show_details".into(), tr(["Toggle Jade details", "Mostrar/ocultar detalles de Jade", "Alternar detalhes do Jade", "Afficher/masquer les détails Jade", "Mostra/nascondi dettagli Jade", "Jade-Details umschalten", "Jade詳細切替", "切换Jade详情"]).into(), "key.keyboard.keypad_1".into()],
+            ["show_details".into(), tr(["Toggle registry ID", "Mostrar ID del registro", "Alternar ID do registro", "Afficher l’identifiant du registre", "Mostra ID registro", "Registrierungs-ID umschalten", "登録 ID を切り替え", "切换注册 ID"]).into(), "key.keyboard.keypad_1".into()],
         ],
     });
 }
