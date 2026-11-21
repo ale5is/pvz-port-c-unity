@@ -111,7 +111,7 @@ jobs:
 
       - name: Require persistent signing key for updateable APKs
         env:
-          PAVO_ANDROID_KEYSTORE_BASE64: \${{ secrets.PAVO_ANDROID_KEYSTORE_BASE64 }}
+          PAVO_ANDROID_KEYSTORE_BASE64: ${{ secrets.PAVO_ANDROID_KEYSTORE_BASE64 }}
         run: |
           test -n "$PAVO_ANDROID_KEYSTORE_BASE64" || {
             echo "Missing PAVO_ANDROID_KEYSTORE_BASE64 repository secret. See docs/ANDROID_UPDATES.md."
@@ -124,7 +124,7 @@ jobs:
 
       - name: Apply API-80 SVC and Jade bundles and build public ARM64 APK
         env:
-          PAVO_ANDROID_KEYSTORE_BASE64: \${{ secrets.PAVO_ANDROID_KEYSTORE_BASE64 }}
+          PAVO_ANDROID_KEYSTORE_BASE64: ${{ secrets.PAVO_ANDROID_KEYSTORE_BASE64 }}
         run: |
           python scripts/build_android_port.py \
             --horizon-source horizon-source \
