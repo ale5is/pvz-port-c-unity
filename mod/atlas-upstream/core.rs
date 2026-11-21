@@ -1560,7 +1560,7 @@ settings! {
     size: i32 = 25, "size", "Size", View,
         Kind::Slider { min: 10, max: 60, div: 1, unit: "%", zero: None };
     round: bool = false, "shape", "Shape", View, Kind::Choice(SHAPES);
-    lock_north: bool = false, "lock_north", "Lock Minimap North", View, Kind::Toggle;
+    rotate: bool = false, "rotate", "Rotate With Player", View, Kind::Toggle;
     zoom: f32 = 1.0, "zoom", "Blocks per Pixel", View,
         Kind::Steps { steps: &[25, 50, 100, 200, 400, 800, 1600], div: 100, unit: "" };
     lighting: bool = true, "lighting", "Lighting", View, Kind::Toggle;
@@ -2044,7 +2044,7 @@ impl Settings {
 
     /// The minimap turns with the player.
     pub fn rotate(&self) -> bool {
-        !self.lock_north
+        self.rotate
     }
 }
 
@@ -8844,6 +8844,12 @@ mod tests {
         let before = s;
         s.click(last);
         assert_eq!(s, before);
+    }
+
+    #[test]
+    fn minimap_rotation_is_off_by_default_and_can_be_enabled() {
+        assert!(!Settings::default().rotate());
+        assert!(Settings { rotate: true, ..Settings::default() }.rotate());
     }
 
     #[test]
