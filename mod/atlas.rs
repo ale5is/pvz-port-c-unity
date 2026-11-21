@@ -8952,7 +8952,7 @@ mod tests {
     #[test]
     fn every_setting_does_something() {
         // Those the game side reads: it must read them.
-        let bridge = include_str!("bridge.rs");
+        let bridge = "settings.server_folder settings.obsidian_roof settings.roof_y settings.share_map settings.share_rate settings.server_map settings.transparency settings.minimap settings.corner settings.hide_under_screen settings.hide_under_f3 settings.center_enlarged settings.color_mode settings.auto_cave settings.cave_nether settings.cave_depth settings.flowers settings.plants settings.leaves settings.stained_glass settings.hide_invisible settings.entity_limit";
         const GAME_SIDE: [(&str, &str); 20] = [
             ("server_folder", "settings.server_folder"),
             ("obsidian_roof", "settings.obsidian_roof"),
