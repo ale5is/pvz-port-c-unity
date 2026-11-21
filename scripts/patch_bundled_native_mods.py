@@ -19,7 +19,7 @@ def main() -> None:
     source = replace_once(
         source,
         'pub const ANDROID_BUNDLED: [(&str, &str, &str); 4] = [',
-        'pub const ANDROID_BUNDLED: [(&str, &str, &str); 6] = [',
+        'pub const ANDROID_BUNDLED: [(&str, &str, &str); 7] = [',
         "Android bundled mod count",
     )
     old_end = '''    (
@@ -42,6 +42,11 @@ def main() -> None:
         "simple-voice-chat",
         "Simple Voice Chat",
         "Proximity voice chat with push-to-talk and mute controls",
+    ),
+    (
+        "atlas",
+        "Horizon Atlas",
+        "A minimap, explored-world map and waypoint navigation",
     ),
 ];'''
     source = replace_once(source, old_end, new_end, "Android bundled native mod entries")
@@ -134,7 +139,7 @@ def main() -> None:
         "Native mod default-on toggle state",
     )
     pages.write_text(source, encoding="utf-8")
-    print("Pavo Android catalog: Jade and Simple Voice Chat are listed as built-in native mods; their controls now activate/deactivate them without installing files.")
+    print("Pavo Android catalog: Atlas, Jade and Simple Voice Chat are listed as built-in native mods; their controls activate/deactivate them without installing files.")
 
 if __name__ == "__main__":
     main()
