@@ -1,0 +1,15 @@
+[package]
+name = "horizon-atlas"
+version = "0.3.0"
+edition = "2024"
+rust-version = "1.90"
+license = "MIT"
+description = "Atlas for Horizon: a smooth minimap, a world map with cave and layer modes, and waypoints"
+publish = false
+
+[lib]
+# This exact source is also injected as the `crate::game::atlas_mod`
+# module of Horizon's client by horizon-mixins.
+path = "mixins/atlas/core.rs"
+
+[workspace]
