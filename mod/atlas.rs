@@ -5327,6 +5327,16 @@ impl State {
         if self.cut == Cut::Surface { st.zoom } else { st.zoom / st.cave_zoom.max(1) as f32 }
     }
 
+    /// Keeps every rotated minimap corner inside Horizon's loaded chunk radius.
+    /// Horizon scans a square radius and caps it at render_distance; a rotated
+    /// square needs sqrt(2) more reach than one side.
+    pub fn mini_zoom_for_render_distance(&self, render_distance: i32) -> f32 {
+        let chunks = render_distance.max(2) as f32;
+        let max_blocks_per_pixel =
+            (chunks - 1.0) / (4.0 * std::f32::consts::SQRT_2);
+        self.mini_zoom().min(max_blocks_per_pixel)
+    }
+
     /// The enlarge key went down or up.
     pub fn enlarge_key(&mut self, pressed: bool) {
         if self.settings().toggle_enlarged {
