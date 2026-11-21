@@ -7,6 +7,7 @@ on:
       - ".github/workflows/build-horizon-078-svc-jade.yml"
       - "scripts/build_android_port.py"
       - "scripts/patch_bundled_native_mods.py"
+      - "PAVO_VERSION"
       - "mod/**"
   workflow_dispatch:
 
@@ -92,6 +93,18 @@ jobs:
         run: |
           python scripts/patch_bundled_native_mods.py horizon-source
 
+      - name: Read Pavo version and set monotonic Android version code
+        id: pavo-version
+        shell: bash
+        run: |
+          VERSION="$(tr -d '\r\n' < PAVO_VERSION)"
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          VERSION_CODE=$((100000 + GITHUB_RUN_NUMBER))
+          echo "pavo_version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "ORG_GRADLE_PROJECT_pavoVersionName=$VERSION" >> "$GITHUB_ENV"
+          echo "ORG_GRADLE_PROJECT_pavoVersionCode=$VERSION_CODE" >> "$GITHUB_ENV"
+          echo "PavoHorizon version=$VERSION versionCode=$VERSION_CODE"
+
       - name: Validate Jade Rust syntax before mixin packaging
         run: |
           rustfmt --edition 2024 --emit stdout mod/jade.rs > /dev/null
@@ -113,15 +126,16 @@ jobs:
       - name: Name APK and calculate SHA-256
         run: |
           mkdir -p dist
-          cp .build/horizon-078-android/.local/android/apk/arm64-v8a/horizon-android-public.apk dist/PavoHorizon-1.0.0.apk
+          VERSION="\${{ steps.pavo-version.outputs.pavo_version }}"
+          cp .build/horizon-078-android/.local/android/apk/arm64-v8a/horizon-android-public.apk "dist/PavoHorizon-\${VERSION}.apk"
           cd dist
-          sha256sum PavoHorizon-1.0.0.apk > SHA256SUMS.txt
+          sha256sum "PavoHorizon-\${VERSION}.apk" > SHA256SUMS.txt
           printf '%s\n' "Built from commit: $GITHUB_SHA" "Horizon: 68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29" "Jade API-80 adaptation: block/entity look-at providers, item frames, paintings, boats, minecarts, falling blocks, block/item displays, water/lava targeting, block-entity data, entity variants/status, access-state details, chicken egg/armadillo scute/sniffer cooldowns, RGBA red health/tool glyphs, themes, opacity, nine-position overlay anchors, named profiles, block/entity/item ignore lists, extra reach, keybinds and commands; upstream reference 9f63f5c78c5e4938d4544c9567e06feb45649656" "Architecture: arm64-v8a" "Build: public release candidate; debug signing key" > BUILD-INFO.txt
 
       - name: Upload Android APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PavoHorizon-1.0.0-Android-arm64-v8a
+          name: PavoHorizon-\${{ steps.pavo-version.outputs.pavo_version }}-Android-arm64-v8a
           path: |
             dist/PavoHorizon-1.0.0.apk
             dist/SHA256SUMS.txt
