@@ -8921,7 +8921,7 @@ def main():
     if mods_root.exists():
         shutil.rmtree(mods_root)
     mods_root.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(ROOT / "mod", bundle)
+    shutil.copytree(ROOT / "mod", bundle, ignore=shutil.ignore_patterns("atlas-upstream"))
     if args.jade_source is not None:
         jade_source = args.jade_source.expanduser().resolve()
         jade_bundle_source = jade_source / "mixins" / "jade"
