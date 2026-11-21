@@ -22,6 +22,19 @@ Do not copy Atlas 0.3.0's .hnmod directly into this Android build.
 - Atlas also reads internal world, chunk, entity, biome, map-texture and server state; those assumptions must be checked against the pinned 0.7.8 source.
 - Pavo's Android launcher currently does not load arbitrary native .hnmod files. The map must be ported into the same statically compiled mixin bundle path used by Pavo's Jade and Simple Voice Chat integrations.
 
+## API-80 compatibility audit
+
+A direct comparison of Atlas 0.3.0's 23 injection targets with the pinned Horizon 0.7.8 native hook registry found 17 exact target matches and 6 missing targets:
+
+- `native_screen_mouse_dragged_pre`: no API-80 hook; investigate `screen_click` and the available screen input hooks.
+- `native_screen_mouse_scrolled_pre`: no API-80 hook; adapt through `native_wheel` if its event data is sufficient.
+- `native_screen_key_pressed_pre`: no API-80 hook; adapt through `native_key` while preserving text-field input and key cancellation.
+- `native_screen_char_typed_pre`: no direct API-80 hook; find a safe text-input path before enabling editable waypoint fields.
+- `native_camera_pose_now`: no direct API-80 hook; derive a stable camera pose from API-80 render/player state or add a narrowly scoped hook.
+- `native_level_unload`: no exact target; use `native_world_lifecycle` or another lifecycle event only after confirming it fires at the correct client/server transition.
+
+The 17 remaining Atlas injection targets exist in the API-80 registry. This count only confirms hook-name availability; it does not prove matching signatures or compatible game data structures. The bridge still needs a field/type audit and an Android compile.
+
 ## Port order
 
 1. Keep the current built-in Horizon Minimap available as a fallback.
