@@ -26,12 +26,12 @@ Do not copy Atlas 0.3.0's .hnmod directly into this Android build.
 
 A direct comparison of Atlas 0.3.0's 23 injection targets with the pinned Horizon 0.7.8 native hook registry found 17 exact target matches and 6 missing targets:
 
-- `native_screen_mouse_dragged_pre`: no API-80 hook; investigate `screen_click` and the available screen input hooks.
-- `native_screen_mouse_scrolled_pre`: no API-80 hook; adapt through `native_wheel` if its event data is sufficient.
-- `native_screen_key_pressed_pre`: no API-80 hook; adapt through `native_key` while preserving text-field input and key cancellation.
-- `native_screen_char_typed_pre`: no direct API-80 hook; find a safe text-input path before enabling editable waypoint fields.
-- `native_camera_pose_now`: no direct API-80 hook; derive a stable camera pose from API-80 render/player state or add a narrowly scoped hook.
-- `native_level_unload`: no exact target; use `native_world_lifecycle` or another lifecycle event only after confirming it fires at the correct client/server transition.
+- `native_screen_mouse_dragged_pre`: no API-80 equivalent. The existing screen-render hook exposes the pointer position, so dragging may be reconstructed from successive frames and button state; this needs an input-state test.
+- `native_screen_mouse_scrolled_pre`: no screen-wheel hook. `native_wheel` is documented for gameplay and must not be assumed to fire over Atlas's map screen. Use keyboard zoom initially; add screen-wheel support only with a verified call site.
+- `native_screen_key_pressed_pre`: use the existing `native_key` hook, which receives keyboard events on any screen. Adapt key handling to its `(key, pressed)` signature and avoid consuming keys outside the Atlas screen.
+- `native_screen_char_typed_pre`: no character-text hook. Do not enable editable text fields yet; use a waypoint command or coordinate/name presets until a safe text-input path is added.
+- `native_camera_pose_now`: no direct API-80 equivalent. Audit the render camera/player state before implementing world-space waypoint labels; omit camera-dependent labels in the first port if needed.
+- `native_level_unload`: use the existing `native_world_lifecycle` hook (API 44) and handle the final-close/failure phases explicitly; do not reuse the newer no-argument helper unchanged.
 
 The 17 remaining Atlas injection targets exist in the API-80 registry. This count only confirms hook-name availability; it does not prove matching signatures or compatible game data structures. The bridge still needs a field/type audit and an Android compile.
 
