@@ -9304,7 +9304,7 @@ pub(crate) mod bridge {
 
     pub(crate) fn key_api80(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
         let enlarge = game.native_mod_key(m::ID, m::KEY_ENLARGE, m::DEFAULT_ENLARGE);
-        let tab = game.native_mod_key(m::ID, m::KEY_LIST, m::DEFAULT_LIST);
+        let tab = game.native_mod_key(m::ID, "player_list", "key.keyboard.tab");
         if key == enlarge {
             m::with(|state| state.enlarged = pressed);
         }
