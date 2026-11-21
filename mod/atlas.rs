@@ -9304,8 +9304,16 @@ pub(crate) mod bridge {
 
     pub(crate) fn key_api80(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
         let enlarge = game.native_mod_key(m::ID, m::KEY_ENLARGE, m::DEFAULT_ENLARGE);
+        let zoom_in = game.native_mod_key(m::ID, m::KEY_ZOOM_IN, m::DEFAULT_ZOOM_IN);
+        let zoom_out = game.native_mod_key(m::ID, m::KEY_ZOOM_OUT, m::DEFAULT_ZOOM_OUT);
         if key == enlarge {
-            m::with(|state| state.enlarged = pressed);
+            m::with(|state| state.enlarge_key(pressed));
+        }
+        if pressed && key == zoom_in {
+            m::with(|state| state.zoom_key(true));
+        }
+        if pressed && key == zoom_out {
+            m::with(|state| state.zoom_key(false));
         }
         if key == "key.keyboard.tab" {
             m::with(|state| state.tab_held = pressed);
