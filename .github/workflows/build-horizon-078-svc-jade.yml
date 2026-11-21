@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/build-horizon-078-svc-jade.yml"
       - "scripts/build_android_port.py"
+      - "scripts/check_atlas_api80.py"
       - "scripts/patch_bundled_native_mods.py"
       - "PAVO_VERSION"
       - "mod/**"
@@ -89,6 +90,9 @@ jobs:
       - name: Prepare pinned Minecraft 26.3 engine tables
         run: |
           python horizon-source/tools/android_prepare.py
+
+      - name: Audit Atlas source against Horizon 0.7.8 hooks API 80
+        run: python scripts/check_atlas_api80.py
 
       - name: Register Jade and Simple Voice Chat as built-in Android mods
         run: |
