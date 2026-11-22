@@ -241,13 +241,15 @@ pub(super) fn atlas_native_hud(
     };
 
     if show_radar {
-        // Use the same world-space grid as the terrain texture.
-        let reach = f64::from(grid.shown()) * 0.5
-            * f64::from(minimap.blocks_per_pixel)
-            * std::f64::consts::SQRT_2;
+        // Project and clip against the exact visible minimap viewport before
+        // applying the entity limit. The radar must never have its own range.
         let limit = settings.entity_limit.clamp(1, 1000) as usize;
+        let half = size * 0.5;
+        let dot_radius = (size / 100.0).clamp(0.5, 2.0)
+            * settings.dot_size.clamp(1, 6) as f32
+            * 0.5;
         let snapshot = atlas_radar_snapshot(game, &player.dimension);
-        let mut entities: Vec<(f64, &AtlasRadarEntity)> = Vec::new();
+        let mut entities: Vec<(f64, &AtlasRadarEntity, f32, f32)> = Vec::new();
 
         for entity in snapshot.iter() {
             if entity.invisible && settings.hide_invisible {
@@ -263,7 +265,21 @@ pub(super) fn atlas_native_hud(
             }
             let dx = entity.position[0] - player.x;
             let dz = entity.position[2] - player.z;
-            if dx.abs() > reach || dz.abs() > reach {
+            let [screen_x, screen_y] = grid.to_screen(dx, dz, size);
+            let px = center[0] + screen_x;
+            let py = center[1] + screen_y;
+            let local_x = px - center[0];
+            let local_y = py - center[1];
+            let radius = if kind == 0 { dot_radius * 1.3 } else { dot_radius };
+            let inset = 3.0 + radius + 0.7;
+            let visible_half = (half - inset).max(0.0);
+            let inside = if minimap.round {
+                local_x * local_x + local_y * local_y
+                    <= visible_half * visible_half
+            } else {
+                local_x.abs() <= visible_half && local_y.abs() <= visible_half
+            };
+            if !inside {
                 continue;
             }
             let dy = entity.position[1] - player.y;
@@ -273,35 +289,16 @@ pub(super) fn atlas_native_hud(
                 continue;
             }
             let distance = dx * dx + dz * dz;
-            entities.push((distance, entity));
+            entities.push((distance, entity, px, py));
         }
 
         entities.sort_by(|a, b| a.0.total_cmp(&b.0));
         entities.truncate(limit);
 
-        let half = size * 0.5;
-        let dot_radius = (size / 100.0).clamp(0.5, 2.0)
-            * settings.dot_size.clamp(1, 6) as f32
-            * 0.5;
-        for (_, entity) in entities {
+        for (_, entity, px, py) in entities {
             let position = entity.position;
             let kind = entity.kind;
-            let dx = position[0] - player.x;
-            let dz = position[2] - player.z;
-            let [screen_x, screen_y] = grid.to_screen(dx, dz, size);
-            let px = center[0] + screen_x;
-            let py = center[1] + screen_y;
-            let local_x = px - center[0];
-            let local_y = py - center[1];
-            let inside = if minimap.round {
-                local_x * local_x + local_y * local_y
-                    <= (half - 3.0).powi(2)
-            } else {
-                local_x.abs() <= half - 3.0 && local_y.abs() <= half - 3.0
-            };
-            if !inside {
-                continue;
-            }
+            let dy = position[1] - player.y;
 
             let dy = position[1] - player.y;
             let near = if settings.depth_fade {
