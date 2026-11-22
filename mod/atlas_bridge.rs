@@ -15,8 +15,8 @@ pub(super) fn frame(game: &mut Game<'_>) {
         game.native_set_setting(m::ID, m::SETTINGS_FILE, &changed.to_text());
     }
 
-    let player = game.native_player();
-    let dimension = player.as_ref().map(|p| p.dimension.to_owned());
+    let native_player = game.native_player();
+    let dimension = native_player.as_ref().map(|p| p.dimension.to_owned());
     let key = if let Some(world) = game.integrated.as_ref() {
         Some(format!("world-{}", world.world_name))
     } else if let Some(remote) = game.remote.as_ref() {
@@ -33,11 +33,12 @@ pub(super) fn frame(game: &mut Game<'_>) {
         state.load_map(dimension.clone(), maps);
     });
 
-    let Some(player) = game.player.as_ref() else {
+    let Some(native_player) = native_player else {
         m::with(|state| state.save_now_and_then(10.0));
         return;
     };
-    let Some(native_player) = player.as_ref().into() else {
+    let Some(player) = game.player.as_ref() else {
+        m::with(|state| state.save_now_and_then(10.0));
         return;
     };
     let head = (player.position.y + f64::from(player.dimensions.eye_height)).floor() as i32;
