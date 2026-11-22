@@ -129,7 +129,8 @@ fn atlas_native_hud(
             if dx.abs() > reach || dz.abs() > reach {
                 continue;
             }
-            let is_player = mob.kind.id == "minecraft:player";
+            let is_player = mob.kind.id == "minecraft:player"
+                || game.remote_player_uuid(mob.id).is_some();
             let dy = mob.position.y - player.y;
             if is_player
                 && dx.abs() < 0.05
