@@ -47,7 +47,7 @@ fn atlas_radar_snapshot(
                     continue;
                 }
                 let is_player = mob.kind.id == "minecraft:player"
-                    || game.remote_player_uuid(mob.id).is_some();
+                    || game.remote_player_name(mob.id).is_some();
                 entities.push(AtlasRadarEntity {
                     position: [mob.position.x, mob.position.y, mob.position.z],
                     kind: if is_player {
