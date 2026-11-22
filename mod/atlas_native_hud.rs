@@ -202,7 +202,7 @@ fn atlas_native_hud(
 
     if show_radar {
         // Use the same world-space grid as the terrain texture.
-        let reach = 64.0
+        let reach = f64::from(grid.shown()) * 0.5
             * f64::from(minimap.blocks_per_pixel)
             * std::f64::consts::SQRT_2;
         let limit = settings.entity_limit.clamp(1, 1000) as usize;
