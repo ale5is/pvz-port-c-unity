@@ -57,7 +57,46 @@ pub(super) fn frame(game: &mut Game<'_>) {
     );
     m::with(|state| state.want_cut(cut));
     scan_loaded_chunks(game, cut);
+    upload_minimap(game, native_player.yaw);
     m::with(|state| state.save_now_and_then(10.0));
+}
+
+/// Compose Atlas' persistent tile cache into the exact sprite Horizon draws.
+/// Horizon's own minimap updater runs before native frame hooks, so this patch
+/// is queued afterwards and becomes the image used by draw_minimap.
+fn upload_minimap(game: &mut Game<'_>, yaw: f32) {
+    let Some((x, z)) = game
+        .player
+        .as_ref()
+        .map(|player| (player.position.x, player.position.z))
+    else {
+        return;
+    };
+
+    let (size, image) = m::with(|state| {
+        state.update_minimap_lit(x, z, yaw, &|x, y, z| game.world.light(x, y, z));
+        (state.mini_n, state.mini_image.clone())
+    });
+    if size == 0 || image.len() != size * size * 4 {
+        return;
+    }
+
+    let atlas = &game.gui.atlas;
+    let Some(rect) = atlas.sprites.get(horizon_client::hud::MINIMAP_SPRITE).copied() else {
+        return;
+    };
+    let (width, height) = rect.texels((atlas.width, atlas.height));
+    if width as usize != size || height as usize != size {
+        return;
+    }
+
+    game.map_patches.push(horizon_client::font::Patch {
+        x: (rect.u0 * atlas.width as f32).round() as u32,
+        y: (rect.v0 * atlas.height as f32).round() as u32,
+        width,
+        height,
+        rgba: image,
+    });
 }
 
 /// A chunk is converted into 256 cached columns only when its world revision
