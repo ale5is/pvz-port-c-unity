@@ -56,7 +56,7 @@ pub(super) fn frame(game: &mut Game<'_>) {
         settings.cave_nether && native_player.dimension == m::NETHER,
     );
     m::with(|state| state.want_cut(cut));
-    scan_loaded_chunks(game, cut);
+    scan_loaded_chunks(game, cut, settings.cave_depth);
     upload_minimap(game, native_player.yaw);
     m::with(|state| state.save_now_and_then(10.0));
 }
@@ -101,7 +101,7 @@ fn upload_minimap(game: &mut Game<'_>, yaw: f32) {
 
 /// A chunk is converted into 256 cached columns only when its world revision
 /// changes. Zoom and minimap size never trigger this scan.
-fn scan_loaded_chunks(game: &Game<'_>, cut: m::Cut) {
+fn scan_loaded_chunks(game: &Game<'_>, cut: m::Cut, cave_depth: i32) {
     let Some(player) = game.player.as_ref() else {
         return;
     };
@@ -154,7 +154,7 @@ fn scan_loaded_chunks(game: &Game<'_>, cut: m::Cut) {
 
                             if let m::Cut::Below(cut_y) = current_cut {
                                 if cut_y <= top {
-                                    let floor = (cut_y - m::CUT_DEPTH).max(chunk.min_y());
+                                    let floor = (cut_y - cave_depth.max(1)).max(chunk.min_y());
                                     y = cut_y;
                                     while y > floor {
                                         let id = chunk.get(x, y, z);
