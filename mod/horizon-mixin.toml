@@ -242,7 +242,7 @@ id = "atlas_frame"
 kind = "HEAD"
 hook = "frame"
 hook_version = 1
-helper = "frame.rs"
+helper = "atlas_frame.rs"
 bindings = [
   { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
 ]
