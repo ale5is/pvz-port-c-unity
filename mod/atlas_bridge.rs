@@ -41,8 +41,8 @@ pub(super) fn frame(game: &mut Game<'_>) {
         m::with(|state| state.save_now_and_then(10.0));
         return;
     };
-    let head = (player.position.y + f64::from(player.dimensions.eye_height)).floor() as i32;
-    let (bx, bz) = (player.position.x.floor() as i32, player.position.z.floor() as i32);
+    let head = (native_player.y + f64::from(player.dimensions.eye_height)).floor() as i32;
+    let (bx, bz) = (native_player.x.floor() as i32, native_player.z.floor() as i32);
     let covered = match settings.auto_cave {
         0 => (-1..=1).all(|dx| (-1..=1).all(|dz| game.world.light(bx + dx, head, bz + dz) >> 4 == 0)),
         1 => game.world.light(bx, head, bz) >> 4 == 0,
@@ -56,7 +56,7 @@ pub(super) fn frame(game: &mut Game<'_>) {
         settings.cave_nether && native_player.dimension == m::NETHER,
     );
     m::with(|state| state.want_cut(cut));
-    scan_loaded_chunks(game, cut, settings.cave_depth);
+    scan_loaded_chunks(game, cut, settings.cave_depth, native_player.x, native_player.z);
     upload_minimap(game, native_player.x, native_player.z, native_player.yaw);
     m::with(|state| state.save_now_and_then(10.0));
 }
@@ -93,15 +93,15 @@ fn upload_minimap(game: &mut Game<'_>, x: f64, z: f64, yaw: f32) {
 
 /// A chunk is converted into 256 cached columns only when its world revision
 /// changes. Zoom and minimap size never trigger this scan.
-fn scan_loaded_chunks(game: &Game<'_>, cut: m::Cut, cave_depth: i32) {
-    let Some(player) = game.player.as_ref() else {
-        return;
-    };
+fn scan_loaded_chunks(
+    game: &Game<'_>,
+    cut: m::Cut,
+    cave_depth: i32,
+    player_x: f64,
+    player_z: f64,
+) {
     let facts = game.res.facts();
-    let (cx, cz) = (
-        (player.position.x.floor() as i32) >> 4,
-        (player.position.z.floor() as i32) >> 4,
-    );
+    let (cx, cz) = ((player_x.floor() as i32) >> 4, (player_z.floor() as i32) >> 4);
     let radius = game.settings.render_distance.clamp(2, 32);
     let revision = game.world.revision;
     let air = game.world.air.0;
