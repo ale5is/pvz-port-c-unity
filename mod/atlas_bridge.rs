@@ -113,6 +113,11 @@ fn scan_loaded_chunks(game: &Game<'_>, cut: m::Cut) {
     let radius = game.settings.render_distance.clamp(2, 32);
     let revision = game.world.revision;
     let air = game.world.air.0;
+    let cuts = if cut == m::Cut::Surface {
+        [Some(m::Cut::Surface), None]
+    } else {
+        [Some(cut), Some(m::Cut::Surface)]
+    };
     let started = Instant::now();
     let budget = Duration::from_micros(2500);
 
@@ -126,10 +131,6 @@ fn scan_loaded_chunks(game: &Game<'_>, cut: m::Cut) {
                 let Some(chunk) = game.world.chunks.get(&key) else {
                     continue;
                 };
-                if !m::with(|state| state.wants_scan(cut, key, revision, 1.0)) {
-                    continue;
-                }
-
                 let top = (0..chunk.sections.len())
                     .rev()
                     .find(|&section| {
@@ -138,40 +139,95 @@ fn scan_loaded_chunks(game: &Game<'_>, cut: m::Cut) {
                     .map_or(chunk.min_y(), |section| {
                         chunk.min_y() + section as i32 * 16 + 15
                     });
-                let mut tile = m::Tile::blank(chunk.min_y() as i16);
-                for z in 0..16 {
-                    for x in 0..16 {
-                        let mut y = top;
-                        while y > chunk.min_y() {
-                            let id = chunk.get(x, y, z) as usize;
-                            let Some(block) = facts.states.get(id) else {
-                                y -= 1;
-                                continue;
-                            };
-                            if block.map_color == 0 {
-                                y -= 1;
-                                continue;
+
+                for current_cut in cuts.into_iter().flatten() {
+                    let interval = if current_cut == cut { 1.0 } else { 5.0 };
+                    if !m::with(|state| state.wants_scan(current_cut, key, revision, interval)) {
+                        continue;
+                    }
+
+                    let mut tile = m::Tile::blank(chunk.min_y() as i16);
+                    for z in 0..16 {
+                        for x in 0..16 {
+                            let mut y = top;
+                            let mut wall_color = None;
+
+                            if let m::Cut::Below(cut_y) = current_cut {
+                                if cut_y <= top {
+                                    let floor = (cut_y - m::CUT_DEPTH).max(chunk.min_y());
+                                    y = cut_y;
+                                    while y > floor {
+                                        let id = chunk.get(x, y, z);
+                                        let Some(block) = facts.states.get(id as usize) else {
+                                            break;
+                                        };
+                                        let state = horizon_world::registry::BlockStateId(id);
+                                        if facts.is_air(state)
+                                            || block.fluid != Fluid::None
+                                            || block.map_color == 0
+                                        {
+                                            break;
+                                        }
+                                        if wall_color.is_none() {
+                                            wall_color = Some(
+                                                MAP_COLORS
+                                                    .get(usize::from(block.map_color))
+                                                    .copied()
+                                                    .unwrap_or(0)
+                                                    & 0x00FF_FFFF,
+                                            );
+                                        }
+                                        y -= 1;
+                                    }
+                                    if y == floor {
+                                        let index = (z * 16 + x) as usize;
+                                        tile.color[index] = m::WALL
+                                            | m::LAND
+                                            | wall_color.unwrap_or(0x0030_3030);
+                                        tile.height[index] = cut_y as i16;
+                                        continue;
+                                    }
+                                }
                             }
-                            let color = MAP_COLORS
-                                .get(usize::from(block.map_color))
-                                .copied()
-                                .unwrap_or(0)
-                                & 0x00FF_FFFF;
-                            let index = (z * 16 + x) as usize;
-                            tile.color[index] = m::LAND | color;
-                            tile.height[index] = y as i16;
-                            let wx = key.0 * 16 + x;
-                            let wz = key.1 * 16 + z;
-                            tile.light[index] = game.world.light(wx, y + 1, wz) & 15;
-                            break;
+
+                            while y > chunk.min_y() {
+                                let id = chunk.get(x, y, z);
+                                let Some(block) = facts.states.get(id as usize) else {
+                                    y -= 1;
+                                    continue;
+                                };
+                                if facts.is_air(horizon_world::registry::BlockStateId(id))
+                                    || block.map_color == 0
+                                {
+                                    y -= 1;
+                                    continue;
+                                }
+                                let color = MAP_COLORS
+                                    .get(usize::from(block.map_color))
+                                    .copied()
+                                    .unwrap_or(0)
+                                    & 0x00FF_FFFF;
+                                let index = (z * 16 + x) as usize;
+                                tile.color[index] = m::LAND | color;
+                                tile.height[index] = y as i16;
+                                let wx = key.0 * 16 + x;
+                                let wz = key.1 * 16 + z;
+                                tile.light[index] = game
+                                    .world
+                                    .light(wx, y + 1, wz)
+                                    .max(game.world.light(wx, y, wz))
+                                    & 15;
+                                break;
+                            }
                         }
                     }
-                }
-                m::with(|state| state.put_scan(cut, key, revision, tile));
-                if started.elapsed() >= budget {
-                    return;
+                    m::with(|state| state.put_scan(current_cut, key, revision, tile));
+                    if started.elapsed() >= budget {
+                        return;
+                    }
                 }
             }
         }
     }
+    m::with(|state| state.forget_far_scans((cx, cz), radius + 8));
 }
