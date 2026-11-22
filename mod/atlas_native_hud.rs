@@ -299,8 +299,6 @@ pub(super) fn atlas_native_hud(
             let position = entity.position;
             let kind = entity.kind;
             let dy = position[1] - player.y;
-
-            let dy = position[1] - player.y;
             let near = if settings.depth_fade {
                 crate::game::atlas_mod::height_fade(dy, settings.fade_from as f32)
             } else {
