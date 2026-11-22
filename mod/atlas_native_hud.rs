@@ -22,9 +22,9 @@ fn atlas_native_hud(
     let day_time = clock
         .filter(|_| player.dimension == "minecraft:overworld")
         .map(|value| value.day_time);
-    let settings = crate::game::atlas_mod::with(|state| {
+    let (settings, waypoints, active_set) = crate::game::atlas_mod::with(|state| {
         state.set_day_time(day_time);
-        state.settings()
+        (state.settings(), state.waypoints.clone(), state.set.clone())
     });
     let show_radar = settings.dots
         && (settings.show_players
@@ -249,6 +249,63 @@ fn atlas_native_hud(
                     true,
                 );
             }
+        }
+    }
+
+    if settings.on_map {
+        let size = minimap.size;
+        let half = size * 0.5;
+        let center = [
+            batch.width - 2.0 - half,
+            {
+                let effects = &game.potions.effects.list;
+                let reserved = if effects.is_empty() {
+                    0.0
+                } else {
+                    let harmful = effects.iter().any(|effect| {
+                        horizon_client::brewing::effect(effect.id).is_some_and(|info| {
+                            info.category != horizon_client::brewing::Category::Beneficial
+                        })
+                    });
+                    if harmful { 50.0 } else { 25.0 }
+                };
+                reserved + 2.0 + half
+            },
+        ];
+        let axes = crate::game::atlas_mod::mini_axes(minimap.rotate, player.yaw);
+        let scale = f64::from(size) / 128.0 / f64::from(minimap.blocks_per_pixel);
+        for waypoint in waypoints.iter().filter(|waypoint| {
+            !waypoint.hidden
+                && waypoint.dimension == player.dimension
+                && (settings.render_all_sets || waypoint.set == active_set)
+        }) {
+            let dx = waypoint.pos[0] as f64 + 0.5 - player.x;
+            let dz = waypoint.pos[2] as f64 + 0.5 - player.z;
+            let px = center[0] + ((dx * axes.0[0] + dz * axes.0[1]) * scale) as f32;
+            let py = center[1] + ((dx * axes.1[0] + dz * axes.1[1]) * scale) as f32;
+            let lx = px - center[0];
+            let ly = py - center[1];
+            let inside = if minimap.round {
+                lx * lx + ly * ly <= (half - 3.0).powi(2)
+            } else {
+                lx.abs() <= half - 3.0 && ly.abs() <= half - 3.0
+            };
+            if !inside {
+                continue;
+            }
+            let color = 0xFF000000 | (waypoint.color & 0x00FFFFFF);
+            let radius = 3.0;
+            game.native_fill(batch, [px - radius - 1.0, py - 1.0, (radius + 1.0) * 2.0, 2.0], 0xFF101010);
+            game.native_fill(batch, [px - 1.0, py - radius - 1.0, 2.0, (radius + 1.0) * 2.0], 0xFF101010);
+            game.native_fill(batch, [px - radius, py - 1.0, radius * 2.0, 2.0], color);
+            game.native_fill(batch, [px - 1.0, py - radius, 2.0, radius * 2.0], color);
+            game.native_text(
+                batch,
+                &waypoint.name,
+                [px + 4.0, py - 4.0],
+                0xFFFFFFFF,
+                true,
+            );
         }
     }
 
