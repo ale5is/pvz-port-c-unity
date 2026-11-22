@@ -231,6 +231,23 @@ bindings = [
 ]
 
 [[module]]
+id = "atlas_bridge"
+file = "crates/horizon-client/src/game.rs"
+name = "atlas_bridge"
+source = "bridge.rs"
+visibility = "pub(crate)"
+
+[[injection]]
+id = "atlas_frame"
+kind = "HEAD"
+hook = "frame"
+hook_version = 1
+helper = "frame.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+]
+
+[[module]]
 id = "atlas_hud"
 file = "crates/horizon-client/src/game.rs"
 name = "atlas_native_hud"
