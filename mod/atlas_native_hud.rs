@@ -6,12 +6,19 @@ struct AtlasRadarEntity {
     invisible: bool,
 }
 
+#[derive(Clone, Copy)]
+struct AtlasRadarMobAnchor {
+    position: [f64; 3],
+    stationary: bool,
+}
+
 #[derive(Default)]
 struct AtlasRadarSnapshot {
     session: String,
     dimension: String,
     sampled_at: Option<std::time::Instant>,
     entities: std::sync::Arc<[AtlasRadarEntity]>,
+    mob_anchors: std::collections::HashMap<u32, AtlasRadarMobAnchor>,
 }
 
 thread_local! {
@@ -39,17 +46,49 @@ fn atlas_radar_snapshot(
                 now.duration_since(at) >= std::time::Duration::from_millis(50)
             });
         if refresh {
+            if cache.session != session || cache.dimension != dimension {
+                cache.mob_anchors.clear();
+            }
             let mut entities = Vec::with_capacity(
                 game.mobs.len() + game.dropped.len() + game.others.len(),
             );
+            let mut live_mobs = std::collections::HashSet::with_capacity(game.mobs.len());
             for mob in &game.mobs {
                 if mob.removed {
                     continue;
                 }
+                live_mobs.insert(mob.id);
+                let current = [mob.position.x, mob.position.y, mob.position.z];
+                let nearly_still = mob.on_ground
+                    && mob.velocity.x.abs() <= 0.005
+                    && mob.velocity.y.abs() <= 0.005
+                    && mob.velocity.z.abs() <= 0.005;
+                let position = if nearly_still {
+                    let anchor = cache.mob_anchors.entry(mob.id).or_insert(
+                        AtlasRadarMobAnchor {
+                            position: current,
+                            stationary: false,
+                        },
+                    );
+                    if !anchor.stationary {
+                        anchor.position = current;
+                        anchor.stationary = true;
+                    }
+                    anchor.position
+                } else {
+                    cache.mob_anchors.insert(
+                        mob.id,
+                        AtlasRadarMobAnchor {
+                            position: current,
+                            stationary: false,
+                        },
+                    );
+                    current
+                };
                 let is_player = mob.kind.id == "minecraft:player"
                     || game.remote_player_name(mob.id).is_some();
                 entities.push(AtlasRadarEntity {
-                    position: [mob.position.x, mob.position.y, mob.position.z],
+                    position,
                     kind: if is_player {
                         0
                     } else if mob.kind.category == "misc" {
@@ -64,6 +103,7 @@ fn atlas_radar_snapshot(
                     invisible: mob.invisible || mob.has_effect("minecraft:invisibility"),
                 });
             }
+            cache.mob_anchors.retain(|id, _| live_mobs.contains(id));
             for item in &game.dropped {
                 entities.push(AtlasRadarEntity {
                     position: [item.position.x, item.position.y, item.position.z],
