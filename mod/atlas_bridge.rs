@@ -1,6 +1,6 @@
 use crate::game::Game;
 use crate::game::atlas_mod as m;
-use horizon_client::blocks::MAP_COLORS;
+use horizon_client::blocks::{Fluid, MAP_COLORS};
 use std::time::{Duration, Instant};
 
 /// API-80 adapter: keep world discovery and chunk scanning independent of
