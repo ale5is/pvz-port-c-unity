@@ -26,12 +26,76 @@ fn atlas_native_hud(
         state.set_day_time(day_time);
         (state.settings(), state.waypoints.clone(), state.set.clone())
     });
+    let size = minimap.size;
+    let half = size * 0.5;
+    let reserved = {
+        let effects = &game.potions.effects.list;
+        if effects.is_empty() {
+            0.0
+        } else {
+            let harmful = effects.iter().any(|effect| {
+                horizon_client::brewing::effect(effect.id)
+                    .is_some_and(|info| {
+                        info.category != horizon_client::brewing::Category::Beneficial
+                    })
+            });
+            if harmful { 50.0 } else { 25.0 }
+        }
+    };
+    let center = [
+        batch.width - 2.0 - half,
+        reserved + 2.0 + half,
+    ];
+    let grid = crate::game::atlas_mod::mini_grid(
+        player.x,
+        player.z,
+        player.yaw,
+        minimap.rotate,
+        minimap.blocks_per_pixel,
+        crate::game::atlas_mod::MINI,
+    );
+
+    // Horizon draws the whole 128x128 sprite. Atlas' grid shows 127 texels
+    // and carries a fractional shift; crop the sprite by that exact shift so
+    // the terrain, the player arrow and world-space markers share one origin.
+    let atlas = &game.gui.atlas;
+    if let Some(mut image) = atlas.sprites.get(horizon_client::hud::MINIMAP_SPRITE).copied() {
+        let du = (image.u1 - image.u0) / image.w as f32;
+        let dv = (image.v1 - image.v0) / image.h as f32;
+        image.u0 += grid.shift[0] * du;
+        image.v0 += grid.shift[1] * dv;
+        image.u1 = image.u0 + grid.shown() * du;
+        image.v1 = image.v0 + grid.shown() * dv;
+        let x = center[0] - half;
+        let y = center[1] - half;
+        batch.rect_uv(x, y, size, size, image, u32::MAX);
+
+        if let Some(arrow) = atlas.sprites.get("map/decorations/player").copied() {
+            let angle = if minimap.rotate { 0.0 } else { 180.0 + player.yaw };
+            let (s, c) = (angle + 180.0).to_radians().sin_cos();
+            let p = |dx: f32, dy: f32| [
+                center[0] + dx * c - dy * s,
+                center[1] + dx * s + dy * c,
+            ];
+            let h = 4.0;
+            batch.quad(
+                [p(-h, h), p(h, h), p(h, -h), p(-h, -h)],
+                [
+                    [arrow.u0, arrow.v0],
+                    [arrow.u1, arrow.v0],
+                    [arrow.u1, arrow.v1],
+                    [arrow.u0, arrow.v1],
+                ],
+                u32::MAX,
+            );
+        }
+    }
     let show_radar = settings.dots
         && (settings.show_players
             || settings.show_mobs
             || settings.show_items
             || settings.show_others);
-    if !settings.time && !show_radar {
+    if !settings.time && !show_radar && !settings.on_map {
         return;
     }
 
@@ -46,36 +110,7 @@ fn atlas_native_hud(
     };
 
     if show_radar {
-        // Use the exact NativeMinimap selected by Horizon for this frame.
-        // Its size, zoom, rotation and shape are the source of truth for both
-        // the map image and every entity marker.
-        let size = minimap.size;
-        let center = [
-            batch.width - 2.0 - size * 0.5,
-            {
-                let effects = &game.potions.effects.list;
-                let reserved = if effects.is_empty() {
-                    0.0
-                } else {
-                    let harmful = effects.iter().any(|effect| {
-                        horizon_client::brewing::effect(effect.id)
-                            .is_some_and(|info| {
-                                info.category != horizon_client::brewing::Category::Beneficial
-                            })
-                    });
-                    if harmful { 50.0 } else { 25.0 }
-                };
-                reserved + 2.0 + size * 0.5
-            },
-        ];
-        let grid = crate::game::atlas_mod::mini_grid(
-            player.x,
-            player.z,
-            player.yaw,
-            minimap.rotate,
-            minimap.blocks_per_pixel,
-            crate::game::atlas_mod::MINI,
-        );
+        // Use the same world-space grid as the terrain texture.
         let reach = 64.0
             * f64::from(minimap.blocks_per_pixel)
             * std::f64::consts::SQRT_2;
@@ -258,26 +293,6 @@ fn atlas_native_hud(
     }
 
     if settings.on_map {
-        let size = minimap.size;
-        let half = size * 0.5;
-        let center = [
-            batch.width - 2.0 - half,
-            {
-                let effects = &game.potions.effects.list;
-                let reserved = if effects.is_empty() {
-                    0.0
-                } else {
-                    let harmful = effects.iter().any(|effect| {
-                        horizon_client::brewing::effect(effect.id).is_some_and(|info| {
-                            info.category != horizon_client::brewing::Category::Beneficial
-                        })
-                    });
-                    if harmful { 50.0 } else { 25.0 }
-                };
-                reserved + 2.0 + half
-            },
-        ];
-
         for waypoint in waypoints.iter().filter(|waypoint| {
             !waypoint.hidden
                 && waypoint.dimension == player.dimension
