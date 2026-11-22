@@ -57,22 +57,14 @@ pub(super) fn frame(game: &mut Game<'_>) {
     );
     m::with(|state| state.want_cut(cut));
     scan_loaded_chunks(game, cut, settings.cave_depth);
-    upload_minimap(game, native_player.yaw);
+    upload_minimap(game, native_player.x, native_player.z, native_player.yaw);
     m::with(|state| state.save_now_and_then(10.0));
 }
 
 /// Compose Atlas' persistent tile cache into the exact sprite Horizon draws.
 /// Horizon's own minimap updater runs before native frame hooks, so this patch
 /// is queued afterwards and becomes the image used by draw_minimap.
-fn upload_minimap(game: &mut Game<'_>, yaw: f32) {
-    let Some((x, z)) = game
-        .player
-        .as_ref()
-        .map(|player| (player.position.x, player.position.z))
-    else {
-        return;
-    };
-
+fn upload_minimap(game: &mut Game<'_>, x: f64, z: f64, yaw: f32) {
     let (size, image) = m::with(|state| {
         state.update_minimap_lit(x, z, yaw, &|x, y, z| game.world.light(x, y, z));
         (state.mini_n, state.mini_image.clone())
