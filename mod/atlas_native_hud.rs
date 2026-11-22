@@ -68,8 +68,14 @@ fn atlas_native_hud(
                 reserved + 2.0 + size * 0.5
             },
         ];
-        let axes = crate::game::atlas_mod::mini_axes(minimap.rotate, player.yaw);
-        let scale = f64::from(size) / 128.0 / f64::from(minimap.blocks_per_pixel);
+        let grid = crate::game::atlas_mod::mini_grid(
+            player.x,
+            player.z,
+            player.yaw,
+            minimap.rotate,
+            minimap.blocks_per_pixel,
+            crate::game::atlas_mod::MINI,
+        );
         let reach = 64.0
             * f64::from(minimap.blocks_per_pixel)
             * std::f64::consts::SQRT_2;
@@ -178,10 +184,9 @@ fn atlas_native_hud(
         for (_, position, kind, name) in entities {
             let dx = position[0] - player.x;
             let dz = position[2] - player.z;
-            let right = dx * axes.0[0] + dz * axes.0[1];
-            let down = dx * axes.1[0] + dz * axes.1[1];
-            let px = center[0] + (right * scale) as f32;
-            let py = center[1] + (down * scale) as f32;
+            let [screen_x, screen_y] = grid.to_screen(dx, dz, size);
+            let px = center[0] + screen_x;
+            let py = center[1] + screen_y;
             let local_x = px - center[0];
             let local_y = py - center[1];
             let inside = if minimap.round {
@@ -272,8 +277,7 @@ fn atlas_native_hud(
                 reserved + 2.0 + half
             },
         ];
-        let axes = crate::game::atlas_mod::mini_axes(minimap.rotate, player.yaw);
-        let scale = f64::from(size) / 128.0 / f64::from(minimap.blocks_per_pixel);
+
         for waypoint in waypoints.iter().filter(|waypoint| {
             !waypoint.hidden
                 && waypoint.dimension == player.dimension
@@ -281,8 +285,9 @@ fn atlas_native_hud(
         }) {
             let dx = waypoint.pos[0] as f64 + 0.5 - player.x;
             let dz = waypoint.pos[2] as f64 + 0.5 - player.z;
-            let px = center[0] + ((dx * axes.0[0] + dz * axes.0[1]) * scale) as f32;
-            let py = center[1] + ((dx * axes.1[0] + dz * axes.1[1]) * scale) as f32;
+            let [screen_x, screen_y] = grid.to_screen(dx, dz, size);
+            let px = center[0] + screen_x;
+            let py = center[1] + screen_y;
             let lx = px - center[0];
             let ly = py - center[1];
             let inside = if minimap.round {
