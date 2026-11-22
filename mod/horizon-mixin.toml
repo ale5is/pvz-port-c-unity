@@ -234,7 +234,7 @@ bindings = [
 id = "atlas_bridge"
 file = "crates/horizon-client/src/game.rs"
 name = "atlas_bridge"
-source = "bridge.rs"
+source = "atlas_bridge.rs"
 visibility = "pub(crate)"
 
 [[injection]]
