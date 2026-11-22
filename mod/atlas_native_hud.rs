@@ -1,3 +1,94 @@
+#[derive(Clone)]
+struct AtlasRadarEntity {
+    position: [f64; 3],
+    kind: u8,
+    name: Option<String>,
+    invisible: bool,
+}
+
+#[derive(Default)]
+struct AtlasRadarSnapshot {
+    session: String,
+    dimension: String,
+    sampled_at: Option<std::time::Instant>,
+    entities: std::sync::Arc<[AtlasRadarEntity]>,
+}
+
+thread_local! {
+    static ATLAS_RADAR_SNAPSHOT: std::cell::RefCell<AtlasRadarSnapshot> =
+        std::cell::RefCell::new(AtlasRadarSnapshot::default());
+}
+
+fn atlas_radar_snapshot(
+    game: &crate::game::Game<'_>,
+    dimension: &str,
+) -> std::sync::Arc<[AtlasRadarEntity]> {
+    let session = if let Some(world) = game.integrated.as_ref() {
+        format!("world:{}", world.world_name)
+    } else if let Some(remote) = game.remote.as_ref() {
+        format!("server:{}", remote.session.address)
+    } else {
+        String::new()
+    };
+    let now = std::time::Instant::now();
+    ATLAS_RADAR_SNAPSHOT.with(|cell| {
+        let mut cache = cell.borrow_mut();
+        let refresh = cache.session != session
+            || cache.dimension != dimension
+            || cache.sampled_at.is_none_or(|at| {
+                now.duration_since(at) >= std::time::Duration::from_millis(50)
+            });
+        if refresh {
+            let mut entities = Vec::with_capacity(
+                game.mobs.len() + game.dropped.len() + game.others.len(),
+            );
+            for mob in &game.mobs {
+                if mob.removed {
+                    continue;
+                }
+                let is_player = mob.kind.id == "minecraft:player"
+                    || game.remote_player_uuid(mob.id).is_some();
+                entities.push(AtlasRadarEntity {
+                    position: [mob.position.x, mob.position.y, mob.position.z],
+                    kind: if is_player {
+                        0
+                    } else if mob.kind.category == "misc" {
+                        3
+                    } else {
+                        1
+                    },
+                    name: game
+                        .remote_player_name(mob.id)
+                        .map(str::to_owned)
+                        .or_else(|| Some(mob.kind.id.clone())),
+                    invisible: mob.invisible || mob.has_effect("minecraft:invisibility"),
+                });
+            }
+            for item in &game.dropped {
+                entities.push(AtlasRadarEntity {
+                    position: [item.position.x, item.position.y, item.position.z],
+                    kind: 2,
+                    name: Some(item.stack.item.to_string()),
+                    invisible: false,
+                });
+            }
+            for other in &game.others {
+                entities.push(AtlasRadarEntity {
+                    position: [other.position.x, other.position.y, other.position.z],
+                    kind: 3,
+                    name: Some(other.kind.clone()),
+                    invisible: false,
+                });
+            }
+            cache.session = session;
+            cache.dimension = dimension.to_owned();
+            cache.sampled_at = Some(now);
+            cache.entities = std::sync::Arc::from(entities);
+        }
+        cache.entities.clone()
+    })
+}
+
 fn atlas_native_hud(
     game: &mut crate::game::Game<'_>,
     batch: &mut horizon_client::hud::HudBatch,
@@ -115,99 +206,34 @@ fn atlas_native_hud(
             * f64::from(minimap.blocks_per_pixel)
             * std::f64::consts::SQRT_2;
         let limit = settings.entity_limit.clamp(1, 1000) as usize;
-        let mut entities: Vec<(f64, [f64; 3], u8, Option<String>)> = Vec::new();
+        let snapshot = atlas_radar_snapshot(game, &player.dimension);
+        let mut entities: Vec<(f64, &AtlasRadarEntity)> = Vec::new();
 
-        for mob in &game.mobs {
-            if mob.removed
-                || (settings.hide_invisible
-                    && (mob.invisible || mob.has_effect("minecraft:invisibility")))
+        for entity in snapshot.iter() {
+            if entity.invisible && settings.hide_invisible {
+                continue;
+            }
+            let kind = entity.kind;
+            if (kind == 0 && !settings.show_players)
+                || (kind == 1 && !settings.show_mobs)
+                || (kind == 2 && !settings.show_items)
+                || (kind == 3 && !settings.show_others)
             {
                 continue;
             }
-            let dx = mob.position.x - player.x;
-            let dz = mob.position.z - player.z;
+            let dx = entity.position[0] - player.x;
+            let dz = entity.position[2] - player.z;
             if dx.abs() > reach || dz.abs() > reach {
                 continue;
             }
-            let is_player = mob.kind.id == "minecraft:player"
-                || game.remote_player_uuid(mob.id).is_some();
-            let dy = mob.position.y - player.y;
-            if is_player
-                && dx.abs() < 0.05
-                && dz.abs() < 0.05
-                && dy.abs() < 0.1
-            {
-                continue;
-            }
-            let kind = if is_player {
-                if !settings.show_players { continue; }
-                0
-            } else if mob.kind.category == "misc" {
-                if !settings.show_others { continue; }
-                3
-            } else {
-                if !settings.show_mobs { continue; }
-                1
-            };
+            let dy = entity.position[1] - player.y;
             if settings.height_limit > 0
                 && dy.abs() > f64::from(settings.height_limit)
             {
                 continue;
             }
-            let name = game
-                .remote_player_name(mob.id)
-                .map(str::to_owned)
-                .or_else(|| Some(mob.kind.id.clone()));
-            entities.push((
-                dx * dx + dz * dz,
-                [mob.position.x, mob.position.y, mob.position.z],
-                kind,
-                name,
-            ));
-        }
-
-        if settings.show_items {
-            for item in &game.dropped {
-                let dx = item.position.x - player.x;
-                let dz = item.position.z - player.z;
-                if dx.abs() > reach || dz.abs() > reach {
-                    continue;
-                }
-                let dy = item.position.y - player.y;
-                if settings.height_limit > 0
-                    && dy.abs() > f64::from(settings.height_limit)
-                {
-                    continue;
-                }
-                entities.push((
-                    dx * dx + dz * dz,
-                    [item.position.x, item.position.y, item.position.z],
-                    2,
-                    Some(item.stack.item.to_string()),
-                ));
-            }
-        }
-
-        if settings.show_others {
-            for other in &game.others {
-                let dx = other.position.x - player.x;
-                let dz = other.position.z - player.z;
-                if dx.abs() > reach || dz.abs() > reach {
-                    continue;
-                }
-                let dy = other.position.y - player.y;
-                if settings.height_limit > 0
-                    && dy.abs() > f64::from(settings.height_limit)
-                {
-                    continue;
-                }
-                entities.push((
-                    dx * dx + dz * dz,
-                    [other.position.x, other.position.y, other.position.z],
-                    3,
-                    Some(other.kind.clone()),
-                ));
-            }
+            let distance = dx * dx + dz * dz;
+            entities.push((distance, entity));
         }
 
         entities.sort_by(|a, b| a.0.total_cmp(&b.0));
@@ -217,7 +243,9 @@ fn atlas_native_hud(
         let dot_radius = (size / 100.0).clamp(0.5, 2.0)
             * settings.dot_size.clamp(1, 6) as f32
             * 0.5;
-        for (_, position, kind, name) in entities {
+        for (_, entity) in entities {
+            let position = entity.position;
+            let kind = entity.kind;
             let dx = position[0] - player.x;
             let dz = position[2] - player.z;
             let [screen_x, screen_y] = grid.to_screen(dx, dz, size);
@@ -270,7 +298,7 @@ fn atlas_native_hud(
 
             let show_name = settings.names == 2 || (settings.names == 1 && kind == 0);
             if show_name {
-                if let Some(name) = name.as_deref() {
+                if let Some(name) = entity.name.as_deref() {
                     game.native_text(
                         batch,
                         name,
