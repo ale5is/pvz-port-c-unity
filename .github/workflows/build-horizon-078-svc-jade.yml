@@ -104,6 +104,9 @@ jobs:
       - name: Test Starling Android menu frame cap on host
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client menu_frame_cap_tests::a_menu_caps_the_frame_rate_on_android_only
 
+      - name: Test Starling Android loading-screen frame cap on host
+        run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client loading_frame_cap_tests::android_loading_frames_wait_for_the_next_60_fps_slot
+
       - name: Test Starling Mobile far-detail quadtree
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client-render mobile_far_detail_is_coarser_than_reduced_without_coarsening_near_terrain
 
