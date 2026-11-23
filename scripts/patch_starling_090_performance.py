@@ -1262,6 +1262,104 @@ impl CalibrationShared {
     }
 }
 
+/// Timing used by the calibration worker. Short values are useful for deterministic tests.
+#[derive(Clone, Copy, Debug)]
+pub struct CalibrationPace {
+    pub warmup: Duration,
+    pub block_seconds: u32,
+}
+impl Default for CalibrationPace {
+    fn default() -> Self {
+        Self {
+            warmup: Duration::from_secs(2),
+            block_seconds: 4,
+        }
+    }
+}
+
+/// Starts the worker. All renderer changes are still requested through CalibrationShared and
+/// must be applied/acknowledged by the game thread.
+pub fn start_calibration(
+    requests: Sender<Request>,
+    game_dir: PathBuf,
+    candidates: Vec<CalibrationChoices>,
+    shared: CalibrationShared,
+    pace: CalibrationPace,
+) -> Result<(), String> {
+    let worker_shared = shared.clone();
+    thread::Builder::new()
+        .name("GPU calibration".into())
+        .spawn(move || {
+            let control = Control(requests);
+            let started = Instant::now();
+            let result = run_calibration(&control, &worker_shared, &game_dir, &candidates, pace)
+                .map(|(choices, fps, auto_fps)| CalibrationOutcome {
+                    choices,
+                    fps,
+                    auto_fps,
+                    seconds: started.elapsed().as_secs_f64(),
+                });
+            worker_shared.measuring(false);
+            worker_shared.finish(result);
+        })
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+fn calibration_block(
+    control: &Control,
+    shared: &CalibrationShared,
+    choices: CalibrationChoices,
+    switched: bool,
+    pace: CalibrationPace,
+) -> Result<f64, String> {
+    shared.request(choices);
+    shared.wait_drawn(choices, Duration::from_secs(10))?;
+    if switched {
+        thread::sleep(pace.warmup);
+    }
+    if shared.is_stopped() {
+        return Err("calibration stopped".into());
+    }
+    let reply = control.call(&format!("bench {} raw", pace.block_seconds))?;
+    if shared.is_stopped() {
+        return Err("calibration stopped".into());
+    }
+    Ok(frames_of(&reply, "calibrate", 0)?.avg_fps)
+}
+
+fn run_calibration(
+    control: &Control,
+    shared: &CalibrationShared,
+    game_dir: &Path,
+    candidates: &[CalibrationChoices],
+    pace: CalibrationPace,
+) -> Result<(CalibrationChoices, f64, f64), String> {
+    open_world(control, game_dir)?;
+    hold_weather(control)?;
+    let position: Vec<f64> = control.status()["player"]["position"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_f64)
+        .collect();
+    let &[x, y, z] = position.as_slice() else {
+        return Err("no player in the calibration world".into());
+    };
+    hold(control, [x, y + 5.0, z], 0.0, 30.0)?;
+    shared.measuring(true);
+    thread::sleep(pace.warmup);
+    let mut completed = 0usize;
+    let result = calibration_rounds(candidates, |choices, switched| {
+        let rate = calibration_block(control, shared, choices, switched, pace)?;
+        completed += 1;
+        shared.progress(completed, candidates.len() * 2 + 4, Instant::now());
+        Ok(rate)
+    });
+    shared.measuring(false);
+    result
+}
+
 /// Captures the renderer's original state and supported A/B paths.
 pub fn calibration_device(renderer: &crate::gfx::Renderer) -> CalibrationDevice {
     CalibrationDevice {
