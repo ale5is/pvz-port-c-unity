@@ -153,10 +153,18 @@ pub(super) fn atlas_native_hud(
     let day_time = clock
         .filter(|_| player.dimension == "minecraft:overworld")
         .map(|value| value.day_time);
-    let (settings, waypoints, active_set) = crate::game::atlas_mod::with(|state| {
+    let (settings, waypoints, active_set, grid) = crate::game::atlas_mod::with(|state| {
         state.set_day_time(day_time);
-        (state.settings(), state.waypoints.clone(), state.set.clone())
+        (
+            state.settings(),
+            state.waypoints.clone(),
+            state.set.clone(),
+            state.mini_grid,
+        )
     });
+    let Some(grid) = grid else {
+        return;
+    };
     let size = minimap.size;
     let half = size * 0.5;
     let reserved = {
@@ -177,14 +185,9 @@ pub(super) fn atlas_native_hud(
         batch.width - 2.0 - half,
         reserved + 2.0 + half,
     ];
-    let grid = crate::game::atlas_mod::mini_grid(
-        player.x,
-        player.z,
-        player.yaw,
-        minimap.rotate,
-        minimap.blocks_per_pixel,
-        crate::game::atlas_mod::MINI,
-    );
+    // Use the exact grid that composed the Atlas minimap texture. Horizon's
+    // native zoom can differ from Atlas' configured zoom, so rebuilding this
+    // grid from minimap.blocks_per_pixel misaligns radar markers after zooming.
 
     // Horizon draws the whole 128x128 sprite. Atlas' grid shows 127 texels
     // and carries a fractional shift; crop the sprite by that exact shift so
