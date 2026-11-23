@@ -954,6 +954,15 @@ pub enum CalibrationToggle {
     On,
     Off,
 }
+impl CalibrationToggle {
+    pub fn pick(self, auto: bool) -> bool {
+        match self {
+            CalibrationToggle::Auto => auto,
+            CalibrationToggle::On => true,
+            CalibrationToggle::Off => false,
+        }
+    }
+}
 
 /// The player's current settings. Improved Transparency is kept unchanged because
 /// switching it changes the rendered picture and would invalidate an A/B comparison.
