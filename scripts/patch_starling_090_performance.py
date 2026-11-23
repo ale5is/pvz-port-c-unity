@@ -1078,7 +1078,11 @@ pub fn combine_calibration_candidates(
         if rate <= own * 1.03 {
             continue;
         }
-        if single.is_none_or(|index| rate > mean(&fps[index])) {
+        if single.is_none_or(|index| {
+            fps.get(index)
+                .map(|rates| rate > mean(rates.as_slice()))
+                .unwrap_or(true)
+        }) {
             single = Some(i);
         }
         if choice.draws != base.draws && rate > draws_fps {
