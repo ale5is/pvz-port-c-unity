@@ -1,68 +1,68 @@
-# PavoHorizon Android 5 — rama experimental de gama baja
+# PavoHorizon Android 5 — adaptación desde Horizon Android 0.7.8 ARMv7
 
-Esta rama separa el trabajo de compatibilidad Android antigua del desarrollo Nightly/PC y del port Android moderno.
+Esta rama se dedica a adaptar Horizon Android 0.7.8 de 32 bits a dispositivos Android 5 de gama baja. No se toma Starling actual ni Horizon Nightly como base del cliente.
 
-## Objetivo de hardware
+## Base de código fijada
+- Proyecto: Horizon Android, repositorio `starling-client/starling`.
+- Versión: tag `v0.7.8`.
+- Commit exacto: `68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29`.
+- Arquitectura: `armeabi-v7a` (Rust target `armv7-linux-androideabi`).
+- Comando de compilación upstream: `python tools/android_build.py --abi armeabi-v7a --public`.
+- Fuente: https://github.com/starling-client/starling/tree/68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29
+
+La versión 0.7.8 incluye una compilación ARMv7 experimental. Su propio script asigna API 27 a las ABI antiguas (ARMv7 y x86), y el manifiesto requiere OpenGL ES 3.0. La compilación ARM32, por tanto, no significa compatibilidad con Android 5.
+
+## Dispositivo objetivo
 - Android 5.1 / API 22.
 - ARMv7 de 32 bits (armeabi-v7a).
 - 1 GB de RAM.
 - GPU Mali-450 MP.
-- OpenGL ES 2.0; no asumir Vulkan ni OpenGL ES 3.
+- OpenGL ES 2.0.
 - Resolución de referencia: 1280×720.
 
-El objetivo inicial es comprobar si se puede ejecutar una versión reducida del cliente Rust de Minecraft en este perfil. No se considera compatible hasta producir una APK instalable y superar pruebas reales en el dispositivo.
+## Bloqueos verificados
+1. **Android API:** Horizon 0.7.8 establece `minSdk=27` para ARMv7. Android 5.1 es API 22. Hay que auditar y reemplazar APIs Java/Android, permisos, servicios y bibliotecas nativas que no existían en API 22.
+2. **Gráficos:** el manifiesto de 0.7.8 declara OpenGL ES 3.0 obligatorio. La Mali-450 de referencia solo informa GLES 2.0. El renderer, shaders, formatos, extensiones y límites de textura deben adaptarse; cambiar el manifiesto no crea soporte GLES2.
+3. **Audio:** el cliente Android usa AAudio. Debe evaluarse un backend disponible en API 22, como OpenSL ES, o una compilación de diagnóstico sin audio mientras se implementa el backend.
+4. **Memoria:** la compilación ARMv7 de 0.7.8 no garantiza que el juego quepa en 1 GB. Hay que reducir atlas, resolución, chunks, workers, cachés y buffers de audio/GPU y medir el pico real.
+5. **Dependencias:** Rust, NDK, wgpu/winit y crates nativos deben compilar y enlazar para ARMv7 con un nivel mínimo API 22. Se comprobarán símbolos ELF y llamadas a APIs nuevas.
 
-## Base ARM32 seleccionada
-- Proyecto base: [Starling](https://github.com/starling-client/starling), rama `starling`.
-- Revisión fijada para esta adaptación: `0e5bb58a44efa8e38ee067172a11e3c573829976`.
-- Documento de arquitectura ARMv7: [docs/android-armv7.md](https://github.com/starling-client/starling/blob/starling/docs/android-armv7.md).
-- ABI objetivo: `armeabi-v7a`, Rust target `armv7-linux-androideabi`.
-- Comando ARMv7 documentado por el proyecto: `python packaging/android/build_apk.py --abi armeabi-v7a --dev`.
+## Etapas de trabajo
+### 1. Reproducir la base original
+- Compilar el tag exacto `v0.7.8` para `armeabi-v7a` sin cambiar su mínimo API 27.
+- Guardar APK, metadatos, dependencias y logs como baseline.
+- No mezclar cambios de Starling posterior ni del port Nightly.
 
-Esta es la base correcta de 32 bits: ya incluye el selector de ABI, empaquetado ARM32, runtime Java ARM32, límites de heap para preparación y ajustes del renderizador Android. No se debe reconstruir esa parte desde cero.
+### 2. Compatibilidad Android 5
+- Bajar el mínimo de API de forma controlada a 22.
+- Reemplazar las llamadas Android incompatibles y probar ciclo de vida, almacenamiento, red, teclado y controles.
+- Sustituir AAudio por un backend compatible con API 22.
+- Crear una APK de diagnóstico para comprobar instalación y arranque en API 22 antes de integrar el juego completo.
 
-**Importante:** la propia documentación de Starling indica Android 8/API 26 como mínimo para ARMv7. Por eso se toma su implementación ARM32 y se adapta; no se considera que el APK ARMv7 actual funcione en Android 5.
+### 3. GLES 2.0
+- Auditar el uso de wgpu y el backend GLES de la revisión fijada.
+- Determinar si el renderer puede adaptarse a GLES2 o si requiere un backend específico.
+- Reducir o reescribir shaders y rutas gráficas que dependan de GLES3.
+- Probar en Mali-450 real; no aceptar una compilación exitosa como prueba de renderizado.
 
-## Estado de compatibilidad y bloqueos
-1. El script de empaquetado de Starling fija `MIN_SDK = 26` explícitamente por AAudio (CPAL). Hay que sustituir esa ruta de audio por una compatible con API 22 (por ejemplo, un backend Android antiguo como OpenSL ES, si la versión de CPAL/dependencias lo permite) o compilar una variante sin audio como etapa intermedia.
-2. El manifiesto Android moderno declara Vulkan como requisito en su plantilla principal. La variante ARM32 puede ajustar la selección de backend, pero eso no demuestra compatibilidad con la Mali-450.
-3. El documento ARMv7 de Starling habla de compatibilidad GLES y de workarounds para drivers antiguos, pero no garantiza OpenGL ES 2.0. La Mali-450 de referencia informa GLES 2.0; se debe auditar el nivel GLSL, las extensiones, texturas, buffers y límites reales antes de activar esa GPU.
-4. La versión ARM32 usa un runtime Java 25 preparado para Android moderno. Debe comprobarse por separado si ese runtime y sus bibliotecas pueden ejecutarse en API 22; no basta con que el binario sea ARM32.
-5. Con 1 GB de RAM, los límites de heap del runtime Java no limitan la memoria total del proceso Rust/GPU. El cliente completo puede seguir excediendo el presupuesto.
+### 4. Gama baja
+- Aplicar presets de baja memoria y baja resolución.
+- Limitar distancia de renderizado y workers.
+- Reducir memoria temporal de atlas, chunks, texturas y audio.
+- Medir RAM, FPS, tiempos de frame, cierres y temperatura.
 
-Bajar únicamente `minSdkVersion` no convierte el motor en compatible.
-
-## Plan de adaptación
-### Etapa 1 — fijar y compilar la base ARM32
-- Partir de la revisión Starling indicada arriba.
-- Mantener el ABI `armeabi-v7a` y el target Rust `armv7-linux-androideabi`.
-- Crear un build de referencia ARMv7 con su mínimo Android original (API 26), para separar errores de arquitectura de los errores de compatibilidad API 22.
-- No cambiar todavía el mínimo SDK en todo el proyecto.
-
-### Etapa 2 — llevar la plataforma a API 22
-- Auditar APIs Android, NDK, crates Rust y bibliotecas nativas que requieran API superior a 22.
-- Resolver primero el audio AAudio/CPAL mediante backend compatible o variante sin audio.
-- Revisar clases Java, métodos Android, permisos, servicios, notificaciones, almacenamiento y llamadas JNI introducidas después de API 22.
-- Verificar el runtime Java ARM32 y la preparación de recursos; sustituirlo si no admite Android 5.
-- Crear una APK mínima de diagnóstico con minSdk 22 para probar arranque, ciclo de vida, almacenamiento privado, red y entrada táctil.
-
-### Etapa 3 — GPU y presupuesto de memoria
-- Auditar si wgpu/GLES de esta revisión puede crear un dispositivo real GLES 2.0; no simular compatibilidad bajando el requisito del manifiesto.
-- Si GLES2 no es viable con el renderer actual, evaluar un backend GLES2 específico o detener esa ruta antes de integrar el juego.
-- Reducir resolución interna, distancia de renderizado, cachés y carga simultánea de chunks.
-- Establecer límites de memoria y cierre controlado ante falta de recursos.
-
-### Etapa 4 — integración del cliente
-- Integrar el cliente completo solo cuando plataforma, runtime Java, audio y GPU hayan superado las pruebas.
-- Mantener la compatibilidad de mundos y protocolos que permita la revisión elegida.
-- Compilar APK ARMv7, instalarla en Android 5.1 y probar menú, mundo local, controles, audio y red.
+### 5. Entrega
+- Generar APK `armeabi-v7a` con `minSdkVersion 22`.
+- Verificar que no contiene bibliotecas ARM64 ni símbolos Android posteriores a API 22.
+- Instalar y probar en Android 5.1: launcher, descarga/preparación, menú, mundo local, controles, guardado, red y audio.
+- Publicar logs y limitaciones reales.
 
 ## Criterios de aceptación
-- La APK instala en Android 5.1 sin modificar el sistema.
-- La aplicación arranca con ABI ARMv7 y no carga bibliotecas ARM64.
-- No depende de Vulkan ni de GLES3 si el dispositivo solo ofrece GLES2.
-- Puede abrir un mundo de prueba sin agotar la memoria.
-- Se publican logs, métricas de RAM/FPS y limitaciones observadas en el dispositivo real.
+- Instala y arranca en Android 5.1/API 22.
+- Ejecuta en ARMv7 sin bibliotecas ARM64.
+- Renderiza en GLES 2.0 real, sin exigir Vulkan ni GLES3.
+- No agota la memoria del dispositivo objetivo al abrir un mundo de prueba.
+- Se documentan las pruebas físicas; una compilación CI no equivale a validación en teléfono.
 
-## Regla de seguridad del desarrollo
-No cambiar ni fusionar automáticamente la rama principal, la rama PC ni la Android moderna. Todo cambio específico de Android 5 permanece en esta rama hasta que las pruebas demuestren que es viable.
+## Aislamiento
+Todos los cambios específicos de Android 5 permanecen en `port/android-5-low-end`. No modificar ni fusionar automáticamente la rama principal, la rama PC ni la Android moderna.
