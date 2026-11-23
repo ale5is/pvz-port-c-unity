@@ -430,6 +430,8 @@ pub fn lod_distance_capped(
         """            assert_eq!(g.lod_distance_on(&hd620), capped);
             assert_eq!(g.lod_distance_on(&m4), distance);
             assert_eq!(g.lod_distance_on(&discrete), distance);
+        }
+        assert!(
 """,
         """            assert_eq!(g.lod_distance_on(&hd620), capped);
             assert_eq!(g.lod_distance_on(&m4), distance);
@@ -493,7 +495,7 @@ pub fn lod_distance_capped(
     )
     lod = replace_once(
         lod,
-        """    /// Reduced far detail (set_reduced_detail).
+        """    /// Reduced far detail (`set_reduced_detail`).
     reduced_detail: bool,
 """,
         """    /// Far-terrain coarseness: 0 Full, 1 Reduced, 2 Mobile.
@@ -509,9 +511,9 @@ pub fn lod_distance_capped(
     )
     lod = replace_once(
         lod,
-        """    /// Reduced far detail (graphics::FarDetail::Reduced): the next update
+        """    /// Reduced far detail (`graphics::FarDetail::Reduced`): the next update
     /// replans when it changes, and tiles sampled from then on approximate
-    /// wide cells (GeneratorWorker::lod_grid).
+    /// wide cells (`GeneratorWorker::lod_grid`).
     pub fn set_reduced_detail(&mut self, reduced: bool) {
         self.reduced_detail = reduced;
         self.shared.approximate.store(reduced, Ordering::Relaxed);
@@ -580,7 +582,7 @@ pub fn lod_distance_capped(
         """        // Keep distant cells small on screen; finest tiles retain individual
         // blocks. Reduced keeps them twice as large (a quarter of the cells).
         let split = if previous.split.contains(&key) { 10 } else { 8 };
-        // Beyond the old 1024-chunk limit the cells are as large as reduced's:
+        // Beyond the old 1024-chunk limit the cells are as large as `reduced`'s:
         // the whole world is 22 levels, not all of them worth full cells.
         let threshold = key.size()
             * if key.distance(camera) >= WORLD_START {
@@ -682,7 +684,7 @@ pub fn lod_distance_capped(
         game,
         """    /// LOD Distance and Far Detail Reduced as chosen: the player's LOD
     /// Distance when it is on, else a mod's far terrain
-    /// (render.set-far-terrain).
+    /// (`render.set-far-terrain`).
     fn far_terrain_choice(&self) -> (u32, bool) {
         let g = &self.settings.horizon;
         let reduced = g.far_detail == horizon_client::graphics::FarDetail::Reduced;
