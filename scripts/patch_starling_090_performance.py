@@ -1166,6 +1166,7 @@ struct CalibrationState {
     drawn: Option<CalibrationChoices>,
     measuring: bool,
     stopped: bool,
+    running: bool,
     progress: Option<(usize, usize, Instant)>,
     finished: Option<Result<CalibrationOutcome, String>>,
 }
@@ -1178,6 +1179,20 @@ pub struct CalibrationShared {
 }
 
 impl CalibrationShared {
+    fn begin(&self) -> Result<(), String> {
+        let (lock, wake) = &*self.state;
+        let mut state = lock.lock().unwrap_or_else(|e| e.into_inner());
+        if state.stopped {
+            return Err("calibration stopped".into());
+        }
+        if state.running || state.finished.is_some() {
+            return Err("calibration is already running or has finished".into());
+        }
+        state.running = true;
+        wake.notify_all();
+        Ok(())
+    }
+
     fn lock(&self) -> std::sync::MutexGuard<'_, CalibrationState> {
         self.state.0.lock().unwrap_or_else(|e| e.into_inner())
     }
@@ -1251,6 +1266,7 @@ impl CalibrationShared {
         let (lock, wake) = &*self.state;
         let mut state = lock.lock().unwrap_or_else(|e| e.into_inner());
         state.stopped = true;
+        state.running = false;
         state.wanted = None;
         state.measuring = false;
         state.progress = None;
@@ -1273,6 +1289,7 @@ impl CalibrationShared {
         let (lock, wake) = &*self.state;
         let mut state = lock.lock().unwrap_or_else(|e| e.into_inner());
         state.wanted = None;
+        state.running = false;
         state.measuring = false;
         state.progress = None;
         state.finished = Some(result);
@@ -1314,11 +1331,9 @@ pub fn start_calibration(
     if pace.block_seconds == 0 || pace.block_seconds > 60 {
         return Err("calibration block duration must be between 1 and 60 seconds".into());
     }
-    if shared.is_stopped() || shared.is_measuring() {
-        return Err("calibration is already stopped or running".into());
-    }
+    shared.begin()?;
     let worker_shared = shared.clone();
-    thread::Builder::new()
+    match thread::Builder::new()
         .name("GPU calibration".into())
         .spawn(move || {
             let control = Control(requests);
@@ -1332,9 +1347,13 @@ pub fn start_calibration(
                 });
             worker_shared.measuring(false);
             worker_shared.finish(result);
-        })
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+        }) {
+        Ok(_) => Ok(()),
+        Err(error) => {
+            shared.finish(Err(error.to_string()));
+            Err(error.to_string())
+        }
+    }
 }
 
 fn calibration_sleep(shared: &CalibrationShared, duration: Duration) -> Result<(), String> {
@@ -1633,6 +1652,15 @@ pub fn apply_calibration_choices(
         assert!(shared.wait_drawn(choice, Duration::from_millis(1)).is_err());
         assert!(shared.is_stopped());
         assert_eq!(shared.take_wanted(), None);
+    }
+
+    #[test]
+    fn calibration_shared_allows_only_one_worker_start() {
+        let shared = CalibrationShared::default();
+        assert!(shared.begin().is_ok());
+        assert!(shared.begin().is_err());
+        shared.finish(Err("test complete".into()));
+        assert!(shared.begin().is_err());
     }
 
     #[test]
