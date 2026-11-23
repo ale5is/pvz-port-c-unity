@@ -2446,8 +2446,8 @@ def patch_calibration_touch_ui(root: Path) -> None:
     options_ui = options_ui_path.read_text(encoding="utf-8")
     options_ui = replace_once(
         options_ui,
-        "    CopyAgentDetails,\n    #[cfg(target_os = \\"android\\")]\n",
-        "    CopyAgentDetails,\n    /// Starts or cancels the title-screen GPU calibration.\n    GpuCalibration,\n    #[cfg(target_os = \\"android\\")]\n",
+        '    CopyAgentDetails,\n    #[cfg(target_os = "android")]\n',
+        '    CopyAgentDetails,\n    /// Starts or cancels the title-screen GPU calibration.\n    GpuCalibration,\n    #[cfg(target_os = "android")]\n',
         "GPU calibration options event",
     )
     action_match = '''                    Action::Calibrate => {
