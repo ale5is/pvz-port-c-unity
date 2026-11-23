@@ -2224,7 +2224,7 @@ def patch_calibration_game_runtime(root: Path) -> None:
         self.calibration_notice_at = None;
         self.calibration_cleanup_pending = true;
 
-        if self.player.is_some() {
+        if self.title.is_none() {
             if let Err(error) = self.close_world() {
                 log::warn!("Starling: calibration could not return to title: {error}");
             }
