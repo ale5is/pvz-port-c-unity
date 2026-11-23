@@ -94,6 +94,15 @@ jobs:
       - name: Port Starling 0.9.0 Android menu frame cap without replacing the renderer
         run: python scripts/patch_starling_090_performance.py horizon-source
 
+      - name: Test Starling renderer calibration capability checks
+        run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client-render starling_090_indirect_draw_capability_tests
+
+      - name: Test Starling calibration benchmark frame parsing
+        run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client benchmark::tests::calibration_frame_parser_rejects_empty_and_accepts_real_samples
+
+      - name: Test Starling calibration benchmark position guard
+        run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client benchmark::tests::calibration_near_check_requires_three_coordinates_and_two_block_radius
+
       - name: Check Starling 0.9 Android API patcher syntax
         run: python -m py_compile scripts/patch_starling_090_android_apis.py
 
