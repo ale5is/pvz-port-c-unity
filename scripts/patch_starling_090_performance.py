@@ -1027,12 +1027,10 @@ pub fn calibration_candidates(
             ..base
         });
     }
-    if device.hidden_faces {
-        candidates.push(CalibrationChoices {
-            hidden_faces: flip(device.hidden_faces),
-            ..base
-        });
-    }
+    candidates.push(CalibrationChoices {
+        hidden_faces: flip(device.hidden_faces),
+        ..base
+    });
     candidates
 }
 
@@ -1119,6 +1117,13 @@ pub fn combine_calibration_candidates(
         assert_eq!(candidates[3].late_sky, CalibrationToggle::On);
         assert_eq!(candidates[4].occlusion, CalibrationToggle::Off);
         assert_eq!(candidates[5].hidden_faces, CalibrationToggle::Off);
+
+        let hidden_faces_off = CalibrationDevice {
+            hidden_faces: false,
+            ..device
+        };
+        let candidates = calibration_candidates(hidden_faces_off, keep);
+        assert_eq!(candidates.last().unwrap().hidden_faces, CalibrationToggle::On);
     }
 
     #[test]
