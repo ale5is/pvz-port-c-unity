@@ -26,7 +26,7 @@ This is not a source-tree upgrade. The release is about 31,000 Horizon commits a
 | GPU culling Auto and newer graphics controls | 0.9.0 adds renderer settings and an autotuner based on CPU/GPU frame timing. This is not the same thing as the old Vulkan batching switch. | Evaluate individually after the calibration and renderer capability map. Default off; retain manual 0.7.8 controls. |
 | Dynamic Resolution | 0.9.0 adds a GPU-time-driven resolution scale controller and target FPS, separate from the fixed resolution-scale setting. | Not yet ported. Requires measuring GPU time reliably on API 80 and proving resize does not rebuild expensive resources every frame; off by default until tested. |
 | FSR 3.1 Frame Generation | 0.9.0 adds WGSL frame interpolation and new renderer pipelines. | Experimental/high risk. Do not port until API-80 Vulkan/GLES feature support, frame pacing, latency and memory costs are measured on target devices. |
-| Mobile far-detail renderer | 0.9.0 adds a third LOD mode (Mobile) that reduces far-terrain geometry to about one-sixteenth of Full, plus mobile-specific leaf culling and device-tier defaults. | Not a settings-only port: API 80 has only Full/Reduced. Backport LOD plan, mesh generation and culling together, with visual parity and chunk-load tests. |
+| Mobile far-detail renderer | 0.9.0 adds a third LOD mode (Mobile) that reduces far-terrain geometry to about one-sixteenth of Full, plus mobile-specific leaf culling and device-tier defaults. | First API-80 backport now adds the Mobile setting, three-level coarseness in the quadtree planner, and the 256-chunk integrated-GPU cap. It preserves the 0.7.8 mesh pipeline; mobile leaf culling and automatic phone defaults remain outstanding. Quadtree, serialization and GPU-cap tests are queued in CI; visual/device A/B is still required. |
 | Loading screen appears in about 0.5 seconds | This is coupled to the newer launcher/activity and loading pipeline. | Trace startup stages and move only safe, immutable preparation off the UI/render thread. |
 | Loading-menu redraw cap | 0.9.0's Android loading loop schedules and rejects early redraws so the loading menu does not spin uncapped while resources prepare. The 0.7.8 Loading loop uses Poll and requests redraw continuously. | Port the 60 FPS loading-only guard separately from the in-game menu cap; continue polling resource jobs and native events while waiting. |
 | Background pause and audio mute | 0.7.8 already handles Android `WindowEvent::Occluded`: it marks the app backgrounded, opens the pause screen for an active world, syncs the integrated server pause, and waits instead of continuing redraws. 0.9.0 adds the user-facing `Pause in the Background` preference and describes muting audio. | Preserve the existing lifecycle behavior. Port only the preference/opt-out and verify audio mute/resume; do not add a second lifecycle path. |
@@ -70,7 +70,7 @@ Therefore:
 3. Port the loading-menu 60 FPS guard and optional Android frame hints/display refresh matching, with fallbacks on older Android.
 4. Verify the existing background pause path; add only the missing preference/audio behavior.
 5. Port a reduced GPU calibration using only renderer choices actually supported by API 80.
-6. Backport Mobile far detail and Dynamic Resolution only with the required LOD/mesh/GPU-timing code and visual/performance tests.
+6. Finish Mobile far detail with mobile leaf culling and first-run phone defaults; then port Dynamic Resolution only with reliable GPU timing and resize-cost tests.
 7. Profile mod startup and port touch/display/catalog fixes without changing API 80 or load order.
 8. Treat launcher/profiles, cosmetics, custom GPU drivers, FSR frame generation, ray tracing and diagnostics as separate milestones.
 
@@ -86,4 +86,4 @@ Therefore:
 
 ## Current status
 
-This file records the source audit and port order. The API-80 build patch now includes the 60 FPS Android menu cap and fixed-grid Efficient frame pacing, with regression tests for the limiter and menu-cap logic. The latest workflow is queued behind the baseline build; no successful build of these patches or device A/B result is claimed yet.
+This file records the source audit and port order. The API-80 build patch now includes the 60 FPS Android menu cap, fixed-grid Efficient frame pacing, and the first Mobile far-detail implementation (settings, quadtree coarseness and integrated-GPU distance cap). Regression tests cover these paths. CI has not yet validated the latest commit, and no device A/B result is claimed.
