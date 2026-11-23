@@ -2044,6 +2044,7 @@ def patch_calibration_game_runtime(root: Path) -> None:
     calibration: Option<horizon_client::benchmark::CalibrationShared>,
     calibration_device: Option<horizon_client::benchmark::CalibrationDevice>,
     calibration_cleanup_pending: bool,
+    calibration_start_pending: bool,
     calibration_notice_at: Option<Instant>,
     /// CPU geometry storage retained across frames, including empty/title frames.
     entity_vertices: Vec<Vertex>,
@@ -2057,6 +2058,7 @@ def patch_calibration_game_runtime(root: Path) -> None:
             calibration: None,
             calibration_device: None,
             calibration_cleanup_pending: false,
+            calibration_start_pending: false,
             calibration_notice_at: None,
 """,
         "game-thread GPU calibration initialization",
@@ -2119,6 +2121,17 @@ def patch_calibration_game_runtime(root: Path) -> None:
         use horizon_client::benchmark::{
             self, CalibrationChoices, CalibrationOutcome,
         };
+        if self.calibration_start_pending && self.title.is_some() {
+            self.calibration_start_pending = false;
+            if let Err(error) = self.start_gpu_calibration() {
+                self.titles.set_overlay(
+                    horizon_client::text::Text::literal(
+                        format!("GPU calibration unavailable: {error}"),
+                    ),
+                    false,
+                );
+            }
+        }
         let Some(shared) = self.calibration.clone() else {
             if self.calibration_cleanup_pending
                 && self.title.is_some()
@@ -2489,6 +2502,39 @@ def patch_calibration_touch_ui(root: Path) -> None:
         "GPU calibration touch action handling",
     )
     game_options_path.write_text(game_options, encoding="utf-8")
+
+    startup_path = root / "crates/horizon-client/src/game/startup_menu.rs"
+    startup = startup_path.read_text(encoding="utf-8")
+    startup = replace_once(
+        startup,
+        "    pub perf: horizon_client::telemetry::Session,\n",
+        "    pub perf: horizon_client::telemetry::Session,\n    /// Calibration requested before the Game instance is ready.\n    pub calibration_requested: bool,\n",
+        "startup-menu deferred calibration state",
+    )
+    startup = replace_once(
+        startup,
+        "        game.pending_entry = self.pending.take();\n",
+        "        game.pending_entry = self.pending.take();\n        game.calibration_start_pending |= self.calibration_requested;\n",
+        "startup-menu calibration request handoff",
+    )
+    startup = replace_once(
+        startup,
+        """                Event::ButtonClick => {
+                    #[cfg(target_os = "android")]
+                    self.menu.click_sound(self.settings.volumes);
+                }
+                Event::CopyAgentDetails | Event::Volume(..) => {}
+""",
+        """                Event::ButtonClick => {
+                    #[cfg(target_os = "android")]
+                    self.menu.click_sound(self.settings.volumes);
+                }
+                Event::GpuCalibration => self.menu.calibration_requested = true,
+                Event::CopyAgentDetails | Event::Volume(..) => {}
+""",
+        "startup-menu calibration event handling",
+    )
+    startup_path.write_text(startup, encoding="utf-8")
 
 
 def main() -> None:
