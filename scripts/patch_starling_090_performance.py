@@ -1143,6 +1143,118 @@ pub fn calibration_rounds(
     })
 }
 
+/// The outcome shared by the calibration worker and the game thread.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CalibrationOutcome {
+    pub choices: CalibrationChoices,
+    pub fps: f64,
+    pub auto_fps: f64,
+    pub seconds: f64,
+}
+
+#[derive(Default)]
+struct CalibrationState {
+    wanted: Option<CalibrationChoices>,
+    drawn: Option<CalibrationChoices>,
+    measuring: bool,
+    stopped: bool,
+    progress: Option<(usize, usize, Instant)>,
+    finished: Option<Result<CalibrationOutcome, String>>,
+}
+
+/// Thread-safe handoff: the worker asks for a renderer state; the game thread applies it
+/// between frames and acknowledges it. The worker never touches the renderer.
+#[derive(Clone, Default)]
+pub struct CalibrationShared {
+    state: Arc<(Mutex<CalibrationState>, Condvar)>,
+}
+
+impl CalibrationShared {
+    fn lock(&self) -> std::sync::MutexGuard<'_, CalibrationState> {
+        self.state.0.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    pub fn request(&self, choices: CalibrationChoices) {
+        let (lock, wake) = &*self.state;
+        let mut state = lock.lock().unwrap_or_else(|e| e.into_inner());
+        state.wanted = Some(choices);
+        wake.notify_all();
+    }
+
+    /// Called once per game frame. Takes a request without holding the lock during renderer work.
+    pub fn take_wanted(&self) -> Option<CalibrationChoices> {
+        self.lock().wanted.take()
+    }
+
+    /// Acknowledges a setting after the game thread has applied it.
+    pub fn mark_drawn(&self, choices: CalibrationChoices) {
+        let (lock, wake) = &*self.state;
+        let mut state = lock.lock().unwrap_or_else(|e| e.into_inner());
+        state.drawn = Some(choices);
+        wake.notify_all();
+    }
+
+    /// Waits for the game thread to apply a requested setting, with a finite timeout.
+    pub fn wait_drawn(&self, choices: CalibrationChoices, timeout: Duration) -> Result<(), String> {
+        let deadline = Instant::now() + timeout;
+        let (lock, wake) = &*self.state;
+        let mut state = lock.lock().unwrap_or_else(|e| e.into_inner());
+        loop {
+            if state.stopped {
+                return Err("calibration stopped".into());
+            }
+            if state.wanted.is_none() && state.drawn == Some(choices) {
+                return Ok(());
+            }
+            let left = deadline.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                return Err("the game did not apply the requested renderer settings".into());
+            }
+            let (next, result) = wake.wait_timeout(state, left).unwrap_or_else(|e| e.into_inner());
+            state = next;
+            if result.timed_out() && (state.wanted.is_some() || state.drawn != Some(choices)) {
+                return Err("the game did not apply the requested renderer settings".into());
+            }
+        }
+    }
+
+    pub fn measuring(&self, measuring: bool) {
+        self.lock().measuring = measuring;
+    }
+
+    pub fn is_measuring(&self) -> bool {
+        self.lock().measuring
+    }
+
+    pub fn stop(&self) {
+        let (lock, wake) = &*self.state;
+        lock.lock().unwrap_or_else(|e| e.into_inner()).stopped = true;
+        wake.notify_all();
+    }
+
+    pub fn is_stopped(&self) -> bool {
+        self.lock().stopped
+    }
+
+    pub fn progress(&self, done: usize, steps: usize, end: Instant) {
+        self.lock().progress = Some((done, steps, end));
+    }
+
+    pub fn get_progress(&self) -> Option<(usize, usize, Instant)> {
+        self.lock().progress
+    }
+
+    pub fn finish(&self, result: Result<CalibrationOutcome, String>) {
+        let (lock, wake) = &*self.state;
+        lock.lock().unwrap_or_else(|e| e.into_inner()).finished = Some(result);
+        wake.notify_all();
+    }
+
+    pub fn take_finished(&self) -> Option<Result<CalibrationOutcome, String>> {
+        self.lock().finished.take()
+    }
+}
+
 /// Captures the renderer's original state and supported A/B paths.
 pub fn calibration_device(renderer: &crate::gfx::Renderer) -> CalibrationDevice {
     CalibrationDevice {
@@ -1321,6 +1433,30 @@ pub fn apply_calibration_choices(
             Err("calibration returned an invalid frame rate".into())
         );
         assert!(calibration_rounds(&[], |_choice, _switched| Ok(60.0)).is_err());
+    }
+
+    #[test]
+    fn calibration_shared_handoff_acknowledges_game_thread_settings() {
+        let shared = CalibrationShared::default();
+        let choice = CalibrationChoices {
+            draws: CalibrationDraws::Indirect,
+            ..CalibrationChoices::default()
+        };
+        shared.request(choice);
+        assert_eq!(shared.take_wanted(), Some(choice));
+        assert!(shared.wait_drawn(choice, Duration::from_millis(1)).is_err());
+        shared.mark_drawn(choice);
+        assert!(shared.wait_drawn(choice, Duration::from_millis(1)).is_ok());
+    }
+
+    #[test]
+    fn calibration_shared_stop_wakes_waiting_worker() {
+        let shared = CalibrationShared::default();
+        let choice = CalibrationChoices::default();
+        shared.request(choice);
+        shared.stop();
+        assert!(shared.wait_drawn(choice, Duration::from_millis(1)).is_err());
+        assert!(shared.is_stopped());
     }
 
     #[test]
