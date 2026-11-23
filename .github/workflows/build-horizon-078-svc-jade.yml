@@ -97,7 +97,7 @@ jobs:
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client-input
 
       - name: Test Starling Android menu frame cap on host
-        run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --lib menu_frame_cap_tests::a_menu_caps_the_frame_rate_on_android_only
+        run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client menu_frame_cap_tests::a_menu_caps_the_frame_rate_on_android_only
 
       - name: Audit Atlas source against Horizon 0.7.8 hooks API 80
         run: python scripts/check_atlas_api80.py
