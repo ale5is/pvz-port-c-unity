@@ -1054,7 +1054,8 @@ pub fn combine_calibration_candidates(
         })
     {
         return None;
-    }    let mean = |rates: &[f64]| {
+    }
+    let mean = |rates: &[f64]| {
         if rates.is_empty() {
             0.0
         } else {
