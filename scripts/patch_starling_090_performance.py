@@ -1182,11 +1182,18 @@ impl CalibrationShared {
         self.state.0.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    pub fn request(&self, choices: CalibrationChoices) {
+    pub fn request(&self, choices: CalibrationChoices) -> Result<(), String> {
         let (lock, wake) = &*self.state;
         let mut state = lock.lock().unwrap_or_else(|e| e.into_inner());
+        if state.stopped {
+            return Err("calibration stopped".into());
+        }
+        if state.finished.is_some() {
+            return Err("calibration already finished".into());
+        }
         state.wanted = Some(choices);
         wake.notify_all();
+        Ok(())
     }
 
     /// Called once per game frame. Takes a request without holding the lock during renderer work.
@@ -1198,6 +1205,9 @@ impl CalibrationShared {
     pub fn mark_drawn(&self, choices: CalibrationChoices) {
         let (lock, wake) = &*self.state;
         let mut state = lock.lock().unwrap_or_else(|e| e.into_inner());
+        if state.stopped || state.finished.is_some() {
+            return;
+        }
         state.drawn = Some(choices);
         wake.notify_all();
     }
@@ -1298,6 +1308,15 @@ pub fn start_calibration(
     shared: CalibrationShared,
     pace: CalibrationPace,
 ) -> Result<(), String> {
+    if candidates.is_empty() || candidates.len() > 16 {
+        return Err("calibration candidate count must be between 1 and 16".into());
+    }
+    if pace.block_seconds == 0 || pace.block_seconds > 60 {
+        return Err("calibration block duration must be between 1 and 60 seconds".into());
+    }
+    if shared.is_stopped() || shared.is_measuring() {
+        return Err("calibration is already stopped or running".into());
+    }
     let worker_shared = shared.clone();
     thread::Builder::new()
         .name("GPU calibration".into())
@@ -1339,7 +1358,7 @@ fn calibration_block(
     switched: bool,
     pace: CalibrationPace,
 ) -> Result<f64, String> {
-    shared.request(choices);
+    shared.request(choices)?;
     shared.wait_drawn(choices, Duration::from_secs(10))?;
     if switched {
         calibration_sleep(shared, pace.warmup)?;
@@ -1598,7 +1617,7 @@ pub fn apply_calibration_choices(
             draws: CalibrationDraws::Indirect,
             ..CalibrationChoices::default()
         };
-        shared.request(choice);
+        shared.request(choice).unwrap();
         assert_eq!(shared.take_wanted(), Some(choice));
         assert!(shared.wait_drawn(choice, Duration::from_millis(1)).is_err());
         shared.mark_drawn(choice);
@@ -1609,7 +1628,7 @@ pub fn apply_calibration_choices(
     fn calibration_shared_stop_wakes_waiting_worker() {
         let shared = CalibrationShared::default();
         let choice = CalibrationChoices::default();
-        shared.request(choice);
+        shared.request(choice).unwrap();
         shared.stop();
         assert!(shared.wait_drawn(choice, Duration::from_millis(1)).is_err());
         assert!(shared.is_stopped());
@@ -1617,10 +1636,21 @@ pub fn apply_calibration_choices(
     }
 
     #[test]
+    fn calibration_shared_rejects_requests_after_stop_or_finish() {
+        let stopped = CalibrationShared::default();
+        stopped.stop();
+        assert!(stopped.request(CalibrationChoices::default()).is_err());
+
+        let finished = CalibrationShared::default();
+        finished.finish(Err("done".into()));
+        assert!(finished.request(CalibrationChoices::default()).is_err());
+    }
+
+    #[test]
     fn calibration_shared_finish_discards_unapplied_renderer_request() {
         let shared = CalibrationShared::default();
         let choice = CalibrationChoices::default();
-        shared.request(choice);
+        shared.request(choice).unwrap();
         shared.finish(Err("calibration failed".into()));
         assert_eq!(shared.take_wanted(), None);
         assert!(shared.wait_drawn(choice, Duration::from_millis(1)).is_err());
