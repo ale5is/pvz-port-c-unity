@@ -934,6 +934,13 @@ def patch_calibration_candidate_planner(root: Path) -> None:
     path = root / "crates/horizon-client/src/benchmark.rs"
     source = path.read_text(encoding="utf-8")
 
+    source = replace_once(
+        source,
+        "use std::sync::mpsc::{self, Sender};",
+        "use std::sync::mpsc::{self, Sender};\\nuse std::sync::{Arc, Condvar, Mutex};",
+        "thread-safe calibration handoff imports",
+    )
+
     planner = r'''
 
 /// The terrain draw path tested by the reduced GPU calibration.
