@@ -392,6 +392,10 @@ def patch_runtime(root: Path) -> None:
     source = path.read_text(encoding="utf-8")
     if "pub fn frame_hint(" in source:
         raise SystemExit("Android frame hints are already present; refusing to apply twice.")
+    if source.count("pub fn frame(enabled: bool, hz: u16, active: bool) -> Frame") != 1:
+        raise SystemExit("Unexpected Horizon 0.7.8 device_runtime.rs; refusing to replace it.")
+    if source.count("pub fn gyro(enabled: bool, sensitivity: f32, rotation: i32)") != 1:
+        raise SystemExit("The pinned gyro API changed; refusing to replace device_runtime.rs.")
     path.write_text(DEVICE_RUNTIME, encoding="utf-8")
 
     game_path = root / "crates/horizon-client/src/game.rs"
