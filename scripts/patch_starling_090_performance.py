@@ -1306,6 +1306,20 @@ pub fn start_calibration(
         .map_err(|e| e.to_string())
 }
 
+fn calibration_sleep(shared: &CalibrationShared, duration: Duration) -> Result<(), String> {
+    let deadline = Instant::now() + duration;
+    loop {
+        if shared.is_stopped() {
+            return Err("calibration stopped".into());
+        }
+        let left = deadline.saturating_duration_since(Instant::now());
+        if left.is_zero() {
+            return Ok(());
+        }
+        thread::sleep(left.min(Duration::from_millis(50)));
+    }
+}
+
 fn calibration_block(
     control: &Control,
     shared: &CalibrationShared,
@@ -1316,7 +1330,7 @@ fn calibration_block(
     shared.request(choices);
     shared.wait_drawn(choices, Duration::from_secs(10))?;
     if switched {
-        thread::sleep(pace.warmup);
+        calibration_sleep(shared, pace.warmup)?;
     }
     if shared.is_stopped() {
         return Err("calibration stopped".into());
@@ -1335,8 +1349,17 @@ fn run_calibration(
     candidates: &[CalibrationChoices],
     pace: CalibrationPace,
 ) -> Result<(CalibrationChoices, f64, f64), String> {
+    if shared.is_stopped() {
+        return Err("calibration stopped".into());
+    }
     open_world(control, game_dir)?;
+    if shared.is_stopped() {
+        return Err("calibration stopped".into());
+    }
     hold_weather(control)?;
+    if shared.is_stopped() {
+        return Err("calibration stopped".into());
+    }
     let position: Vec<f64> = control.status()["player"]["position"]
         .as_array()
         .into_iter()
@@ -1347,15 +1370,24 @@ fn run_calibration(
         return Err("no player in the calibration world".into());
     };
     hold(control, [x, y + 5.0, z], 0.0, 30.0)?;
+    if shared.is_stopped() {
+        return Err("calibration stopped".into());
+    }
     shared.measuring(true);
-    thread::sleep(pace.warmup);
+    calibration_sleep(shared, pace.warmup)?;
     let mut completed = 0usize;
+    let steps = candidates.len() * 2 + if candidates.len() > 2 { 4 } else { 0 };
+    let per_block = pace.warmup + Duration::from_secs(u64::from(pace.block_seconds));
     let result = calibration_rounds(candidates, |choices, switched| {
+        let left = steps.saturating_sub(completed) as u32;
+        shared.progress(
+            completed,
+            steps,
+            Instant::now() + per_block.saturating_mul(left),
+        );
         let rate = calibration_block(control, shared, choices, switched, pace)?;
         completed += 1;
-        let steps = candidates.len() * 2 + 4;
         let left = steps.saturating_sub(completed) as u32;
-        let per_block = pace.warmup + Duration::from_secs(u64::from(pace.block_seconds));
         shared.progress(
             completed,
             steps,
@@ -1569,6 +1601,19 @@ pub fn apply_calibration_choices(
         shared.stop();
         assert!(shared.wait_drawn(choice, Duration::from_millis(1)).is_err());
         assert!(shared.is_stopped());
+    }
+
+    #[test]
+    fn calibration_sleep_can_be_cancelled_without_waiting_for_the_full_warmup() {
+        let shared = CalibrationShared::default();
+        assert!(calibration_sleep(&shared, Duration::ZERO).is_ok());
+        let worker = shared.clone();
+        let sleeping = thread::spawn(move || {
+            calibration_sleep(&worker, Duration::from_secs(5))
+        });
+        thread::sleep(Duration::from_millis(20));
+        shared.stop();
+        assert_eq!(sleeping.join().unwrap(), Err("calibration stopped".into()));
     }
 
     #[test]
