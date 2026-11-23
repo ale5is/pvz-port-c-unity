@@ -112,6 +112,9 @@ jobs:
       - name: Test Starling GPU calibration candidate scoring
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client benchmark::tests::calibration_candidate_scoring_keeps_only_changes_over_three_percent
 
+      - name: Test Starling GPU calibration interleaved rounds and cancellation
+        run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client benchmark::tests::calibration_rounds
+
       - name: Check Starling 0.9 Android API patcher syntax
         run: python -m py_compile scripts/patch_starling_090_android_apis.py
 
