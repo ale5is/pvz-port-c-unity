@@ -93,6 +93,9 @@ jobs:
       - name: Port Starling 0.9.0 Android menu frame cap without replacing the renderer
         run: python scripts/patch_starling_090_performance.py horizon-source
 
+      - name: Test Starling fixed-grid frame pacing backport
+        run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client-input
+
       - name: Audit Atlas source against Horizon 0.7.8 hooks API 80
         run: python scripts/check_atlas_api80.py
 
