@@ -97,6 +97,11 @@ jobs:
       - name: Port Starling 0.9.0 Android menu frame cap without replacing the renderer
         run: python scripts/patch_starling_090_performance.py horizon-source
 
+      - name: Install native audio build dependencies for host tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libasound2-dev libudev-dev
+
       - name: Test Starling renderer calibration capability checks
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client-render starling_090_indirect_draw_capability_tests
 
@@ -132,11 +137,6 @@ jobs:
 
       - name: Test Starling fixed-grid frame pacing backport
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client-input
-
-      - name: Install native audio build dependencies for host tests
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y pkg-config libasound2-dev libudev-dev
 
       - name: Test Starling Android menu frame cap on host
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client menu_frame_cap_tests::a_menu_caps_the_frame_rate_on_android_only
