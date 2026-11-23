@@ -931,6 +931,156 @@ mod loading_frame_cap_tests {
 
 
 
+def patch_calibration_benchmark_api(root: Path) -> None:
+    """Expose the safe benchmark primitives needed by Starling's reduced GPU calibration."""
+    path = root / "crates/horizon-client/src/benchmark.rs"
+    source = path.read_text(encoding="utf-8")
+
+    source = replace_once(
+        source,
+        'const MARKER: &str = "horizon-benchmark.txt";',
+        'pub const MARKER: &str = "horizon-benchmark.txt";',
+        "public calibration benchmark marker",
+    )
+    source = replace_once(
+        source,
+        "struct Control(Sender<Request>);",
+        "pub struct Control(pub Sender<Request>);",
+        "public calibration benchmark control",
+    )
+    source = replace_once(
+        source,
+        "    fn call(&self, line: &str) -> Result<Value, String> {",
+        "    pub fn call(&self, line: &str) -> Result<Value, String> {",
+        "public calibration benchmark command",
+    )
+    source = replace_once(
+        source,
+        "    fn status(&self) -> Value {",
+        "    pub fn status(&self) -> Value {",
+        "public calibration benchmark status",
+    )
+    source = replace_once(
+        source,
+        "fn replace_world(game_dir: &Path) -> Result<(), String> {",
+        "pub fn replace_world(game_dir: &Path) -> Result<(), String> {",
+        "public safe benchmark-world cleanup",
+    )
+
+    api = r'''
+
+/// Creates the benchmark world afresh, marks it as owned by the benchmark, and waits for spawn
+/// chunks to load. An existing unmarked world is never deleted.
+pub fn open_world(control: &Control, game_dir: &Path) -> Result<Instant, String> {
+    replace_world(game_dir)?;
+    control.call(&format!("open {WORLD} {SEED} creative"))?;
+    let world = game_dir.join("saves").join(WORLD);
+    std::fs::create_dir_all(&world).map_err(|e| e.to_string())?;
+    std::fs::write(
+        world.join(MARKER),
+        "Created by horizon-client calibration; replaced by the next benchmark.\\n",
+    )
+    .map_err(|e| e.to_string())?;
+    wait_loaded(control, |_| true)
+}
+
+/// Holds noon and clear weather so every calibration candidate sees the same sky.
+pub fn hold_weather(control: &Control) -> Result<(), String> {
+    for line in [
+        "command gamerule advance_time false",
+        "command gamerule advance_weather false",
+        "command weather clear",
+        "time 6000",
+    ] {
+        control.call(line)?;
+    }
+    Ok(())
+}
+
+/// Holds the camera at a fixed position and orientation.
+pub fn hold(control: &Control, at: [f64; 3], yaw: f64, pitch: f64) -> Result<(), String> {
+    let [x, y, z] = at;
+    control.call(&format!("fly {x} {y} {z} {x} {y} {z} 0.1 {pitch}"))?;
+    control.call(&format!("look {yaw:.3} {pitch}")).map(drop)
+}
+
+/// Returns whether a status position is within two blocks of the requested point.
+pub fn near(target: [f64; 3]) -> impl Fn(&Value) -> bool {
+    move |position| {
+        let position: Vec<f64> = position
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_f64)
+            .collect();
+        position.len() == 3
+            && (0..3)
+                .map(|i| (position[i] - target[i]).powi(2))
+                .sum::<f64>()
+                < 4.0
+    }
+}
+
+/// Parses frame timings returned by a `fly ... raw` or `bench ... raw` command.
+pub fn frames_of(reply: &Value, phase: &str, repeat: u32) -> Result<Frames, String> {
+    let series = |key: &str| -> Vec<f32> {
+        reply[key]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_f64)
+            .map(|value| value as f32)
+            .collect()
+    };
+    Frames::of(
+        phase,
+        repeat,
+        &series("frame_ms"),
+        &series("cpu_ms"),
+        &series("gpu_ms"),
+    )
+    .ok_or_else(|| format!("{phase} drew no frames"))
+}
+'''
+    source = replace_once(
+        source,
+        "/// Fewer section meshes than this in a second is the game remeshing blocks that change (random\\n",
+        api + "\\n/// Fewer section meshes than this in a second is the game remeshing blocks that change (random\\n",
+        "calibration benchmark helper API",
+    )
+
+    source = replace_once(
+        source,
+        "    #[test]\\n    fn scenarios() {",
+        '''    #[test]
+    fn calibration_frame_parser_rejects_empty_and_accepts_real_samples() {
+        let empty = serde_json::json!({});
+        assert!(frames_of(&empty, "calibrate", 0).is_err());
+        let samples = serde_json::json!({
+            "frame_ms": [16.0, 17.0, 18.0],
+            "cpu_ms": [2.0, 2.1, 2.2],
+            "gpu_ms": [8.0, 8.1, 8.2]
+        });
+        let frames = frames_of(&samples, "calibrate", 1).unwrap();
+        assert!(frames.avg_fps > 0.0);
+    }
+
+    #[test]
+    fn calibration_near_check_requires_three_coordinates_and_two_block_radius() {
+        let near = near([0.0, 64.0, 0.0]);
+        assert!(near(&serde_json::json!([1.0, 64.0, 1.0])));
+        assert!(!near(&serde_json::json!([3.0, 64.0, 0.0])));
+        assert!(!near(&serde_json::json!([0.0, 64.0])));
+    }
+
+    #[test]
+    fn scenarios() {''',
+        "calibration benchmark helper regression tests",
+    )
+
+    path.write_text(source, encoding="utf-8")
+
+
 def patch_renderer_capability_queries(root: Path) -> None:
     """Expose the Horizon 0.7.8 renderer capabilities used by Starling's GPU calibration."""
     path = root / "crates/horizon-client-render/src/gfx.rs"
@@ -1053,7 +1203,8 @@ def main() -> None:
     patch_mobile_far_detail(root)
     patch_mobile_defaults_and_loading_cap(root)
     patch_renderer_capability_queries(root)
-    print("Starling 0.9.0: frame pacing, menu/loading caps, Mobile far detail, and GPU calibration capability queries applied.")
+    patch_calibration_benchmark_api(root)
+    print("Starling 0.9.0: frame pacing, menu/loading caps, Mobile far detail, renderer capability queries, and calibration benchmark APIs applied.")
 
 
 if __name__ == "__main__":
