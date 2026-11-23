@@ -1386,7 +1386,19 @@ fn calibration_block(
     if shared.is_stopped() {
         return Err("calibration stopped".into());
     }
-    let reply = control.call(&format!("bench {} raw", pace.block_seconds))?;
+    let position: Vec<f64> = control.status()["player"]["position"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_f64)
+        .collect();
+    let &[x, y, z] = position.as_slice() else {
+        return Err("player left the calibration world".into());
+    };
+    let reply = control.call(&format!(
+        "fly {x} {y} {z} {x} {y} {z} {} 30 raw",
+        pace.block_seconds
+    ))?;
     if shared.is_stopped() {
         return Err("calibration stopped".into());
     }
