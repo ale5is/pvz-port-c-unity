@@ -442,6 +442,12 @@ def patch_framerate_hook(root: Path) -> None:
     hooks = hooks_path.read_text(encoding="utf-8")
     hooks = replace_once(
         hooks,
+        "//! API 80 adds the open screen hears of a mouse button going down or up before it acts",
+        "//! API 81 adds the native frame-rate limit hook (native_framerate_limit): mods may lower\n//! the frame cap after the game's inactivity and Battery Mode limits.\n//!\n//! API 80 adds the open screen hears of a mouse button going down or up before it acts",
+        "Document the additive native frame-rate hook API",
+    )
+    hooks = replace_once(
+        hooks,
         "pub(crate) const NATIVE_HOOKS_API: u32 = 80;",
         "pub(crate) const NATIVE_HOOKS_API: u32 = 81;",
         "Additive native frame-rate hook API version",
