@@ -929,6 +929,71 @@ mod loading_frame_cap_tests {
     game_path.write_text(game, encoding="utf-8")
 
 
+
+
+def patch_renderer_capability_queries(root: Path) -> None:
+    """Expose the Horizon 0.7.8 renderer capabilities used by Starling's GPU calibration."""
+    path = root / "crates/horizon-client-render/src/gfx.rs"
+    source = path.read_text(encoding="utf-8")
+
+    source = replace_once(
+        source,
+        '''    /// Developer A/B control: direct and indirect draws use the same section geometry.
+    pub fn set_indirect_draws(&mut self, on: bool) -> Result<()> {
+''',
+        '''    /// Whether per-section draws are indirect multi-draws rather than one call per section.
+    pub fn indirect_draws(&self) -> bool {
+        self.multi_draw
+    }
+    /// Developer A/B control: direct and indirect draws use the same section geometry.
+    pub fn set_indirect_draws(&mut self, on: bool) -> Result<()> {
+''',
+        "Starling GPU calibration indirect-draw state query",
+    )
+
+    source = replace_once(
+        source,
+        '''    /// Developer-only comparison, with the ordinary path retained for packs and mirrors.
+    pub fn set_late_sky(&mut self, on: bool) -> Result<()> {
+''',
+        '''    /// Whether frames that may take it draw the sky after solid terrain.
+    pub fn late_sky_on(&self) -> bool {
+        self.late_sky_on
+    }
+    /// Developer-only comparison, with the ordinary path retained for packs and mirrors.
+    pub fn set_late_sky(&mut self, on: bool) -> Result<()> {
+''',
+        "Starling GPU calibration late-sky state query",
+    )
+
+    source = replace_once(
+        source,
+        '''    /// Of the boxes occlusion culling's last test read back drew, how many
+''',
+        '''    /// Which A/B switches this device supports: flat, indirect, late sky and occlusion.
+    pub fn draw_choices(&self) -> [bool; 4] {
+        [
+            self.flat.is_some(),
+            self.device
+                .features()
+                .contains(wgpu::Features::INDIRECT_FIRST_INSTANCE)
+                && self
+                    .adapter
+                    .get_downlevel_capabilities()
+                    .flags
+                    .contains(wgpu::DownlevelFlags::INDIRECT_EXECUTION),
+            self.late_sky.is_some(),
+            self.cull.is_some(),
+        ]
+    }
+    /// Of the boxes occlusion culling's last test read back drew, how many
+''',
+        "Starling GPU calibration renderer capability query",
+    )
+
+    path.write_text(source, encoding="utf-8")
+
+
 def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit("usage: patch_starling_090_performance.py HORIZON_SOURCE")
@@ -938,7 +1003,8 @@ def main() -> None:
     patch_android_menu_cap(root)
     patch_mobile_far_detail(root)
     patch_mobile_defaults_and_loading_cap(root)
-    print("Starling 0.9.0: frame pacing, menu/loading caps, and Mobile far detail applied.")
+    patch_renderer_capability_queries(root)
+    print("Starling 0.9.0: frame pacing, menu/loading caps, Mobile far detail, and GPU calibration capability queries applied.")
 
 
 if __name__ == "__main__":
