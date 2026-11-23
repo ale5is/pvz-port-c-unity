@@ -1211,6 +1211,9 @@ impl CalibrationShared {
             if state.stopped {
                 return Err("calibration stopped".into());
             }
+            if state.finished.is_some() {
+                return Err("calibration already finished".into());
+            }
             if state.wanted.is_none() && state.drawn == Some(choices) {
                 return Ok(());
             }
@@ -1236,7 +1239,11 @@ impl CalibrationShared {
 
     pub fn stop(&self) {
         let (lock, wake) = &*self.state;
-        lock.lock().unwrap_or_else(|e| e.into_inner()).stopped = true;
+        let mut state = lock.lock().unwrap_or_else(|e| e.into_inner());
+        state.stopped = true;
+        state.wanted = None;
+        state.measuring = false;
+        state.progress = None;
         wake.notify_all();
     }
 
@@ -1254,7 +1261,11 @@ impl CalibrationShared {
 
     pub fn finish(&self, result: Result<CalibrationOutcome, String>) {
         let (lock, wake) = &*self.state;
-        lock.lock().unwrap_or_else(|e| e.into_inner()).finished = Some(result);
+        let mut state = lock.lock().unwrap_or_else(|e| e.into_inner());
+        state.wanted = None;
+        state.measuring = false;
+        state.progress = None;
+        state.finished = Some(result);
         wake.notify_all();
     }
 
@@ -1602,6 +1613,21 @@ pub fn apply_calibration_choices(
         shared.stop();
         assert!(shared.wait_drawn(choice, Duration::from_millis(1)).is_err());
         assert!(shared.is_stopped());
+        assert_eq!(shared.take_wanted(), None);
+    }
+
+    #[test]
+    fn calibration_shared_finish_discards_unapplied_renderer_request() {
+        let shared = CalibrationShared::default();
+        let choice = CalibrationChoices::default();
+        shared.request(choice);
+        shared.finish(Err("calibration failed".into()));
+        assert_eq!(shared.take_wanted(), None);
+        assert!(shared.wait_drawn(choice, Duration::from_millis(1)).is_err());
+        assert_eq!(
+            shared.take_finished(),
+            Some(Err("calibration failed".into()))
+        );
     }
 
     #[test]
