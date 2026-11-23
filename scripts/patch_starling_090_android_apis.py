@@ -311,21 +311,20 @@ pub fn frame_hint(cpu: Duration, fps_limit: i32, active: bool) {
             }
         }
 
-        crate::APP.with(|app| {
-            if let Some(window) = app.borrow().as_ref().and_then(|app| app.native_window()) {
-                let pointer = window.ptr().as_ptr() as usize;
-                if state.window != pointer || state.voted_rate != requested_rate {
-                    state.rate_status = if let Some(set_rate) = hints.set_frame_rate {
-                        unsafe { set_rate(pointer as *mut c_void, requested_rate, 0) }
-                    } else {
-                        -38
-                    };
-                    state.window = pointer;
-                    state.voted_rate = requested_rate;
-                    state.hz = requested_rate.round().clamp(0.0, u16::MAX as f32) as u16;
+        if let Some(set_rate) = hints.set_frame_rate {
+            crate::APP.with(|app| {
+                if let Some(window) = app.borrow().as_ref().and_then(|app| app.native_window()) {
+                    let pointer = window.ptr().as_ptr() as usize;
+                    if state.window != pointer || state.voted_rate != requested_rate {
+                        state.rate_status =
+                            unsafe { set_rate(pointer as *mut c_void, requested_rate, 0) };
+                        state.window = pointer;
+                        state.voted_rate = requested_rate;
+                        state.hz = requested_rate.round().clamp(0.0, u16::MAX as f32) as u16;
+                    }
                 }
-            }
-        });
+            });
+        }
     });
 }
 
