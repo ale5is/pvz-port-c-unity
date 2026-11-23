@@ -843,6 +843,32 @@ impl Loading {
     )
     game = replace_once(
         game,
+        """        let now = Instant::now();
+        let frame_ms = self
+            .menu
+            .last_frame
+            .replace(now)
+            .map(|last| now.duration_since(last).as_secs_f32() * 1000.0);
+""",
+        "",
+        "Move loading timestamp out of the post-renderer readiness path",
+    )
+    game = replace_once(
+        game,
+        """fn draw(&mut self) {
+        #[cfg(target_os = "android")]""",
+        """fn draw(&mut self) {
+        let now = Instant::now();
+        let frame_ms = self
+            .menu
+            .last_frame
+            .replace(now)
+            .map(|last| now.duration_since(last).as_secs_f32() * 1000.0);
+        #[cfg(target_os = "android")]""",
+        "Advance loading frame timestamp even when renderer preparation skips drawing",
+    )
+    game = replace_once(
+        game,
         """        if let Some(w) = &self.window {
             if self.options.as_ref().is_some_and(|o| o.offscreen) {
                 self.draw();
