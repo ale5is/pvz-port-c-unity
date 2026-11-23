@@ -21,11 +21,14 @@ La versión 0.7.8 incluye una compilación ARMv7 experimental. Su propio script 
 - Resolución de referencia: 1280×720.
 
 ## Bloqueos verificados
-1. **Android API:** Horizon 0.7.8 establece `minSdk=27` para ARMv7. Android 5.1 es API 22. Hay que auditar y reemplazar APIs Java/Android, permisos, servicios y bibliotecas nativas que no existían en API 22.
+1. **Android API:** Horizon 0.7.8 establece `minSdk=27` para ARMv7. Android 5.1 es API 22. Hay que auditar y reemplazar APIs Java/Android, permisos, servicios y bibliotecas nativas que no existían en API 22. En el adaptador SAF ya se identificó un caso concreto: `DocumentsProvider.findDocumentPath` y `DocumentsContract.Path` son API 26; esa implementación opcional debe retirarse o aislarse antes de cargar el provider en API 22.
 2. **Gráficos:** el manifiesto de 0.7.8 declara OpenGL ES 3.0 obligatorio. La Mali-450 de referencia solo informa GLES 2.0. El renderer, shaders, formatos, extensiones y límites de textura deben adaptarse; cambiar el manifiesto no crea soporte GLES2.
 3. **Audio:** el cliente Android usa AAudio. Debe evaluarse un backend disponible en API 22, como OpenSL ES, o una compilación de diagnóstico sin audio mientras se implementa el backend.
 4. **Memoria:** la compilación ARMv7 de 0.7.8 no garantiza que el juego quepa en 1 GB. Hay que reducir atlas, resolución, chunks, workers, cachés y buffers de audio/GPU y medir el pico real.
 5. **Dependencias:** Rust, NDK, wgpu/winit y crates nativos deben compilar y enlazar para ARMv7 con un nivel mínimo API 22. Se comprobarán símbolos ELF y llamadas a APIs nuevas.
+
+## Compilación de referencia
+El workflow manual `.github/workflows/pavohorizon-078-armv7-baseline.yml` reproduce el APK ARMv7 original con mínimo API 27. Usa Java 25 para preparar los datos de Minecraft 26.3 y el JDK 17 preinstalado del runner para Gradle/Android Gradle Plugin 8.11.1. Este APK solo sirve como baseline técnico: no instalará en Android 5.1. El workflow todavía debe ejecutarse y su artefacto debe verificarse.
 
 ## Etapas de trabajo
 ### 1. Reproducir la base original
