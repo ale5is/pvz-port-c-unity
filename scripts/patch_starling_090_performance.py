@@ -1042,7 +1042,12 @@ pub fn combine_calibration_candidates(
     candidates: &[CalibrationChoices],
     fps: &[Vec<f64>],
 ) -> Option<(CalibrationChoices, Option<usize>)> {
-    if candidates.is_empty() || candidates.len() != fps.len() {
+    if candidates.is_empty()
+        || candidates.len() != fps.len()
+        || fps.iter().any(|rates| {
+            rates.is_empty() || rates.iter().any(|rate| !rate.is_finite() || *rate <= 0.0)
+        })
+    {
         return None;
     }
     let mean = |rates: &[f64]| {
@@ -1140,6 +1145,14 @@ pub fn combine_calibration_candidates(
         );
         assert!(combine_calibration_candidates(&[], &[]).is_none());
         assert!(combine_calibration_candidates(&candidates, &[]).is_none());
+        assert!(combine_calibration_candidates(
+            &candidates,
+            &[vec![], vec![50.0], vec![50.0], vec![50.0]]
+        ).is_none());
+        assert!(combine_calibration_candidates(
+            &candidates,
+            &[vec![50.0], vec![f64::NAN], vec![50.0], vec![50.0]]
+        ).is_none());
     }
 
     #[test]
