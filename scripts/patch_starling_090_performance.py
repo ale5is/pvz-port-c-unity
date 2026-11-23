@@ -1353,7 +1353,14 @@ fn run_calibration(
     let result = calibration_rounds(candidates, |choices, switched| {
         let rate = calibration_block(control, shared, choices, switched, pace)?;
         completed += 1;
-        shared.progress(completed, candidates.len() * 2 + 4, Instant::now());
+        let steps = candidates.len() * 2 + 4;
+        let left = steps.saturating_sub(completed) as u32;
+        let per_block = pace.warmup + Duration::from_secs(u64::from(pace.block_seconds));
+        shared.progress(
+            completed,
+            steps,
+            Instant::now() + per_block.saturating_mul(left),
+        );
         Ok(rate)
     });
     shared.measuring(false);
