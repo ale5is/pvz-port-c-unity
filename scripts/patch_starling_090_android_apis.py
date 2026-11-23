@@ -478,26 +478,29 @@ def patch_framerate_hook(root: Path) -> None:
     options = replace_once(
         options,
         '''        let limit = framerate_limit(self.settings.max_fps as i32, context);
-        self.settings
-            .horizon
-            .battery_limit(limit, self.title.is_none(), self.focused)
-''',
-        '''        let limit = framerate_limit(self.settings.max_fps as i32, context);
-        let mut mod_limit = self
+        let limit = self
             .settings
             .horizon
             .battery_limit(limit, self.title.is_none(), self.focused);
-        let original_limit = mod_limit;
+        menu_frame_cap(limit, context.has_screen, cfg!(target_os = "android"))
+''',
+        '''        let limit = framerate_limit(self.settings.max_fps as i32, context);
+        let limit = self
+            .settings
+            .horizon
+            .battery_limit(limit, self.title.is_none(), self.focused);
+        let limit = menu_frame_cap(limit, context.has_screen, cfg!(target_os = "android"));
+        let mut mod_limit = limit;
         self.native_framerate_limit(
             context.focused,
             context.iconified,
             context.has_level,
             &mut mod_limit,
         );
-        if mod_limit >= 1 && mod_limit < original_limit {
+        if mod_limit >= 1 && mod_limit < limit {
             mod_limit
         } else {
-            original_limit
+            limit
         }
 ''',
         "Apply the optional native frame-rate hook without allowing mods to raise the cap",
