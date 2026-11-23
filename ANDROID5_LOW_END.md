@@ -69,3 +69,34 @@ El workflow `.github/workflows/pavohorizon-078-armv7-baseline.yml` reproduce el 
 
 ## Aislamiento
 Todos los cambios específicos de Android 5 permanecen en `port/android-5-low-end`. No modificar ni fusionar automáticamente la rama principal, la rama PC ni la Android moderna.
+
+## Auditoría detallada del backend gráfico (23-11-2026)
+
+Se revisó el código de Horizon 0.7.8 fijado arriba y el código fuente de la dependencia exacta wgpu 30.0.1.
+
+### Resultado: wgpu 30.0.1 no ofrece GLES 2.0
+
+- horizon-client-render/Cargo.toml fija wgpu = 30.0.1 y activa el backend gles en plataformas que no son macOS.
+- wgpu-hal/src/gles/mod.rs de wgpu 30.0.1 se identifica explícitamente como backend OpenGL ES 3; sus rutas de buffers, vertex layouts y bindings se diseñaron para GLES3.
+- Más concluyente aún: wgpu-hal/src/gles/egl.rs crea el contexto EGL solicitando EGL_CONTEXT_MAJOR_VERSION = 3 (GLES 3.0 o superior). Gles3MinorVersion solo selecciona versiones menores de GLES3; no permite solicitar GLES2.
+- El renderer de Horizon usa texture_2d_array, múltiples capas de atlas, tipos enteros, interpolación flat, muestreo con gradientes/nivel y shaders WGSL traducidos por Naga. No basta con sustituir la petición EGL: GLES2 carece de varias de esas capacidades en su núcleo.
+- El adaptador actual de Horizon ya transforma parte de WGSL para las peculiaridades de GLES3 (terrain_source.rs); no existe una ruta GLES2 paralela en esta revisión.
+
+Fuentes de código fijadas:
+- wgpu 30.0.1 — GLES backend: https://github.com/gfx-rs/wgpu/blob/v30.0.1/wgpu-hal/src/gles/mod.rs
+- wgpu 30.0.1 — creación EGL del contexto GLES: https://github.com/gfx-rs/wgpu/blob/v30.0.1/wgpu-hal/src/gles/egl.rs
+- Horizon 0.7.8 — dependencias del renderer: https://github.com/starling-client/starling/blob/68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29/crates/horizon-client-render/Cargo.toml
+- Horizon 0.7.8 — renderer y shaders: https://github.com/starling-client/starling/blob/68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29/crates/horizon-client-render/src/gfx.rs
+
+### Decisión técnica
+
+No se debe intentar hacer pasar Mali-450 GLES2 por GLES3 cambiando solo el manifiesto, el número de versión EGL o los límites reportados. Eso sería inseguro y acabaría en fallo de creación del contexto, compilación de shaders o recursos incompatibles.
+
+Hay dos rutas técnicamente honestas:
+
+1. Ruta preferida si el dispositivo realmente expone GLES3: conservar wgpu y Horizon 0.7.8, detectar capacidades reales en el televisor y desactivar individualmente las funciones opcionales no soportadas. Esta ruta no se puede asumir para la Mali-450 indicada.
+2. Ruta necesaria para GLES2 real: crear un backend de renderizado GLES2 independiente y migrar las operaciones gráficas de Horizon fuera de wgpu. Implica reescribir shaders a GLSL ES 1.00, sustituir texture arrays por atlas 2D/selección de regiones, rediseñar atributos e interpoladores, y revisar render targets, blending, profundidad, texturas y buffers. Es un port de renderer, no un ajuste pequeño de compatibilidad.
+
+### Próximo paso seguro
+
+Antes de reescribir el renderer, preparar una prueba de capacidades que registre en el dispositivo real GL_VERSION, GL_RENDERER, GL_EXTENSIONS, límites de textura/unidades, formatos de framebuffer y EGL. Si confirma solo GLES2, se mantiene wgpu fuera de la ruta gráfica del dispositivo y se estima el port GLES2 como subsistema separado. No se activará un fallback silencioso que prometa compatibilidad inexistente.
