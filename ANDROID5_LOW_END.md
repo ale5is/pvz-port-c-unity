@@ -28,7 +28,7 @@ La versión 0.7.8 incluye una compilación ARMv7 experimental. Su propio script 
 5. **Dependencias:** Rust, NDK, wgpu/winit y crates nativos deben compilar y enlazar para ARMv7 con un nivel mínimo API 22. Se comprobarán símbolos ELF y llamadas a APIs nuevas.
 
 ## Compilación de referencia
-El workflow manual `.github/workflows/pavohorizon-078-armv7-baseline.yml` reproduce el APK ARMv7 original con mínimo API 27. Usa Java 25 para preparar los datos de Minecraft 26.3 y el JDK 17 preinstalado del runner para Gradle/Android Gradle Plugin 8.11.1. Este APK solo sirve como baseline técnico: no instalará en Android 5.1. El workflow todavía debe ejecutarse y su artefacto debe verificarse.
+El workflow `.github/workflows/pavohorizon-078-armv7-baseline.yml` se puede ejecutar manualmente desde Actions y está configurado para ejecutarse al actualizar esta rama. Reproduce el APK ARMv7 original con mínimo API 27. Usa Java 25 para preparar los datos de Minecraft 26.3 y el JDK 17 preinstalado del runner para Gradle/Android Gradle Plugin 8.11.1. Este APK solo sirve como baseline técnico: no instalará en Android 5.1. Aún no hay una ejecución/artefacto CI confirmado; hay que verificar el resultado de Actions antes de dar por reproducida la base.
 
 ## Etapas de trabajo
 ### 1. Reproducir la base original
