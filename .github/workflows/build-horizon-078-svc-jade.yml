@@ -99,6 +99,15 @@ jobs:
       - name: Test Starling Android menu frame cap on host
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client menu_frame_cap_tests::a_menu_caps_the_frame_rate_on_android_only
 
+      - name: Test Starling Mobile far-detail quadtree
+        run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client-render mobile_far_detail_is_coarser_than_reduced_without_coarsening_near_terrain
+
+      - name: Test Starling Mobile far-detail settings and GPU distance cap
+        run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client-render far_detail_is_full_unless_reduced_is_picked
+
+      - name: Test Starling Mobile integrated-GPU LOD distance cap
+        run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client-render integrated_gpus_other_than_apple_cap_the_lod_distance
+
       - name: Audit Atlas source against Horizon 0.7.8 hooks API 80
         run: python scripts/check_atlas_api80.py
 
