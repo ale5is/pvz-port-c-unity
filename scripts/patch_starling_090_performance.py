@@ -1089,6 +1089,59 @@ pub fn combine_calibration_candidates(
     Some((combined, single))
 }
 
+/// Runs candidates in forward/reverse order, then compares the combined winner B-A-A-B.
+/// The callback owns renderer switching, warmup and measurement for each block.
+pub fn calibration_rounds(
+    candidates: &[CalibrationChoices],
+    mut block: impl FnMut(CalibrationChoices, bool) -> Result<f64, String>,
+) -> Result<(CalibrationChoices, f64, f64), String> {
+    if candidates.is_empty() {
+        return Err("calibration has no supported candidates".into());
+    }
+    let order: Vec<usize> = (0..candidates.len())
+        .chain((0..candidates.len()).rev())
+        .collect();
+    let mut fps = vec![Vec::new(); candidates.len()];
+    let mut last = None;
+    for &index in &order {
+        let choice = candidates[index];
+        let rate = block(choice, last != Some(choice))?;
+        if !rate.is_finite() || rate <= 0.0 {
+            return Err("calibration returned an invalid frame rate".into());
+        }
+        fps[index].push(rate);
+        last = Some(choice);
+    }
+    let mean = |rates: &[f64]| rates.iter().sum::<f64>() / rates.len() as f64;
+    let auto_fps = mean(&fps[0]);
+    let (combined, fastest) = combine_calibration_candidates(candidates, &fps)
+        .ok_or_else(|| "calibration samples were incomplete".to_owned())?;
+    let Some(fastest) = fastest else {
+        return Ok((candidates[0], auto_fps, auto_fps));
+    };
+    let alone = candidates[fastest];
+    if combined == alone {
+        return Ok((alone, mean(&fps[fastest]), auto_fps));
+    }
+    let mut rates = [Vec::new(), Vec::new()];
+    for which in [0usize, 1, 1, 0] {
+        let choice = if which == 0 { combined } else { alone };
+        let rate = block(choice, last != Some(choice))?;
+        if !rate.is_finite() || rate <= 0.0 {
+            return Err("calibration returned an invalid confirmation rate".into());
+        }
+        rates[which].push(rate);
+        last = Some(choice);
+    }
+    let combined_fps = mean(&rates[0]);
+    let alone_fps = mean(&rates[1]);
+    Ok(if combined_fps > alone_fps {
+        (combined, combined_fps, auto_fps)
+    } else {
+        (alone, alone_fps, auto_fps)
+    })
+}
+
 /// Captures the renderer's original state and supported A/B paths.
 pub fn calibration_device(renderer: &crate::gfx::Renderer) -> CalibrationDevice {
     CalibrationDevice {
@@ -1215,6 +1268,58 @@ pub fn apply_calibration_choices(
             &candidates,
             &[vec![50.0], vec![f64::NAN], vec![50.0], vec![50.0]]
         ).is_none());
+    }
+
+    #[test]
+    fn calibration_rounds_interleave_candidates_and_confirm_combined_settings() {
+        let base = CalibrationChoices::default();
+        let draws = CalibrationChoices {
+            draws: CalibrationDraws::Indirect,
+            ..base
+        };
+        let sky = CalibrationChoices {
+            late_sky: CalibrationToggle::On,
+            ..base
+        };
+        let combined = CalibrationChoices {
+            draws: CalibrationDraws::Indirect,
+            late_sky: CalibrationToggle::On,
+            ..base
+        };
+        let candidates = [base, draws, sky];
+        let mut seen = Vec::new();
+        let found = calibration_rounds(&candidates, |choice, _switched| {
+            seen.push(choice);
+            Ok(if choice == combined {
+                60.0
+            } else if choice == draws {
+                56.0
+            } else if choice == sky {
+                53.0
+            } else {
+                50.0
+            })
+        })
+        .unwrap();
+        assert_eq!(
+            seen,
+            vec![base, draws, sky, sky, draws, base, combined, draws, draws, combined]
+        );
+        assert_eq!(found, (combined, 60.0, 50.0));
+    }
+
+    #[test]
+    fn calibration_rounds_propagate_cancellation_and_reject_invalid_rates() {
+        let base = CalibrationChoices::default();
+        assert_eq!(
+            calibration_rounds(&[base], |_choice, _switched| Err("stopped".into())),
+            Err("stopped".into())
+        );
+        assert_eq!(
+            calibration_rounds(&[base], |_choice, _switched| Ok(f64::NAN)),
+            Err("calibration returned an invalid frame rate".into())
+        );
+        assert!(calibration_rounds(&[], |_choice, _switched| Ok(60.0)).is_err());
     }
 
     #[test]
