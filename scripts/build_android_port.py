@@ -46,7 +46,7 @@ def verify_source(source):
     text = hooks.read_text(encoding="utf-8")
     marker = "pub(crate) const NATIVE_HOOKS_API: u32 = 81;"
     if marker not in text:
-        raise SystemExit("The source does not expose native hooks API 80; refusing to apply this port.")
+        raise SystemExit("The source does not expose native hooks API 81; refusing to apply this port.")
     git = shutil.which("git")
     if git and (source / ".git").exists():
         revision = subprocess.check_output([git, "rev-parse", "HEAD"], cwd=source, text=True).strip()
