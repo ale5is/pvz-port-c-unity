@@ -107,3 +107,26 @@ Add entities, block entities, particles, weather, sky, hand, fonts, GUI and tran
 - Main GPU renderer: https://github.com/horizon-rust/horizon/blob/68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29/crates/horizon-client-render/src/gfx.rs
 - GLES terrain lowering (GLES3/WGSL, not GLES2): https://github.com/horizon-rust/horizon/blob/68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29/crates/horizon-client-render/src/gfx/terrain_source.rs
 - CPU-side GUI draw commands: https://github.com/horizon-rust/horizon/blob/68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29/crates/horizon-client-render/src/screen_draw.rs
+
+
+## Actualización de diagnóstico en el televisor (23-11-2026)
+
+El usuario ejecutó el APK de pruebas ampliado en el Philips QM152E y entregó el informe completo. Las pruebas realizadas en el dispositivo aprobaron:
+
+- GLSL ES 1.00 compile/link.
+- Carga de textura RGBA 2x2.
+- VBO + `glBufferData`.
+- FBO RGBA8 + Depth16.
+- Prueba real de profundidad con lectura central `0,255,0,255` (verde), confirmando que el objeto cercano prevalece sobre el lejano.
+
+Datos relevantes: ARM / Mali-450 MP, GLES 2.0, GLSL ES 1.00, textura máxima 4096, 8 unidades de textura fragmentaria, 16 atributos, 12 varyings, framebuffer por defecto con profundidad de 24 bits y memoryClass/heap máximo de 192 MB.
+
+La prueba ampliada confirma Depth16 y depth testing real. No confirma Stencil8, RGB upload en esta ejecución, rendimiento del juego ni compatibilidad del renderer Horizon completo. La lista de extensiones tampoco sustituye una prueba funcional de cada formato.
+
+Auditoría adicional del código fuente:
+- `HudBatch` y `screen_draw::Draw` son interfaces CPU reutilizables para un backend independiente.
+- `HudRenderer` sigue siendo wgpu y no es un backend GLES2.
+- El atlas HUD actual admite hasta 16384, por encima del límite 4096 del TV; el backend Android 5 debe imponer un límite propio.
+- El terreno usa texture arrays, atributos enteros y varyings `flat`; se necesita convertir atributos y capas en CPU y usar atlas 2D para GLES2.
+
+La auditoría detallada y la secuencia propuesta (HUD primero, terreno después) están en [ANDROID5_GLES2_AUDIT_2026-11-23.md](ANDROID5_GLES2_AUDIT_2026-11-23.md).
