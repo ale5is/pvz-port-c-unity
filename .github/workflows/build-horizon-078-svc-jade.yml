@@ -118,6 +118,9 @@ jobs:
       - name: Test Starling GPU calibration game-thread handoff
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client benchmark::tests::calibration_shared
 
+      - name: Test Starling GPU calibration finish cleanup
+        run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client benchmark::tests::calibration_shared_finish_discards_unapplied_renderer_request
+
       - name: Test Starling GPU calibration interruptible warmup
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client benchmark::tests::calibration_sleep_can_be_cancelled_without_waiting_for_the_full_warmup
 
