@@ -931,6 +931,225 @@ mod loading_frame_cap_tests {
 
 
 
+def patch_calibration_candidate_planner(root: Path) -> None:
+    """Port Starling's picture-preserving GPU calibration candidate and scoring logic."""
+    path = root / "crates/horizon-client/src/benchmark.rs"
+    source = path.read_text(encoding="utf-8")
+
+    planner = r'''
+
+/// The terrain draw path tested by the reduced GPU calibration.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CalibrationDraws {
+    #[default]
+    Auto,
+    Direct,
+    Indirect,
+    Flat,
+}
+
+/// A calibration switch: Auto retains the renderer's original setting.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum CalibrationToggle {
+    #[default]
+    Auto,
+    On,
+    Off,
+}
+
+/// The player's current settings. Improved Transparency is kept unchanged because
+/// switching it changes the rendered picture and would invalidate an A/B comparison.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CalibrationChoices {
+    pub draws: CalibrationDraws,
+    pub late_sky: CalibrationToggle,
+    pub occlusion: CalibrationToggle,
+    pub hidden_faces: CalibrationToggle,
+    pub transparency: CalibrationToggle,
+}
+
+/// Renderer state and the four optional draw paths it reports as supported.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CalibrationDevice {
+    pub flat: bool,
+    pub indirect: bool,
+    pub late_sky: bool,
+    pub occlusion: bool,
+    pub hidden_faces: bool,
+    pub offers: [bool; 4],
+}
+
+/// Creates only candidates supported by this renderer. Every candidate changes one
+/// picture-preserving option from Auto; the player's transparency setting is retained.
+pub fn calibration_candidates(
+    device: CalibrationDevice,
+    keep: CalibrationChoices,
+) -> Vec<CalibrationChoices> {
+    let base = CalibrationChoices {
+        transparency: keep.transparency,
+        ..CalibrationChoices::default()
+    };
+    let flip = |on: bool| {
+        if on {
+            CalibrationToggle::Off
+        } else {
+            CalibrationToggle::On
+        }
+    };
+    let mut candidates = vec![base];
+    if device.flat || device.indirect {
+        candidates.push(CalibrationChoices {
+            draws: CalibrationDraws::Direct,
+            ..base
+        });
+    }
+    if device.offers[1] && !device.indirect {
+        candidates.push(CalibrationChoices {
+            draws: CalibrationDraws::Indirect,
+            ..base
+        });
+    }
+    if device.offers[0] && !device.flat {
+        candidates.push(CalibrationChoices {
+            draws: CalibrationDraws::Flat,
+            ..base
+        });
+    }
+    if device.offers[2] {
+        candidates.push(CalibrationChoices {
+            late_sky: flip(device.late_sky),
+            ..base
+        });
+    }
+    if device.offers[3] {
+        candidates.push(CalibrationChoices {
+            occlusion: flip(device.occlusion),
+            ..base
+        });
+    }
+    if device.hidden_faces {
+        candidates.push(CalibrationChoices {
+            hidden_faces: flip(device.hidden_faces),
+            ..base
+        });
+    }
+    candidates
+}
+
+/// Combines independent changes that beat Auto by more than 3%, and reports the
+/// fastest single change for a follow-up A/B check. Returns None for malformed input.
+pub fn combine_calibration_candidates(
+    candidates: &[CalibrationChoices],
+    fps: &[Vec<f64>],
+) -> Option<(CalibrationChoices, Option<usize>)> {
+    if candidates.is_empty() || candidates.len() != fps.len() {
+        return None;
+    }
+    let mean = |rates: &[f64]| {
+        if rates.is_empty() {
+            0.0
+        } else {
+            rates.iter().sum::<f64>() / rates.len() as f64
+        }
+    };
+    let base = candidates[0];
+    let own = mean(&fps[0]);
+    let (mut combined, mut single, mut draws_fps) = (base, None, 0.0);
+    for (i, choice) in candidates.iter().enumerate().skip(1) {
+        let rate = mean(&fps[i]);
+        if rate <= own * 1.03 {
+            continue;
+        }
+        if single.is_none_or(|index| rate > mean(&fps[index])) {
+            single = Some(i);
+        }
+        if choice.draws != base.draws && rate > draws_fps {
+            combined.draws = choice.draws;
+            draws_fps = rate;
+        }
+        if choice.late_sky != base.late_sky {
+            combined.late_sky = choice.late_sky;
+        }
+        if choice.occlusion != base.occlusion {
+            combined.occlusion = choice.occlusion;
+        }
+        if choice.hidden_faces != base.hidden_faces {
+            combined.hidden_faces = choice.hidden_faces;
+        }
+    }
+    Some((combined, single))
+}
+'''
+    source = replace_once(
+        source,
+        "/// Fewer section meshes than this in a second is the game remeshing blocks that change (random\\n",
+        planner + "\\n/// Fewer section meshes than this in a second is the game remeshing blocks that change (random\\n",
+        "Starling calibration candidate planner",
+    )
+
+    source = replace_once(
+        source,
+        "    #[test]\\n    fn scenarios() {",
+        '''    #[test]
+    fn calibration_candidates_only_offer_supported_picture_preserving_paths() {
+        let device = CalibrationDevice {
+            flat: true,
+            indirect: false,
+            late_sky: false,
+            occlusion: true,
+            hidden_faces: true,
+            offers: [true, true, true, true],
+        };
+        let keep = CalibrationChoices {
+            transparency: CalibrationToggle::On,
+            ..CalibrationChoices::default()
+        };
+        let candidates = calibration_candidates(device, keep);
+        assert_eq!(candidates.len(), 6);
+        assert_eq!(candidates[0].transparency, CalibrationToggle::On);
+        assert!(candidates.iter().all(|candidate|
+            candidate.transparency == CalibrationToggle::On));
+        assert_eq!(candidates[1].draws, CalibrationDraws::Direct);
+        assert_eq!(candidates[2].draws, CalibrationDraws::Indirect);
+        assert_eq!(candidates[3].late_sky, CalibrationToggle::On);
+        assert_eq!(candidates[4].occlusion, CalibrationToggle::Off);
+        assert_eq!(candidates[5].hidden_faces, CalibrationToggle::Off);
+    }
+
+    #[test]
+    fn calibration_candidate_scoring_keeps_only_changes_over_three_percent() {
+        let base = CalibrationChoices::default();
+        let candidates = [
+            base,
+            CalibrationChoices { draws: CalibrationDraws::Indirect, ..base },
+            CalibrationChoices { late_sky: CalibrationToggle::On, ..base },
+            CalibrationChoices { hidden_faces: CalibrationToggle::Off, ..base },
+        ];
+        let rates = [vec![50.0, 50.0], vec![56.0, 56.0], vec![53.0, 53.0], vec![50.5, 50.5]];
+        let (combined, fastest) =
+            combine_calibration_candidates(&candidates, &rates).unwrap();
+        assert_eq!(fastest, Some(1));
+        assert_eq!(combined.draws, CalibrationDraws::Indirect);
+        assert_eq!(combined.late_sky, CalibrationToggle::On);
+        assert_eq!(combined.hidden_faces, CalibrationToggle::Auto);
+
+        let no_gain = vec![vec![50.0], vec![51.0], vec![50.0], vec![49.0]];
+        assert_eq!(
+            combine_calibration_candidates(&candidates, &no_gain),
+            Some((base, None))
+        );
+        assert!(combine_calibration_candidates(&[], &[]).is_none());
+        assert!(combine_calibration_candidates(&candidates, &[]).is_none());
+    }
+
+    #[test]
+    fn scenarios() {''',
+        "Starling calibration planner regression tests",
+    )
+
+    path.write_text(source, encoding="utf-8")
+
+
 def patch_calibration_benchmark_api(root: Path) -> None:
     """Expose the safe benchmark primitives needed by Starling's reduced GPU calibration."""
     path = root / "crates/horizon-client/src/benchmark.rs"
@@ -1204,7 +1423,8 @@ def main() -> None:
     patch_mobile_defaults_and_loading_cap(root)
     patch_renderer_capability_queries(root)
     patch_calibration_benchmark_api(root)
-    print("Starling 0.9.0: frame pacing, menu/loading caps, Mobile far detail, renderer capability queries, and calibration benchmark APIs applied.")
+    patch_calibration_candidate_planner(root)
+    print("Starling 0.9.0: frame pacing, menu/loading caps, Mobile far detail, renderer capability queries, benchmark APIs, and calibration candidate planner applied.")
 
 
 if __name__ == "__main__":
