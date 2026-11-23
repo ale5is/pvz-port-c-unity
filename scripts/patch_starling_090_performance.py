@@ -219,7 +219,7 @@ pub fn end_frame_on_grid(
                 now.set(now.get() + step);
             },
         );
-        assert_eq!(steps, [1_000_000, 1_000_000, 1_000_000, 500_000]);
+        assert_eq!(steps, vec![1_000_000, 1_000_000, 1_000_000, 500_000]);
     }
 
     #[test]
