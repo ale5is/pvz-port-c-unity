@@ -1,4 +1,4 @@
-# Starling 0.9.0 feature audit — PavoHorizon API 80
+# Starling 0.9.0 feature audit — PavoHorizon API 81
 
 ## Exact source
 
@@ -6,8 +6,8 @@
 - Commit: `ff303502a4f7982551a0e0d3622d9268efe9e829`
 - Base: Horizon Android v0.7.8
 - Base commit: `68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29`
-- Native hooks API: 80
-- Target branch: `port/starling-090-performance`
+- Native hooks API: 81
+- Target branch: `port/starling-090-android-hooks-apis`
 
 The 0.9.0 release notes explicitly say that its terrain path is drawn as Horizon Android 0.7.8 drew it. They also list paused-menu world-render skipping, a 4096 shadow-map ceiling, a 60 FPS ceiling for menus over the world, faster mod startup, GPU calibration, background pause, and the launcher/mod-system changes below.
 
@@ -31,7 +31,7 @@ This is not a source-tree upgrade. The release is about 31,000 Horizon commits a
 | Loading-menu redraw cap | 0.9.0's Android loading loop schedules and rejects early redraws so the loading menu does not spin uncapped while resources prepare. The 0.7.8 Loading loop uses Poll and requests redraw continuously. | Backported a 60 FPS Android loading-only guard using the loading menu's last-frame timestamp; it keeps resource polling and native events running between redraws. A host regression test covers first-frame, overdue-frame and Android timing behavior; CI pending. |
 | Background pause and audio mute | 0.7.8 already handles Android `WindowEvent::Occluded`: it marks the app backgrounded, opens the pause screen for an active world, syncs the integrated server pause, and waits instead of continuing redraws. 0.9.0 adds the user-facing `Pause in the Background` preference and describes muting audio. | Preserve the existing lifecycle behavior. Port only the preference/opt-out and verify audio mute/resume; do not add a second lifecycle path. |
 | Frame pacing, thermal and diagnostics | 0.9.0 adds fixed-grid `end_frame_on_grid` pacing for Efficient mode and breaks long sleeps into 1 ms steps; it also adds performance measurements and a menu FPS display. | Fixed-grid pacing and short-step sleeps are now backported into the API-80 build patch with regression tests. Thermal/performance diagnostics remain separate. CI pending. |
-| Android frame hints and display refresh matching | 0.9.0 dynamically looks up Android's ADPF session API and `ANativeWindow_setFrameRate`: it reports render-thread CPU time and asks the display to match the selected FPS cap. These symbols only exist on newer Android versions. | Not yet ported. Add optional runtime symbol lookup only; older Android must fall back cleanly, and no API-level increase is allowed. |
+| Android frame hints, thermal headroom and display refresh matching | 0.9.0 dynamically looks up Android's ADPF, thermal and `ANativeWindow_setFrameRate` APIs. It reports completed render-thread CPU work, requests a display rate and exposes thermal diagnostics. These symbols only exist on newer Android versions. | Backported with cached `dlopen`/`dlsym` lookups and optional calls. Missing symbols leave the normal 0.7.8 pacing path intact; display-mode enumeration is guarded for Android 6+. The additive `native_framerate_limit` hook raises the native hooks API to 81. Android 5/API 22 remains a fallback-only target; modern hint features are unavailable there. |
 
 ## Other 0.9.0 features
 
@@ -60,18 +60,19 @@ Starling 0.9.0 no longer runs its old `.hnmod` format; it uses Horizon's newer m
 Therefore:
 - Keep Horizon 0.7.8 and `horizon-mixins` pins unchanged.
 - Keep the Pavo package identity, signing key, ABI and APK build path.
-- Do not copy 0.9.0's mod loader or bump the native hooks API as part of a renderer patch.
+- Do not copy 0.9.0's mod loader or change the pinned mod ABI.
+- API 81 currently adds only the optional `native_framerate_limit` hook; preserve the API-80 hook behavior and re-audit SVC/Jade/Atlas before adding further hooks.
 - Any newer mod API work must be a separate compatibility project with explicit SVC/Jade/Atlas ports and tests.
 
 ## Implementation order
 
 1. Preserve the verified 0.7.8 renderer parity: terrain path, cached menu blur, 4096 shadow cap and existing backends.
 2. Finish CI for the menu/loading caps, fixed-grid Efficient pacing and Mobile LOD; then run same-device A/B.
-3. Add optional Android frame hints/display refresh matching, with runtime fallbacks on older Android.
+3. Validate the optional Android frame hints, thermal diagnostics and display refresh matching on supported Android versions; confirm symbol-missing fallback on older Android.
 4. Verify the existing background pause path; add only the missing preference/audio behavior.
-5. Port a reduced GPU calibration using only renderer choices actually supported by API 80.
+5. Finish a reduced GPU calibration using only renderer choices supported by the 0.7.8 renderer. The current patch now exposes the missing `indirect_draws()`, `late_sky_on()` and `draw_choices()` capability queries; the calibration workflow itself is not yet ported.
 6. Finish Mobile far detail with compatible leaf culling and tier-based first-run defaults; then port Dynamic Resolution only with reliable GPU timing and resize-cost tests.
-7. Profile mod startup and port touch/display/catalog fixes without changing API 80 or load order.
+7. Profile mod startup and port touch/display/catalog fixes without changing the pinned mod ABI or load order.
 8. Treat launcher/profiles, cosmetics, custom GPU drivers, FSR frame generation, ray tracing and diagnostics as separate milestones.
 
 ## Required validation
@@ -86,4 +87,4 @@ Therefore:
 
 ## Current status
 
-This file records the source audit and port order. The API-80 build patch now includes the 60 FPS Android menu cap, fixed-grid Efficient frame pacing, Mobile far-detail (settings, quadtree coarseness, integrated-GPU distance cap and first-run Android default), and a 60 FPS loading-menu redraw guard. Regression tests are included for each. CI has not yet validated the latest commit, and no device A/B result is claimed.
+This file records the source audit and port order. The API-81 build patch includes the 60 FPS Android menu cap, fixed-grid Efficient frame pacing, Mobile far-detail (settings, quadtree coarseness, integrated-GPU distance cap and first-run Android default), a 60 FPS loading-menu redraw guard, optional Android frame hints/thermal diagnostics, display-rate matching and the additive frame-rate hook. The latest commit also adds the missing 0.7.8 renderer capability queries needed by a reduced GPU calibration. The calibration UI and benchmark orchestration remain unported. The latest capability-query patch has not yet been validated by CI, and no device A/B result is claimed.
