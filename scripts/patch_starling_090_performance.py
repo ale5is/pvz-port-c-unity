@@ -1072,18 +1072,15 @@ pub fn combine_calibration_candidates(
     };
     let base = candidates[0];
     let own = mean(&fps[0]);
-    let (mut combined, mut single, mut draws_fps) = (base, None, 0.0);
+    let (mut combined, mut single, mut draws_fps, mut single_fps) = (base, None::<usize>, 0.0, 0.0);
     for (i, choice) in candidates.iter().enumerate().skip(1) {
         let rate = mean(&fps[i]);
         if rate <= own * 1.03 {
             continue;
         }
-        if single.is_none_or(|index| {
-            fps.get(index)
-                .map(|rates| rate > mean(rates.as_slice()))
-                .unwrap_or(true)
-        }) {
+        if single.is_none() || rate > single_fps {
             single = Some(i);
+            single_fps = rate;
         }
         if choice.draws != base.draws && rate > draws_fps {
             combined.draws = choice.draws;
