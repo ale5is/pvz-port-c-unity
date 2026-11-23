@@ -269,6 +269,21 @@ fn menu_frame_cap(limit: i32, has_screen: bool) -> i32 {
         "Android menu frame-cap application",
     )
 
+    source = replace_once(
+        source,
+        """            horizon_client::graphics::Pacing::Efficient => {
+                let mut clock = horizon_client::window::SleepingClock(self.frame_clock);
+                horizon_client::window::end_frame(&mut self.limiter, limit, &mut clock);
+            }
+""",
+        """            horizon_client::graphics::Pacing::Efficient => {
+                let mut clock = horizon_client::window::SleepingClock(self.frame_clock);
+                horizon_client::window::end_frame_on_grid(&mut self.limiter, limit, &mut clock);
+            }
+""",
+        "fixed-grid efficient pacing selection",
+    )
+
     tests = '''
 #[cfg(test)]
 mod menu_frame_cap_tests {
