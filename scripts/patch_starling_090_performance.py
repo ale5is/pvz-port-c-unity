@@ -696,7 +696,8 @@ pub fn lod_distance_capped(
     /// Distance when it is on, else a mod's far terrain
     /// (`render.set-far-terrain`).
     fn far_terrain_choice(&self) -> (u32, bool) {
-        let g = &self.settings.horizon;        let reduced = g.far_detail == horizon_client::graphics::FarDetail::Reduced;
+        let g = &self.settings.horizon;
+        let reduced = g.far_detail == horizon_client::graphics::FarDetail::Reduced;
         if g.lod_distance > 0 {
             return (g.lod_distance, reduced);
         }
