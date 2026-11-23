@@ -941,7 +941,15 @@ def patch_renderer_capability_queries(root: Path) -> None:
         '''    /// Developer A/B control: direct and indirect draws use the same section geometry.
     pub fn set_indirect_draws(&mut self, on: bool) -> Result<()> {
 ''',
-        '''    /// Whether per-section draws are indirect multi-draws rather than one call per section.
+        '''    /// Whether indirect multi-draw is supported by both the device and its downlevel API.
+    fn indirect_draws_supported(
+        features: wgpu::Features,
+        flags: wgpu::DownlevelFlags,
+    ) -> bool {
+        features.contains(wgpu::Features::INDIRECT_FIRST_INSTANCE)
+            && flags.contains(wgpu::DownlevelFlags::INDIRECT_EXECUTION)
+    }
+    /// Whether per-section draws are indirect multi-draws rather than one call per section.
     pub fn indirect_draws(&self) -> bool {
         self.multi_draw
     }
@@ -949,6 +957,30 @@ def patch_renderer_capability_queries(root: Path) -> None:
     pub fn set_indirect_draws(&mut self, on: bool) -> Result<()> {
 ''',
         "Starling GPU calibration indirect-draw state query",
+    )
+
+    source = replace_once(
+        source,
+        '''        if on
+            && !(self
+                .device
+                .features()
+                .contains(wgpu::Features::INDIRECT_FIRST_INSTANCE)
+                && self
+                    .adapter
+                    .get_downlevel_capabilities()
+                    .flags
+                    .contains(wgpu::DownlevelFlags::INDIRECT_EXECUTION))
+        {
+''',
+        '''        if on
+            && !Self::indirect_draws_supported(
+                self.device.features(),
+                self.adapter.get_downlevel_capabilities().flags,
+            )
+        {
+''',
+        "shared indirect-draw capability check",
     )
 
     source = replace_once(
@@ -974,14 +1006,10 @@ def patch_renderer_capability_queries(root: Path) -> None:
     pub fn draw_choices(&self) -> [bool; 4] {
         [
             self.flat.is_some(),
-            self.device
-                .features()
-                .contains(wgpu::Features::INDIRECT_FIRST_INSTANCE)
-                && self
-                    .adapter
-                    .get_downlevel_capabilities()
-                    .flags
-                    .contains(wgpu::DownlevelFlags::INDIRECT_EXECUTION),
+            Self::indirect_draws_supported(
+                self.device.features(),
+                self.adapter.get_downlevel_capabilities().flags,
+            ),
             self.late_sky.is_some(),
             self.cull.is_some(),
         ]
@@ -991,6 +1019,27 @@ def patch_renderer_capability_queries(root: Path) -> None:
         "Starling GPU calibration renderer capability query",
     )
 
+    if "mod starling_090_indirect_draw_capability_tests" in source:
+        raise SystemExit("Starling GPU capability tests already exist; refusing to duplicate them.")
+    source += r'''
+
+#[cfg(test)]
+mod starling_090_indirect_draw_capability_tests {
+    use super::Renderer;
+
+    #[test]
+    fn indirect_draws_require_both_device_feature_and_downlevel_flag() {
+        use wgpu::{DownlevelFlags, Features};
+
+        let feature = Features::INDIRECT_FIRST_INSTANCE;
+        let flag = DownlevelFlags::INDIRECT_EXECUTION;
+        assert!(Renderer::indirect_draws_supported(feature, flag));
+        assert!(!Renderer::indirect_draws_supported(Features::empty(), flag));
+        assert!(!Renderer::indirect_draws_supported(feature, DownlevelFlags::empty()));
+        assert!(!Renderer::indirect_draws_supported(Features::empty(), DownlevelFlags::empty()));
+    }
+}
+'''
     path.write_text(source, encoding="utf-8")
 
 
