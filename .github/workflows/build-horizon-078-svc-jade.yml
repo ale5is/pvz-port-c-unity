@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: horizon-078-svc-jade-android
+  group: horizon-078-svc-jade-android-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
