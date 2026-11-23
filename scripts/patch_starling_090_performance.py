@@ -2361,6 +2361,136 @@ pub fn remove_world(game_dir: &Path) -> Result<(), String> {
     benchmark_path.write_text(benchmark_source, encoding="utf-8")
 
 
+
+
+def patch_calibration_touch_ui(root: Path) -> None:
+    """Expose GPU calibration in the existing Graphics > Advanced touch UI."""
+    graphics_path = root / "crates/horizon-client-render/src/graphics_ui.rs"
+    graphics = graphics_path.read_text(encoding="utf-8")
+    graphics = replace_once(
+        graphics,
+        "    HdrCalibrate,\n    HdrPeak,\n",
+        "    HdrCalibrate,\n    /// Starts or cancels the reduced Starling 0.9 GPU calibration.\n    GpuCalibration,\n    HdrPeak,\n",
+        "GPU calibration graphics setting",
+    )
+    graphics = replace_once(
+        graphics,
+        "    Calibrate,\n    Done,\n",
+        "    Calibrate,\n    /// Starts or cancels the reduced GPU calibration.\n    GpuCalibrate,\n    Done,\n",
+        "GPU calibration graphics action",
+    )
+    graphics = replace_once(
+        graphics,
+        '''            h(
+                H::ShadowCache,
+                Saves,
+                "Reuses the pack shadow map when sun, view and world match. Off by default.",
+            ),
+            h(
+                H::Workers,
+''',
+        '''            h(
+                H::ShadowCache,
+                Saves,
+                "Reuses the pack shadow map when sun, view and world match. Off by default.",
+            ),
+            h(
+                H::GpuCalibration,
+                None,
+                "Measures supported renderer paths in a temporary world. Tap again or pause to cancel.",
+            ),
+            h(
+                H::Workers,
+''',
+        "GPU calibration touch button placement",
+    )
+    graphics = replace_once(
+        graphics,
+        '''            H::HdrCalibrate => Text::literal(lang::get(match setup(s) {
+                Setup::Unknown => "Calibrate...",
+                Setup::Automatic => "Calibrate Anyway...",
+                Setup::Changed => "Use Automatic Setup",
+            })),
+            H::HdrPaperWhite => match g.hdr_paper_white {
+''',
+        '''            H::HdrCalibrate => Text::literal(lang::get(match setup(s) {
+                Setup::Unknown => "Calibrate...",
+                Setup::Automatic => "Calibrate Anyway...",
+                Setup::Changed => "Use Automatic Setup",
+            })),
+            H::GpuCalibration => Text::literal("Calibrate GPU... (tap again or pause to cancel)"),
+            H::HdrPaperWhite => match g.hdr_paper_white {
+''',
+        "GPU calibration graphics label",
+    )
+    graphics = replace_once(
+        graphics,
+        '''                Target::Item(Item::Horizon(H::HdrCalibrate)) => {
+                    vec![Action::ButtonClick, Action::Calibrate]
+                }
+                Target::Item(Item::Horizon(H::HdrKey)) => {
+''',
+        '''                Target::Item(Item::Horizon(H::HdrCalibrate)) => {
+                    vec![Action::ButtonClick, Action::Calibrate]
+                }
+                Target::Item(Item::Horizon(H::GpuCalibration)) => {
+                    vec![Action::ButtonClick, Action::GpuCalibrate]
+                }
+                Target::Item(Item::Horizon(H::HdrKey)) => {
+''',
+        "GPU calibration graphics click action",
+    )
+    graphics_path.write_text(graphics, encoding="utf-8")
+
+    options_ui_path = root / "crates/horizon-client-render/src/options_ui.rs"
+    options_ui = options_ui_path.read_text(encoding="utf-8")
+    options_ui = replace_once(
+        options_ui,
+        "    CopyAgentDetails,\n    #[cfg(target_os = \\"android\\")]\n",
+        "    CopyAgentDetails,\n    /// Starts or cancels the title-screen GPU calibration.\n    GpuCalibration,\n    #[cfg(target_os = \\"android\\")]\n",
+        "GPU calibration options event",
+    )
+    action_match = '''                    Action::Calibrate => {
+                        self.calibration = Some(crate::hdr_calibration::Calibration::new(s));
+                        self.push(Page::HdrCalibration);
+                    }
+'''
+    if options_ui.count(action_match) != 3:
+        raise SystemExit(
+            "GPU calibration UI: expected three graphics Action::Calibrate handlers, "
+            f"found {options_ui.count(action_match)}"
+        )
+    options_ui = options_ui.replace(
+        action_match,
+        action_match + '''                    Action::GpuCalibrate => events.push(Event::GpuCalibration),
+''',
+    )
+    options_ui_path.write_text(options_ui, encoding="utf-8")
+
+    game_options_path = root / "crates/horizon-client/src/game/options.rs"
+    game_options = game_options_path.read_text(encoding="utf-8")
+    game_options = replace_once(
+        game_options,
+        "                Event::ButtonClick => self.audio.play_button_click(),\n",
+        '''                Event::ButtonClick => self.audio.play_button_click(),
+                Event::GpuCalibration => {
+                    if !self.cancel_gpu_calibration()
+                        && let Err(error) = self.start_gpu_calibration()
+                    {
+                        self.titles.set_overlay(
+                            horizon_client::text::Text::literal(
+                                format!("GPU calibration unavailable: {error}"),
+                            ),
+                            false,
+                        );
+                    }
+                }
+''',
+        "GPU calibration touch action handling",
+    )
+    game_options_path.write_text(game_options, encoding="utf-8")
+
+
 def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit("usage: patch_starling_090_performance.py HORIZON_SOURCE")
@@ -2374,7 +2504,8 @@ def main() -> None:
     patch_calibration_candidate_planner(root)
     patch_renderer_capability_queries(root)
     patch_calibration_game_runtime(root)
-    print("Starling 0.9.0: frame pacing, menu/loading caps, Mobile far detail, renderer capability queries, benchmark APIs, calibration planner, safe shared handoff, cancellable worker, and progress reporting applied.")
+    patch_calibration_touch_ui(root)
+    print("Starling 0.9.0: frame pacing, menu/loading caps, Mobile far detail, renderer capability queries, benchmark APIs, calibration planner, safe shared handoff, cancellable worker, progress reporting, and touch calibration control applied.")
 
 
 if __name__ == "__main__":
