@@ -230,6 +230,7 @@ public final class MainActivity extends Activity {
             out.append(result("Shader GLSL ES 1.00 compile/link", testShader()));
             out.append(result("Textura RGBA 2x2 + upload", testTexture()));
             out.append(result("VBO + glBufferData", testVbo()));
+            out.append(result("HUD: atlas 2D + VBO textured batch + readPixels", testHudTexturedVbo()));
             out.append(result("Framebuffer RGBA8 + Depth16", testFramebuffer()));
             DepthResult depth = testDepth();
             out.append(result("Depth test real (draw order inverso + readPixels)", depth.passed));
@@ -316,6 +317,109 @@ public final class MainActivity extends Activity {
             GLES20.glDeleteRenderbuffers(1, depth, 0);
             GLES20.glDeleteFramebuffers(1, framebuffer, 0);
             GLES20.glDeleteTextures(1, texture, 0);
+            return ok;
+        }
+
+        private boolean testHudTexturedVbo() {
+            clearErrors();
+            int[] atlas = new int[1];
+            int[] target = new int[1];
+            int[] framebuffer = new int[1];
+            int[] vbo = new int[1];
+            int p = 0;
+            boolean ok = false;
+            try {
+                GLES20.glGenTextures(1, atlas, 0);
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, atlas[0]);
+                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
+                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST);
+                ByteBuffer atlasPixels = ByteBuffer.allocateDirect(16).order(ByteOrder.nativeOrder());
+                atlasPixels.put(new byte[] {32, (byte)200, 64, (byte)255, 32, (byte)200, 64, (byte)255,
+                        32, (byte)200, 64, (byte)255, 32, (byte)200, 64, (byte)255}).position(0);
+                GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, 2, 2, 0,
+                        GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, atlasPixels);
+
+                GLES20.glGenTextures(1, target, 0);
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, target[0]);
+                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
+                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST);
+                GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, 16, 16, 0,
+                        GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null);
+                GLES20.glGenFramebuffers(1, framebuffer, 0);
+                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, framebuffer[0]);
+                GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0,
+                        GLES20.GL_TEXTURE_2D, target[0], 0);
+                if (GLES20.glCheckFramebufferStatus(GLES20.GL_FRAMEBUFFER) != GLES20.GL_FRAMEBUFFER_COMPLETE) {
+                    return false;
+                }
+
+                String vertex = "attribute vec2 aPosition; attribute vec2 aUv; varying vec2 vUv; " +
+                        "void main(){ vUv=aUv; gl_Position=vec4(aPosition,0.0,1.0); }";
+                String fragment = "precision mediump float; varying vec2 vUv; uniform sampler2D uAtlas; " +
+                        "void main(){ gl_FragColor=texture2D(uAtlas,vUv); }";
+                int vs = compile(GLES20.GL_VERTEX_SHADER, vertex);
+                int fs = compile(GLES20.GL_FRAGMENT_SHADER, fragment);
+                if (vs == 0 || fs == 0) {
+                    if (vs != 0) GLES20.glDeleteShader(vs);
+                    if (fs != 0) GLES20.glDeleteShader(fs);
+                    return false;
+                }
+                p = GLES20.glCreateProgram();
+                GLES20.glAttachShader(p, vs);
+                GLES20.glAttachShader(p, fs);
+                GLES20.glBindAttribLocation(p, 0, "aPosition");
+                GLES20.glBindAttribLocation(p, 1, "aUv");
+                GLES20.glLinkProgram(p);
+                GLES20.glDeleteShader(vs);
+                GLES20.glDeleteShader(fs);
+                int[] linked = new int[1];
+                GLES20.glGetProgramiv(p, GLES20.GL_LINK_STATUS, linked, 0);
+                if (linked[0] != GLES20.GL_TRUE) {
+                    Log.e(TAG, "HUD textured batch link failed: " + GLES20.glGetProgramInfoLog(p));
+                    return false;
+                }
+
+                float[] vertices = {
+                        -0.8f,-0.8f, 0f,0f,  0.8f,-0.8f, 1f,0f,  0.8f,0.8f, 1f,1f,
+                        -0.8f,-0.8f, 0f,0f,  0.8f,0.8f, 1f,1f,  -0.8f,0.8f, 0f,1f
+                };
+                GLES20.glGenBuffers(1, vbo, 0);
+                GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, vbo[0]);
+                FloatBuffer data = floats(vertices);
+                GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, data.remaining() * 4, data, GLES20.GL_STATIC_DRAW);
+                GLES20.glViewport(0, 0, 16, 16);
+                GLES20.glDisable(GLES20.GL_BLEND);
+                GLES20.glClearColor(0f, 0f, 0f, 1f);
+                GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+                GLES20.glUseProgram(p);
+                GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, atlas[0]);
+                GLES20.glUniform1i(GLES20.glGetUniformLocation(p, "uAtlas"), 0);
+                GLES20.glEnableVertexAttribArray(0);
+                GLES20.glEnableVertexAttribArray(1);
+                GLES20.glVertexAttribPointer(0, 2, GLES20.GL_FLOAT, false, 16, 0);
+                GLES20.glVertexAttribPointer(1, 2, GLES20.GL_FLOAT, false, 16, 8);
+                GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, 6);
+                ByteBuffer pixel = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder());
+                GLES20.glReadPixels(8, 8, 1, 1, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, pixel);
+                int r = pixel.get(0) & 255;
+                int g = pixel.get(1) & 255;
+                int b = pixel.get(2) & 255;
+                ok = r >= 20 && g >= 180 && b >= 40 && noError("HUD textured VBO batch");
+                Log.i(TAG, "HUD atlas batch center RGBA=" + r + "," + g + "," + b + "," + (pixel.get(3) & 255));
+            } finally {
+                GLES20.glDisableVertexAttribArray(0);
+                GLES20.glDisableVertexAttribArray(1);
+                GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, 0);
+                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
+                GLES20.glViewport(0, 0, width, height);
+                if (p != 0) GLES20.glDeleteProgram(p);
+                if (vbo[0] != 0) GLES20.glDeleteBuffers(1, vbo, 0);
+                if (framebuffer[0] != 0) GLES20.glDeleteFramebuffers(1, framebuffer, 0);
+                if (target[0] != 0) GLES20.glDeleteTextures(1, target, 0);
+                if (atlas[0] != 0) GLES20.glDeleteTextures(1, atlas, 0);
+            }
             return ok;
         }
 
