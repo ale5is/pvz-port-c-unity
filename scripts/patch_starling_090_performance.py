@@ -1111,7 +1111,7 @@ pub fn calibration_rounds(
     let order: Vec<usize> = (0..candidates.len())
         .chain((0..candidates.len()).rev())
         .collect();
-    let mut fps = vec![Vec::new(); candidates.len()];
+    let mut fps: Vec<Vec<f64>> = vec![Vec::new(); candidates.len()];
     let mut last = None;
     for &index in &order {
         let choice = candidates[index];
@@ -1133,7 +1133,7 @@ pub fn calibration_rounds(
     if combined == alone {
         return Ok((alone, mean(&fps[fastest]), auto_fps));
     }
-    let mut rates = [Vec::new(), Vec::new()];
+    let mut rates: [Vec<f64>; 2] = [Vec::new(), Vec::new()];
     for which in [0usize, 1, 1, 0] {
         let choice = if which == 0 { combined } else { alone };
         let rate = block(choice, last != Some(choice))?;
