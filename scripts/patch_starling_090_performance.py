@@ -1082,14 +1082,14 @@ pub fn combine_calibration_candidates(
 '''
     source = replace_once(
         source,
-        "/// Fewer section meshes than this in a second is the game remeshing blocks that change (random\\n",
-        planner + "\\n/// Fewer section meshes than this in a second is the game remeshing blocks that change (random\\n",
+        "/// Fewer section meshes than this in a second is the game remeshing blocks that change (random\n",
+        planner + "\n/// Fewer section meshes than this in a second is the game remeshing blocks that change (random\n",
         "Starling calibration candidate planner",
     )
 
     source = replace_once(
         source,
-        "    #[test]\\n    fn scenarios() {",
+        "    #[test]\n    fn scenarios() {",
         '''    #[test]
     fn calibration_candidates_only_offer_supported_picture_preserving_paths() {
         let device = CalibrationDevice {
