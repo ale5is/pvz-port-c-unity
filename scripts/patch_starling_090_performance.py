@@ -2324,10 +2324,10 @@ def main() -> None:
     patch_android_menu_cap(root)
     patch_mobile_far_detail(root)
     patch_mobile_defaults_and_loading_cap(root)
-    patch_renderer_capability_queries(root)
-    patch_calibration_game_runtime(root)
     patch_calibration_benchmark_api(root)
     patch_calibration_candidate_planner(root)
+    patch_renderer_capability_queries(root)
+    patch_calibration_game_runtime(root)
     print("Starling 0.9.0: frame pacing, menu/loading caps, Mobile far detail, renderer capability queries, benchmark APIs, calibration planner, safe shared handoff, cancellable worker, and progress reporting applied.")
 
 
