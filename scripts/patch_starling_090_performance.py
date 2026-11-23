@@ -237,8 +237,8 @@ def patch_android_menu_cap(root: Path) -> None:
     source = path.read_text(encoding="utf-8")
 
     helper = '''/// Cap Android menus over a world at 60 FPS without changing world rendering.
-fn menu_frame_cap(limit: i32, has_screen: bool) -> i32 {
-    if cfg!(target_os = "android") && has_screen {
+fn menu_frame_cap(limit: i32, has_screen: bool, android: bool) -> i32 {
+    if android && has_screen {
         limit.min(60)
     } else {
         limit
@@ -265,7 +265,7 @@ fn menu_frame_cap(limit: i32, has_screen: bool) -> i32 {
             .settings
             .horizon
             .battery_limit(limit, self.title.is_none(), self.focused);
-        menu_frame_cap(limit, context.has_screen)
+        menu_frame_cap(limit, context.has_screen, cfg!(target_os = "android"))
 ''',
         "Android menu frame-cap application",
     )
@@ -292,10 +292,10 @@ mod menu_frame_cap_tests {
 
     #[test]
     fn a_menu_caps_the_frame_rate_on_android_only() {
-        let capped = if cfg!(target_os = "android") { 60 } else { 300 };
-        assert_eq!(menu_frame_cap(300, true), capped);
-        assert_eq!(menu_frame_cap(300, false), 300);
-        assert_eq!(menu_frame_cap(30, true), 30);
+        assert_eq!(menu_frame_cap(300, true, true), 60);
+        assert_eq!(menu_frame_cap(300, false, true), 300);
+        assert_eq!(menu_frame_cap(30, true, true), 30);
+        assert_eq!(menu_frame_cap(300, true, false), 300);
     }
 }
 '''
