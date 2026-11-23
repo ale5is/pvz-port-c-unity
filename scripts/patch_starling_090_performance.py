@@ -1992,15 +1992,15 @@ def patch_calibration_game_runtime(root: Path) -> None:
 
     game = replace_once(
         game,
-        "    screen: Screen,\n    window: Option<Arc<Window>>,\n    renderer: Option<Renderer>,\n",
-        """    screen: Screen,
-    window: Option<Arc<Window>>,
-    renderer: Option<Renderer>,
+        "    renderer: Option<Renderer>,\n    /// CPU geometry storage retained across frames, including empty/title frames.\n    entity_vertices: Vec<Vertex>,\n",
+        """    renderer: Option<Renderer>,
     /// Starling 0.9 reduced GPU calibration; only the game thread touches the renderer.
     calibration: Option<horizon_client::benchmark::CalibrationShared>,
     calibration_device: Option<horizon_client::benchmark::CalibrationDevice>,
     calibration_cleanup_pending: bool,
     calibration_notice_at: Option<Instant>,
+    /// CPU geometry storage retained across frames, including empty/title frames.
+    entity_vertices: Vec<Vertex>,
 """,
         "game-thread GPU calibration state",
     )
