@@ -268,8 +268,12 @@ pub fn frame_hint(cpu: Duration, fps_limit: i32, active: bool) {
         0.0
     } else if settings.display_hz != 0 {
         f32::from(settings.display_hz)
+    } else if let Some(rate) = cap {
+        rate as f32
+    } else if hints.set_frame_rate.is_some() {
+        max_refresh_rate()
     } else {
-        cap.map_or_else(max_refresh_rate, |rate| rate as f32)
+        0.0
     };
 
     STATE.with(|slot| {
