@@ -1972,6 +1972,333 @@ mod starling_090_indirect_draw_capability_tests {
     path.write_text(source, encoding="utf-8")
 
 
+
+def patch_calibration_game_runtime(root: Path) -> None:
+    """Connect the cancellable calibration worker to the Horizon 0.7.8 game thread."""
+    game_path = root / "crates/horizon-client/src/game.rs"
+    game = game_path.read_text(encoding="utf-8")
+
+    game = replace_once(
+        game,
+        "    renderer: Option<Renderer>,\n",
+        """    renderer: Option<Renderer>,
+    /// Starling 0.9 reduced GPU calibration; only the game thread touches the renderer.
+    calibration: Option<horizon_client::benchmark::CalibrationShared>,
+    calibration_device: Option<horizon_client::benchmark::CalibrationDevice>,
+    calibration_cleanup_pending: bool,
+    calibration_notice_at: Option<Instant>,
+""",
+        "game-thread GPU calibration state",
+    )
+    game = replace_once(
+        game,
+        "            renderer: None,\n",
+        """            renderer: None,
+            calibration: None,
+            calibration_device: None,
+            calibration_cleanup_pending: false,
+            calibration_notice_at: None,
+""",
+        "game-thread GPU calibration initialization",
+    )
+
+    methods = r'''
+    /// Starts the reduced Starling 0.9 calibration from the title screen.
+    fn start_gpu_calibration(&mut self) -> Result<()> {
+        use horizon_client::benchmark::{
+            self, CalibrationChoices, CalibrationPace, CalibrationShared,
+        };
+        if self.calibration.is_some() {
+            return Err("GPU calibration is already running".into());
+        }
+        if self.title.is_none() {
+            return Err("GPU calibration can only start from the title screen".into());
+        }
+        let renderer = self.renderer.as_ref().ok_or("renderer is not ready")?;
+        let device = benchmark::calibration_device(renderer);
+        let candidates = benchmark::calibration_candidates(
+            device,
+            CalibrationChoices::default(),
+        );
+        if candidates.len() < 2 {
+            return Err("this renderer has no supported calibration alternatives".into());
+        }
+        let game_dir = std::env::current_dir()?;
+        let requests = self
+            .control
+            .get_or_insert_with(horizon_client::control::Server::local)
+            .sender();
+        let shared = CalibrationShared::default();
+        benchmark::start_calibration(
+            requests,
+            game_dir,
+            candidates,
+            shared.clone(),
+            CalibrationPace::default(),
+        )
+        .map_err(|e| e.to_string())?;
+        self.calibration_device = Some(device);
+        self.calibration = Some(shared);
+        self.calibration_notice_at = None;
+        log::info!("Starling 0.9 GPU calibration started");
+        Ok(())
+    }
+
+    fn cancel_gpu_calibration(&mut self) -> bool {
+        if let Some(shared) = &self.calibration {
+            shared.stop();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Applies worker requests before rendering, reports progress, restores the original
+    /// renderer state on cancellation/failure, and removes only the marker-owned test world.
+    fn calibration_frame(&mut self) {
+        use horizon_client::benchmark::{
+            self, CalibrationChoices, CalibrationOutcome,
+        };
+        let Some(shared) = self.calibration.clone() else {
+            if self.calibration_cleanup_pending
+                && self.title.is_some()
+                && self.pending_save.is_none()
+                && self.integrated.is_none()
+            {
+                if let Ok(dir) = std::env::current_dir() {
+                    match benchmark::remove_world(&dir) {
+                        Ok(()) => {
+                            self.calibration_cleanup_pending = false;
+                            self.calibration_device = None;
+                            if let Some(title) = self.title.as_mut() {
+                                title.worlds_changed();
+                            }
+                        }
+                        Err(error) => {
+                            log::warn!("Starling: calibration world cleanup deferred: {error}");
+                        }
+                    }
+                }
+            }
+            return;
+        };
+
+        if shared.is_measuring()
+            && self.player.is_some()
+            && (self.pause || self.screen != Screen::Playing || !self.focused)
+        {
+            shared.stop();
+        }
+
+        if let Some(choices) = shared.take_wanted() {
+            let applied = match (self.renderer.as_mut(), self.calibration_device) {
+                (Some(renderer), Some(device)) => {
+                    benchmark::apply_calibration_choices(renderer, device, choices)
+                }
+                _ => Err("renderer disappeared during GPU calibration".into()),
+            };
+            match applied {
+                Ok(()) => shared.mark_drawn(choices),
+                Err(error) => {
+                    log::warn!("Starling: calibration renderer switch failed: {error}");
+                    shared.stop();
+                }
+            }
+        }
+
+        let now = Instant::now();
+        if shared.is_measuring()
+            && self.calibration_notice_at.is_none_or(|last| {
+                now.duration_since(last) >= Duration::from_secs(1)
+            })
+        {
+            self.calibration_notice_at = Some(now);
+            let line = match shared.get_progress() {
+                Some((done, total, end)) => format!(
+                    "GPU calibration: {done}/{total} — about {}s remaining (F9 to cancel)",
+                    end.saturating_duration_since(now).as_secs()
+                ),
+                None => "GPU calibration: preparing benchmark world (F9 to cancel)".into(),
+            };
+            self.titles.set_overlay(
+                horizon_client::text::Text::literal(line),
+                false,
+            );
+        }
+
+        let Some(result) = shared.take_finished() else {
+            return;
+        };
+        let device = self.calibration_device;
+        let applied = match (&result, self.renderer.as_mut(), device) {
+            (Ok(outcome), Some(renderer), Some(device)) => {
+                benchmark::apply_calibration_choices(renderer, device, outcome.choices)
+            }
+            (_, Some(renderer), Some(device)) => benchmark::apply_calibration_choices(
+                renderer,
+                device,
+                CalibrationChoices::default(),
+            ),
+            (_, _, _) => Err("renderer unavailable while restoring calibration settings".into()),
+        };
+        let summary = match result {
+            Ok(outcome) if applied.is_ok() => format!(
+                "GPU calibration complete: {:.0} FPS (Auto: {:.0} FPS)",
+                outcome.fps, outcome.auto_fps
+            ),
+            Ok(_) => "GPU calibration finished, but the original graphics settings could not be restored.".into(),
+            Err(error) => {
+                let suffix = applied.err().map(|e| format!("; restore failed: {e}"))
+                    .unwrap_or_default();
+                format!("GPU calibration cancelled/failed: {error}{suffix}")
+            }
+        };
+        log::info!("{summary}");
+        self.titles.set_overlay(
+            horizon_client::text::Text::literal(summary),
+            false,
+        );
+        self.calibration = None;
+        self.calibration_notice_at = None;
+        self.calibration_cleanup_pending = true;
+
+        if self.player.is_some() {
+            if let Err(error) = self.close_world() {
+                log::warn!("Starling: calibration could not return to title: {error}");
+            }
+        }
+    }
+
+'''
+    game = replace_once(
+        game,
+        "    fn render(&mut self) -> Result<bool> {\n",
+        methods + "    fn render(&mut self) -> Result<bool> {\n",
+        "game-thread GPU calibration lifecycle",
+    )
+    game = replace_once(
+        game,
+        "    fn key_pressed(&mut self, key: KeyCode) -> Result<()> {\n",
+        """    fn key_pressed(&mut self, key: KeyCode) -> Result<()> {
+        if key == KeyCode::F8 && self.title.is_some() {
+            self.start_gpu_calibration()?;
+            return Ok(());
+        }
+        if key == KeyCode::F9 && self.cancel_gpu_calibration() {
+            return Ok(());
+        }
+""",
+        "GPU calibration keyboard start and cancel",
+    )
+    game = replace_once(
+        game,
+        "                    self.advance_flight();\n                    self.tick_world_icon();\n                    let ticked = Instant::now();\n                    let rendered = self.render()?;\n",
+        """                    self.advance_flight();
+                    self.tick_world_icon();
+                    self.calibration_frame();
+                    let ticked = Instant::now();
+                    let rendered = self.render()?;
+""",
+        "GPU calibration per-frame renderer handoff",
+    )
+    game_path.write_text(game, encoding="utf-8")
+
+    control_path = root / "crates/horizon-client/src/game/control.rs"
+    control = control_path.read_text(encoding="utf-8")
+    control = replace_once(
+        control,
+        '    "bench SECONDS                  reset stats, wait, then reply with the summary",\n',
+        '    "bench SECONDS                  reset stats, wait, then reply with the summary",\n    "calibrate start|cancel|status    run or stop the title-screen GPU calibration (F8/F9)",\n',
+        "GPU calibration control help",
+    )
+    control = replace_once(
+        control,
+        '        match words[0] {\n            "help" =>',
+        '''        match words[0] {
+            "calibrate" => match arg(1)? {
+                "start" => {
+                    self.start_gpu_calibration()?;
+                    ok()
+                }
+                "cancel" => {
+                    if self.cancel_gpu_calibration() {
+                        ok()
+                    } else {
+                        Err("GPU calibration is not running".into())
+                    }
+                }
+                "status" => {
+                    let status = self.calibration.as_ref().map(|shared| {
+                        json!({
+                            "measuring": shared.is_measuring(),
+                            "progress": shared.get_progress().map(|(done, total, end)| {
+                                json!({
+                                    "done": done,
+                                    "total": total,
+                                    "eta_seconds": end.saturating_duration_since(Instant::now()).as_secs()
+                                })
+                            })
+                        })
+                    });
+                    Ok(Some(json!({ "calibration": status })))
+                }
+                _ => Err("calibrate start|cancel|status".into()),
+            },
+            "help" =>''',
+        "GPU calibration control commands",
+    )
+    control_path.write_text(control, encoding="utf-8")
+
+    benchmark_path = root / "crates/horizon-client/src/benchmark.rs"
+    benchmark_source = benchmark_path.read_text(encoding="utf-8")
+    cleanup = r'''
+
+/// Removes only the calibration benchmark world, and only when its ownership marker is present.
+/// Returns an error rather than risking deletion of a player's world.
+pub fn remove_world(game_dir: &Path) -> Result<(), String> {
+    let world = game_dir.join("saves").join(WORLD);
+    if !world.exists() {
+        return Ok(());
+    }
+    if !world.join(MARKER).is_file() {
+        return Err("refusing to remove an unmarked benchmark world".into());
+    }
+    std::fs::remove_dir_all(&world).map_err(|e| e.to_string())
+}
+'''
+    benchmark_source = replace_once(
+        benchmark_source,
+        "/// Holds noon and clear weather so every calibration candidate sees the same sky.\n",
+        cleanup + "\n/// Holds noon and clear weather so every calibration candidate sees the same sky.\n",
+        "marker-guarded calibration world cleanup",
+    )
+    benchmark_source = replace_once(
+        benchmark_source,
+        "    #[test]\n    fn calibration_frame_parser_rejects_empty_and_accepts_real_samples() {",
+        '''    #[test]
+    fn calibration_world_cleanup_refuses_unmarked_directories() {
+        let root = std::env::temp_dir().join(format!(
+            "horizon-calibration-cleanup-{}",
+            std::process::id()
+        ));
+        let world = root.join("saves").join(WORLD);
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&world).unwrap();
+        assert!(remove_world(&root).is_err());
+        assert!(world.exists());
+        std::fs::write(world.join(MARKER), "owned by calibration").unwrap();
+        remove_world(&root).unwrap();
+        assert!(!world.exists());
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn calibration_frame_parser_rejects_empty_and_accepts_real_samples() {''',
+        "calibration world cleanup regression test",
+    )
+    benchmark_path.write_text(benchmark_source, encoding="utf-8")
+
+
 def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit("usage: patch_starling_090_performance.py HORIZON_SOURCE")
@@ -1982,6 +2309,7 @@ def main() -> None:
     patch_mobile_far_detail(root)
     patch_mobile_defaults_and_loading_cap(root)
     patch_renderer_capability_queries(root)
+    patch_calibration_game_runtime(root)
     patch_calibration_benchmark_api(root)
     patch_calibration_candidate_planner(root)
     print("Starling 0.9.0: frame pacing, menu/loading caps, Mobile far detail, renderer capability queries, benchmark APIs, calibration planner, safe shared handoff, cancellable worker, and progress reporting applied.")
