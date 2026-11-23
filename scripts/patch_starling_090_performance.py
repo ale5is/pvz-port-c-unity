@@ -964,6 +964,12 @@ pub fn lod_distance_capped(
     )
     lod = replace_once(
         lod,
+        "lod.area = Some(([-16, -16], 2, 64, 0, false));",
+        "lod.area = Some(([-16, -16], 2, 64, 0, 0));",
+        "LOD cache-key test coarseness",
+    )
+    lod = replace_once(
+        lod,
         """    /// Reduced far detail (`set_reduced_detail`).
     reduced_detail: bool,
 """,
