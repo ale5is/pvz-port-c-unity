@@ -214,6 +214,11 @@ fn max_refresh_rate() -> f32 {
                 .get_static_field("android/os/Build$VERSION", "SDK_INT", "I")?
                 .i()?;
             let current = env.call_method(&display, "getRefreshRate", "()F", &[])?.f()?;
+            let current = if current.is_finite() && current > 0.0 {
+                current
+            } else {
+                0.0
+            };
             if sdk < 23 {
                 return Ok(current);
             }
