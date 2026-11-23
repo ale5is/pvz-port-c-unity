@@ -319,7 +319,7 @@ public final class MainActivity extends Activity {
             return ok;
         }
 
-        private static final class DepthResult {
+        private final class DepthResult {
             final boolean passed;
             final String pixel;
             DepthResult(boolean passed, String pixel) { this.passed = passed; this.pixel = pixel; }
