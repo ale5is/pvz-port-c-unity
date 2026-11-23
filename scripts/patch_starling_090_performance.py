@@ -347,8 +347,7 @@ impl FarDetail {
     /// Coarser levels start at half that distance: about a quarter of the
     /// far quads, for GPUs that far terrain slows down. Changes the picture.
     Reduced,
-    /// Coarser levels start at a quarter of Full's distance: about one-sixteenth
-    /// of Full's far quads, intended for phones whose GPUs are geometry-bound.
+    /// Coarser levels start at a quarter of Full's distance: about one-sixteenth    /// of Full's far quads, intended for phones whose GPUs are geometry-bound.
     Mobile,
 }
 impl FarDetail {
@@ -697,8 +696,7 @@ pub fn lod_distance_capped(
     /// Distance when it is on, else a mod's far terrain
     /// (`render.set-far-terrain`).
     fn far_terrain_choice(&self) -> (u32, bool) {
-        let g = &self.settings.horizon;
-        let reduced = g.far_detail == horizon_client::graphics::FarDetail::Reduced;
+        let g = &self.settings.horizon;        let reduced = g.far_detail == horizon_client::graphics::FarDetail::Reduced;
         if g.lod_distance > 0 {
             return (g.lod_distance, reduced);
         }
@@ -1047,8 +1045,7 @@ pub fn combine_calibration_candidates(
         })
     {
         return None;
-    }
-    let mean = |rates: &[f64]| {
+    }    let mean = |rates: &[f64]| {
         if rates.is_empty() {
             0.0
         } else {
@@ -1081,6 +1078,57 @@ pub fn combine_calibration_candidates(
         }
     }
     Some((combined, single))
+}
+
+/// Captures the renderer's original state and supported A/B paths.
+pub fn calibration_device(renderer: &crate::gfx::Renderer) -> CalibrationDevice {
+    CalibrationDevice {
+        flat: renderer.flat_draws(),
+        indirect: renderer.indirect_draws(),
+        late_sky: renderer.late_sky_on(),
+        occlusion: renderer.section_cull(),
+        hidden_faces: renderer.section_sides(),
+        offers: renderer.draw_choices(),
+    }
+}
+
+/// Applies one calibration candidate. Improved Transparency is deliberately untouched.
+pub fn apply_calibration_choices(
+    renderer: &mut crate::gfx::Renderer,
+    device: CalibrationDevice,
+    choices: CalibrationChoices,
+) -> Result<(), String> {
+    let (flat, indirect) = match choices.draws {
+        CalibrationDraws::Auto => (device.flat, device.indirect),
+        CalibrationDraws::Direct => (false, false),
+        CalibrationDraws::Indirect if device.offers[1] => (false, true),
+        CalibrationDraws::Flat if device.offers[0] => (true, false),
+        CalibrationDraws::Indirect => {
+            return Err("indirect section draws are unavailable on this device".into());
+        }
+        CalibrationDraws::Flat => {
+            return Err("flat section draws are unavailable on this device".into());
+        }
+    };
+    if renderer.flat_draws() != flat {
+        renderer.set_flat_draws(flat).map_err(|e| e.to_string())?;
+    }
+    if renderer.indirect_draws() != indirect {
+        renderer.set_indirect_draws(indirect).map_err(|e| e.to_string())?;
+    }
+    let late_sky = choices.late_sky.pick(device.late_sky) && device.offers[2];
+    if renderer.late_sky_on() != late_sky {
+        renderer.set_late_sky(late_sky).map_err(|e| e.to_string())?;
+    }
+    let occlusion = choices.occlusion.pick(device.occlusion) && device.offers[3];
+    if renderer.section_cull() != occlusion {
+        renderer.set_section_cull(occlusion).map_err(|e| e.to_string())?;
+    }
+    let hidden_faces = choices.hidden_faces.pick(device.hidden_faces);
+    if renderer.section_sides() != hidden_faces {
+        renderer.set_section_sides(hidden_faces);
+    }
+    Ok(())
 }
 '''
     source = replace_once(
