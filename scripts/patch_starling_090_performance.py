@@ -1415,7 +1415,7 @@ fn run_calibration(
     if shared.is_stopped() {
         return Err("calibration stopped".into());
     }
-    open_world(control, game_dir)?;
+    open_world(control, game_dir, shared)?;
     if shared.is_stopped() {
         return Err("calibration stopped".into());
     }
@@ -1762,8 +1762,54 @@ def patch_calibration_benchmark_api(root: Path) -> None:
 
 /// Creates the benchmark world afresh, marks it as owned by the benchmark, and waits for spawn
 /// chunks to load. An existing unmarked world is never deleted.
-pub fn open_world(control: &Control, game_dir: &Path) -> Result<Instant, String> {
+fn wait_loaded_calibration(
+    control: &Control,
+    shared: &CalibrationShared,
+) -> Result<Instant, String> {
+    let deadline = Instant::now() + LOAD_LIMIT;
+    let mut stable: Option<(Instant, (u64, u64, u64))> = None;
+    while Instant::now() < deadline {
+        if shared.is_stopped() {
+            return Err("calibration stopped".into());
+        }
+        let status = control.status();
+        let now = Instant::now();
+        let resident = status["chunks"].as_u64().unwrap_or(0);
+        let generated = status["generated_chunks"].as_u64().unwrap_or(0);
+        let meshed = status["meshed_sections"].as_u64().unwrap_or(0);
+        let minimum = view_chunks(status["render_distance"].as_u64().unwrap_or(0));
+        let ready = !status["player"]["position"].is_null()
+            && status["pending_chunks"].as_u64() == Some(0)
+            && status["screen"] != "title"
+            && (minimum == 0 || resident >= minimum);
+        if ready {
+            let counts = (resident, generated, meshed);
+            match stable {
+                Some((since, previous)) if previous == counts => {
+                    if now.duration_since(since) >= Duration::from_secs(1) {
+                        return Ok(since);
+                    }
+                }
+                _ => stable = Some((now, counts)),
+            }
+        } else {
+            stable = None;
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+    Err(format!("calibration world did not load after {} s", LOAD_LIMIT.as_secs()))
+}
+
+/// Creates the marked calibration world. Loading checks cancellation every 50 ms.
+pub fn open_world(
+    control: &Control,
+    game_dir: &Path,
+    shared: &CalibrationShared,
+) -> Result<Instant, String> {
     replace_world(game_dir)?;
+    if shared.is_stopped() {
+        return Err("calibration stopped".into());
+    }
     control.call(&format!("open {WORLD} {SEED} creative"))?;
     let world = game_dir.join("saves").join(WORLD);
     std::fs::create_dir_all(&world).map_err(|e| e.to_string())?;
@@ -1772,7 +1818,7 @@ pub fn open_world(control: &Control, game_dir: &Path) -> Result<Instant, String>
         "Created by horizon-client calibration; replaced by the next benchmark.\n",
     )
     .map_err(|e| e.to_string())?;
-    wait_loaded(control, |_| true)
+    wait_loaded_calibration(control, shared)
 }
 
 /// Holds noon and clear weather so every calibration candidate sees the same sky.
