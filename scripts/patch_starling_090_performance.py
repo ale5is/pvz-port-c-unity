@@ -1000,8 +1000,13 @@ pub fn lod_distance_capped(
 """,
         "LOD far-detail setter",
     )
-    lod = replace_once(lod, "            self.reduced_detail,", "            self.far_coarseness,", "LOD area cache coarseness")
-    lod = replace_once(lod, "            self.reduced_detail,", "            self.far_coarseness,", "LOD planner coarseness")
+    reduced_references = lod.count("            self.reduced_detail,")
+    if reduced_references != 2:
+        raise SystemExit(
+            "LOD far-detail state: expected two planner references, "
+            f"found {reduced_references}"
+        )
+    lod = lod.replace("            self.reduced_detail,", "            self.far_coarseness,")
     lod = replace_once(
         lod,
         """    fn new(camera: [i32; 2], detail: i32, distance: u32) -> Self {
