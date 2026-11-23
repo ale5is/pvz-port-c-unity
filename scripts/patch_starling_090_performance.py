@@ -2397,7 +2397,7 @@ def patch_calibration_touch_ui(root: Path) -> None:
             h(
                 H::GpuCalibration,
                 None,
-                "Measures supported renderer paths in a temporary world. Tap again or pause to cancel.",
+                "Measures supported renderer paths in a temporary world. Pause the benchmark world to cancel.",
             ),
             h(
                 H::Workers,
@@ -2418,7 +2418,7 @@ def patch_calibration_touch_ui(root: Path) -> None:
                 Setup::Automatic => "Calibrate Anyway...",
                 Setup::Changed => "Use Automatic Setup",
             })),
-            H::GpuCalibration => Text::literal("Calibrate GPU... (tap again or pause to cancel)"),
+            H::GpuCalibration => Text::literal("Calibrate GPU... (pause to cancel)"),
             H::HdrPaperWhite => match g.hdr_paper_white {
 ''',
         "GPU calibration graphics label",
