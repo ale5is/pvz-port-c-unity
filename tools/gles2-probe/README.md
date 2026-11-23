@@ -14,3 +14,5 @@ Build with JDK 17, Android SDK platform 35, build-tools 35.0.0, and Gradle 8.9:
 Install the resulting app-debug.apk on the target TV and read the report on screen. The full report is also written to logcat under the tag PavoGlesProbe.
 
 The result is a capability probe, not a renderer compatibility test. A successful GLES3 context does not prove that all Horizon shaders or formats work; a successful GLES2 context only confirms that the driver can create that context.
+
+The API-22 APK is built by `.github/workflows/pavo-gles-probe.yml` and published as the `pavo-gles-capability-probe-api22` artifact.
