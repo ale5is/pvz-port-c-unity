@@ -418,22 +418,19 @@ def patch_runtime(root: Path) -> None:
                     }
                     self.limit_frame();
 ''',
-        '''                    #[cfg(target_os = "android")]
+        '''                    let frame_limit = self.framerate_limit();
+                    #[cfg(target_os = "android")]
                     if rendered {
                         let cpu = self.renderer.as_ref().map_or(Duration::ZERO, |renderer| {
                             now.elapsed().saturating_sub(renderer.last_wait)
                         });
-                        crate::device_runtime::frame_hint(
-                            cpu,
-                            self.framerate_limit(),
-                            self.focused,
-                        );
+                        crate::device_runtime::frame_hint(cpu, frame_limit, self.focused);
                     }
                     #[cfg(target_os = "android")]
                     if let Some(sample) = performance_sample {
                         crate::performance::submit(sample, self.android_performance_context());
                     }
-                    self.limit_frame();
+                    self.limit_frame(frame_limit);
 ''',
         "Report completed Android frame work before frame pacing",
     )
@@ -504,6 +501,23 @@ def patch_framerate_hook(root: Path) -> None:
         }
 ''',
         "Apply the optional native frame-rate hook without allowing mods to raise the cap",
+    )
+    options = replace_once(
+        options,
+        '''    pub(super) fn limit_frame(&mut self) {
+        if self.options.frames.is_some() || self.options.paced_by_split {
+            return;
+        }
+        let limit = self.framerate_limit();
+        match self.settings.horizon.pacing {
+''',
+        '''    pub(super) fn limit_frame(&mut self, limit: i32) {
+        if self.options.frames.is_some() || self.options.paced_by_split {
+            return;
+        }
+        match self.settings.horizon.pacing {
+''',
+        "Reuse the already-computed frame limit for pacing",
     )
     options_path.write_text(options, encoding="utf-8")
 
