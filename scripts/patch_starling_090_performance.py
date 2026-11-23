@@ -978,7 +978,7 @@ pub fn open_world(control: &Control, game_dir: &Path) -> Result<Instant, String>
     std::fs::create_dir_all(&world).map_err(|e| e.to_string())?;
     std::fs::write(
         world.join(MARKER),
-        "Created by horizon-client calibration; replaced by the next benchmark.\\n",
+        "Created by horizon-client calibration; replaced by the next benchmark.\n",
     )
     .map_err(|e| e.to_string())?;
     wait_loaded(control, |_| true)
@@ -1044,14 +1044,14 @@ pub fn frames_of(reply: &Value, phase: &str, repeat: u32) -> Result<Frames, Stri
 '''
     source = replace_once(
         source,
-        "/// Fewer section meshes than this in a second is the game remeshing blocks that change (random\\n",
-        api + "\\n/// Fewer section meshes than this in a second is the game remeshing blocks that change (random\\n",
+        "/// Fewer section meshes than this in a second is the game remeshing blocks that change (random\n",
+        api + "\n/// Fewer section meshes than this in a second is the game remeshing blocks that change (random\n",
         "calibration benchmark helper API",
     )
 
     source = replace_once(
         source,
-        "    #[test]\\n    fn scenarios() {",
+        "    #[test]\n    fn scenarios() {",
         '''    #[test]
     fn calibration_frame_parser_rejects_empty_and_accepts_real_samples() {
         let empty = serde_json::json!({});
