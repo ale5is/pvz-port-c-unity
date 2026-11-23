@@ -1219,6 +1219,159 @@ pub fn lod_distance_capped(
     )
     game_path.write_text(game, encoding="utf-8")
 
+
+def patch_mobile_defaults_and_loading_cap(root: Path) -> None:
+    graphics_path = root / "crates/horizon-client-render/src/graphics.rs"
+    graphics = graphics_path.read_text(encoding="utf-8")
+    graphics = replace_once(
+        graphics,
+        """fn bool_text(v: bool) -> &'static str {
+    if v { "true" } else { "false" }
+}
+impl Graphics {
+""",
+        """fn bool_text(v: bool) -> &'static str {
+    if v { "true" } else { "false" }
+}
+fn mobile_default_far_detail(current: FarDetail, android: bool, stored: bool) -> FarDetail {
+    if android && !stored {
+        FarDetail::Mobile
+    } else {
+        current
+    }
+}
+impl Graphics {
+""",
+        "Android first-run Mobile far-detail default helper",
+    )
+    graphics = replace_once(
+        graphics,
+        """    pub fn load(dir: &Path) -> Self {
+        let mut g: Self = fs::read_to_string(dir.join(FILE))
+            .map(|t| Self::parse(&t))
+            .unwrap_or_default();
+""",
+        """    pub fn load(dir: &Path) -> Self {
+        let text = fs::read_to_string(dir.join(FILE)).ok();
+        let has_far_detail = text.as_deref().is_some_and(|text| {
+            text.lines().any(|line| {
+                line.split_once(':')
+                    .is_some_and(|(key, _)| key.trim() == "farDetail")
+            })
+        });
+        let mut g: Self = text.as_deref().map(Self::parse).unwrap_or_default();
+        g.far_detail =
+            mobile_default_far_detail(g.far_detail, cfg!(target_os = "android"), has_far_detail);
+""",
+        "Android first-run Mobile far-detail default",
+    )
+    graphics = replace_once(
+        graphics,
+        """    fn far_detail_is_full_unless_reduced_is_picked() {
+        assert_eq!(Graphics::default().far_detail, FarDetail::Full);
+""",
+        """    fn far_detail_is_full_unless_reduced_is_picked() {
+        assert_eq!(Graphics::default().far_detail, FarDetail::Full);
+        assert_eq!(
+            mobile_default_far_detail(FarDetail::Full, true, false),
+            FarDetail::Mobile
+        );
+        assert_eq!(
+            mobile_default_far_detail(FarDetail::Full, true, true),
+            FarDetail::Full
+        );
+        assert_eq!(
+            mobile_default_far_detail(FarDetail::Reduced, true, true),
+            FarDetail::Reduced
+        );
+        assert_eq!(
+            mobile_default_far_detail(FarDetail::Full, false, false),
+            FarDetail::Full
+        );
+""",
+        "Android first-run Mobile default regression tests",
+    )
+    graphics_path.write_text(graphics, encoding="utf-8")
+
+    game_path = root / "crates/horizon-client/src/game.rs"
+    game = game_path.read_text(encoding="utf-8")
+    game = replace_once(
+        game,
+        "impl Loading {\n",
+        """fn loading_frame_due(last: Option<Instant>, now: Instant, android: bool) -> Option<Instant> {
+    if !android {
+        return None;
+    }
+    let next = last? + Duration::from_nanos(1_000_000_000 / 60);
+    (now < next).then_some(next)
+}
+
+impl Loading {
+""",
+        "Android loading-screen frame pacing helper",
+    )
+    game = replace_once(
+        game,
+        """        if let Some(w) = &self.window {
+            if self.options.as_ref().is_some_and(|o| o.offscreen) {
+                self.draw();
+            } else {
+                w.request_redraw();
+            }
+        }
+        event_loop.set_control_flow(ControlFlow::Poll);
+""",
+        """        if let Some(next) = loading_frame_due(
+            self.menu.last_frame,
+            Instant::now(),
+            cfg!(target_os = "android"),
+        ) {
+            event_loop.set_control_flow(ControlFlow::WaitUntil(next));
+            return;
+        }
+        if let Some(w) = &self.window {
+            if self.options.as_ref().is_some_and(|o| o.offscreen) {
+                self.draw();
+            } else {
+                w.request_redraw();
+            }
+        }
+        event_loop.set_control_flow(ControlFlow::Poll);
+""",
+        "Android loading-screen 60 FPS redraw cap",
+    )
+    game += """
+
+#[cfg(test)]
+mod loading_frame_cap_tests {
+    use super::loading_frame_due;
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn android_loading_frames_wait_for_the_next_60_fps_slot() {
+        let last = Instant::now();
+        let now = last + Duration::from_millis(1);
+        assert_eq!(
+            loading_frame_due(Some(last), now, true),
+            Some(last + Duration::from_nanos(1_000_000_000 / 60))
+        );
+    }
+
+    #[test]
+    fn first_frame_desktop_and_overdue_frames_do_not_wait() {
+        let now = Instant::now();
+        assert_eq!(loading_frame_due(None, now, true), None);
+        assert_eq!(loading_frame_due(Some(now), now, false), None);
+        assert_eq!(
+            loading_frame_due(Some(now), now + Duration::from_millis(17), true),
+            None
+        );
+    }
+}
+"""
+    game_path.write_text(game, encoding="utf-8")
+
+
 def main() -> None:
     if len(sys.argv) != 2:
         raise SystemExit("usage: patch_starling_090_performance.py HORIZON_SOURCE")
@@ -1227,7 +1380,8 @@ def main() -> None:
     patch_frame_pacing(root)
     patch_android_menu_cap(root)
     patch_mobile_far_detail(root)
-    print("Starling 0.9.0: frame pacing, Android menu cap, and Mobile far detail applied.")
+    patch_mobile_defaults_and_loading_cap(root)
+    print("Starling 0.9.0: frame pacing, menu/loading caps, and Mobile far detail applied.")
 
 
 if __name__ == "__main__":
