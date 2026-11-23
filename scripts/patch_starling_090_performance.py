@@ -937,7 +937,7 @@ def patch_calibration_candidate_planner(root: Path) -> None:
     source = replace_once(
         source,
         "use std::sync::mpsc::{self, Sender};",
-        "use std::sync::mpsc::{self, Sender};\\nuse std::sync::{Arc, Condvar, Mutex};",
+        "use std::sync::mpsc::{self, Sender};\nuse std::sync::{Arc, Condvar, Mutex};",
         "thread-safe calibration handoff imports",
     )
 
