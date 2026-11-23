@@ -445,6 +445,7 @@ pub fn lod_distance_capped(
         assert_eq!(mobile.lod_distance_on(&hd620), INTEGRATED_MOBILE_LOD_DISTANCE);
         assert_eq!(mobile.lod_distance_on(&m4), 1024);
         assert_eq!(mobile.lod_distance_on(&discrete), 1024);
+        assert!(
 """,
         "Mobile integrated-GPU distance regression tests",
     )
