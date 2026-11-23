@@ -1,6 +1,9 @@
 name: PavoHorizon Android 0.7.8 ARMv7 baseline
 
 on:
+  push:
+    branches:
+      - port/android-5-low-end
   workflow_dispatch:
 
 permissions:
