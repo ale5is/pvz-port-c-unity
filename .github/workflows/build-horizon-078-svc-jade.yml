@@ -94,6 +94,9 @@ jobs:
       - name: Port Starling 0.9.0 Android menu frame cap without replacing the renderer
         run: python scripts/patch_starling_090_performance.py horizon-source
 
+      - name: Check Starling 0.9 Android API patcher syntax
+        run: python -m py_compile scripts/patch_starling_090_android_apis.py
+
       - name: Backport Starling 0.9 Android frame APIs and API-81 FPS hook
         run: python scripts/patch_starling_090_android_apis.py horizon-source
 
