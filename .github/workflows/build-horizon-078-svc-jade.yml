@@ -2,13 +2,14 @@ name: Build Horizon 0.7.8 SVC + Jade Android APK
 
 on:
   push:
-    branches: [main, fix/pavohorizon-svc-launcher-settings, port/atlas-api80-core, port/starling-090-performance]
+    branches: [main, fix/pavohorizon-svc-launcher-settings, port/atlas-api80-core, port/starling-090-performance, port/starling-090-android-hooks-apis]
     paths:
       - ".github/workflows/build-horizon-078-svc-jade.yml"
       - "scripts/build_android_port.py"
       - "scripts/check_atlas_api80.py"
       - "scripts/patch_bundled_native_mods.py"
       - "scripts/patch_starling_090_performance.py"
+      - "scripts/patch_starling_090_android_apis.py"
       - "PAVO_VERSION"
       - "mod/**"
       - "mod/atlas-upstream/**"
@@ -92,6 +93,9 @@ jobs:
 
       - name: Port Starling 0.9.0 Android menu frame cap without replacing the renderer
         run: python scripts/patch_starling_090_performance.py horizon-source
+
+      - name: Backport Starling 0.9 Android frame APIs and API-81 FPS hook
+        run: python scripts/patch_starling_090_android_apis.py horizon-source
 
       - name: Test Starling fixed-grid frame pacing backport
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client-input
