@@ -103,6 +103,12 @@ jobs:
       - name: Test Starling calibration benchmark position guard
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client benchmark::tests::calibration_near_check_requires_three_coordinates_and_two_block_radius
 
+      - name: Test Starling GPU calibration candidate planner
+        run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client benchmark::tests::calibration_candidates_only_offer_supported_picture_preserving_paths
+
+      - name: Test Starling GPU calibration candidate scoring
+        run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client --bin horizon-client benchmark::tests::calibration_candidate_scoring_keeps_only_changes_over_three_percent
+
       - name: Check Starling 0.9 Android API patcher syntax
         run: python -m py_compile scripts/patch_starling_090_android_apis.py
 
