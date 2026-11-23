@@ -33,6 +33,7 @@ unsafe extern "C" {
 struct Runtime {
     window: usize,
     hz: u16,
+    voted_rate: f32,
     rate_status: i32,
     gyro: Option<gyro_sensor::Gyroscope>,
     session: usize,
@@ -47,6 +48,7 @@ impl Default for Runtime {
         Self {
             window: 0,
             hz: u16::MAX,
+            voted_rate: -1.0,
             rate_status: -1,
             gyro: None,
             session: 0,
@@ -303,13 +305,14 @@ pub fn frame_hint(cpu: Duration, fps_limit: i32, active: bool) {
         crate::APP.with(|app| {
             if let Some(window) = app.borrow().as_ref().and_then(|app| app.native_window()) {
                 let pointer = window.ptr().as_ptr() as usize;
-                if state.window != pointer || f32::from(state.hz) != requested_rate {
+                if state.window != pointer || state.voted_rate != requested_rate {
                     state.rate_status = if let Some(set_rate) = hints.set_frame_rate {
                         unsafe { set_rate(pointer as *mut c_void, requested_rate, 0) }
                     } else {
                         -38
                     };
                     state.window = pointer;
+                    state.voted_rate = requested_rate;
                     state.hz = requested_rate.round().clamp(0.0, u16::MAX as f32) as u16;
                 }
             }
