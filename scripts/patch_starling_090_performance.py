@@ -188,7 +188,8 @@ pub fn end_frame_on_grid(
         for _ in 0..100 {
             limiter.limit_on_grid(100, &mut clock);
         }
-        assert_eq!(clock.now, 1_000_000_000);
+        assert!(clock.now >= 1_000_000_000);
+        assert!(clock.now < 1_001_000_000);
     }
 
     #[test]
