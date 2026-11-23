@@ -64,6 +64,30 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Pin Mojang manifest to the Horizon lock
+        working-directory: ${{ runner.temp }}/horizon-078
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path.cwd()
+          lock = json.loads((root / "research-lock.json").read_text())
+          game = lock["minecraft"]
+          version = game["version"]
+          sha1 = game["manifest_sha1"]
+          url = f"https://piston-meta.mojang.com/v1/packages/{sha1}/{version}.json"
+
+          script = root / "tools/android_prepare.py"
+          source = script.read_text()
+          old = "entry = next((v for v in fetch_json(MANIFEST)['versions'] if v['id'] == version), None)"
+          new = f"entry = {{'url': {url!r}, 'sha1': {sha1!r}}}"
+          if source.count(old) != 1:
+              raise SystemExit("Could not uniquely locate Mojang manifest lookup in android_prepare.py")
+          script.write_text(source.replace(old, new))
+          print(f"Using Horizon-pinned Mojang manifest: {url}")
+          PY
+
       - name: Prepare official game tables and resources
         working-directory: ${{ runner.temp }}/horizon-078
         run: python3 tools/android_prepare.py --java-home "$JAVA_HOME"
