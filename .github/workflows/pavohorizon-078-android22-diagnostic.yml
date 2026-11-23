@@ -1,6 +1,12 @@
 name: PavoHorizon Android 5 API-22 diagnostic
 
 on:
+  push:
+    branches:
+      - port/android-5-low-end
+    paths:
+      - 'tools/android5_patch.py'
+      - '.github/workflows/pavohorizon-078-android22-diagnostic.yml'
   workflow_dispatch:
 
 permissions:
