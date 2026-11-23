@@ -1073,7 +1073,7 @@ pub fn lod_distance_capped(
         """        // Each coarseness step halves the distance at which far tiles split:
         // Full keeps 8/10 tile widths, Reduced 4/5, Mobile 2/2.
         let split = if previous.split.contains(&key) { 10 } else { 8 };
-        let split = key.size() * split / (2 << coarseness.min(4));
+        let split = key.size() * split / (1 << coarseness.min(4));
         // The world-wide planner is at least as coarse as this selected mode.
         let threshold = if key.distance(camera) >= WORLD_START {
             split.min(key.size() * WORLD_SPLIT)
