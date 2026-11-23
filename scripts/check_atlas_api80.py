@@ -3,6 +3,7 @@
 
 from pathlib import Path
 import json
+import re
 import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,8 +32,9 @@ def main() -> None:
     if compatibility.get("horizon_revision") != "9f42064c11efe7ef3e5ed2baad7ddc2a3b36eea0":
         raise SystemExit("Pinned Atlas upstream revision changed; review its source before continuing.")
     hook_source = (ROOT / "horizon-source/crates/horizon-client/src/game/native_hooks.rs").read_text(encoding="utf-8")
-    if "NATIVE_HOOKS_API: u32 = 80" not in hook_source:
-        raise SystemExit("The checked-out Horizon source is not the expected hooks API 80.")
+    api_match = re.search(r"NATIVE_HOOKS_API: u32 = (\d+)", hook_source)
+    if api_match is None or int(api_match.group(1)) < 80:
+        raise SystemExit("The checked-out Horizon source does not provide native hooks API 80 or newer.")
     hooks = {item["target"] for item in registry.get("hooks", [])}
 
     if len(injections) != 23:
@@ -58,7 +60,7 @@ def main() -> None:
         raise SystemExit("Atlas source files are missing:\n" + "\n".join(absent_sources))
 
     print("Atlas source inventory: OK")
-    print(f"Injection targets present in Horizon API 80: {len(injections) - len(missing)}/23")
+    print(f"Injection targets present in Horizon API 80+: {len(injections) - len(missing)}/23")
     print(f"Injection targets requiring adaptation: {len(missing)}")
     print("Atlas remains reference-only; no incompatible hooks are registered in the APK.")
 
