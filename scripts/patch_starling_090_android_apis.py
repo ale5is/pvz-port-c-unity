@@ -422,13 +422,21 @@ def patch_runtime(root: Path) -> None:
                     }
                     self.limit_frame();
 ''',
-        '''                    let frame_limit = self.framerate_limit();
+        '''                    let frame_limit = if self.options.frames.is_some()
+                        || self.options.paced_by_split
+                    {
+                        rendered.then(|| self.framerate_limit())
+                    } else {
+                        Some(self.framerate_limit())
+                    };
                     #[cfg(target_os = "android")]
                     if rendered {
-                        let cpu = self.renderer.as_ref().map_or(Duration::ZERO, |renderer| {
-                            now.elapsed().saturating_sub(renderer.last_wait)
-                        });
-                        crate::device_runtime::frame_hint(cpu, frame_limit, self.focused);
+                        if let Some(limit) = frame_limit {
+                            let cpu = self.renderer.as_ref().map_or(Duration::ZERO, |renderer| {
+                                now.elapsed().saturating_sub(renderer.last_wait)
+                            });
+                            crate::device_runtime::frame_hint(cpu, limit, self.focused);
+                        }
                     }
                     #[cfg(target_os = "android")]
                     if let Some(sample) = performance_sample {
@@ -521,7 +529,10 @@ def patch_framerate_hook(root: Path) -> None:
         let limit = self.framerate_limit();
         match self.settings.horizon.pacing {
 ''',
-        '''    pub(super) fn limit_frame(&mut self, limit: i32) {
+        '''    pub(super) fn limit_frame(&mut self, limit: Option<i32>) {
+        let Some(limit) = limit else {
+            return;
+        };
         if self.options.frames.is_some() || self.options.paced_by_split {
             return;
         }
