@@ -2121,6 +2121,8 @@ def patch_calibration_game_runtime(root: Path) -> None:
         }
 
         let now = Instant::now();
+        // Keep the inactivity frame limiter from changing the calibration's measured frame rate.
+        self.last_input = now;
         if shared.is_measuring()
             && self.calibration_notice_at.is_none_or(|last| {
                 now.duration_since(last) >= Duration::from_secs(1)
