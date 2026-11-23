@@ -65,13 +65,14 @@ Therefore:
 
 ## Implementation order
 
-1. Verify the 0.7.8 renderer parity points (terrain draw path, menu blur cache, 4096 shadow cap and existing frame limiter).
-2. Add a dedicated 60 FPS cap for menus over the world, with tests for world FPS, menus, unfocused/background and user-selected limits.
-3. Add background pause/audio lifecycle handling with save/resume tests.
-4. Port a reduced GPU calibration using only renderer choices actually supported by API 80.
-5. Profile and optimize mod startup without changing API 80 or load order.
-6. Port the touch editor and display safe-zone fixes.
-7. Treat launcher/profiles/catalog, cosmetics, custom GPU drivers, ray tracing and diagnostics as separate milestones.
+1. Preserve the verified 0.7.8 renderer parity: terrain path, cached menu blur, 4096 shadow cap and existing backends.
+2. Complete CI for the 60 FPS in-game menu cap and fixed-grid Efficient frame pacing; then run same-device A/B.
+3. Port the loading-menu 60 FPS guard and optional Android frame hints/display refresh matching, with fallbacks on older Android.
+4. Verify the existing background pause path; add only the missing preference/audio behavior.
+5. Port a reduced GPU calibration using only renderer choices actually supported by API 80.
+6. Backport Mobile far detail and Dynamic Resolution only with the required LOD/mesh/GPU-timing code and visual/performance tests.
+7. Profile mod startup and port touch/display/catalog fixes without changing API 80 or load order.
+8. Treat launcher/profiles, cosmetics, custom GPU drivers, FSR frame generation, ray tracing and diagnostics as separate milestones.
 
 ## Required validation
 
@@ -85,4 +86,4 @@ Therefore:
 
 ## Current status
 
-This file records the source audit and port order. The first API-80-compatible code backport now includes the 60 FPS Android menu cap and fixed-grid Efficient frame pacing. The workflow runs regression tests for the frame limiter and builds the signed APK; device A/B testing is still required before claiming a performance improvement.
+This file records the source audit and port order. The API-80 build patch now includes the 60 FPS Android menu cap and fixed-grid Efficient frame pacing, with regression tests for the limiter and menu-cap logic. The latest workflow is queued behind the baseline build; no successful build of these patches or device A/B result is claimed yet.
