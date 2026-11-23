@@ -44,7 +44,7 @@ def verify_source(source):
     if not hooks.is_file() or not build.is_file():
         raise SystemExit("The selected folder is not a complete Horizon 0.7.8 source tree.")
     text = hooks.read_text(encoding="utf-8")
-    marker = "pub(crate) const NATIVE_HOOKS_API: u32 = 80;"
+    marker = "pub(crate) const NATIVE_HOOKS_API: u32 = 81;"
     if marker not in text:
         raise SystemExit("The source does not expose native hooks API 80; refusing to apply this port.")
     git = shutil.which("git")
@@ -73,11 +73,11 @@ def verify_jade_compatibility(jade_source):
     native_revision = native.get("horizon", "missing")
     native_hooks = native.get("hooks", "missing")
 
-    if manifest_revision != HORIZON_REV or native_revision != HORIZON_REV or native_hooks != 80:
+    if manifest_revision != HORIZON_REV or native_revision != HORIZON_REV or not isinstance(native_hooks, int) or native_hooks < 80:
         raise SystemExit(
             "Jade is not compatible with the pinned Horizon 0.7.8 source. "
             f"Jade manifest revision={manifest_revision}, native revision={native_revision}, "
-            f"hooks API={native_hooks}; required revision={HORIZON_REV}, hooks API=80. "
+            f"hooks API={native_hooks}; required revision={HORIZON_REV}, hooks API>=80. "
             "Do not rewrite Jade metadata or force-apply hooks: its Rust source uses newer Horizon APIs. "
             "Port Jade's implementation to Horizon 0.7.8 before building."
         )
