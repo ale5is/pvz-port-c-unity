@@ -74,7 +74,12 @@ public final class MainActivity extends Activity {
         public void onSurfaceCreated(GL10 gl, EGLConfig config) {
             GLES20.glClearColor(0.035f, 0.055f, 0.09f, 1f);
             GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+            GLES20.glDepthMask(true);
             GLES20.glDepthFunc(GLES20.GL_LEQUAL);
+            GLES20.glClearDepthf(1.0f);
+            int[] depthBits = new int[1];
+            GLES20.glGetIntegerv(GLES20.GL_DEPTH_BITS, depthBits, 0);
+            Log.i(TAG, "Depth test enabled; depthBits=" + depthBits[0]);
             GLES20.glDisable(GLES20.GL_CULL_FACE);
             program = link(VERTEX, FRAGMENT);
             position = GLES20.glGetAttribLocation(program, "aPosition");
@@ -84,7 +89,7 @@ public final class MainActivity extends Activity {
             sampler = GLES20.glGetUniformLocation(program, "uTexture");
             createTexture();
             createGeometry();
-            Log.i(TAG, "GLES2 scene initialized; program=" + program + " texture=" + texture);
+            Log.i(TAG, "GLES2 depth overlap scene initialized; expected: blue outer square with green center; program=" + program + " texture=" + texture);
         }
 
         @Override
@@ -133,14 +138,14 @@ public final class MainActivity extends Activity {
 
         private void createGeometry() {
             float[] data = {
-                -0.85f,-0.65f, 0.35f, 0f,1f, 1f,1f,1f,1f,
-                 0.85f,-0.65f, 0.35f, 1f,1f, 1f,1f,1f,1f,
-                 0.85f, 0.65f, 0.35f, 1f,0f, 1f,1f,1f,1f,
-                -0.85f, 0.65f, 0.35f, 0f,0f, 1f,1f,1f,1f,
-                -0.48f,-0.38f,-0.35f, 0f,1f, 0.35f,0.9f,1f,0.88f,
-                 0.48f,-0.38f,-0.35f, 1f,1f, 0.35f,0.9f,1f,0.88f,
-                 0.48f, 0.38f,-0.35f, 1f,0f, 0.35f,0.9f,1f,0.88f,
-                -0.48f, 0.38f,-0.35f, 0f,0f, 0.35f,0.9f,1f,0.88f
+                -0.85f,-0.65f,-0.35f, 0f,1f, 0.65f,0.75f,1f,1f,
+                 0.85f,-0.65f,-0.35f, 1f,1f, 0.65f,0.75f,1f,1f,
+                 0.85f, 0.65f,-0.35f, 1f,0f, 0.65f,0.75f,1f,1f,
+                -0.85f, 0.65f,-0.35f, 0f,0f, 0.65f,0.75f,1f,1f,
+                -0.38f,-0.30f, 0.35f, 0f,1f, 0.55f,1f,0.55f,1f,
+                 0.38f,-0.30f, 0.35f, 1f,1f, 0.55f,1f,0.55f,1f,
+                 0.38f, 0.30f, 0.35f, 1f,0f, 0.55f,1f,0.55f,1f,
+                -0.38f, 0.30f, 0.35f, 0f,0f, 0.55f,1f,0.55f,1f
             };
             short[] order = {0,1,2,0,2,3,4,5,6,4,6,7};
             vertices = ByteBuffer.allocateDirect(data.length * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
