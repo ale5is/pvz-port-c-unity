@@ -9,7 +9,7 @@ Status: design/audit only. No GLES2 renderer has been implemented yet.
 - Device probe: OpenGL ES 2.0, GLSL ES 1.00; GLES 3 EGL config selection failed with `0x3004`.
 - Reported limits: max texture size 4096, fragment texture units 8, vertex texture image units 0, vertex attributes 16, varying vectors 12.
 - RGBA8 framebuffer: complete.
-- The extended probe (commit `5b056d294791edad4819cfdb9e4cc45f0c8df56f`) additionally tests depth16/stencil8 attachments, basic GLSL ES 1.00 program link and RGB/RGBA texture uploads. These results still require a run on the TV.
+- The TV has now passed the user's reported GLSL ES 1.00 compile/link, RGBA texture upload, VBO upload, RGBA8 + Depth16 FBO, and a real Depth16 test using reverse draw order plus pixel readback. The center pixel was green (`0,255,0,255`). A later textured HUD-quad/VBO test also returned PASS on the TV. The expanded blend/scissor/multi-quad/atlas-quadrant tests are newly added to the probe and still need a TV run.
 
 ## Source architecture audit
 
@@ -30,13 +30,20 @@ Confirmed by the first TV report:
 - No vertex texture fetch units are available.
 - The attempted GLES3 EGL config was rejected.
 
-Still awaiting the extended probe on the TV:
-- Depth16 renderbuffer attachment completeness.
-- Stencil8 renderbuffer attachment completeness.
-- Basic vertex/fragment shader compile and link.
-- RGB and RGBA texture upload error-free status.
+Confirmed on the TV by the user's diagnostic reports:
+- Basic vertex/fragment GLSL ES 1.00 compile and link.
+- RGBA texture upload and VBO buffer upload.
+- RGBA8 + Depth16 FBO completeness and a real depth comparison verified by glReadPixels.
+- A textured 2D atlas quad rendered from a VBO and passed its center-pixel check.
 
-Do not infer depth/stencil support from RGBA8 color FBO completeness.
+Not yet confirmed on the TV:
+- Stencil8 attachment completeness and stencil operations.
+- Alpha blending with a pixel-value assertion.
+- Scissor clipping with inside/outside pixel assertions.
+- Multiple differently colored quads in one VBO upload and one draw call.
+- Atlas UV quadrant selection/orientation.
+
+The new tests are independent capability checks; they do not imply integration with Horizon's HUD renderer.
 
 ## Recommended implementation strategy
 
@@ -50,7 +57,7 @@ Keep the existing wgpu renderer intact for supported platforms. Add an isolated 
 2. Implement a tiny GLSL ES 1.00 program, vertex/index buffers and a textured quad.
 3. Render to the default framebuffer and to an RGBA8 FBO.
 4. Add depth testing only after the extended probe confirms Depth16.
-5. Add alpha blending and scissor tests.
+5. Validate alpha blending, scissor, multi-quad batching and atlas UVs with offscreen FBO pixel readback.
 6. Measure CPU frame time, GPU frame time where available, memory and stability on the TV.
 
 Acceptance: stable textured quad and depth-tested geometry on the actual TV, no GL errors, repeatable surface recreation.
