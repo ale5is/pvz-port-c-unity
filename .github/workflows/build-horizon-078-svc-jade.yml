@@ -2,7 +2,7 @@ name: Build Horizon 0.7.8 SVC + Jade Android APK
 
 on:
   push:
-    branches: [main, fix/pavohorizon-svc-launcher-settings, port/atlas-api80-core, port/starling-090-performance, port/starling-090-android-hooks-apis]
+    branches: [main, fix/pavohorizon-svc-launcher-settings, port/atlas-api80-core, port/starling-090-performance, port/starling-090-android-hooks-apis, fix/android-hwc-composition-regression]
     paths:
       - ".github/workflows/build-horizon-078-svc-jade.yml"
       - "scripts/build_android_port.py"
