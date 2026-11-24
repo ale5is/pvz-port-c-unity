@@ -9356,7 +9356,7 @@ pub(crate) mod bridge {
         let temporary = game.native_mod_key(m::ID, m::KEY_TEMP, m::DEFAULT_TEMP);
 
         if !pressed {
-            if key == enlarge && game.screen == crate::game::Screen::Playing {
+            if key == enlarge {
                 m::with(|state| state.enlarge_key(false));
             }
             return;
