@@ -30,11 +30,15 @@ def sha256(data: bytes) -> str:
 
 
 def restore(destination: Path) -> None:
-    if destination.exists():
-        shutil.rmtree(destination)
     base = f"https://raw.githubusercontent.com/{MIRROR_REPO}/{MIRROR_REV}/{MIRROR_PATH}"
     metadata_bytes = fetch(f"{base}/FRE-VENDORED-SOURCE.json")
     metadata = json.loads(metadata_bytes)
+    current_metadata = destination / "FRE-VENDORED-SOURCE.json"
+    if destination.exists() and (
+        not current_metadata.is_file()
+        or current_metadata.read_bytes() != metadata_bytes
+    ):
+        shutil.rmtree(destination)
     if metadata.get("repository") != MIXINS_REPO:
         raise ValueError("Vendored source points to a different upstream repository.")
     if metadata.get("commit") != MIXINS_REV or metadata.get("license") != "MIT":
