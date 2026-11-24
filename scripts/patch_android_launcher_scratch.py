@@ -42,7 +42,7 @@ def patch(source_root: Path) -> None:
     anchor = """            inline_profiles: Vec::new(),
         }
     }
-    /// Draw the vertices added since \"start\" with the inverting blend.
+    /// Draw the vertices added since `start` with the inverting blend.
 """
     if "pub fn scratch(window: [u32; 2])" not in hud:
         if hud.count(anchor) != 1:
@@ -50,7 +50,7 @@ def patch(source_root: Path) -> None:
         hud = hud.replace(anchor, """            inline_profiles: Vec::new(),
         }
     }
-""" + method + """    /// Draw the vertices added since \"start\" with the inverting blend.
+""" + method + """    /// Draw the vertices added since `start` with the inverting blend.
 """, 1)
     elif hud.count("pub fn scratch(window: [u32; 2])") != 1:
         raise SystemExit("HudBatch::scratch exists more than once; refusing an ambiguous patch.")
