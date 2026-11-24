@@ -268,16 +268,6 @@ fn upload_map_tile(game: &mut Game<'_>, slot: usize, rgba: Vec<u8>) -> bool {
 
 /// Build only the visible map tiles, with a small per-frame budget.
 fn upload_map_tiles(game: &mut Game<'_>) {
-    if let Some([physical_width, physical_height]) = game.native_physical_window_size() {
-        let (width, height) = game.gui_size();
-        m::with(|state| {
-            state.set_gui_scale(
-                [width, height],
-                [physical_width as f32, physical_height as f32],
-            );
-        });
-    }
-
     let tiles = m::with(|state| {
         if state.screen_size[0] <= 0.0 || state.screen_size[1] <= 0.0 {
             return Vec::new();
@@ -339,14 +329,19 @@ pub(super) fn paint(
             m::Draw::Text(text, at, rgb, shadow) => {
                 game.native_text(batch, &text, at, rgb, shadow);
             }
-            m::Draw::Quad(points, argb) => game.native_quad(batch, points, argb),
+            m::Draw::Quad(points, argb) => batch.fill_quad(&game.gui.atlas, points, argb),
             m::Draw::Item(item, at, size) => game.native_item(batch, &item, at, size),
             m::Draw::Skin(skin, dst) => {
                 game.native_sprite(batch, &skin, [8.0, 8.0, 8.0, 8.0], dst);
                 game.native_sprite(batch, &skin, [40.0, 8.0, 8.0, 8.0], dst);
             }
-            m::Draw::Nine(sprite, rect, argb) => {
-                game.native_gui_nine_slice(batch, sprite, rect, argb);
+            m::Draw::Nine(_sprite, rect, argb) => {
+                let [x, y, width, height] = rect;
+                game.native_fill(batch, rect, argb);
+                game.native_fill(batch, [x, y, width, 1.0], 0xFF808080);
+                game.native_fill(batch, [x, y + height - 1.0, width, 1.0], 0xFF303030);
+                game.native_fill(batch, [x, y, 1.0, height], 0xFF808080);
+                game.native_fill(batch, [x + width - 1.0, y, 1.0, height], 0xFF303030);
             }
             m::Draw::Label(text, at, argb, scale, shadow) => {
                 let start = batch.vertices.len();
