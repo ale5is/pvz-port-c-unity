@@ -12,6 +12,7 @@ on:
       - "scripts/patch_starling_090_android_apis.py"
       - "scripts/patch_android_launcher_scratch.py"
       - "scripts/patch_android_editor_opaque_canvas.py"
+      - "scripts/patch_android_editor_selection_overlay.py"
       - "PAVO_VERSION"
       - "mod/**"
       - "mod/atlas-upstream/**"
@@ -146,6 +147,11 @@ jobs:
         run: |
           python -m py_compile scripts/patch_android_editor_opaque_canvas.py
           python scripts/patch_android_editor_opaque_canvas.py horizon-source
+
+      - name: Replace rounded alpha-corner primitives in the Android editor selection overlay
+        run: |
+          python -m py_compile scripts/patch_android_editor_selection_overlay.py
+          python scripts/patch_android_editor_selection_overlay.py horizon-source
 
       - name: Test Starling fixed-grid frame pacing backport
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client-input
