@@ -40,7 +40,7 @@ The 17 remaining Atlas injection targets exist in the API-80 registry. This coun
 The active Pavo mixin now wires the portable Atlas core into the built-in Android bundle:
 
 - The existing Horizon minimap/radar renderer remains in place; Atlas continues to supply its terrain texture, radar dots and waypoint markers.
-- `M` opens the full-screen world map using the published `screen_render_post` hook. It uses a modal paused-screen container with the pause menu hidden, rather than depending on the unavailable API-415 mod-screen hooks.
+- `M` opens the full-screen world map using the published `screen_render_post` hook. It uses a modal paused-screen container with the pause menu hidden, rather than depending on the unavailable API-415 mod-screen hooks. In a normal singleplayer world this pauses the local world; multiplayer remains server-driven.
 - The published API-80 mouse press/release hooks handle map buttons and waypoint markers. Dragging is reconstructed from cursor movement each frame while a captured button is held.
 - Drag pans the map; `[` / `]` zoom; `Space` recentres; `B` creates a waypoint at the player; right-click creates one at the map pointer; `U` opens the waypoint list; `D` toggles drawing and `Z` undoes a stroke.
 - The root mixin manifest is audited against the pinned API-80 hook registry by `scripts/check_atlas_api80.py`. Unsupported screen-wheel, screen-key and character hooks are not registered.
