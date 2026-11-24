@@ -7,6 +7,7 @@ on:
       - ".github/workflows/build-horizon-078-svc-jade.yml"
       - "scripts/build_android_port.py"
       - "scripts/check_atlas_api80.py"
+      - "scripts/download_minecraft_libraries.py"
       - "scripts/patch_bundled_native_mods.py"
       - "PAVO_VERSION"
       - "mod/**"
@@ -86,6 +87,12 @@ jobs:
             https://piston-meta.mojang.com/v1/packages/11f1aefe473eefba0af62e3286c33b692807b2eb/26.3.json \
             --output horizon-source/.local/minecraft/26.3/manifest.json
           echo "11f1aefe473eefba0af62e3286c33b692807b2eb  horizon-source/.local/minecraft/26.3/manifest.json" | sha1sum --check
+
+      - name: Seed all pinned Minecraft library artifacts for Horizon prepare
+        run: |
+          python scripts/download_minecraft_libraries.py \
+            horizon-source/.local/minecraft/26.3/manifest.json \
+            horizon-source/.local/android/minecraft/libraries
 
       - name: Prepare pinned Minecraft 26.3 engine tables
         run: |
