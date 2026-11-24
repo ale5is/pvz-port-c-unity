@@ -207,7 +207,7 @@ bindings = [
 ]
 
 # Portable Atlas map, waypoint, tile-cache and persistence logic.
-# Its API-80 adapters below use the pinned native screen, mouse, wheel and key hooks.
+# Its API-80 adapters below use the pinned native screen, mouse-button and key hooks.
 [[module]]
 id = "atlas_core"
 file = "crates/horizon-client/src/game.rs"
