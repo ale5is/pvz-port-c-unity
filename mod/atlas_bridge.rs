@@ -252,10 +252,8 @@ fn slot_for(game: &mut Game<'_>, id: i32) -> Option<(usize, bool)> {
 
 /// Upload one 128x128 RGBA world-map tile into a claimed Horizon map slot.
 fn upload_map_tile(game: &mut Game<'_>, slot: usize, rgba: Vec<u8>) -> bool {
-    let Some(sprite) = horizon_client::hud::map_slot_sprite(slot) else {
-        return false;
-    };
-    let Some(rect) = game.gui.atlas.sprites.get(sprite).copied() else {
+    let sprite = format!("horizon/map{slot}");
+    let Some(rect) = game.gui.atlas.sprites.get(&sprite).copied() else {
         return false;
     };
     game.map_patches.push(horizon_client::font::Patch {
@@ -358,20 +356,10 @@ pub(super) fn paint(
                 batch.text_styled(&game.gui.atlas, &text, at[0], at[1], color, shadow);
                 batch.scale_since(start, at[0], at[1], scale, scale);
             }
-            m::Draw::ModImage(src, dst, tint) => {
-                paint_map_image(
-                    game,
-                    batch,
-                    horizon_client::hud::MOD_IMAGE_SPRITE,
-                    src,
-                    dst,
-                    tint,
-                );
-            }
+            m::Draw::ModImage(_, _, _) => {}
             m::Draw::Image(slot, src, dst, tint) => {
-                if let Some(sprite) = horizon_client::hud::map_slot_sprite(slot) {
-                    paint_map_image(game, batch, sprite, src, dst, tint);
-                }
+                let sprite = format!("horizon/map{slot}");
+                paint_map_image(game, batch, &sprite, src, dst, tint);
             }
         }
     }
