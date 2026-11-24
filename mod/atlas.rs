@@ -5719,6 +5719,7 @@ impl State {
             format!("Scale: {}x", trim_float(1.0 / self.map.bpp))
         };
         out.text(&scale, [4.0, 4.0], INK);
+        out.button([4.0, 18.0, 42.0, 18.0], "Close", Action::Close, false);
 
         // Top centre: the block under the pointer.
         if live {
