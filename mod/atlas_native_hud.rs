@@ -137,6 +137,22 @@ pub(super) fn atlas_native_hud(
     if !game.native_on("atlas") || !game.native_playing() {
         return;
     }
+
+    let map_open = crate::game::atlas_mod::with(|state| {
+        !matches!(&state.mode, crate::game::atlas_mod::Mode::Closed)
+    });
+    if map_open {
+        let here = crate::game::atlas_bridge::here(game);
+        let mouse = game.native_cursor();
+        let size = [batch.width, batch.height];
+        let measure = |text: &str| game.native_text_width(text);
+        let (draws, _) = crate::game::atlas_mod::with(|state| {
+            state.screen(size, mouse, here.as_ref(), &measure)
+        });
+        crate::game::atlas_bridge::paint(game, batch, draws);
+        return;
+    }
+
     let Some(player) = game.native_player() else {
         return;
     };
