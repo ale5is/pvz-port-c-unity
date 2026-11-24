@@ -11,6 +11,7 @@ on:
       - "scripts/patch_starling_090_performance.py"
       - "scripts/patch_starling_090_android_apis.py"
       - "scripts/patch_android_launcher_scratch.py"
+      - "scripts/patch_android_editor_opaque_canvas.py"
       - "PAVO_VERSION"
       - "mod/**"
       - "mod/atlas-upstream/**"
@@ -140,6 +141,11 @@ jobs:
         run: |
           python -m py_compile scripts/patch_android_launcher_scratch.py
           python scripts/patch_android_launcher_scratch.py horizon-source
+
+      - name: Check and apply opaque canvas in the Android control editor
+        run: |
+          python -m py_compile scripts/patch_android_editor_opaque_canvas.py
+          python scripts/patch_android_editor_opaque_canvas.py horizon-source
 
       - name: Test Starling fixed-grid frame pacing backport
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client-input
