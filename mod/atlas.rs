@@ -5780,7 +5780,7 @@ impl State {
         let hint = match hot {
             Some(i) => format!("Click to edit {}", self.waypoints[i].name),
             None if self.draw.on => "Drag to draw, right drag to erase, Z to undo, D to stop drawing".into(),
-            None => "Drag to move, +/- to zoom, B for a waypoint here, Space to centre, D to draw".into(),
+            None => "Drag to move, [ / ] to zoom, B for a waypoint here, Space to centre, D to draw".into(),
         };
         let hint = out.fit(&hint, x - 8.0);
         out.text(&hint, [4.0, size[1] - 14.0], MUTED);
