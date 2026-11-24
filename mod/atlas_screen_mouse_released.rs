@@ -8,10 +8,14 @@ fn atlas_screen_mouse_released(
     if !game.native_on("atlas") || screen.id != "paused" {
         return;
     }
-    crate::game::atlas_mod::with(|state| {
-        if !matches!(&state.mode, crate::game::atlas_mod::Mode::Closed) {
+    let captured = crate::game::atlas_mod::with(|state| {
+        let captured = state.pointer_buttons.remove(&button);
+        if captured {
             state.release(button);
         }
+        captured
     });
-    *canceled = true;
+    if captured {
+        *canceled = true;
+    }
 }
