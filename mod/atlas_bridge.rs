@@ -58,6 +58,9 @@ pub(super) fn frame(game: &mut Game<'_>) {
     m::with(|state| state.want_cut(cut));
     scan_loaded_chunks(game, cut, settings.cave_depth, native_player.x, native_player.z);
     upload_minimap(game, native_player.x, native_player.z, native_player.yaw);
+    if m::with(|state| !matches!(&state.mode, m::Mode::Closed)) {
+        upload_map_tiles(game);
+    }
     m::with(|state| state.save_now_and_then(10.0));
 }
 
@@ -222,4 +225,183 @@ fn scan_loaded_chunks(
         }
     }
     m::with(|state| state.forget_far_scans((cx, cz), radius + 8));
+}
+
+
+/// Player position shared by the minimap, world map and waypoint controls.
+pub(super) fn here(game: &Game<'_>) -> Option<m::Here> {
+    let player = game.native_player()?;
+    Some(m::Here {
+        pos: [player.x, player.y, player.z],
+        dimension: player.dimension.to_owned(),
+        yaw: player.yaw,
+    })
+}
+
+/// Claim one of Horizon's map texture slots for a world-map tile.
+fn slot_for(game: &mut Game<'_>, id: i32) -> Option<(usize, bool)> {
+    if let Some(slot) = game.maps.slots.show(&id) {
+        return Some((slot, false));
+    }
+    let (slot, old) = game.maps.slots.claim(id)?;
+    if let Some(old) = old {
+        m::with(|state| state.images.forget_id(old));
+    }
+    Some((slot, true))
+}
+
+/// Upload one 128x128 RGBA world-map tile into a claimed Horizon map slot.
+fn upload_map_tile(game: &mut Game<'_>, slot: usize, rgba: Vec<u8>) -> bool {
+    let Some(sprite) = horizon_client::hud::map_slot_sprite(slot) else {
+        return false;
+    };
+    let Some(rect) = game.gui.atlas.sprites.get(sprite).copied() else {
+        return false;
+    };
+    game.map_patches.push(horizon_client::font::Patch {
+        x: (rect.u0 * game.gui.atlas.width as f32).round() as u32,
+        y: (rect.v0 * game.gui.atlas.height as f32).round() as u32,
+        width: m::MINI as u32,
+        height: m::MINI as u32,
+        rgba,
+    });
+    true
+}
+
+/// Build only the visible map tiles, with a small per-frame budget.
+fn upload_map_tiles(game: &mut Game<'_>) {
+    if let Some([physical_width, physical_height]) = game.native_physical_window_size() {
+        let (width, height) = game.gui_size();
+        m::with(|state| {
+            state.set_gui_scale(
+                [width, height],
+                [physical_width as f32, physical_height as f32],
+            );
+        });
+    }
+
+    let tiles = m::with(|state| {
+        if state.screen_size[0] <= 0.0 || state.screen_size[1] <= 0.0 {
+            return Vec::new();
+        }
+        state.begin_map_frame();
+        state.map.tiles(state.screen_size, state.map_cut(), state.gui_scale)
+    });
+    if tiles.is_empty() {
+        return;
+    }
+
+    let started = Instant::now();
+    let mut budget = 6usize;
+    for (key, _) in tiles {
+        let id = m::with(|state| state.images.id(key));
+        let Some((slot, fresh)) = slot_for(game, id) else {
+            m::with(|state| state.images.slots.remove(&key));
+            continue;
+        };
+        let (stamp, shown) = m::with(|state| {
+            (state.tile_stamp(key), state.images.stamps.get(&key).copied())
+        });
+        if !fresh && shown == Some(stamp) {
+            m::with(|state| {
+                state.images.slots.insert(key, slot);
+            });
+            continue;
+        }
+        if budget == 0 || started.elapsed() > Duration::from_millis(4) {
+            if fresh {
+                m::with(|state| state.images.slots.remove(&key));
+            }
+            continue;
+        }
+        budget -= 1;
+        let (image, whole) = m::with(|state| state.compose_tile(key));
+        if upload_map_tile(game, slot, image) {
+            m::with(|state| {
+                if whole {
+                    state.images.stamps.insert(key, stamp);
+                } else {
+                    state.images.stamps.remove(&key);
+                }
+                state.images.slots.insert(key, slot);
+            });
+        }
+    }
+}
+
+/// Draw the portable Atlas UI using Horizon 0.7.8's native HUD primitives.
+pub(super) fn paint(
+    game: &Game<'_>,
+    batch: &mut horizon_client::hud::HudBatch,
+    draws: Vec<m::Draw>,
+) {
+    for draw in draws {
+        match draw {
+            m::Draw::Fill(rect, argb) => game.native_fill(batch, rect, argb),
+            m::Draw::Text(text, at, rgb, shadow) => {
+                game.native_text(batch, &text, at, rgb, shadow);
+            }
+            m::Draw::Quad(points, argb) => game.native_quad(batch, points, argb),
+            m::Draw::Item(item, at, size) => game.native_item(batch, &item, at, size),
+            m::Draw::Skin(skin, dst) => {
+                game.native_sprite(batch, &skin, [8.0, 8.0, 8.0, 8.0], dst);
+                game.native_sprite(batch, &skin, [40.0, 8.0, 8.0, 8.0], dst);
+            }
+            m::Draw::Nine(sprite, rect, argb) => {
+                game.native_gui_nine_slice(batch, sprite, rect, argb);
+            }
+            m::Draw::Label(text, at, argb, scale, shadow) => {
+                let start = batch.vertices.len();
+                let [alpha, red, green, blue] = argb.to_be_bytes();
+                let color = horizon_client::hud::rgba(red, green, blue, alpha);
+                let text = horizon_client::text::Text::literal(text);
+                batch.text_styled(&game.gui.atlas, &text, at[0], at[1], color, shadow);
+                batch.scale_since(start, at[0], at[1], scale, scale);
+            }
+            m::Draw::ModImage(src, dst, tint) => {
+                paint_map_image(
+                    game,
+                    batch,
+                    horizon_client::hud::MOD_IMAGE_SPRITE,
+                    src,
+                    dst,
+                    tint,
+                );
+            }
+            m::Draw::Image(slot, src, dst, tint) => {
+                if let Some(sprite) = horizon_client::hud::map_slot_sprite(slot) {
+                    paint_map_image(game, batch, sprite, src, dst, tint);
+                }
+            }
+        }
+    }
+}
+
+/// Draw a source rectangle of a map sprite into a GUI rectangle.
+fn paint_map_image(
+    game: &Game<'_>,
+    batch: &mut horizon_client::hud::HudBatch,
+    name: &str,
+    src: [f32; 4],
+    dst: [f32; 4],
+    tint: u32,
+) {
+    let Some(mut rect) = game.gui.atlas.sprites.get(name).copied() else {
+        return;
+    };
+    let du = (rect.u1 - rect.u0) / rect.w as f32;
+    let dv = (rect.v1 - rect.v0) / rect.h as f32;
+    rect.u0 += src[0] * du;
+    rect.v0 += src[1] * dv;
+    rect.u1 = rect.u0 + src[2] * du;
+    rect.v1 = rect.v0 + src[3] * dv;
+    let [alpha, red, green, blue] = tint.to_be_bytes();
+    batch.rect_uv(
+        dst[0],
+        dst[1],
+        dst[2],
+        dst[3],
+        rect,
+        horizon_client::hud::rgba(red, green, blue, alpha),
+    );
 }
