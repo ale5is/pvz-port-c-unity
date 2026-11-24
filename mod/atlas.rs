@@ -9338,7 +9338,7 @@ mod tests {
 pub(crate) mod bridge {
     use super as m;
 
-    pub(crate) fn key_api80(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
+    pub(crate) fn key_api80(game: &mut crate::game::Game<'_>, key: &str, pressed: bool) {
         if !game.native_on(m::ID) {
             return;
         }
@@ -9359,7 +9359,6 @@ pub(crate) mod bridge {
         if !pressed {
             return;
         }
-
         if key == zoom_in {
             m::with(|state| state.zoom_key(true));
             return;
@@ -9369,50 +9368,48 @@ pub(crate) mod bridge {
             return;
         }
 
-        let here = crate::game::atlas_bridge::here(game);
-        let open = m::with(|state| !matches!(&state.mode, m::Mode::Closed));
-
-        if !open {
-            if !game.native_playing() {
-                return;
-            }
-            m::with(|state| {
-                if key == map {
-                    state.open_map(here.as_ref(), m::key_char(key));
-                } else if key == create {
-                    if let Some(here) = here.as_ref() {
-                        state.open_create(here, m::Back::Game, m::key_char(key));
-                    }
-                } else if key == list {
-                    state.open_list(m::key_char(key));
-                } else if key == settings {
-                    state.open_settings(m::Page::Main);
-                    state.skip_char = m::key_char(key);
-                } else if key == temporary {
-                    if let Some(here) = here.as_ref() {
-                        state.add_temporary(here);
-                    }
-                }
-                if let Some(character) = m::key_char(key) {
-                    state.char_typed(character);
-                }
-            });
+        // The map, list and editor are real Horizon screens: API 80's screen
+        // hooks then own pointer, wheel and keyboard input without clicks
+        // leaking through to the world.
+        if game.screen != crate::game::Screen::Playing {
             return;
         }
-
-        m::with(|state| {
-            state.key(
-                key,
-                false,
-                here.as_ref(),
-                [&map, &create, &list, &settings],
-            );
+        let here = crate::game::atlas_bridge::here(game);
+        let opened = m::with(|state| {
+            if !matches!(&state.mode, m::Mode::Closed) {
+                return false;
+            }
+            if !game.native_playing() {
+                return false;
+            }
+            if key == map {
+                state.open_map(here.as_ref(), m::key_char(key));
+            } else if key == create {
+                if let Some(here) = here.as_ref() {
+                    state.open_create(here, m::Back::Game, m::key_char(key));
+                }
+            } else if key == list {
+                state.open_list(m::key_char(key));
+            } else if key == settings {
+                state.open_settings(m::Page::Main);
+                state.skip_char = m::key_char(key);
+            } else if key == temporary {
+                if let Some(here) = here.as_ref() {
+                    state.add_temporary(here);
+                }
+                return false;
+            } else {
+                return false;
+            }
             if let Some(character) = m::key_char(key) {
                 state.char_typed(character);
             }
-            if state.take_close() {
-                state.reset();
-            }
+            true
         });
+        if opened {
+            game.pause_menu = false;
+            game.screen = crate::game::Screen::Paused;
+            game.capture(false);
+        }
     }
 }
