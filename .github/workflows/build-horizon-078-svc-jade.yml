@@ -8,6 +8,7 @@ on:
       - "scripts/build_android_port.py"
       - "scripts/check_atlas_api80.py"
       - "scripts/download_minecraft_libraries.py"
+      - "scripts/restore_horizon_mixins_source.py"
       - "scripts/patch_bundled_native_mods.py"
       - "PAVO_VERSION"
       - "mod/**"
