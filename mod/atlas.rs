@@ -2996,6 +2996,8 @@ pub struct State {
     /// The size the mod's screen was last drawn at, and the pointer then.
     pub screen_size: [f32; 2],
     pub mouse: [f32; 2],
+    /// Mouse buttons whose press Atlas cancelled on its modal screen.
+    pub pointer_buttons: std::collections::HashSet<i32>,
     pub last_save: Option<Instant>,
     /// The camera this frame is drawn from: position, yaw, pitch.
     pub frame_camera: Option<([f64; 3], f32, f32)>,
@@ -3063,6 +3065,7 @@ impl Default for State {
             images: MapImages::default(),
             screen_size: [480.0, 270.0],
             mouse: [0.0; 2],
+            pointer_buttons: std::collections::HashSet::new(),
             last_save: None,
             frame_camera: None,
             map_shown: None,
