@@ -17,6 +17,7 @@ fn atlas_screen_mouse_pressed(
         }
         let (_, widgets) = state.screen(size, screen.mouse, here.as_ref(), &measure);
         state.press(button, screen.mouse, &widgets, here.as_ref());
+        state.pointer_buttons.insert(button);
     });
     *canceled = true;
 }
