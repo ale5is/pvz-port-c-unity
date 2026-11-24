@@ -22,7 +22,8 @@ def install_mixins():
     root = ROOT / ".build/horizon-mixins"
     executable = root / "bin" / ("horizon-mixins.exe" if os.name == "nt" else "horizon-mixins")
     marker = root / ".pinned-revision"
-    if executable.is_file() and marker.is_file() and marker.read_text(encoding="utf-8").strip() == MIXINS_REV:
+    marker_value = MIXINS_REV + "\\n" + "12510e0e885d1250acfc164b8f9bb2e0d4aa2f6a"
+    if executable.is_file() and marker.is_file() and marker.read_text(encoding="utf-8") == marker_value:
         return executable
     rustup = shutil.which("rustup")
     if rustup:
@@ -30,12 +31,14 @@ def install_mixins():
         cargo_command = [cargo, "+1.95.0"]
     else:
         cargo_command = [cargo]
-    run([*cargo_command, "install", "--locked", "--git", MIXINS_REPO, "--rev", MIXINS_REV,
-         "--root", root, "--force", "horizon-mixins-cli"])
+    source_root = ROOT / ".build/horizon-mixins-source"
+    run([sys.executable, ROOT / "scripts/restore_horizon_mixins_source.py", "--out", source_root])
+    run([*cargo_command, "install", "--locked", "--path",
+         source_root / "crates/horizon-mixins-cli", "--root", root, "--force", "horizon-mixins-cli"])
     if not executable.is_file():
         raise SystemExit(f"Pinned horizon-mixins binary was not created: {executable}")
     root.mkdir(parents=True, exist_ok=True)
-    marker.write_text(MIXINS_REV + "\n", encoding="utf-8")
+    marker.write_text(marker_value, encoding="utf-8")
     return executable
 
 def verify_source(source):
