@@ -259,6 +259,8 @@ impl Runtime {
 
 /// Report completed CPU frame work to Android's scheduler and vote for the display rate.
 /// Dynamic symbols are resolved once; the frame path does not allocate or perform JNI calls.
+const REQUEST_NATIVE_DISPLAY_RATE: bool = false;
+
 pub fn frame_hint(cpu: Duration, fps_limit: i32, active: bool) {
     let settings = preferences();
     let hints = frame_hints();
@@ -311,19 +313,21 @@ pub fn frame_hint(cpu: Duration, fps_limit: i32, active: bool) {
             }
         }
 
-        if let Some(set_rate) = hints.set_frame_rate {
-            crate::APP.with(|app| {
-                if let Some(window) = app.borrow().as_ref().and_then(|app| app.native_window()) {
-                    let pointer = window.ptr().as_ptr() as usize;
-                    if state.window != pointer || state.voted_rate != requested_rate {
-                        state.rate_status =
-                            unsafe { set_rate(pointer as *mut c_void, requested_rate, 0) };
-                        state.window = pointer;
-                        state.voted_rate = requested_rate;
-                        state.hz = requested_rate.round().clamp(0.0, u16::MAX as f32) as u16;
+        if REQUEST_NATIVE_DISPLAY_RATE {
+            if let Some(set_rate) = hints.set_frame_rate {
+                crate::APP.with(|app| {
+                    if let Some(window) = app.borrow().as_ref().and_then(|app| app.native_window()) {
+                        let pointer = window.ptr().as_ptr() as usize;
+                        if state.window != pointer || state.voted_rate != requested_rate {
+                            state.rate_status =
+                                unsafe { set_rate(pointer as *mut c_void, requested_rate, 0) };
+                            state.window = pointer;
+                            state.voted_rate = requested_rate;
+                            state.hz = requested_rate.round().clamp(0.0, u16::MAX as f32) as u16;
+                        }
                     }
-                }
-            });
+                });
+            }
         }
     });
 }
