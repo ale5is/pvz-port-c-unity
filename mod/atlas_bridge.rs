@@ -6,6 +6,22 @@ use std::time::{Duration, Instant};
 /// API-80 adapter: keep world discovery and chunk scanning independent of
 /// the newer Atlas rendering, networking and screen APIs.
 pub(super) fn frame(game: &mut Game<'_>) {
+    if m::with(|state| state.take_close()) {
+        if game.screen == crate::game::Screen::Paused && !game.pause_menu {
+            game.screen = crate::game::Screen::Playing;
+            game.capture(true);
+        }
+    }
+
+    let mouse = game.native_cursor();
+    m::with(|state| {
+        let delta = [mouse[0] - state.mouse[0], mouse[1] - state.mouse[1]];
+        if state.map.dragging || state.draw.stroke.is_some() || state.draw.erasing || state.slider.is_some() {
+            let button = if state.draw.erasing { 1 } else { 0 };
+            state.drag(button, delta, mouse);
+        }
+    });
+
     let dir = game.native_data_dir(m::ID);
     let settings = {
         let g = &*game;
