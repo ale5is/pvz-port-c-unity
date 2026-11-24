@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import shutil
 import tempfile
 import urllib.request
 
@@ -29,6 +30,8 @@ def sha256(data: bytes) -> str:
 
 
 def restore(destination: Path) -> None:
+    if destination.exists():
+        shutil.rmtree(destination)
     base = f"https://raw.githubusercontent.com/{MIRROR_REPO}/{MIRROR_REV}/{MIRROR_PATH}"
     metadata_bytes = fetch(f"{base}/FRE-VENDORED-SOURCE.json")
     metadata = json.loads(metadata_bytes)
