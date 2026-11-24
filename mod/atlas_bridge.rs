@@ -367,7 +367,16 @@ pub(super) fn paint(
                 batch.text_styled(&game.gui.atlas, &text, at[0], at[1], color, shadow);
                 batch.scale_since(start, at[0], at[1], scale, scale);
             }
-            m::Draw::ModImage(_, _, _) => {}
+            m::Draw::ModImage(src, dst, tint) => {
+                paint_map_image(
+                    game,
+                    batch,
+                    horizon_client::hud::MINIMAP_SPRITE,
+                    src,
+                    dst,
+                    tint,
+                );
+            }
             m::Draw::Image(slot, src, dst, tint) => {
                 let sprite = format!("horizon/map{slot}");
                 paint_map_image(game, batch, &sprite, src, dst, tint);
