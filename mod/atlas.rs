@@ -9391,6 +9391,9 @@ pub(crate) mod bridge {
                 if (map_mode || list_mode) && key == settings {
                     state.open_settings(m::Page::Main);
                     state.skip_char = m::key_char(key);
+                    if let Some(character) = m::key_char(key) {
+                        state.char_typed(character);
+                    }
                     return;
                 }
                 state.key(key, false, here.as_ref(), [&map, &create, &list, &settings]);
