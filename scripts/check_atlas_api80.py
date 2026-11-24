@@ -8,6 +8,7 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[1]
 ATLAS = ROOT / "mod/atlas-upstream"
 MANIFEST = ATLAS / "horizon-mixin.toml"
+PORT_MANIFEST = ROOT / "mod/horizon-mixin.toml"
 REGISTRY = ROOT / "horizon-source/native-hooks.json"
 
 EXPECTED_MISSING = {
@@ -57,10 +58,53 @@ def main() -> None:
     if absent_sources:
         raise SystemExit("Atlas source files are missing:\n" + "\n".join(absent_sources))
 
-    print("Atlas source inventory: OK")
-    print(f"Injection targets present in Horizon API 80: {len(injections) - len(missing)}/23")
-    print(f"Injection targets requiring adaptation: {len(missing)}")
-    print("Atlas remains reference-only; no incompatible hooks are registered in the APK.")
+    print("Atlas upstream source inventory: OK")
+    print(f"Upstream injection targets present in Horizon API 80: {len(injections) - len(missing)}/23")
+    print(f"Upstream-only targets still requiring adaptation: {len(missing)}")
+
+    if not PORT_MANIFEST.is_file():
+        raise SystemExit("The active Pavo mixin manifest is missing.")
+    port_manifest = tomllib.loads(PORT_MANIFEST.read_text(encoding="utf-8"))
+    if port_manifest.get("compatibility", {}).get("horizon_revision") != "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29":
+        raise SystemExit("The active Pavo manifest is not pinned to the reviewed Horizon revision.")
+
+    registered = {(item["name"], item["version"]) for item in registry.get("hooks", [])}
+    port_injections = port_manifest.get("injection", [])
+    unsupported = sorted(
+        f"{item['id']}: {item['hook']}@{item.get('hook_version')}"
+        for item in port_injections
+        if "hook" in item and (item["hook"], item.get("hook_version")) not in registered
+    )
+    if unsupported:
+        raise SystemExit("The active Pavo manifest uses hooks absent from Horizon API 80:\\n" + "\\n".join(unsupported))
+
+    atlas_ids = {
+        "atlas_native_minimap",
+        "atlas_frame",
+        "atlas_native_hud",
+        "atlas_screen_render",
+        "atlas_screen_mouse_pressed",
+        "atlas_screen_mouse_released",
+    }
+    active_atlas = {item["id"] for item in port_injections}
+    if not atlas_ids.issubset(active_atlas):
+        raise SystemExit("The active Pavo manifest is missing Atlas API-80 adapters: " + ", ".join(sorted(atlas_ids - active_atlas)))
+
+    missing_port_sources = []
+    for module in port_manifest.get("module", []):
+        if module["id"].startswith("atlas_") and not (ROOT / "mod" / module["source"]).is_file():
+            missing_port_sources.append(module["source"])
+    for injection in port_injections:
+        if injection["id"].startswith("atlas_"):
+            helper = ROOT / "mod" / injection["helper"]
+            if not helper.is_file():
+                missing_port_sources.append(injection["helper"])
+    if missing_port_sources:
+        raise SystemExit("Active Atlas adapter files are missing:\\n" + "\\n".join(missing_port_sources))
+
+    print("Active Atlas API-80 adapter inventory: OK")
+    print(f"Active Pavo hooks verified against Horizon API 80: {len(port_injections) - len(unsupported)}/" + str(len(port_injections)))
+    print("World-map render and mouse input use only hooks published in the pinned API 80 registry.")
 
 
 if __name__ == "__main__":
