@@ -9352,19 +9352,10 @@ pub(crate) mod bridge {
         let settings = game.native_mod_key(m::ID, m::KEY_SETTINGS, m::DEFAULT_SETTINGS);
         let temporary = game.native_mod_key(m::ID, m::KEY_TEMP, m::DEFAULT_TEMP);
 
-        if key == enlarge {
-            m::with(|state| state.enlarge_key(pressed));
-            return;
-        }
         if !pressed {
-            return;
-        }
-        if key == zoom_in {
-            m::with(|state| state.zoom_key(true));
-            return;
-        }
-        if key == zoom_out {
-            m::with(|state| state.zoom_key(false));
+            if key == enlarge && game.screen == crate::game::Screen::Playing {
+                m::with(|state| state.enlarge_key(false));
+            }
             return;
         }
 
@@ -9376,11 +9367,44 @@ pub(crate) mod bridge {
                 if matches!(&state.mode, m::Mode::Closed) {
                     return;
                 }
+                if key == zoom_in {
+                    let size = state.screen_size;
+                    state.map.zoom(1.0, [size[0] / 2.0, size[1] / 2.0], size);
+                    return;
+                }
+                if key == zoom_out {
+                    let size = state.screen_size;
+                    state.map.zoom(-1.0, [size[0] / 2.0, size[1] / 2.0], size);
+                    return;
+                }
+                if key == temporary {
+                    if let Some(here) = here.as_ref() {
+                        state.add_temporary(here);
+                    }
+                    return;
+                }
+                if key == settings && !matches!(&state.mode, m::Mode::Settings(_)) {
+                    state.open_settings(m::Page::Main);
+                    state.skip_char = m::key_char(key);
+                    return;
+                }
                 state.key(key, false, here.as_ref(), [&map, &create, &list, &settings]);
                 if let Some(character) = m::key_char(key) {
                     state.char_typed(character);
                 }
             });
+            return;
+        }
+        if key == enlarge && game.screen == crate::game::Screen::Playing {
+            m::with(|state| state.enlarge_key(true));
+            return;
+        }
+        if key == zoom_in {
+            m::with(|state| state.zoom_key(true));
+            return;
+        }
+        if key == zoom_out {
+            m::with(|state| state.zoom_key(false));
             return;
         }
         if game.screen != crate::game::Screen::Playing {
