@@ -8,8 +8,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 HORIZON_REV = "68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29"
-MIXINS_REV = "76958abc43c7a94a9972d06aa1e48e5e3c9b1e59"
-MIXINS_REPO = "https://github.com/levzzz5154/horizon-mixins"
+MIXINS_REV = "a2af5c0dd4117d51ecd70066ba7a00b4a2c10dab"
+MIXINS_REPO = "https://github.com/horizon-rust/horizon-mixins"
 
 def run(command, cwd=None):
     print("+", " ".join(map(str, command)), flush=True)
