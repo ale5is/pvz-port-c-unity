@@ -9368,18 +9368,27 @@ pub(crate) mod bridge {
             return;
         }
 
-        // The map, list and editor are real Horizon screens: API 80's screen
-        // hooks then own pointer, wheel and keyboard input without clicks
-        // leaking through to the world.
+        // Once Atlas owns the paused screen, the published API-80 mouse
+        // hooks handle clicks. Keyboard events still arrive through native_key.
+        if game.screen == crate::game::Screen::Paused {
+            let here = crate::game::atlas_bridge::here(game);
+            m::with(|state| {
+                if matches!(&state.mode, m::Mode::Closed) {
+                    return;
+                }
+                state.key(key, false, here.as_ref(), [&map, &create, &list, &settings]);
+                if let Some(character) = m::key_char(key) {
+                    state.char_typed(character);
+                }
+            });
+            return;
+        }
         if game.screen != crate::game::Screen::Playing {
             return;
         }
         let here = crate::game::atlas_bridge::here(game);
         let opened = m::with(|state| {
-            if !matches!(&state.mode, m::Mode::Closed) {
-                return false;
-            }
-            if !game.native_playing() {
+            if !matches!(&state.mode, m::Mode::Closed) || !game.native_playing() {
                 return false;
             }
             if key == map {
