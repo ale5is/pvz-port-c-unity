@@ -26,14 +26,26 @@ Do not copy Atlas 0.3.0's .hnmod directly into this Android build.
 
 A direct comparison of Atlas 0.3.0's 23 injection targets with the pinned Horizon 0.7.8 native hook registry found 17 exact target matches and 6 missing targets:
 
-- `native_screen_mouse_dragged_pre`: no API-80 equivalent. The existing screen-render hook exposes the pointer position, so dragging may be reconstructed from successive frames and button state; this needs an input-state test.
-- `native_screen_mouse_scrolled_pre`: no screen-wheel hook. `native_wheel` is documented for gameplay and must not be assumed to fire over Atlas's map screen. Use keyboard zoom initially; add screen-wheel support only with a verified call site.
-- `native_screen_key_pressed_pre`: use the existing `native_key` hook, which receives keyboard events on any screen. Adapt key handling to its `(key, pressed)` signature and avoid consuming keys outside the Atlas screen.
-- `native_screen_char_typed_pre`: no character-text hook. Do not enable editable text fields yet; use a waypoint command or coordinate/name presets until a safe text-input path is added.
+- `native_screen_mouse_dragged_pre`: no API-80 equivalent. The Pavo adapter reconstructs drag deltas from successive frame cursor positions while Atlas has a captured mouse button; this still needs an Android touch/pointer test.
+- `native_screen_mouse_scrolled_pre`: no published API-80 screen-wheel hook. The map uses its registered `[` / `]` zoom keybinds instead; do not assume the gameplay `native_wheel` hook fires over a screen.
+- `native_screen_key_pressed_pre`: no published API-80 screen-key hook. Pavo routes the existing `native_key` callback while its Atlas modal screen is open and does not handle map controls outside Atlas.
+- `native_screen_char_typed_pre`: no published API-80 character hook. Pavo converts physical key names received by `native_key` into basic characters for the waypoint editor; Android IME committed text is not covered yet.
 - `native_camera_pose_now`: no direct API-80 equivalent. Audit the render camera/player state before implementing world-space waypoint labels; omit camera-dependent labels in the first port if needed.
 - `native_level_unload`: use the existing `native_world_lifecycle` hook (API 44) and handle the final-close/failure phases explicitly; do not reuse the newer no-argument helper unchanged.
 
 The 17 remaining Atlas injection targets exist in the API-80 registry. This count only confirms hook-name availability; it does not prove matching signatures or compatible game data structures. The bridge still needs a field/type audit and an Android compile.
+
+## Pavo API-80 implementation status
+
+The active Pavo mixin now wires the portable Atlas core into the built-in Android bundle:
+
+- The existing Horizon minimap/radar renderer remains in place; Atlas continues to supply its terrain texture, radar dots and waypoint markers.
+- `M` opens the full-screen world map using the published `screen_render_post` hook. It uses a modal paused-screen container with the pause menu hidden, rather than depending on the unavailable API-415 mod-screen hooks.
+- The published API-80 mouse press/release hooks handle map buttons and waypoint markers. Dragging is reconstructed from cursor movement each frame while a captured button is held.
+- Drag pans the map; `[` / `]` zoom; `Space` recentres; `B` creates a waypoint at the player; right-click creates one at the map pointer; `U` opens the waypoint list; `D` toggles drawing and `Z` undoes a stroke.
+- The root mixin manifest is audited against the pinned API-80 hook registry by `scripts/check_atlas_api80.py`. Unsupported screen-wheel, screen-key and character hooks are not registered.
+
+This is implementation status, not a device acceptance result. The Android build and a real in-game test of opening the map, panning, zooming, saving a waypoint, and seeing it on both map views are still required before calling the feature complete.
 
 ## Port order
 
