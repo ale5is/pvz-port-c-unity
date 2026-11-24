@@ -10,6 +10,7 @@ on:
       - "scripts/patch_bundled_native_mods.py"
       - "scripts/patch_starling_090_performance.py"
       - "scripts/patch_starling_090_android_apis.py"
+      - "scripts/patch_android_launcher_scratch.py"
       - "PAVO_VERSION"
       - "mod/**"
       - "mod/atlas-upstream/**"
@@ -134,6 +135,11 @@ jobs:
 
       - name: Backport Starling 0.9 Android frame APIs and API-81 FPS hook
         run: python scripts/patch_starling_090_android_apis.py horizon-source
+
+      - name: Check and apply Starling 0.9 launcher scratch-scale backport
+        run: |
+          python -m py_compile scripts/patch_android_launcher_scratch.py
+          python scripts/patch_android_launcher_scratch.py horizon-source
 
       - name: Test Starling fixed-grid frame pacing backport
         run: cargo test --manifest-path horizon-source/Cargo.toml -p horizon-client-input
