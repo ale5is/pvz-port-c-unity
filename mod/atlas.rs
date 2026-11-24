@@ -438,6 +438,9 @@ pub enum Action {
     OpenList,
     /// The map follows the player again.
     Centre,
+    /// Zoom the world map around its centre.
+    ZoomIn,
+    ZoomOut,
     /// A waypoint's marker on the world map: edit it.
     MapWaypoint(usize),
     /// A settings button: the next value of option `i`.
@@ -4435,6 +4438,14 @@ impl State {
                     self.centre_on(h);
                 }
             }
+            Action::ZoomIn => {
+                let size = self.screen_size;
+                self.map.zoom(1.0, [size[0] / 2.0, size[1] / 2.0], size);
+            }
+            Action::ZoomOut => {
+                let size = self.screen_size;
+                self.map.zoom(-1.0, [size[0] / 2.0, size[1] / 2.0], size);
+            }
             Action::ShareDownload => self.tell = Some(self.answer_share(true)),
             Action::ShareNever => self.tell = Some(self.answer_share(false)),
             Action::ShareLater => self.share_later = true,
@@ -5739,8 +5750,12 @@ impl State {
             out.text(&line, [((size[0] - w) / 2.0).round(), 15.0], MUTED);
         }
 
-        // Top right: the compass rose.
+        // Top right: the compass rose and touch-friendly zoom controls.
         compass_rose(out, [size[0] - 24.0, 22.0], 14.0);
+        if live {
+            out.button([size[0] - 24.0, 41.0, 20.0, 18.0], "+", Action::ZoomIn, false);
+            out.button([size[0] - 24.0, 61.0, 20.0, 18.0], "-", Action::ZoomOut, false);
+        }
 
         // Bottom right: the buttons; bottom left: how to use it.
         let st = self.settings();
@@ -5780,7 +5795,7 @@ impl State {
         let hint = match hot {
             Some(i) => format!("Click to edit {}", self.waypoints[i].name),
             None if self.draw.on => "Drag to draw, right drag to erase, Z to undo, D to stop drawing".into(),
-            None => "Drag to move, [ / ] to zoom, B for a waypoint here, Space to centre, D to draw".into(),
+            None => "Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw".into(),
         };
         let hint = out.fit(&hint, x - 8.0);
         out.text(&hint, [4.0, size[1] - 14.0], MUTED);
