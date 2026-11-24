@@ -9370,23 +9370,25 @@ pub(crate) mod bridge {
                 if matches!(&state.mode, m::Mode::Closed) {
                     return;
                 }
-                if key == zoom_in {
+                let map_mode = matches!(&state.mode, m::Mode::Map);
+                let list_mode = matches!(&state.mode, m::Mode::List) && !state.filter_focus;
+                if map_mode && key == zoom_in {
                     let size = state.screen_size;
                     state.map.zoom(1.0, [size[0] / 2.0, size[1] / 2.0], size);
                     return;
                 }
-                if key == zoom_out {
+                if map_mode && key == zoom_out {
                     let size = state.screen_size;
                     state.map.zoom(-1.0, [size[0] / 2.0, size[1] / 2.0], size);
                     return;
                 }
-                if key == temporary {
+                if (map_mode || list_mode) && key == temporary {
                     if let Some(here) = here.as_ref() {
                         state.add_temporary(here);
                     }
                     return;
                 }
-                if key == settings && !matches!(&state.mode, m::Mode::Settings(_)) {
+                if (map_mode || list_mode) && key == settings {
                     state.open_settings(m::Page::Main);
                     state.skip_char = m::key_char(key);
                     return;
