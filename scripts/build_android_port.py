@@ -22,7 +22,7 @@ def install_mixins():
     root = ROOT / ".build/horizon-mixins"
     executable = root / "bin" / ("horizon-mixins.exe" if os.name == "nt" else "horizon-mixins")
     marker = root / ".pinned-revision"
-    marker_value = MIXINS_REV + "\\n" + "12510e0e885d1250acfc164b8f9bb2e0d4aa2f6a"
+    marker_value = MIXINS_REV + "\n" + "12510e0e885d1250acfc164b8f9bb2e0d4aa2f6a"
     if executable.is_file() and marker.is_file() and marker.read_text(encoding="utf-8") == marker_value:
         return executable
     rustup = shutil.which("rustup")
