@@ -9339,20 +9339,80 @@ pub(crate) mod bridge {
     use super as m;
 
     pub(crate) fn key_api80(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
+        if !game.native_on(m::ID) {
+            return;
+        }
+
         let enlarge = game.native_mod_key(m::ID, m::KEY_ENLARGE, m::DEFAULT_ENLARGE);
         let zoom_in = game.native_mod_key(m::ID, m::KEY_ZOOM_IN, m::DEFAULT_ZOOM_IN);
         let zoom_out = game.native_mod_key(m::ID, m::KEY_ZOOM_OUT, m::DEFAULT_ZOOM_OUT);
+        let map = game.native_mod_key(m::ID, m::KEY_MAP, m::DEFAULT_MAP);
+        let create = game.native_mod_key(m::ID, m::KEY_CREATE, m::DEFAULT_CREATE);
+        let list = game.native_mod_key(m::ID, m::KEY_LIST, m::DEFAULT_LIST);
+        let settings = game.native_mod_key(m::ID, m::KEY_SETTINGS, m::DEFAULT_SETTINGS);
+        let temporary = game.native_mod_key(m::ID, m::KEY_TEMP, m::DEFAULT_TEMP);
+
         if key == enlarge {
             m::with(|state| state.enlarge_key(pressed));
+            return;
         }
-        if pressed && key == zoom_in {
+        if !pressed {
+            return;
+        }
+
+        if key == zoom_in {
             m::with(|state| state.zoom_key(true));
+            return;
         }
-        if pressed && key == zoom_out {
+        if key == zoom_out {
             m::with(|state| state.zoom_key(false));
+            return;
         }
-        if key == "key.keyboard.tab" {
-            m::with(|state| state.tab_held = pressed);
+
+        let here = crate::game::atlas_bridge::here(game);
+        let open = m::with(|state| !matches!(&state.mode, m::Mode::Closed));
+
+        if !open {
+            if !game.native_playing() {
+                return;
+            }
+            m::with(|state| {
+                if key == map {
+                    state.open_map(here.as_ref(), m::key_char(key));
+                } else if key == create {
+                    if let Some(here) = here.as_ref() {
+                        state.open_create(here, m::Back::Game, m::key_char(key));
+                    }
+                } else if key == list {
+                    state.open_list(m::key_char(key));
+                } else if key == settings {
+                    state.open_settings(m::Page::Main);
+                    state.skip_char = m::key_char(key);
+                } else if key == temporary {
+                    if let Some(here) = here.as_ref() {
+                        state.add_temporary(here);
+                    }
+                }
+                if let Some(character) = m::key_char(key) {
+                    state.char_typed(character);
+                }
+            });
+            return;
         }
+
+        m::with(|state| {
+            state.key(
+                key,
+                false,
+                here.as_ref(),
+                [&map, &create, &list, &settings],
+            );
+            if let Some(character) = m::key_char(key) {
+                state.char_typed(character);
+            }
+            if state.take_close() {
+                state.reset();
+            }
+        });
     }
 }
