@@ -2,9 +2,10 @@ fn atlas_screen_mouse_pressed(
     game: &crate::game::Game<'_>,
     screen: &crate::game::native_hooks::NativeScreenView<'_>,
     button: i32,
-    _modifiers: u32,
+    modifiers: u32,
     canceled: &mut bool,
 ) {
+    let _ = modifiers;
     if !game.native_on("atlas") || screen.id != "paused" {
         return;
     }
