@@ -9423,6 +9423,7 @@ pub(crate) mod bridge {
             if !matches!(&state.mode, m::Mode::Closed) || !game.native_playing() {
                 return false;
             }
+            state.pointer_buttons.clear();
             if key == map {
                 state.open_map(here.as_ref(), m::key_char(key));
             } else if key == create {
