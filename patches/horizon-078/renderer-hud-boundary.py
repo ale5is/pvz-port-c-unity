@@ -57,8 +57,8 @@ screen_size_calls = "[renderer.config.width, renderer.config.height]"
 screen_size_closure = "[r.config.width, r.config.height]"
 if game_source.count(screen_size_calls) != 4:
     raise SystemExit(f"Expected 4 loading HUD framebuffer-size reads, found {game_source.count(screen_size_calls)}")
-if game_source.count(screen_size_closure) != 1:
-    raise SystemExit(f"Expected 1 main-frame framebuffer-size read, found {game_source.count(screen_size_closure)}")
+if game_source.count(screen_size_closure) != 17:
+    raise SystemExit(f"Expected 17 renderer framebuffer-size reads, found {game_source.count(screen_size_closure)}")
 
 atlas_shader = """renderer
         .hud
@@ -90,4 +90,4 @@ if "renderer.hud.sprite_animations" in game_source or ".set_text_shader(&rendere
 
 gfx.write_text(gfx_source, encoding="utf-8")
 game.write_text(game_source, encoding="utf-8")
-print("Installed Renderer::configure_hud and Renderer::screen_size; migrated HUD setup and all framebuffer-size reads in Game.")
+print("Installed Renderer::configure_hud and Renderer::screen_size; migrated all HUD setup and 21 framebuffer-size reads in Game.")
