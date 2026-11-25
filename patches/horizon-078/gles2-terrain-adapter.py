@@ -250,7 +250,7 @@ mod tests {
         let tiled = TerrainVertex::tiled([0.0; 3], [32.0, 64.0], 0, u32::MAX, 0);
         let section = convert_vertex(&tiled, &atlas).unwrap();
         let distant = convert_vertex_with_uv_step(&tiled, &atlas, 1.0 / crate::mesher::TILED_UV_STEPS).unwrap();
-        assert_eq!(section.uv, [2.0, 2.0]);
+        assert_eq!(section.uv, [1.0 / 32.0, 1.0 / 16.0]);
         assert_eq!(distant.uv, [32.0, 64.0]);
     }
 
