@@ -119,3 +119,14 @@ The same patch now moves the world-icon screenshot path behind three renderer op
 This preserves the existing world-icon behavior: it waits until more than ten sections have been drawn, does not overwrite an F2/agent screenshot, and queues the 64×64 icon capture. The game no longer reads or writes `Renderer::drawn_sections` or `Renderer::screenshot` directly at these call sites.
 
 The methods are still implemented by the current wgpu renderer; this is an ownership/API cleanup, not yet a second backend or a backend-neutral screenshot implementation. The patch script asserts the expected upstream call-site counts and fails rather than silently applying to a changed source layout. The cross-target build and the patch itself still need a completed CI run before they can be considered validated.
+
+## Follow-up boundary reduction: frame timing
+
+The game-side upload budget and frame graph now use renderer methods rather than reading or draining timing fields directly:
+
+- `last_wait_duration()` returns the wait time from the previous render.
+- `take_latest_gpu_time()` returns the most recent GPU timing sample and drains the collected samples in one operation.
+
+This preserves the existing timing flow: the upload budget receives the previous frame's wait duration; the loading-screen frame graph subtracts that wait from elapsed CPU time; the graph receives the latest GPU sample; and samples are then cleared. The patch asserts the exact upstream call-site counts before replacing them.
+
+This does not yet move frame pacing, GPU timestamp collection, or upload-budget policy into a backend-neutral interface. It only establishes a narrow renderer-owned API so a future backend can implement or omit GPU timing without exposing wgpu's storage layout to game code. CI validation remains pending.
