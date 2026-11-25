@@ -8,6 +8,7 @@ on:
       - 'tools/android5_patch.py'
       - 'tools/check_android5_renderer_boundary.py'
       - 'patches/horizon-078/gles2-hud-adapter.py'
+      - 'patches/horizon-078/renderer-hud-boundary.py'
       - 'patches/horizon-078/gles2-terrain-adapter.py'
       - 'patches/horizon-078/gles2-terrain.vert'
       - 'patches/horizon-078/gles2-terrain-solid.frag'
@@ -79,6 +80,9 @@ jobs:
 
       - name: Install Horizon terrain GLES2 CPU adapter
         run: python3 patches/horizon-078/gles2-terrain-adapter.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Encapsulate renderer HUD backend setup
+        run: python3 patches/horizon-078/renderer-hud-boundary.py "$RUNNER_TEMP/horizon-078"
 
       - name: Install Rust ARMv7 target
         working-directory: ${{ runner.temp }}/horizon-078
