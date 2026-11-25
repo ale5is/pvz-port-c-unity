@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(pavo_gles2_native LANGUAGES C CXX)
 
-add_library(pavo_gles2_native SHARED native_hud.cpp)
+add_library(pavo_gles2_native SHARED native_hud.cpp gles2_terrain_renderer.cpp)
 
 find_library(android-lib android)
 find_library(log-lib log)
