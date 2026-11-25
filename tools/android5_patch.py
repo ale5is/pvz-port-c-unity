@@ -41,6 +41,14 @@ replace_once(
     "Disable audio and optional mods in ARMv7 API-22 diagnostic",
 )
 
+android_main = root / "crates/horizon-client/src/android_main.rs"
+replace_once(
+    android_main,
+    "    init_logging();\n    let Some(home) = app.internal_data_path() else {",
+    "    init_logging();\n    horizon_client::android_runtime::configure_atlas_limit(2048);\n    let Some(home) = app.internal_data_path() else {",
+    "Set a 2048px atlas ceiling before Android launcher resources load",
+)
+
 manifest = root / "packaging/android/AndroidManifest.xml"
 replace_once(
     manifest,
@@ -48,4 +56,4 @@ replace_once(
     '<uses-feature android:glEsVersion="0x00020000" android:required="false" />',
     "Allow installation on GLES2 for diagnostic only",
 )
-print("Applied Android 5 API-22 diagnostic patch (SAF API 26 removed; audio disabled; GLES2 requirement non-blocking).")
+print("Applied Android 5 API-22 diagnostic patch (SAF API 26 removed; audio disabled; GLES2 install allowed; HUD atlas capped at 2048px).")
