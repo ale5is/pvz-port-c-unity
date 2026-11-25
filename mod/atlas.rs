@@ -5752,8 +5752,7 @@ impl State {
         } else {
             format!("Scale: {}x", trim_float(1.0 / self.map.bpp))
         };
-        out.text(&scale, [4.0, 4.0], INK);
-        out.button([4.0, 18.0, 42.0, 18.0], "Close", Action::Close, false);
+        out.text(&scale, [34.0, 29.0], INK);
 
         // Top centre: the block under the pointer.
         if live {
@@ -5769,7 +5768,7 @@ impl State {
                 at += &format!("   {name}: {x}, {z}");
             }
             let w = out.width(&at);
-            out.text(&at, [((size[0] - w) / 2.0).round(), 4.0], INK);
+            out.text(&at, [((size[0] - w) / 2.0).round(), 29.0], INK);
         }
         let cut = self.map_cut();
         let mut under = Vec::new();
@@ -5782,142 +5781,127 @@ impl State {
         if !under.is_empty() {
             let line = under.join(", ");
             let w = out.width(&line);
-            out.text(&line, [((size[0] - w) / 2.0).round(), 15.0], MUTED);
+            out.text(&line, [((size[0] - w) / 2.0).round(), 40.0], MUTED);
         }
 
         // Top right: the compass rose and touch-friendly zoom controls.
-        compass_rose(out, [size[0] - 24.0, 22.0], 14.0);
-        if live {
-            out.button([size[0] - 24.0, 41.0, 20.0, 18.0], "+", Action::ZoomIn, false);
-            out.button([size[0] - 24.0, 61.0, 20.0, 18.0], "-", Action::ZoomOut, false);
-        }
+        compass_rose(out, [size[0] - 24.0, 60.0], 14.0);
 
-        // Bottom right: the buttons; bottom left: how to use it.
-        let st = self.settings();
-        let mut buttons: Vec<(String, Action)> = vec![
-            ("Waypoints".into(), Action::OpenList),
-            ("Centre".into(), Action::Centre),
-            ("Draw".into(), Action::ToggleDraw),
-        ];
-        if self.draw.on {
-            buttons.push(("Undo".into(), Action::UndoStroke));
-            // Room on its right for the pen's colour.
-            buttons.push((format!("{}  ", DRAW_COLORS[self.draw.color % DRAW_COLORS.len()].1), Action::DrawColor));
-        }
-        if st.mode == MapMode::Layer {
-            buttons.push(("+".into(), Action::LayerStep(1)));
-            buttons.push((format!("Y {}", st.layer_y), Action::LayerStep(0)));
-            buttons.push(("-".into(), Action::LayerStep(-1)));
-        }
-        buttons.push((format!("Mode: {}", st.mode.label()), Action::CycleMapMode));
-        buttons.push((dimension_label(&dimension), Action::CycleMapDimension));
-        buttons.push(("Settings".into(), Action::GoPage(Page::Main)));
-        let mut x = size[0] - 4.0;
-        let by = size[1] - 18.0;
-        for (label, action) in buttons {
-            let w = out.width(&label) + 10.0;
-            x -= w;
-            if live {
-                let on = (action == Action::Centre && self.map.follow) || (action == Action::ToggleDraw && self.draw.on);
-                let pen = (action == Action::DrawColor).then(|| DRAW_COLORS[self.draw.color % DRAW_COLORS.len()].0);
-                out.button([x, by, w, 14.0], &label, action, on);
-                if let Some(pen) = pen {
-                    out.fill([x + w - 6.0, by + 3.0, 3.0, 8.0], pen);
-                }
-            }
-            x -= 3.0;
-        }
         let hint = match hot {
             Some(i) => format!("Click to edit {}", self.waypoints[i].name),
             None if self.draw.on => "Drag to draw, right drag to erase, Z to undo, D to stop drawing".into(),
             None => "Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw".into(),
         };
         let hint = out.fit(&hint, x - 8.0);
-        out.text(&hint, [4.0, size[1] - 14.0], MUTED);
+        out.text(&hint, [34.0, size[1] - 31.0], MUTED);
         if live && self.share_asks() {
             self.draw_share_ask(out, size);
         }
         self.draw_map_sidebar(out, size, &dimension, live);
     }
 
-    /// A persistent map dock: waypoint navigation and map controls stay
-    /// visible without hiding the world map behind another screen.
+    /// JourneyMap-inspired fullscreen controls: a top mode bar, a left
+    /// navigation strip and a bottom waypoint/settings toolbar.
     fn draw_map_sidebar(
         &self,
         out: &mut Out<'_>,
         size: [f32; 2],
-        dimension: &str,
+        _dimension: &str,
         live: bool,
     ) {
-        let width = (size[0] * 0.29).clamp(112.0, 164.0).min(size[0] * 0.44);
+        let width = size[0];
         let height = size[1];
-        out.fill([0.0, 0.0, width, height], 0xE0111822);
-        out.fill([width - 1.0, 0.0, 1.0, height], 0xFF52677D);
-        out.fill([0.0, 0.0, width, 30.0], 0xFF182431);
-        out.text("ATLAS", [10.0, 8.0], INK);
-        out.text("WORLD MAP", [10.0, 38.0], MUTED);
-        out.fill([8.0, 54.0, width - 16.0, 1.0], 0x6052677D);
+        out.fill([0.0, 0.0, width, 24.0], 0xE0101722);
+        out.fill([0.0, height - 24.0, width, 24.0], 0xE0101722);
+        out.text("ATLAS", [8.0, 8.0], INK);
 
-        let mut row = 0usize;
-        for (index, waypoint) in self.waypoints.iter().enumerate() {
-            if waypoint.hidden || waypoint.dimension != dimension {
-                continue;
-            }
-            let y = 61.0 + row as f32 * 22.0;
-            if y + 20.0 > height - 76.0 {
-                break;
-            }
-            let rect = [6.0, y, width - 12.0, 20.0];
-            let hovered = inside(rect, out.mouse);
-            let selected = self.selected == Some(index);
-            out.fill(
-                rect,
-                if selected { 0xA04FC3F7 } else if hovered { 0xA0445F78 } else { 0x50303D4B },
-            );
-            let color = 0xFF000000 | (waypoint.color & RGB);
-            out.fill([12.0, y + 6.0, 8.0, 8.0], color);
-            let name = out.fit(&waypoint.name, width - 58.0);
-            out.text(&name, [25.0, y + 6.0], INK);
-            if live {
-                out.widgets.push(Widget {
-                    rect,
-                    action: Action::Select(index),
-                });
-                mc_button(
-                    out,
-                    [width - 25.0, y + 2.0, 17.0, 16.0],
-                    "T",
-                    self.can_teleport.then_some(Action::Teleport(index)),
-                );
-            }
-            row += 1;
+        let top_button_w = (width / 8.0).clamp(32.0, 46.0);
+        let top_buttons = [
+            ("Mode", Action::CycleMapMode, false),
+            ("Dim", Action::CycleMapDimension, false),
+            ("Draw", Action::ToggleDraw, self.draw.on),
+            ("X", Action::Close, false),
+        ];
+        let top_total = top_buttons.len() as f32 * top_button_w + 3.0 * 3.0;
+        let mut x = width - top_total - 5.0;
+        for (label, action, active) in top_buttons {
+            atlas_map_button(out, [x, 3.0, top_button_w, 18.0], label, live.then_some(action), active);
+            x += top_button_w + 3.0;
         }
 
-        if row == 0 {
-            out.text("No waypoints", [10.0, 66.0], MUTED);
+        let left_buttons = [
+            ("W", Action::OpenList, false),
+            ("◎", Action::Centre, self.map.follow),
+            ("+", Action::ZoomIn, false),
+            ("−", Action::ZoomOut, false),
+        ];
+        let left_x = 4.0;
+        for (i, (label, action, active)) in left_buttons.into_iter().enumerate() {
+            let y = 31.0 + i as f32 * 24.0;
+            atlas_map_button(
+                out,
+                [left_x, y, 22.0, 21.0],
+                label,
+                live.then_some(action),
+                active,
+            );
         }
-        out.fill([8.0, height - 70.0, width - 16.0, 1.0], 0x6052677D);
-        if live {
-            out.button(
-                [8.0, height - 62.0, width - 16.0, 18.0],
-                "Waypoints",
-                Action::OpenList,
-                false,
+
+        let bottom_buttons = [
+            ("Waypoints", Action::OpenList, false),
+            ("Settings", Action::GoPage(Page::Main), false),
+            ("Draw", Action::ToggleDraw, self.draw.on),
+            ("Mode", Action::CycleMapMode, false),
+        ];
+        let gap = 4.0;
+        let button_w = ((width - 16.0 - gap * 3.0) / 4.0).min(92.0);
+        let total = button_w * 4.0 + gap * 3.0;
+        let mut bx = ((width - total) / 2.0).max(30.0);
+        for (label, action, active) in bottom_buttons {
+            atlas_map_button(
+                out,
+                [bx, height - 21.0, button_w, 18.0],
+                label,
+                live.then_some(action),
+                active,
             );
-            out.button(
-                [8.0, height - 40.0, width - 16.0, 18.0],
-                "Centre",
-                Action::Centre,
-                self.map.follow,
-            );
-            out.button(
-                [8.0, height - 18.0, width - 16.0, 14.0],
-                "Settings",
-                Action::GoPage(Page::Main),
-                false,
-            );
+            bx += button_w + gap;
         }
     }
+
+fn atlas_map_button(
+    out: &mut Out<'_>,
+    rect: [f32; 4],
+    label: &str,
+    action: Option<Action>,
+    active: bool,
+) {
+    let hovered = inside(rect, out.mouse);
+    out.fill(rect, 0xFF09111C);
+    out.fill(
+        [rect[0] + 1.0, rect[1] + 1.0, rect[2] - 2.0, rect[3] - 2.0],
+        if active {
+            0xFF315D94
+        } else if hovered {
+            0xFF355B88
+        } else {
+            0xFF1B2D45
+        },
+    );
+    let shown = out.fit(label, rect[2] - 6.0);
+    let text_width = out.width(&shown);
+    out.text(
+        &shown,
+        [
+            (rect[0] + (rect[2] - text_width) / 2.0).round(),
+            rect[1] + ((rect[3] - 8.0) / 2.0).round(),
+        ],
+        0xFFFF_FFFF,
+    );
+    if let Some(action) = action {
+        out.widgets.push(Widget { rect, action });
+    }
+}
 
     /// The world map's portal highlights and the server's view distance
     /// around `player` (where they are in the dimension shown).
