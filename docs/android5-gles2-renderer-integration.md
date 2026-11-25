@@ -69,3 +69,35 @@ A milestone may contain several code commits and CI iterations. The count is eig
 ## Acceptance rule
 
 Do not label any artifact "playable" until the Android client loads a real world, uploads and draws real Horizon sections, survives window pause/resume, and reports no fatal EGL/GLES errors on the target Android 5.1 ARMv7 device. A successful APK build only proves packaging and compilation.
+
+## Pinned-source call-site inventory (verified against the locked revision)
+
+The backend migration must preserve more than the visible terrain draw. A source inspection of `crates/horizon-client-render/src/gfx.rs` at the pinned revision confirms these renderer operations are public and called from the game:
+
+- Construction/replacement: `Renderer::new`, `Renderer::new_with_context`, `background_context`, `activate_replacement`.
+- Surface lifecycle: `release_surface`, `suspend_surface`, `recreate_surface`, `resize`.
+- World residency: `upload`, `clear_sections`, `remove_columns`, `queue_lods`, `upload_lods`, `start_occlusion`.
+- Frame/presentation: `render`, `wait_in_flight`.
+- Resource/configuration: `set_world_assets`, `set_present_mode`, `set_texture_filtering`, `set_mipmap_levels`, shader-pack and HDR configuration.
+- Visibility/diagnostics: `section_count`, `resident_sections`, `lod_quads`, `section_vertex_bytes`, `gpu_stage_times`.
+
+The game-side call sites in the same revision still depend directly on concrete renderer state. Examples include:
+
+- `renderer.config.width/height` to size loading HUD batches;
+- `renderer.info` passed to `lod_distance_capped`;
+- `renderer.hud` and `renderer.device` for HUD atlas animation and text shader setup;
+- `renderer.last_wait` and `renderer.gpu_times` for frame timing;
+- `renderer.screenshot` and `renderer.drawn_sections` for screenshot/debug state;
+- direct lifecycle and mesh calls during Android window changes and streaming.
+
+The HUD setup and screen-size accesses have already been partially moved behind methods by the branch's patch scripts. The remaining accesses are not all interchangeable: for example, `wgpu::AdapterInfo` is not a portable capability type, and GLES2 must not fabricate a wgpu adapter merely to satisfy `lod_distance_capped`. The next boundary change therefore needs an explicit backend-neutral capability snapshot (only the fields actually consumed by game policy), plus typed timing/screenshot/debug accessors. It must not expose a wgpu handle through a nominally backend-neutral interface.
+
+### Implementation order derived from the call sites
+
+1. Keep the current `Frame` as the shared, CPU-side frame description; it contains game render inputs and does not itself require a wgpu device.
+2. Define backend-neutral value types for screen extent, relevant renderer capabilities, frame timing and screenshot completion. Keep GPU handles private to the backend.
+3. Move the remaining game-side reads behind narrow methods before introducing a second backend implementation. This makes the existing wgpu path compile against the same contract first.
+4. Keep section upload/removal, LOD residency and surface lifecycle as explicit operations on the renderer owner; do not collapse them into a generic byte-buffer API.
+5. Only after the wgpu implementation passes the same call-site tests should the Android EGL/GLES2 implementation be selected by the Android launcher.
+
+This inventory is based on the exact upstream revision above. It is an architectural map, not a claim that a backend trait or GLES2 game-loop integration has already been implemented.
