@@ -4688,13 +4688,13 @@ impl State {
             },
             Mode::List => match key {
                 "key.keyboard.escape" => self.close(),
-                teleport_key => {
+                k if k == teleport_key => {
                     if let Some(i) = self.selected {
                         self.act(Action::Teleport(i), here);
                     }
                 }
-                pan_up => self.scroll = self.scroll.saturating_sub(1),
-                pan_down => self.scroll += 1,
+                k if k == pan_up => self.scroll = self.scroll.saturating_sub(1),
+                k if k == pan_down => self.scroll += 1,
                 k if k == list_key => self.close(),
                 k if k == map_key => self.open_map(here, key_char(k)),
                 k if k == create_key => {
@@ -4709,17 +4709,17 @@ impl State {
                 let pan = 32.0;
                 match key {
                     "key.keyboard.escape" => self.close(),
-                    "key.keyboard.up" => self.map.pan([0.0, pan]),
-                    "key.keyboard.down" => self.map.pan([0.0, -pan]),
-                    pan_left => self.map.pan([pan, 0.0]),
-                    pan_right => self.map.pan([-pan, 0.0]),
-                    world_zoom_in => {
+                    k if k == pan_up => self.map.pan([0.0, pan]),
+                    k if k == pan_down => self.map.pan([0.0, -pan]),
+                    k if k == pan_left => self.map.pan([pan, 0.0]),
+                    k if k == pan_right => self.map.pan([-pan, 0.0]),
+                    k if k == world_zoom_in => {
                         self.map.zoom(1.0, [size[0] / 2.0, size[1] / 2.0], size);
                     }
-                    world_zoom_out => {
+                    k if k == world_zoom_out => {
                         self.map.zoom(-1.0, [size[0] / 2.0, size[1] / 2.0], size);
                     }
-                    centre_key => self.act(Action::Centre, here),
+                    k if k == centre_key => self.act(Action::Centre, here),
                     k if k == map_key => self.close(),
                     k if k == list_key => self.open_list(key_char(k)),
                     // A new waypoint where the pointer is.
@@ -4727,8 +4727,8 @@ impl State {
                         let mouse = self.mouse;
                         self.create_at_pointer(mouse, here, key_char(k));
                     }
-                    draw_key => self.act(Action::ToggleDraw, here),
-                    undo_key if self.draw.on => self.act(Action::UndoStroke, here),
+                    k if k == draw_key => self.act(Action::ToggleDraw, here),
+                    k if k == undo_key && self.draw.on => self.act(Action::UndoStroke, here),
                     _ => {}
                 }
             }
