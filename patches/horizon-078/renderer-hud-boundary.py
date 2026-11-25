@@ -186,9 +186,9 @@ if game_source.count("r.last_wait + render") != 1:
     raise SystemExit("Expected one render-phase wait-duration calculation")
 if game_source.count("r.last_encode") != 1:
     raise SystemExit("Expected one render-encoding duration read")
-if game_source.count("r.gpu_times.last().copied()") != 2:
+if game_source.count("r.gpu_times.last().copied()") != 1:
     raise SystemExit("Expected one main-loop latest GPU timing read")
-if game_source.count("r.gpu_times.last()") != 3:
+if game_source.count("r.gpu_times.last()") != 2:
     raise SystemExit("Expected one main-loop GPU utilization timing read")
 if game_source.count("&r.gpu_times") != 2:
     raise SystemExit("Expected two main-loop GPU sample consumers")
