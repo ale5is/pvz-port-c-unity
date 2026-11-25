@@ -17,7 +17,7 @@ varying mediump float v_opaque;
 varying highp float v_distance;
 
 void main() {
-    vec2 local_uv = fract(v_uv);
+    vec2 local_uv = v_uv - max(ceil(v_uv) - 1.0, vec2(0.0));
     vec2 half_texel = 0.5 / u_atlas_size;
     vec2 inset = half_texel;
     vec2 tile_uv = (local_uv * max(u_sprite_size - 1.0, 0.0) + 0.5) / u_atlas_size;
