@@ -16,9 +16,11 @@ required_vertex = [
     "attribute vec2 a_atlas_scale;",
     "attribute vec4 a_color;",
     "attribute vec2 a_light;",
+    "attribute vec2 a_material;",
     "attribute float a_opaque;",
     "uniform mat4 u_mvp;",
     "uniform vec3 u_section_origin;",
+    "varying mediump vec2 v_material;",
 ]
 for item in required_vertex:
     assert item in vertex, f"missing vertex shader contract: {item}"
@@ -29,6 +31,7 @@ for label, shader in [("solid", solid), ("translucent", translucent)]:
     assert "v_uv - max(ceil(v_uv) - 1.0, vec2(0.0))" in shader, f"{label}: Horizon tile_uv wrapping is missing"
     assert "u_atlas_size" in shader and "u_sprite_size" in shader, f"{label}: atlas inset missing"
     assert "texture2D(u_lightmap" in shader, f"{label}: lightmap sampling missing"
+    assert "v_material.x * 17.0" in shader, f"{label}: packed emission is not applied"
     assert "u_fog_range" in shader, f"{label}: fog range missing"
 
 assert "pub struct Gles2TerrainVertex" in adapter
@@ -53,6 +56,7 @@ assert "if (color.a < 0.01)" in translucent
 print("PASS: GLES2 terrain shader inputs match the CPU vertex adapter.")
 print("PASS: solid cutout and translucent paths retain separate alpha semantics.")
 print("PASS: packed vertex alpha is decoded into emission and material flags.")
+print("PASS: emission is applied in both solid and translucent lighting paths.")
 print("PASS: GLES2 vertex offsets and 48-byte stride are asserted.")
 print("PASS: solid terrain writes opaque alpha after cutout.")
 print("NOTE: GLSL compilation is checked separately; this is not a GPU render test.")

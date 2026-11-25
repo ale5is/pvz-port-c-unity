@@ -16,6 +16,7 @@ attribute vec2 a_atlas_origin;
 attribute vec2 a_atlas_scale;
 attribute vec4 a_color;
 attribute vec2 a_light;
+attribute vec2 a_material;
 attribute float a_opaque;
 uniform mat4 u_mvp;
 uniform vec3 u_section_origin;
@@ -25,6 +26,7 @@ varying mediump vec2 v_atlas_origin;
 varying mediump vec2 v_atlas_scale;
 varying lowp vec4 v_color;
 varying mediump vec2 v_light;
+varying mediump vec2 v_material;
 varying mediump float v_opaque;
 varying highp float v_distance;
 void main() {
@@ -35,6 +37,7 @@ void main() {
     v_atlas_scale = a_atlas_scale;
     v_color = a_color;
     v_light = a_light * 255.0;
+    v_material = a_material;
     v_opaque = a_opaque;
     v_distance = length(world_position - u_camera_position);
 }
@@ -53,6 +56,7 @@ varying mediump vec2 v_atlas_origin;
 varying mediump vec2 v_atlas_scale;
 varying lowp vec4 v_color;
 varying mediump vec2 v_light;
+varying mediump vec2 v_material;
 varying mediump float v_opaque;
 varying highp float v_distance;
 void main() {
@@ -67,6 +71,8 @@ void main() {
     vec2 light_uv = clamp(vec2(v_light.y, v_light.x) / 256.0 + vec2(0.5 / 16.0),
                           vec2(0.5 / 16.0), vec2(15.5 / 16.0));
     vec3 light = texture2D(u_lightmap, light_uv).rgb;
+    float emission = clamp(v_material.x * 17.0, 0.0, 1.0);
+    light = mix(light, vec3(1.0), emission);
     vec4 color = vec4(texel.rgb * v_color.rgb * light, 1.0);
     float fog_span = max(u_fog_range.y - u_fog_range.x, 0.0001);
     float fog = clamp((v_distance - u_fog_range.x) / fog_span, 0.0, 1.0);
@@ -88,6 +94,7 @@ varying mediump vec2 v_atlas_origin;
 varying mediump vec2 v_atlas_scale;
 varying lowp vec4 v_color;
 varying mediump vec2 v_light;
+varying mediump vec2 v_material;
 varying mediump float v_opaque;
 varying highp float v_distance;
 void main() {
@@ -101,6 +108,8 @@ void main() {
     vec2 light_uv = clamp(vec2(v_light.y, v_light.x) / 256.0 + vec2(0.5 / 16.0),
                           vec2(0.5 / 16.0), vec2(15.5 / 16.0));
     vec3 light = texture2D(u_lightmap, light_uv).rgb;
+    float emission = clamp(v_material.x * 17.0, 0.0, 1.0);
+    light = mix(light, vec3(1.0), emission);
     vec4 color = vec4(texel.rgb * v_color.rgb * light, texel.a);
     if (color.a < 0.01) discard;
     float fog_span = max(u_fog_range.y - u_fog_range.x, 0.0001);
@@ -147,6 +156,7 @@ GLuint link_program(const char* fragment, char* error, std::size_t error_size) {
     glBindAttribLocation(program, 4, "a_color");
     glBindAttribLocation(program, 5, "a_light");
     glBindAttribLocation(program, 6, "a_opaque");
+    glBindAttribLocation(program, 7, "a_material");
     glLinkProgram(program);
     GLint linked = GL_FALSE;
     glGetProgramiv(program, GL_LINK_STATUS, &linked);
@@ -291,6 +301,7 @@ void Gles2TerrainRenderer::draw_buffer(GLuint program, GLuint buffer, GLsizei co
     glEnableVertexAttribArray(4);
     glEnableVertexAttribArray(5);
     glEnableVertexAttribArray(6);
+    glEnableVertexAttribArray(7);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride,
                           reinterpret_cast<const void*>(offsetof(Gles2TerrainVertex, position)));
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride,
@@ -305,8 +316,10 @@ void Gles2TerrainRenderer::draw_buffer(GLuint program, GLuint buffer, GLsizei co
                           reinterpret_cast<const void*>(offsetof(Gles2TerrainVertex, light)));
     glVertexAttribPointer(6, 1, GL_FLOAT, GL_FALSE, stride,
                           reinterpret_cast<const void*>(offsetof(Gles2TerrainVertex, opaque_layer)));
+    glVertexAttribPointer(7, 2, GL_UNSIGNED_BYTE, GL_TRUE, stride,
+                          reinterpret_cast<const void*>(offsetof(Gles2TerrainVertex, emission)));
     glDrawArrays(GL_TRIANGLES, 0, count);
-    for (GLuint index = 0; index <= 6; ++index) glDisableVertexAttribArray(index);
+    for (GLuint index = 0; index <= 7; ++index) glDisableVertexAttribArray(index);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 

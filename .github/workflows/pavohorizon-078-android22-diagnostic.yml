@@ -13,6 +13,8 @@ on:
       - 'patches/horizon-078/gles2-terrain-solid.frag'
       - 'patches/horizon-078/gles2-terrain-translucent.frag'
       - 'tools/check_gles2_terrain_shaders.py'
+      - 'tools/check_gles2_terrain_renderer.py'
+      - 'tools/gles2-hud-prototype/app/src/main/cpp/**'
       - '.github/workflows/pavohorizon-078-android22-diagnostic.yml'
   workflow_dispatch:
 
@@ -108,6 +110,9 @@ jobs:
 
       - name: Check GLES2 terrain shader contract
         run: python3 tools/check_gles2_terrain_shaders.py
+
+      - name: Check native GLES2 renderer ABI and emission path
+        run: python3 tools/check_gles2_terrain_renderer.py tools/gles2-hud-prototype/app/src/main/cpp
 
       - name: Test Horizon GLES2 terrain CPU adapter
         working-directory: ${{ runner.temp }}/horizon-078

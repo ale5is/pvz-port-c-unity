@@ -13,6 +13,7 @@ varying mediump vec2 v_atlas_origin;
 varying mediump vec2 v_atlas_scale;
 varying lowp vec4 v_color;
 varying mediump vec2 v_light;
+varying mediump vec2 v_material;
 varying mediump float v_opaque;
 varying highp float v_distance;
 
@@ -34,6 +35,8 @@ void main() {
         vec2(15.5 / 16.0)
     );
     vec3 light = texture2D(u_lightmap, light_uv).rgb;
+    float emission = clamp(v_material.x * 17.0, 0.0, 1.0);
+    light = mix(light, vec3(1.0), emission);
     vec4 color = vec4(texel.rgb * v_color.rgb * light, texel.a);
     if (color.a < 0.01) {
         discard;

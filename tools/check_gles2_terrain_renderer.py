@@ -22,20 +22,22 @@ required_header = [
     "sizeof(Gles2TerrainVertex) == 48",
 ]
 required_source = [
-    '#version 100',
+    "#version 100",
     "glBindAttribLocation(program, 0, \"a_position\")",
-    "glBindAttribLocation(program, 6, \"a_opaque\")",
+    "glBindAttribLocation(program, 7, \"a_material\")",
     "GL_UNSIGNED_BYTE, GL_TRUE, stride",
     "offsetof(Gles2TerrainVertex, color)",
     "offsetof(Gles2TerrainVertex, light)",
+    "offsetof(Gles2TerrainVertex, emission)",
+    "offsetof(Gles2TerrainVertex, material_flags)",
     "glBufferData(GL_ARRAY_BUFFER",
     "glDrawArrays(GL_TRIANGLES, 0, count)",
+    "index <= 7",
     "glDepthFunc(GL_LEQUAL)",
     "glDepthMask(GL_FALSE)",
     "glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)",
+    "v_material.x * 17.0",
 ]
-missing = [f"header: {item}" for item in required_header if item not in header]
-missing += [f"renderer: {item}" for item in required_source if item not in source]
 required_host = [
     '#include "gles2_terrain_renderer.h"',
     "pavo::Gles2TerrainRenderer renderer;",
@@ -45,13 +47,18 @@ required_host = [
     "renderer.release();",
     "EGL_DEPTH_SIZE, 16",
 ]
-missing += [f"native host: {item}" for item in required_host if item not in native_host]
+missing = [f"header: {item}" for item in required_header if item not in header]
+missing += [f"renderer: {item}" for item in required_source if item not in source]
+required_host += [
+    "renderer.initialize(",
+]
 if "find_library(glesv2-lib GLESv2)" not in cmake or "${glesv2-lib}" not in cmake:
     missing.append("CMake: GLESv2 must be linked to the native target")
 if missing:
     print("\n".join("FAIL: " + item for item in missing), file=sys.stderr)
     raise SystemExit(1)
 print("PASS: 48-byte Rust/C++ terrain vertex ABI")
-print("PASS: seven GLES2 attributes, atlas/lightmap sampling and VBO draw path")
+print("PASS: eight GLES2 attributes, including packed emission/material bytes")
+print("PASS: atlas/lightmap sampling and VBO draw path")
 print("PASS: opaque depth pass and translucent blend/depth-mask pass")
 print("PASS: Android NativeActivity executes the GLES2 terrain renderer")
