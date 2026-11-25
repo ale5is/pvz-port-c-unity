@@ -79,6 +79,24 @@ implementation; it is not equivalent to an ordinary textured quad.
 - Reuse a bounded VBO and grow in capped steps; do not allocate a new buffer every frame.
 - The initial target should avoid blur, post-processing, MSAA and extra render targets.
 
+## Android 5 atlas memory policy
+
+The API-22 diagnostic patch calls
+`horizon_client::android_runtime::configure_atlas_limit(2048)` at the start of
+`android_main`, before the launcher builds its GUI atlas. This is intentionally earlier than
+`Renderer::new`: the atlas is built before the renderer is initialized, so applying a limit
+only after wgpu device creation is too late for the first atlas allocation.
+
+Horizon 0.7.8's existing `HudAtlas::fit_mobile_atlas` repeatedly halves non-UI sprites until
+the packed atlas fits the configured side limit. It preserves GUI/font/UI assets and their
+logical dimensions, and retains full-size runtime slots for glyphs, maps and skins. The
+2048px ceiling therefore reduces static non-UI sprite resolution and atlas memory; it does
+not solve the GLES2 renderer or reduce terrain texture-array memory.
+
+The 2048px value is a conservative starting point for the Philips 1 GiB device, not a proven
+final optimum. It must be checked against the actual official/resource-pack atlas and visual
+quality on the TV before being treated as final.
+
 ## Explicitly not implemented yet
 
 - EGL/GLES2 context ownership inside Horizon's runtime.
