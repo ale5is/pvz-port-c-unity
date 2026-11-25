@@ -8,6 +8,7 @@ on:
       - 'tools/android5_patch.py'
       - 'tools/check_android5_renderer_boundary.py'
       - 'patches/horizon-078/gles2-hud-adapter.py'
+      - 'patches/horizon-078/gles2-terrain-adapter.py'
       - '.github/workflows/pavohorizon-078-android22-diagnostic.yml'
   workflow_dispatch:
 
@@ -70,6 +71,9 @@ jobs:
       - name: Install Horizon HUD GLES2 CPU adapter
         run: python3 patches/horizon-078/gles2-hud-adapter.py "$RUNNER_TEMP/horizon-078"
 
+      - name: Install Horizon terrain GLES2 CPU adapter
+        run: python3 patches/horizon-078/gles2-terrain-adapter.py "$RUNNER_TEMP/horizon-078"
+
       - name: Install Rust ARMv7 target
         working-directory: ${{ runner.temp }}/horizon-078
         run: |
@@ -85,6 +89,10 @@ jobs:
       - name: Test Horizon GLES2 HUD CPU adapter
         working-directory: ${{ runner.temp }}/horizon-078
         run: cargo test -p horizon-client-render --lib gles2_hud::tests
+
+      - name: Test Horizon GLES2 terrain CPU adapter
+        working-directory: ${{ runner.temp }}/horizon-078
+        run: cargo test -p horizon-client-render --lib gles2_terrain::tests
 
       - name: Pin Mojang manifest to the Horizon lock
         working-directory: ${{ runner.temp }}/horizon-078
