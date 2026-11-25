@@ -60,6 +60,9 @@ jobs:
           git -C "$RUNNER_TEMP/horizon-078" checkout --detach "$HORIZON_REV"
           test "$(git -C "$RUNNER_TEMP/horizon-078" rev-parse HEAD)" = "$HORIZON_REV"
 
+      - name: Verify Horizon GLES2 renderer integration boundary
+        run: python3 tools/check_android5_renderer_boundary.py "$RUNNER_TEMP/horizon-078"
+
       - name: Apply limited Android 5 diagnostic patch
         run: python3 tools/android5_patch.py "$RUNNER_TEMP/horizon-078"
 
