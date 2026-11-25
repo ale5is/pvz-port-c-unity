@@ -75,6 +75,26 @@ method = """    /// Install the GUI atlas state without exposing the backend dev
         self.last_encode
     }
 
+    /// Human-readable graphics adapter name for diagnostics.
+    pub fn adapter_name(&self) -> &str {
+        &self.info.name
+    }
+
+    /// Stable debug label for the active wgpu backend.
+    pub fn backend_name(&self) -> String {
+        format!("{:?}", self.info.backend)
+    }
+
+    /// Whether this renderer is using the OpenGL backend.
+    pub fn is_gl_backend(&self) -> bool {
+        self.info.backend == wgpu::Backend::Gl
+    }
+
+    /// Whether this renderer is using the Vulkan backend.
+    pub fn is_vulkan_backend(&self) -> bool {
+        self.info.backend == wgpu::Backend::Vulkan
+    }
+
 """
 anchor = "impl Renderer {\n    /// Sections with GPU buffers, for soak tests watching residency.\n"
 if gfx_source.count(method) == 0:
@@ -219,6 +239,40 @@ game_source = game_source.replace("                        r.gpu_times.clear();\
 if "r.last_wait)" in game_source or "r.last_wait +" in game_source or "r.last_encode)" in game_source or "r.last_encode," in game_source or "r.gpu_times" in game_source:
     raise SystemExit("Game still accesses main-loop renderer timing fields directly")
 
+if game_source.count("self.renderer.as_ref().map(|r| &r.info.name)") != 4:
+    raise SystemExit("Expected four adapter-name diagnostic reads")
+if game_source.count("format!(\"{:?}\",r.info.backend)") != 1:
+    raise SystemExit("Expected one backend diagnostic label")
+if game_source.count("previous.info.backend == wgpu::Backend::Gl") != 1:
+    raise SystemExit("Expected one GL backend selection")
+if game_source.count("previous.info.backend != wgpu::Backend::Vulkan") != 1:
+    raise SystemExit("Expected one Vulkan backend selection")
+if game_source.count("r.info.backend == wgpu::Backend::Gl") != 1:
+    raise SystemExit("Expected one deferred GL frame check")
+
+game_source = game_source.replace(
+    "self.renderer.as_ref().map(|r| &r.info.name)",
+    "self.renderer.as_ref().map(|r| r.adapter_name())",
+)
+game_source = game_source.replace(
+    "format!(\"{:?}\",r.info.backend)",
+    "r.backend_name()",
+)
+game_source = game_source.replace(
+    "previous.info.backend == wgpu::Backend::Gl",
+    "previous.is_gl_backend()",
+)
+game_source = game_source.replace(
+    "previous.info.backend != wgpu::Backend::Vulkan",
+    "!previous.is_vulkan_backend()",
+)
+game_source = game_source.replace(
+    "r.info.backend == wgpu::Backend::Gl",
+    "r.is_gl_backend()",
+)
+if "renderer.info" in game_source or "previous.info" in game_source or "r.info" in game_source:
+    raise SystemExit("Game still accesses wgpu adapter metadata directly")
+
 gfx.write_text(gfx_source, encoding="utf-8")
 game.write_text(game_source, encoding="utf-8")
-print("Installed renderer HUD/screen/LOD/screenshot/timing accessors and migrated main-loop GPU telemetry.")
+print("Installed renderer HUD/screen/LOD/screenshot/timing/adapter accessors and migrated game-side adapter metadata.")
