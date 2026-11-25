@@ -51,6 +51,21 @@ The branch already contains:
 
 These pieces are useful building blocks, but they are not yet wired into Horizon's real `Renderer::upload` / frame path. The prototype's synthetic atlas and geometry must not be mistaken for the game's assets or world.
 
+## Remaining integration milestones and completion count
+
+The NativeActivity renderer remains an isolated GLES2 proof of concept. The current CI addition compiles its Android 5 ARMv7 C++ target with the NDK; it does not connect the renderer to Horizon's game loop. After the current adapter/build-validation batch, eight integration milestones remain:
+
+1. **Backend ownership boundary:** introduce a game-facing renderer owner and a backend contract; keep wgpu as the unchanged PC implementation and move direct wgpu field access behind typed operations.
+2. **Android EGL backend lifecycle:** attach GLES2 context creation, surface replacement, pause/resume, resize and context-loss recovery to Horizon's actual Android launcher, not the standalone NativeActivity prototype.
+3. **Real resource bridge:** extract Horizon's actual terrain sprite layers, atlas metadata, lightmap and material data; validate pixel format, channel order, UV scale, texture limits and memory use on GLES2.
+4. **Real section residency:** route Horizon section mesh creation, upload, replacement, eviction and unload through the GLES2 backend, including section world origins and bounded CPU/GPU memory.
+5. **World camera and opaque pass:** connect the live camera/projection, viewport, depth state, face visibility and fog; render actual solid sections from a loaded world.
+6. **Translucency correctness:** globally order visible translucent section/quad data, apply blending and depth writes correctly, and verify water/glass ordering while the camera moves.
+7. **Remaining game rendering:** port or deliberately provide fallbacks for block entities, animated textures, sky, weather, particles, HUD, fonts, menus and screenshots; no silent placeholder rendering.
+8. **Target-device acceptance and APK:** build the integrated client, install it on the Philips QM152E, load a real world, test repeated frames and pause/resume, inspect EGL/GLES logs, and tune memory/performance on Mali-450. Only this gate permits calling the APK playable.
+
+A milestone may contain several code commits and CI iterations. The count is eight major integration gates, not eight guaranteed small edits. Device acceptance depends on the physical TV and cannot be completed by CI alone.
+
 ## Acceptance rule
 
 Do not label any artifact "playable" until the Android client loads a real world, uploads and draws real Horizon sections, survives window pause/resume, and reports no fatal EGL/GLES errors on the target Android 5.1 ARMv7 device. A successful APK build only proves packaging and compilation.
