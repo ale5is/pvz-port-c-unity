@@ -27,6 +27,9 @@ pub(super) fn poll(game: &mut crate::game::Game<'_>) {
                 game.screen_key_pressed(winit::keyboard::KeyCode::Enter, false);
             }
             horizon_client::osk::Output::Close => crate::platform::hide(),
+            horizon_client::osk::Output::Key(winit::keyboard::KeyCode::Space) => {
+                game.screen_chars_typed(Some(" "));
+            }
             horizon_client::osk::Output::Key(code) => {
                 game.screen_key_pressed(code, false);
             }
