@@ -188,21 +188,39 @@ pub struct Gles2TerrainMesh {
     pub translucent: Vec<Gles2TerrainVertex>,
 }
 
+/// Horizon's mesher emits four vertices per quad; GLES2 renderer draws GL_TRIANGLES.
+/// Expand each quad as (0,1,2) + (2,3,0), preserving its winding and attributes.
+fn append_triangle_list(
+    source: &[TerrainVertex],
+    destination: &mut Vec<Gles2TerrainVertex>,
+    atlas: &AtlasGrid,
+    uv_step: f32,
+) -> Result<(), &'static str> {
+    if source.len() % 4 != 0 {
+        return Err("Horizon terrain mesh must contain complete four-vertex quads");
+    }
+    destination.reserve(source.len() / 4 * 6);
+    for quad in source.chunks_exact(4) {
+        let v0 = convert_vertex_with_uv_step(&quad[0], atlas, uv_step)?;
+        let v1 = convert_vertex_with_uv_step(&quad[1], atlas, uv_step)?;
+        let v2 = convert_vertex_with_uv_step(&quad[2], atlas, uv_step)?;
+        let v3 = convert_vertex_with_uv_step(&quad[3], atlas, uv_step)?;
+        destination.extend_from_slice(&[v0, v1, v2, v2, v3, v0]);
+    }
+    Ok(())
+}
+
 pub fn convert_mesh_with_uv_step(
     mesh: &SectionMesh,
     atlas: &AtlasGrid,
     uv_step: f32,
 ) -> Result<Gles2TerrainMesh, &'static str> {
     let mut converted = Gles2TerrainMesh {
-        solid: Vec::with_capacity(mesh.solid.len()),
-        translucent: Vec::with_capacity(mesh.translucent.len()),
+        solid: Vec::with_capacity(mesh.solid.len() / 4 * 6),
+        translucent: Vec::with_capacity(mesh.translucent.len() / 4 * 6),
     };
-    for vertex in &mesh.solid {
-        converted.solid.push(convert_vertex_with_uv_step(vertex, atlas, uv_step)?);
-    }
-    for vertex in &mesh.translucent {
-        converted.translucent.push(convert_vertex_with_uv_step(vertex, atlas, uv_step)?);
-    }
+    append_triangle_list(&mesh.solid, &mut converted.solid, atlas, uv_step)?;
+    append_triangle_list(&mesh.translucent, &mut converted.translucent, atlas, uv_step)?;
     Ok(converted)
 }
 
@@ -211,23 +229,23 @@ pub fn convert_mesh(mesh: &SectionMesh, atlas: &AtlasGrid) -> Result<Gles2Terrai
     convert_mesh_with_uv_step(mesh, atlas, 1.0 / crate::mesher::UV_STEPS)
 }
 
-/// Sort Horizon translucent quads back-to-front within one section.
-/// Horizon meshes translucent geometry as four-vertex quads, not independent triangles.
-/// The center matches Horizon's opposite-corner centroid (vertices 0 and 2).
+/// Sort the expanded six-vertex triangles for each Horizon translucent quad.
+/// convert_mesh() expands each original quad as (0,1,2, 2,3,0); vertices 0 and 2
+/// remain the opposite corners used by Horizon's own quad-centroid sorting.
 /// The caller must still order visible sections back-to-front globally.
 pub fn sort_translucent_back_to_front(
     vertices: &mut Vec<Gles2TerrainVertex>,
     section_origin: [f32; 3],
     camera_position: [f32; 3],
 ) -> Result<(), &'static str> {
-    if vertices.len() % 4 != 0 {
-        return Err("translucent vertex count must contain complete four-vertex quads");
+    if vertices.len() % 6 != 0 {
+        return Err("translucent triangle list must contain complete six-vertex quads");
     }
     if section_origin.iter().chain(camera_position.iter()).any(|value| !value.is_finite()) {
         return Err("translucent sort positions must be finite");
     }
     let mut quads = Vec::with_capacity(vertices.len() / 4);
-    for (index, quad) in vertices.chunks_exact(4).enumerate() {
+    for (index, quad) in vertices.chunks_exact(6).enumerate() {
         let mut distance_squared = 0.0f32;
         for axis in 0..3 {
             let center = (quad[0].position[axis] + quad[2].position[axis]) * 0.5;
@@ -242,8 +260,8 @@ pub fn sort_translucent_back_to_front(
     quads.sort_by(|left, right| right.1.total_cmp(&left.1));
     let original = vertices.clone();
     for (destination, (source, _)) in quads.into_iter().enumerate() {
-        vertices[destination * 4..destination * 4 + 4]
-            .copy_from_slice(&original[source * 4..source * 4 + 4]);
+        vertices[destination * 6..destination * 6 + 6]
+            .copy_from_slice(&original[source * 6..source * 6 + 6]);
     }
     Ok(())
 }
@@ -255,7 +273,7 @@ mod tests {
 
 
     #[test]
-    fn sorts_translucent_quads_back_to_front_using_world_positions() {
+    fn sorts_translucent_quad_triangle_groups_back_to_front_using_world_positions() {
         let quad = |z| [
             Gles2TerrainVertex {
                 position: [0.0, 0.0, z], uv: [0.0; 2], atlas_origin: [0.0; 2],
@@ -278,10 +296,11 @@ mod tests {
                 material_flags: 0, light: [0; 2], opaque_layer: 0.0,
             },
         ];
-        let mut vertices = quad(2.0).into_iter().chain(quad(8.0)).collect();
+        let expand = |q: [Gles2TerrainVertex; 4]| [q[0], q[1], q[2], q[2], q[3], q[0]];
+        let mut vertices = expand(quad(2.0)).into_iter().chain(expand(quad(8.0))).collect();
         sort_translucent_back_to_front(&mut vertices, [100.0, 0.0, 0.0], [100.0, 0.0, 0.0]).unwrap();
-        assert!(vertices[..4].iter().all(|v| v.position[2] == 8.0));
-        assert!(vertices[4..].iter().all(|v| v.position[2] == 2.0));
+        assert!(vertices[..6].iter().all(|v| v.position[2] == 8.0));
+        assert!(vertices[6..].iter().all(|v| v.position[2] == 2.0));
     }
 
     #[test]
@@ -291,8 +310,36 @@ mod tests {
             atlas_scale: [1.0; 2], color: [255; 4], emission: 0,
             material_flags: 0, light: [0; 2], opaque_layer: 0.0,
         };
-        assert!(sort_translucent_back_to_front(&mut vec![vertex; 3], [0.0; 3], [0.0; 3]).is_err());
+        assert!(sort_translucent_back_to_front(&mut vec![vertex; 5], [0.0; 3], [0.0; 3]).is_err());
         assert!(sort_translucent_back_to_front(&mut Vec::new(), [f32::NAN, 0.0, 0.0], [0.0; 3]).is_err());
+    }
+
+    #[test]
+    fn converts_horizon_quads_to_gles2_triangle_lists_with_original_winding() {
+        let atlas = AtlasGrid::new(16, 1, 4096).unwrap();
+        let make = |x, y| TerrainVertex::new([x, y, 0.0], [x, y], 0, u32::MAX, 0);
+        let quad = [make(0.0, 0.0), make(1.0, 0.0), make(1.0, 1.0), make(0.0, 1.0)];
+        let mesh = SectionMesh {
+            solid: quad.to_vec(),
+            translucent: quad.to_vec(),
+            ..Default::default()
+        };
+        let converted = convert_mesh(&mesh, &atlas).unwrap();
+        assert_eq!(converted.solid.len(), 6);
+        assert_eq!(converted.translucent.len(), 6);
+        let positions: Vec<_> = converted.solid.iter().map(|v| v.position).collect();
+        assert_eq!(positions, vec![
+            [0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0],
+            [1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 0.0],
+        ]);
+    }
+
+    #[test]
+    fn rejects_meshes_with_incomplete_horizon_quads() {
+        let atlas = AtlasGrid::new(16, 1, 4096).unwrap();
+        let vertex = TerrainVertex::new([0.0; 3], [0.0; 2], 0, u32::MAX, 0);
+        let mesh = SectionMesh { solid: vec![vertex; 3], ..Default::default() };
+        assert!(convert_mesh(&mesh, &atlas).is_err());
     }
 
     #[test]
