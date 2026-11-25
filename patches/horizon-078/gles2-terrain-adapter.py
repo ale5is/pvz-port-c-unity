@@ -46,6 +46,9 @@ impl AtlasGrid {
         if sprite_size == 0 || texture_layers == 0 || max_texture_size == 0 {
             return Err("sprite size, layer count and texture limit must be nonzero");
         }
+        if texture_layers > u32::from(SPRITE_LAYER_MASK) + 1 {
+            return Err("Horizon terrain layer encoding supports at most 32768 sprites");
+        }
         if sprite_size > max_texture_size {
             return Err("one sprite exceeds the GLES2 texture limit");
         }
