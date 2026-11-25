@@ -37,6 +37,11 @@ atlas_block = """renderer.hud.sprite_animations = atlas
         .iter()
         .map(|(rect, animation)| (*rect, animation.clone(), (usize::MAX, 0, 0)))
         .collect();"""
+atlas_block_deep = """renderer.hud.sprite_animations = atlas
+            .sprite_animations
+            .iter()
+            .map(|(rect, animation)| (*rect, animation.clone(), (usize::MAX, 0, 0)))
+            .collect();"""
 gui_atlas_block = """renderer.hud.sprite_animations = gui
                 .atlas
                 .sprite_animations
@@ -50,8 +55,8 @@ gui_shader = """renderer
                 .hud
                 .set_text_shader(&renderer.device, gui.atlas.text_shader.as_deref());"""
 
-if game_source.count(atlas_block) != 2:
-    raise SystemExit(f"Expected 2 atlas animation assignments, found {game_source.count(atlas_block)}")
+if game_source.count(atlas_block) != 1 or game_source.count(atlas_block_deep) != 1:
+    raise SystemExit(f"Expected one standard and one nested atlas animation assignment, found {game_source.count(atlas_block)} and {game_source.count(atlas_block_deep)}")
 if game_source.count(gui_atlas_block) != 2:
     raise SystemExit(f"Expected 2 GUI atlas animation assignments, found {game_source.count(gui_atlas_block)}")
 if game_source.count(atlas_shader) != 1:
@@ -60,6 +65,7 @@ if game_source.count(gui_shader) != 2:
     raise SystemExit(f"Expected 2 GUI text shader setups, found {game_source.count(gui_shader)}")
 
 game_source = game_source.replace(atlas_block, "renderer.configure_hud(atlas);")
+game_source = game_source.replace(atlas_block_deep, "renderer.configure_hud(atlas);")
 game_source = game_source.replace(gui_atlas_block, "renderer.configure_hud(&gui.atlas);")
 game_source = game_source.replace(atlas_shader, "")
 game_source = game_source.replace(gui_shader, "")
