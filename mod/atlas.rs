@@ -5792,7 +5792,7 @@ impl State {
             None if self.draw.on => "Drag to draw, right drag to erase, Z to undo, D to stop drawing".into(),
             None => "Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw".into(),
         };
-        let hint = out.fit(&hint, x - 8.0);
+        let hint = out.fit(&hint, (size[0] - 40.0).max(1.0));
         out.text(&hint, [34.0, size[1] - 31.0], MUTED);
         if live && self.share_asks() {
             self.draw_share_ask(out, size);
