@@ -132,3 +132,13 @@ The game-side upload budget, frame graph, slow-frame diagnostics, and Android pe
 The main loop drains samples once and shares that owned sample vector with the frame graph, GPU-utilization calculation, frame statistics, and Android performance recorder. This preserves the previous behavior of recording the full sample set and clearing the renderer's collection after consumption. The patch asserts the expected upstream call-site counts before replacing them.
 
 This does not yet move frame pacing, GPU timestamp collection, or upload-budget policy into a backend-neutral interface. It only establishes a narrow renderer-owned API so a future backend can implement or omit GPU timing without exposing wgpu's storage layout to game code. CI validation remains pending.
+
+## Follow-up boundary reduction: adapter metadata
+
+Game-side diagnostics and Android renderer-replacement decisions now use four renderer accessors:
+
+- `adapter_name()` supplies the human-readable adapter label.
+- `backend_name()` supplies the backend label used in diagnostics.
+- `is_gl_backend()` and `is_vulkan_backend()` keep the existing Android surface/replacement decisions without exposing `wgpu::AdapterInfo` or `wgpu::Backend` to those call sites.
+
+The backend checks intentionally preserve the existing policy: OpenGL renderers take the GL-specific path; non-GL renderers are eligible for the Vulkan path only when the previous Vulkan condition is satisfied. This is still a wgpu-backed implementation behind a narrower API, not a GLES2 backend implementation. CI validation remains pending.
