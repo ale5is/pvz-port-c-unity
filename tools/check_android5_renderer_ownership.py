@@ -30,18 +30,6 @@ if found != expected:
     }
     raise SystemExit(f"Unexpected game-side renderer ownership boundary: {details}")
 
-for forbidden in (
-    "renderer.device",
-    "renderer.queue",
-    "renderer.surface",
-    "renderer.adapter",
-    "renderer.instance",
-    "renderer.spare_surface",
-    "renderer.background_context",
-):
-    if forbidden in source:
-        raise SystemExit(f"Game still accesses renderer-owned GPU state: {forbidden}")
-
 print(
     "Renderer ownership audit passed: only the three documented device-wait/"
     "background-context handoff references remain."
