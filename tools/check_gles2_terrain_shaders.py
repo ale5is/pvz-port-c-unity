@@ -34,12 +34,15 @@ for label, shader in [("solid", solid), ("translucent", translucent)]:
 assert "pub struct Gles2TerrainVertex" in adapter
 for field in ["position: [f32; 3]", "uv: [f32; 2]", "atlas_origin: [f32; 2]",
               "atlas_scale: [f32; 2]", "color: [u8; 4]", "light: [u8; 2]",
-              "opaque_layer: f32"]:
+              "opaque_layer: f32", "emission: u8", "material_flags: u8"]:
     assert field in adapter, f"CPU vertex field missing: {field}"
 
 assert "if (texel.a < 0.5 && v_opaque < 0.5)" in solid
+assert "let emission = 15 - (packed_color[3] & 0x0f);" in adapter, "HDR emission nibble is not decoded"
+assert "let material_flags = packed_color[3] >> 4;" in adapter, "upper material/fluid face nibble is not preserved"
 assert "texel.a * v_color.a" not in solid and "texel.a * v_color.a" not in translucent, "packed vertex alpha must not be treated as texture transparency"
 assert "if (color.a < 0.01)" in translucent
 print("PASS: GLES2 terrain shader inputs match the CPU vertex adapter.")
 print("PASS: solid cutout and translucent paths retain separate alpha semantics.")
-print("NOTE: this is a source contract check, not a GLSL compiler or GPU render test.")
+print("PASS: packed vertex alpha is decoded into emission and material flags.")
+print("NOTE: GLSL compilation is checked separately; this is not a GPU render test.")

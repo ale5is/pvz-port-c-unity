@@ -126,6 +126,10 @@ pub struct Gles2TerrainVertex {
     pub atlas_origin: [f32; 2],
     pub atlas_scale: [f32; 2],
     pub color: [u8; 4],
+    /// HDR emission tier decoded from the low nibble of packed vertex alpha.
+    pub emission: u8,
+    /// Upper alpha nibble: native material face flags, including fluid-face marker.
+    pub material_flags: u8,
     /// Sky light first, block light second; each is Horizon's original 0..255 byte.
     pub light: [u8; 2],
     /// Float attribute so GLES2 does not need integer vertex attributes.
@@ -141,12 +145,17 @@ pub fn convert_vertex_with_uv_step(
         return Err("terrain UV step must be finite and positive");
     }
     let (atlas_origin, atlas_scale, opaque) = atlas.tile(vertex.layer)?;
+    let packed_color = vertex.color.to_le_bytes();
+    let emission = 15 - (packed_color[3] & 0x0f);
+    let material_flags = packed_color[3] >> 4;
     Ok(Gles2TerrainVertex {
         position: vertex.pos,
         uv: vertex.uv.map(|value| f32::from(value) * uv_step),
         atlas_origin,
         atlas_scale,
-        color: vertex.color.to_le_bytes(),
+        color: packed_color,
+        emission,
+        material_flags,
         light: [vertex.light as u8, (vertex.light >> 8) as u8],
         opaque_layer: if opaque { 1.0 } else { 0.0 },
     })
@@ -240,6 +249,8 @@ mod tests {
         assert_eq!(converted.atlas_origin, [4.0 / 18.0, 14.0 / 17.0]);
         assert_eq!(converted.atlas_scale, [1.0 / 18.0, 1.0 / 17.0]);
         assert_eq!(converted.color, [0x11, 0x22, 0x33, 0x44]);
+        assert_eq!(converted.emission, 11);
+        assert_eq!(converted.material_flags, 4);
         assert_eq!(converted.light, [0xCD, 0xAB]);
         assert_eq!(converted.opaque_layer, 1.0);
     }

@@ -94,6 +94,18 @@ jobs:
         working-directory: ${{ runner.temp }}/horizon-078
         run: cargo test -p horizon-client-render --lib gles2_hud::tests
 
+      - name: Install GLSL ES compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y glslang-tools
+
+      - name: Compile GLES2 terrain shaders as GLSL ES 1.00
+        run: |
+          set -euo pipefail
+          glslangValidator -S vert patches/horizon-078/gles2-terrain.vert
+          glslangValidator -S frag patches/horizon-078/gles2-terrain-solid.frag
+          glslangValidator -S frag patches/horizon-078/gles2-terrain-translucent.frag
+
       - name: Check GLES2 terrain shader contract
         run: python3 tools/check_gles2_terrain_shaders.py
 
