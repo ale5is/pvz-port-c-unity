@@ -211,42 +211,39 @@ pub fn convert_mesh(mesh: &SectionMesh, atlas: &AtlasGrid) -> Result<Gles2Terrai
     convert_mesh_with_uv_step(mesh, atlas, 1.0 / crate::mesher::UV_STEPS)
 }
 
-/// Sort each translucent triangle back-to-front within one section.
-/// Positions are section-local. The caller must still order sections globally.
+/// Sort Horizon translucent quads back-to-front within one section.
+/// Horizon meshes translucent geometry as four-vertex quads, not independent triangles.
+/// The center matches Horizon's opposite-corner centroid (vertices 0 and 2).
+/// The caller must still order visible sections back-to-front globally.
 pub fn sort_translucent_back_to_front(
     vertices: &mut Vec<Gles2TerrainVertex>,
     section_origin: [f32; 3],
     camera_position: [f32; 3],
 ) -> Result<(), &'static str> {
-    if vertices.len() % 3 != 0 {
-        return Err("translucent vertex count must contain complete triangles");
+    if vertices.len() % 4 != 0 {
+        return Err("translucent vertex count must contain complete four-vertex quads");
     }
     if section_origin.iter().chain(camera_position.iter()).any(|value| !value.is_finite()) {
         return Err("translucent sort positions must be finite");
     }
-    let mut triangles = Vec::with_capacity(vertices.len() / 3);
-    for (index, triangle) in vertices.chunks_exact(3).enumerate() {
-        let mut center = [0.0f32; 3];
-        for vertex in triangle {
-            for axis in 0..3 {
-                center[axis] += vertex.position[axis] / 3.0;
-            }
-        }
+    let mut quads = Vec::with_capacity(vertices.len() / 4);
+    for (index, quad) in vertices.chunks_exact(4).enumerate() {
         let mut distance_squared = 0.0f32;
         for axis in 0..3 {
-            let delta = center[axis] + section_origin[axis] - camera_position[axis];
+            let center = (quad[0].position[axis] + quad[2].position[axis]) * 0.5;
+            let delta = center + section_origin[axis] - camera_position[axis];
             distance_squared += delta * delta;
         }
         if !distance_squared.is_finite() {
-            return Err("translucent triangle distance is not finite");
+            return Err("translucent quad distance is not finite");
         }
-        triangles.push((index, distance_squared));
+        quads.push((index, distance_squared));
     }
-    triangles.sort_by(|left, right| right.1.total_cmp(&left.1));
+    quads.sort_by(|left, right| right.1.total_cmp(&left.1));
     let original = vertices.clone();
-    for (destination, (source, _)) in triangles.into_iter().enumerate() {
-        vertices[destination * 3..destination * 3 + 3]
-            .copy_from_slice(&original[source * 3..source * 3 + 3]);
+    for (destination, (source, _)) in quads.into_iter().enumerate() {
+        vertices[destination * 4..destination * 4 + 4]
+            .copy_from_slice(&original[source * 4..source * 4 + 4]);
     }
     Ok(())
 }
@@ -258,19 +255,33 @@ mod tests {
 
 
     #[test]
-    fn sorts_translucent_triangles_back_to_front_using_world_positions() {
-        let vertex = |z| Gles2TerrainVertex {
-            position: [0.0, 0.0, z], uv: [0.0; 2], atlas_origin: [0.0; 2],
-            atlas_scale: [1.0; 2], color: [255; 4], emission: 0,
-            material_flags: 0, light: [0; 2], opaque_layer: 0.0,
-        };
-        let mut vertices = vec![
-            vertex(2.0), vertex(2.0), vertex(2.0),
-            vertex(8.0), vertex(8.0), vertex(8.0),
+    fn sorts_translucent_quads_back_to_front_using_world_positions() {
+        let quad = |z| [
+            Gles2TerrainVertex {
+                position: [0.0, 0.0, z], uv: [0.0; 2], atlas_origin: [0.0; 2],
+                atlas_scale: [1.0; 2], color: [255; 4], emission: 0,
+                material_flags: 0, light: [0; 2], opaque_layer: 0.0,
+            },
+            Gles2TerrainVertex {
+                position: [1.0, 0.0, z], uv: [0.0; 2], atlas_origin: [0.0; 2],
+                atlas_scale: [1.0; 2], color: [255; 4], emission: 0,
+                material_flags: 0, light: [0; 2], opaque_layer: 0.0,
+            },
+            Gles2TerrainVertex {
+                position: [1.0, 1.0, z], uv: [0.0; 2], atlas_origin: [0.0; 2],
+                atlas_scale: [1.0; 2], color: [255; 4], emission: 0,
+                material_flags: 0, light: [0; 2], opaque_layer: 0.0,
+            },
+            Gles2TerrainVertex {
+                position: [0.0, 1.0, z], uv: [0.0; 2], atlas_origin: [0.0; 2],
+                atlas_scale: [1.0; 2], color: [255; 4], emission: 0,
+                material_flags: 0, light: [0; 2], opaque_layer: 0.0,
+            },
         ];
+        let mut vertices = quad(2.0).into_iter().chain(quad(8.0)).collect();
         sort_translucent_back_to_front(&mut vertices, [100.0, 0.0, 0.0], [100.0, 0.0, 0.0]).unwrap();
-        assert_eq!(vertices[0].position[2], 8.0);
-        assert_eq!(vertices[3].position[2], 2.0);
+        assert!(vertices[..4].iter().all(|v| v.position[2] == 8.0));
+        assert!(vertices[4..].iter().all(|v| v.position[2] == 2.0));
     }
 
     #[test]
@@ -280,7 +291,7 @@ mod tests {
             atlas_scale: [1.0; 2], color: [255; 4], emission: 0,
             material_flags: 0, light: [0; 2], opaque_layer: 0.0,
         };
-        assert!(sort_translucent_back_to_front(&mut vec![vertex], [0.0; 3], [0.0; 3]).is_err());
+        assert!(sort_translucent_back_to_front(&mut vec![vertex; 3], [0.0; 3], [0.0; 3]).is_err());
         assert!(sort_translucent_back_to_front(&mut Vec::new(), [f32::NAN, 0.0, 0.0], [0.0; 3]).is_err());
     }
 
