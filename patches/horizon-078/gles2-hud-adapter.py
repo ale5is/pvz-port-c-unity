@@ -193,6 +193,18 @@ mod tests {
     }
 
     #[test]
+    fn maps_every_horizon_blend_variant_without_dropping_it() {
+        assert_eq!(convert_blend(Blend::Alpha), Gles2Blend::Alpha);
+        assert_eq!(convert_blend(Blend::Invert), Gles2Blend::Invert);
+        assert_eq!(convert_blend(Blend::Additive), Gles2Blend::Additive);
+        assert_eq!(convert_blend(Blend::Depth([1, 2, 3, 4])), Gles2Blend::Depth {
+            scissor_top_left: [1, 2, 3, 4],
+        });
+        assert_eq!(convert_blend(Blend::Vignette), Gles2Blend::Vignette);
+        assert_eq!(convert_blend(Blend::EndPortal), Gles2Blend::EndPortal);
+    }
+
+    #[test]
     fn preserves_depth_scissor_coordinates() {
         let mut batch = HudBatch::new([1280, 720]);
         batch.vertices.push(vertex(u32::MAX));
