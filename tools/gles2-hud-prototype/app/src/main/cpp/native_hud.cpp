@@ -21,6 +21,7 @@ struct Engine {
     std::thread render_thread;
     std::atomic<bool> stop{false};
     std::atomic<bool> paused{true};
+    std::atomic<bool> rendering{false};
 };
 
 static std::array<pavo::Gles2TerrainVertex, 24> create_terrain_vertices() {
@@ -111,7 +112,11 @@ static bool create_egl(ANativeWindow* window, EGLDisplay* out_display,
 
     EGLint native_format = 0;
     eglGetConfigAttrib(display, config, EGL_NATIVE_VISUAL_ID, &native_format);
-    ANativeWindow_setBuffersGeometry(window, 0, 0, native_format);
+    if (ANativeWindow_setBuffersGeometry(window, 0, 0, native_format) != 0) {
+        LOGE("ANativeWindow_setBuffersGeometry failed");
+        eglTerminate(display);
+        return false;
+    }
 
     EGLSurface surface = eglCreateWindowSurface(display, config, window, nullptr);
     if (surface == EGL_NO_SURFACE) {
@@ -138,6 +143,10 @@ static bool create_egl(ANativeWindow* window, EGLDisplay* out_display,
         eglDestroySurface(display, surface);
         eglTerminate(display);
         return false;
+    }
+
+    if (eglSwapInterval(display, 1) != EGL_TRUE) {
+        LOGE("eglSwapInterval failed: 0x%x", eglGetError());
     }
 
     *out_display = display;
@@ -196,8 +205,15 @@ static void render_loop(Engine* engine, ANativeWindow* window) {
     glDisable(GL_CULL_FACE);
     int width = 0;
     int height = 0;
-    eglQuerySurface(display, surface, EGL_WIDTH, &width);
-    eglQuerySurface(display, surface, EGL_HEIGHT, &height);
+    if (eglQuerySurface(display, surface, EGL_WIDTH, &width) != EGL_TRUE ||
+        eglQuerySurface(display, surface, EGL_HEIGHT, &height) != EGL_TRUE ||
+        width <= 0 || height <= 0) {
+        LOGE("Could not query a valid EGL window size: 0x%x", eglGetError());
+        renderer.release();
+        destroy_egl(display, surface, context);
+        return;
+    }
+    glClearDepthf(1.0f);
     unsigned long long frames = 0;
 
     while (!engine->stop.load()) {
@@ -231,18 +247,23 @@ static void render_loop(Engine* engine, ANativeWindow* window) {
 static void stop_renderer(Engine* engine) {
     engine->stop.store(true);
     if (engine->render_thread.joinable()) engine->render_thread.join();
+    engine->rendering.store(false);
 }
 
 static void start_renderer(Engine* engine) {
-    if (engine->paused.load() || engine->window == nullptr || engine->render_thread.joinable()) {
-        return;
+    if (engine->paused.load() || engine->window == nullptr) return;
+    if (engine->render_thread.joinable()) {
+        if (engine->rendering.load()) return;
+        engine->render_thread.join();
     }
     engine->stop.store(false);
+    engine->rendering.store(true);
     ANativeWindow_acquire(engine->window);
     ANativeWindow* window = engine->window;
     engine->render_thread = std::thread([engine, window]() {
         render_loop(engine, window);
         ANativeWindow_release(window);
+        engine->rendering.store(false);
     });
 }
 
@@ -258,9 +279,9 @@ static void on_window_created(ANativeActivity* activity, ANativeWindow* window) 
     start_renderer(engine);
 }
 
-static void on_window_destroyed(ANativeActivity* activity, ANativeWindow*) {
+static void on_window_destroyed(ANativeActivity* activity, ANativeWindow* window) {
     auto* engine = static_cast<Engine*>(activity->instance);
-    if (!engine) return;
+    if (!engine || engine->window != window) return;
     stop_renderer(engine);
     if (engine->window) {
         ANativeWindow_release(engine->window);

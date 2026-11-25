@@ -238,9 +238,10 @@ bool Gles2TerrainRenderer::initialize(const std::uint8_t* atlas_rgba, int atlas_
 
 bool Gles2TerrainRenderer::upload_buffer(GLuint* buffer, GLsizei* vertex_count,
                                          const Gles2TerrainVertex* vertices, std::size_t count) {
-    if ((count && !vertices) || count > static_cast<std::size_t>(std::numeric_limits<GLsizei>::max()) ||
+    if ((count && !vertices) || (count % 3) != 0 ||
+        count > static_cast<std::size_t>(std::numeric_limits<GLsizei>::max()) ||
         count > std::numeric_limits<std::size_t>::max() / sizeof(Gles2TerrainVertex)) {
-        std::snprintf(error_, sizeof(error_), "Invalid terrain vertex buffer size");
+        std::snprintf(error_, sizeof(error_), "Terrain vertex count must be a triangle list with a valid buffer size");
         return false;
     }
     if (*buffer) glDeleteBuffers(1, buffer);
@@ -326,7 +327,8 @@ void Gles2TerrainRenderer::draw_buffer(GLuint program, GLuint buffer, GLsizei co
 void Gles2TerrainRenderer::draw(const float* mvp, const float section_origin[3],
                                 const float camera_position[3], const float fog_color[4],
                                 const float fog_range[2]) {
-    if (!solid_program_ || !translucent_program_) return;
+    if (!solid_program_ || !translucent_program_ || !mvp || !section_origin ||
+        !camera_position || !fog_color || !fog_range) return;
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_TRUE);
@@ -340,6 +342,9 @@ void Gles2TerrainRenderer::draw(const float* mvp, const float section_origin[3],
                 section_origin, camera_position, fog_color, fog_range);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0);
 }
 
 void Gles2TerrainRenderer::release() {
@@ -349,6 +354,9 @@ void Gles2TerrainRenderer::release() {
     if (lightmap_texture_) glDeleteTextures(1, &lightmap_texture_);
     if (solid_program_) glDeleteProgram(solid_program_);
     if (translucent_program_) glDeleteProgram(translucent_program_);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0);
     solid_vbo_ = translucent_vbo_ = atlas_texture_ = lightmap_texture_ = 0;
     solid_program_ = translucent_program_ = 0;
     solid_count_ = translucent_count_ = 0;

@@ -30,6 +30,8 @@ required_source = [
     "offsetof(Gles2TerrainVertex, light)",
     "offsetof(Gles2TerrainVertex, emission)",
     "glBufferData(GL_ARRAY_BUFFER",
+    "(count % 3) != 0",
+    "Terrain vertex count must be a triangle list",
     "glDrawArrays(GL_TRIANGLES, 0, count)",
     "index <= 7",
     "glEnableVertexAttribArray(7)",
@@ -46,6 +48,11 @@ required_host = [
     "renderer.draw(",
     "renderer.release();",
     "EGL_DEPTH_SIZE, 16",
+    "ANativeWindow_setBuffersGeometry(window, 0, 0, native_format) != 0",
+    "eglSwapInterval(display, 1)",
+    "engine->rendering.store(false)",
+    "engine->window != window",
+    "eglQuerySurface(display, surface, EGL_WIDTH, &width) != EGL_TRUE",
 ]
 missing = [f"header: {item}" for item in required_header if item not in header]
 missing += [f"renderer: {item}" for item in required_source if item not in source]
@@ -62,3 +69,6 @@ print("PASS: eight GLES2 attributes, including packed emission/material bytes")
 print("PASS: atlas/lightmap sampling and VBO draw path")
 print("PASS: opaque depth pass and translucent blend/depth-mask pass")
 print("PASS: Android NativeActivity executes the GLES2 terrain renderer")
+print("PASS: surface callbacks reject stale windows and restart a finished render thread")
+print("PASS: EGL window setup and dimensions are checked before rendering")
+print("PASS: terrain uploads reject incomplete triangle lists and restore GL bindings")

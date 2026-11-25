@@ -27,3 +27,8 @@ gradle --no-daemon --stacktrace assembleDebug
 APK: `app/build/outputs/apk/debug/app-debug.apk`.
 
 This NativeActivity path is intentionally closer to Horizon's NativeActivity/winit surface than the first GLSurfaceView experiment. It still does not share or replace Horizon's wgpu surface. The next integration stage is to create the GLES2 renderer inside Horizon's Android render lifecycle, use the same ANativeWindow only when the wgpu surface is not active, and convert the actual HudBatch/HudAtlas data.
+
+
+## Lifecycle and mesh validation hardening
+
+The NativeActivity harness now checks the native-window buffer geometry result and valid EGL surface dimensions before entering the render loop, requests a synchronized swap interval, and ignores stale window-destroy callbacks. The render-thread state distinguishes a running thread from a finished-but-joinable thread, so a later resume/window callback can restart after an EGL or presentation failure. Terrain VBO uploads reject vertex counts that are not complete triangle lists, and the renderer restores its texture/program bindings after the terrain passes. These changes harden the isolated prototype only; they do not connect it to Horizon's winit/wgpu launcher or real world sections.
