@@ -246,7 +246,7 @@ visibility = "pub(crate)"
 [[injection]]
 id = "atlas_android_ime_poll_keyboard"
 kind = "HEAD"
-target = "horizon_client::game::android_input::Game::android_poll_keyboard"
+target = "horizon_client::game::Game::idle"
 helper = "atlas_android_ime_hook.rs"
 bindings = [
   { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
