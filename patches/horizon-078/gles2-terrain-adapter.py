@@ -28,8 +28,8 @@ use crate::mesher::{SectionMesh, TerrainVertex};
 
 /// Horizon stores the opaque-layer marker in the high bit; the remaining bits are
 /// the sprite-array layer, as used by the terrain material shader.
-pub const OPAQUE_LAYER_BIT: u16 = 0x8000;
-pub const SPRITE_LAYER_MASK: u16 = 0x7fff;
+pub const OPAQUE_LAYER_BIT: u16 = crate::mesher::OPAQUE_LAYER;
+pub const SPRITE_LAYER_MASK: u16 = !OPAQUE_LAYER_BIT;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AtlasGrid {
