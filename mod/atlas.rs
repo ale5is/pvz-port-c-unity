@@ -5825,20 +5825,20 @@ impl State {
         let top_total = top_buttons.len() as f32 * top_button_w + 3.0 * 3.0;
         let mut x = width - top_total - 5.0;
         for (label, action, active) in top_buttons {
-            atlas_map_button(out, [x, 3.0, top_button_w, 18.0], label, live.then_some(action), active);
+            Self::atlas_map_button(out, [x, 3.0, top_button_w, 18.0], label, live.then_some(action), active);
             x += top_button_w + 3.0;
         }
 
         let left_buttons = [
             ("W", Action::OpenList, false),
-            ("◎", Action::Centre, self.map.follow),
+            ("O", Action::Centre, self.map.follow),
             ("+", Action::ZoomIn, false),
             ("−", Action::ZoomOut, false),
         ];
         let left_x = 4.0;
         for (i, (label, action, active)) in left_buttons.into_iter().enumerate() {
             let y = 31.0 + i as f32 * 24.0;
-            atlas_map_button(
+            Self::atlas_map_button(
                 out,
                 [left_x, y, 22.0, 21.0],
                 label,
@@ -5856,9 +5856,9 @@ impl State {
         let gap = 4.0;
         let button_w = ((width - 16.0 - gap * 3.0) / 4.0).min(92.0);
         let total = button_w * 4.0 + gap * 3.0;
-        let mut bx = ((width - total) / 2.0).max(30.0);
+        let mut bx = ((width - total) / 2.0).max(6.0);
         for (label, action, active) in bottom_buttons {
-            atlas_map_button(
+            Self::atlas_map_button(
                 out,
                 [bx, height - 21.0, button_w, 18.0],
                 label,
