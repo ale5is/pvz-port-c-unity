@@ -1,0 +1,64 @@
+name: Pavo GLES2 HUD surface prototype
+
+on:
+  push:
+    branches:
+      - port/android-5-low-end
+    paths:
+      - 'tools/gles2-hud-prototype/**'
+      - '.github/workflows/pavo-gles2-hud-prototype.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pavo-gles2-hud-prototype
+  cancel-in-progress: true
+
+jobs:
+  build-api22:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Install Android SDK
+        run: |
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [[ ! -x "$sdkmanager" ]]; then
+            sdkmanager=$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -n 1)
+          fi
+          test -x "$sdkmanager"
+          "$sdkmanager" --sdk_root="$ANDROID_HOME" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Build API-22 GLES2 HUD prototype
+        working-directory: tools/gles2-hud-prototype
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --stacktrace assembleDebug
+          apk="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$apk"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$apk" > badging.txt
+          grep -F "sdkVersion:'22'" badging.txt
+          grep -F "dev.pavo.gles2hud" badging.txt
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          cp "$apk" "$GITHUB_WORKSPACE/dist/Pavo-GLES2-HUD-Surface-Prototype-API22.apk"
+          cp badging.txt "$GITHUB_WORKSPACE/dist/badging.txt"
+          sha256sum "$GITHUB_WORKSPACE/dist/Pavo-GLES2-HUD-Surface-Prototype-API22.apk" > "$GITHUB_WORKSPACE/dist/SHA256SUMS.txt"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pavo-gles2-hud-surface-prototype-api22
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
