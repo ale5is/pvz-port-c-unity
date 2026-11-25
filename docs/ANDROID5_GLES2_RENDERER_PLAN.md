@@ -9,7 +9,7 @@ Status: design/audit only. No GLES2 renderer has been implemented yet.
 - Device probe: OpenGL ES 2.0, GLSL ES 1.00; GLES 3 EGL config selection failed with `0x3004`.
 - Reported limits: max texture size 4096, fragment texture units 8, vertex texture image units 0, vertex attributes 16, varying vectors 12.
 - RGBA8 framebuffer: complete.
-- The TV has now passed the user's reported GLSL ES 1.00 compile/link, RGBA texture upload, VBO upload, RGBA8 + Depth16 FBO, and a real Depth16 test using reverse draw order plus pixel readback. The center pixel was green (`0,255,0,255`). A later textured HUD-quad/VBO test also returned PASS on the TV. The expanded blend/scissor/multi-quad/atlas-quadrant tests are newly added to the probe and still need a TV run.
+- The TV has passed the complete expanded GLES2 probe: GLSL ES 1.00 compile/link, RGBA texture upload, VBO upload, RGBA8 + Depth16 FBO, real Depth16 comparison, textured HUD quad, alpha blending, scissor clipping, two-quad batching in one VBO upload/draw call, and all four atlas UV quadrants. The user confirmed that the new tests display PASS on the Philips QM152E.
 
 ## Source architecture audit
 
@@ -36,12 +36,11 @@ Confirmed on the TV by the user's diagnostic reports:
 - RGBA8 + Depth16 FBO completeness and a real depth comparison verified by glReadPixels.
 - A textured 2D atlas quad rendered from a VBO and passed its center-pixel check.
 
-Not yet confirmed on the TV:
+Still not confirmed on the TV:
 - Stencil8 attachment completeness and stencil operations.
-- Alpha blending with a pixel-value assertion.
-- Scissor clipping with inside/outside pixel assertions.
-- Multiple differently colored quads in one VBO upload and one draw call.
-- Atlas UV quadrant selection/orientation.
+- Long-session frame time, thermal behavior, memory use and surface recreation.
+- Glyph atlas rendering and the complete Horizon screen-draw command set.
+- Integration of any of these operations with Horizon's actual HUD batch data.
 
 The new tests are independent capability checks; they do not imply integration with Horizon's HUD renderer.
 
@@ -57,7 +56,7 @@ Keep the existing wgpu renderer intact for supported platforms. Add an isolated 
 2. Implement a tiny GLSL ES 1.00 program, vertex/index buffers and a textured quad.
 3. Render to the default framebuffer and to an RGBA8 FBO.
 4. Add depth testing only after the extended probe confirms Depth16.
-5. Validate alpha blending, scissor, multi-quad batching and atlas UVs with offscreen FBO pixel readback.
+5. Validate alpha blending, scissor, multi-quad batching and atlas UVs with offscreen FBO pixel readback. (Completed on the TV.)
 6. Measure CPU frame time, GPU frame time where available, memory and stability on the TV.
 
 Acceptance: stable textured quad and depth-tested geometry on the actual TV, no GL errors, repeatable surface recreation.
@@ -104,7 +103,7 @@ Add entities, block entities, particles, weather, sky, hand, fonts, GUI and tran
 
 - Android API22 native compatibility is separate from GLES2 compatibility; the existing API22 APK is a packaging/launch diagnostic only.
 - Audio still needs a legacy Android backend (AAudio is not available on API22).
-- Depth16/stencil8 and shader/texture tests have not yet been confirmed on the TV.
+- Depth16 and the expanded shader/texture/blend/scissor/batching tests are confirmed on the TV; Stencil8 remains untested.
 - GLES2 has no vertex texture sampling in this device's reported limits; any current rendering data sourced from vertex-stage texture reads must be moved to CPU or fragment stage.
 - The source renderer contains extensive advanced features; a full parity port is a substantial project. The first realistic goal is a minimal world renderer, not full feature parity.
 
@@ -137,3 +136,8 @@ Auditoría adicional del código fuente:
 - El terreno usa texture arrays, atributos enteros y varyings `flat`; se necesita convertir atributos y capas en CPU y usar atlas 2D para GLES2.
 
 La auditoría detallada y la secuencia propuesta (HUD primero, terreno después) están en [ANDROID5_GLES2_AUDIT_2026-11-23.md](ANDROID5_GLES2_AUDIT_2026-11-23.md).
+
+
+## Actualización tras la prueba ampliada en el Philips (24-11-2026)
+
+El usuario confirmó que todos los tests nuevos aparecen como `PASS` en el televisor. Quedan confirmadas las operaciones de alpha blending (`SRC_ALPHA`, `ONE_MINUS_SRC_ALPHA`), scissor con comprobación dentro/fuera, dos quads con una sola carga VBO y una sola llamada de dibujo, y muestreo de los cuatro cuadrantes UV del atlas 2D. Esto cierra la puerta de validación de capacidades GLES2 básicas para iniciar el prototipo HUD independiente; no equivale todavía a integración con Horizon ni a una prueba de rendimiento sostenido.
