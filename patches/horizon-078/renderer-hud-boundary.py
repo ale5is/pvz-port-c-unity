@@ -28,6 +28,11 @@ method = """    /// Install the GUI atlas state without exposing the backend dev
         [self.config.width, self.config.height]
     }
 
+    /// Apply the renderer's adapter-specific far-terrain cap without leaking wgpu::AdapterInfo.
+    pub fn lod_distance_capped(&self, distance: u32) -> u32 {
+        crate::graphics::lod_distance_capped(distance, &self.info)
+    }
+
 """
 anchor = "impl Renderer {\n    /// Sections with GPU buffers, for soak tests watching residency.\n"
 if gfx_source.count(method) == 0:
@@ -84,6 +89,16 @@ game_source = game_source.replace(screen_size_calls, "renderer.screen_size()")
 game_source = game_source.replace(screen_size_closure, "r.screen_size()")
 
 game_source = game_source.replace(gui_shader, "")
+
+
+if game_source.count("horizon_client::graphics::lod_distance_capped(distance, &renderer.info)") != 1:
+    raise SystemExit("Expected one direct adapter-info LOD cap call for the render distance")
+if game_source.count("horizon_client::graphics::lod_distance_capped(far_distance, &renderer.info)") != 1:
+    raise SystemExit("Expected one direct adapter-info LOD cap call for far terrain")
+game_source = game_source.replace("horizon_client::graphics::lod_distance_capped(distance, &renderer.info)", "renderer.lod_distance_capped(distance)")
+game_source = game_source.replace("horizon_client::graphics::lod_distance_capped(far_distance, &renderer.info)", "renderer.lod_distance_capped(far_distance)")
+if "lod_distance_capped(distance, &renderer.info)" in game_source or "lod_distance_capped(far_distance, &renderer.info)" in game_source:
+    raise SystemExit("Game still leaks wgpu::AdapterInfo into LOD policy")
 
 if "renderer.hud.sprite_animations" in game_source or ".set_text_shader(&renderer.device" in game_source:
     raise SystemExit("Game still accesses HUD/backend internals after migration")
