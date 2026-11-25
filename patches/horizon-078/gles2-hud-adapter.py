@@ -26,7 +26,7 @@ adapter_source = r'''//! Safe CPU adapter from Horizon's native HUD batch to a G
 //! the exact frame data without depending on wgpu types.
 use crate::{
     font::Patch,
-    hud::{Blend, EndPortalFill, HudBatch},
+    hud::{Blend, EndPortalFill, HudAtlas, HudBatch},
 };
 
 /// GLES2 vertex layout: position/UV/depth are floats and color is normalized RGBA bytes.
@@ -67,6 +67,12 @@ pub struct Gles2HudFrame<'a> {
     pub game_time: f32,
     pub blur_at: u32,
     pub end_portal: EndPortalFill,
+    pub atlas_width: u32,
+    pub atlas_height: u32,
+    pub atlas_rgba: &'a [u8],
+    pub glint_width: u32,
+    pub glint_height: u32,
+    pub glint_rgba: &'a [u8],
     pub vertices: Vec<Gles2HudVertex>,
     pub runs: Vec<Gles2DrawRun>,
     pub patches: &'a [Patch],
@@ -87,7 +93,7 @@ fn convert_blend(mode: Blend) -> Gles2Blend {
 
 /// Convert one Horizon HUD frame without changing vertex order or run boundaries.
 /// Packed color is AABBGGRR; little-endian bytes are the RGBA attribute GLES2 expects.
-pub fn prepare(batch: &HudBatch) -> Gles2HudFrame<'_> {
+pub fn prepare<'a>(batch: &'a HudBatch, atlas: &'a HudAtlas) -> Gles2HudFrame<'a> {
     let vertices = batch
         .vertices
         .iter()
@@ -119,6 +125,12 @@ pub fn prepare(batch: &HudBatch) -> Gles2HudFrame<'_> {
         game_time: batch.game_time,
         blur_at: batch.blur_at,
         end_portal: batch.end_portal,
+        atlas_width: atlas.width,
+        atlas_height: atlas.height,
+        atlas_rgba: &atlas.pixels,
+        glint_width: atlas.glint.1,
+        glint_height: atlas.glint.2,
+        glint_rgba: &atlas.glint.0,
         vertices,
         runs,
         patches: &batch.patches,
@@ -128,7 +140,7 @@ pub fn prepare(batch: &HudBatch) -> Gles2HudFrame<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hud::{rgba, HudVertex};
+    use crate::hud::{rgba, HudAtlas, HudVertex};
 
     fn vertex(color: u32) -> HudVertex {
         HudVertex {
@@ -145,8 +157,12 @@ mod tests {
     fn converts_hud_vertex_to_gles2_attribute_layout() {
         let mut batch = HudBatch::new([1280, 720]);
         batch.vertices.push(vertex(rgba(0x11, 0x22, 0x33, 0x44)));
-        let frame = prepare(&batch);
+        let atlas = HudAtlas::boot();
+        let frame = prepare(&batch, &atlas);
         assert_eq!(frame.vertices.len(), 1);
+        assert_eq!([frame.atlas_width, frame.atlas_height], [1024, 1024]);
+        assert_eq!(frame.atlas_rgba.len(), 1024 * 1024 * 4);
+        assert_eq!(frame.glint_rgba.len(), (frame.glint_width * frame.glint_height * 4) as usize);
         assert_eq!(frame.vertices[0].position, [12.0, 24.0]);
         assert_eq!(frame.vertices[0].uv, [0.25, 0.75]);
         assert_eq!(frame.vertices[0].color, [0x11, 0x22, 0x33, 0x44]);
@@ -161,7 +177,8 @@ mod tests {
         batch.vertices.push(vertex(u32::MAX));
         batch.vertices.push(vertex(u32::MAX));
         batch.blend_since(1, Blend::Additive);
-        let frame = prepare(&batch);
+        let atlas = HudAtlas::boot();
+        let frame = prepare(&batch, &atlas);
         assert_eq!(frame.runs.len(), 2);
         assert_eq!(frame.runs[0], Gles2DrawRun {
             first_vertex: 0,
@@ -180,7 +197,8 @@ mod tests {
         let mut batch = HudBatch::new([1280, 720]);
         batch.vertices.push(vertex(u32::MAX));
         batch.depth_since(0, [10.0, 20.0, 30.0, 40.0]);
-        let frame = prepare(&batch);
+        let atlas = HudAtlas::boot();
+        let frame = prepare(&batch, &atlas);
         assert_eq!(frame.runs.len(), 1);
         assert_eq!(
             frame.runs[0].blend,
