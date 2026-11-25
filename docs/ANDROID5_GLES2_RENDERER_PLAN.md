@@ -141,3 +141,21 @@ La auditoría detallada y la secuencia propuesta (HUD primero, terreno después)
 ## Actualización tras la prueba ampliada en el Philips (24-11-2026)
 
 El usuario confirmó que todos los tests nuevos aparecen como `PASS` en el televisor. Quedan confirmadas las operaciones de alpha blending (`SRC_ALPHA`, `ONE_MINUS_SRC_ALPHA`), scissor con comprobación dentro/fuera, dos quads con una sola carga VBO y una sola llamada de dibujo, y muestreo de los cuatro cuadrantes UV del atlas 2D. Esto cierra la puerta de validación de capacidades GLES2 básicas para iniciar el prototipo HUD independiente; no equivale todavía a integración con Horizon ni a una prueba de rendimiento sostenido.
+
+
+## Implementación inicial del adaptador de terreno (25-11-2026)
+
+Se añadió patches/horizon-078/gles2-terrain-adapter.py. Durante el build instala horizon_client_render::gles2_terrain en el Horizon fijado y convierte cada TerrainVertex CPU a un formato sin atributos enteros ni texture arrays:
+
+- posición XYZ y UV local como float;
+- origen y escala del sprite dentro de una cuadrícula de atlas 2D;
+- color RGBA como cuatro bytes;
+- luz de cielo y bloque como dos bytes;
+- marcador de capa opaca como float;
+- conserva los grupos solid y translucent por separado.
+
+La cuadrícula calcula columnas y filas respetando el límite de textura GLES2 y los 15 bits que Horizon deja disponibles para el índice de sprite (el bit alto identifica la capa opaca). Se rechazan capas fuera del conjunto cargado y configuraciones que excedan el límite de textura.
+
+Este es el primer adaptador de malla real del terreno; no es todavía el cargador/empacador de píxeles del atlas, el shader GLSL ES 1.00, la subida VBO ni el renderer EGL. La ruta wgpu de Horizon sigue siendo la que crea el launcher y el juego, por lo que este módulo todavía no se ejecuta durante una partida.
+
+El workflow Android 5 ahora instala y ejecuta sus pruebas unitarias junto a las del adaptador HUD. La aceptación de esta etapa requiere que el CI compile el módulo contra el commit exacto de Horizon. La integración visual en el televisor seguirá siendo una etapa posterior.
