@@ -15,7 +15,7 @@ This probe is a hardware capability test. It is not the Horizon renderer and doe
 
 The user reported the visible scene as a blue outer square with a green center and the new textured VBO test as PASS.
 
-## Newly added tests — require a fresh APK and TV run
+## Expanded tests — confirmed PASS on the Philips QM152E (24-11-2026)
 
 | Test | Operation | Pixel-level acceptance |
 |---|---|---|
@@ -24,7 +24,7 @@ The user reported the visible scene as a blue outer square with a green center a
 | Multi-quad batch | Upload two differently colored quads in one VBO and issue one glDrawArrays call for 12 triangle vertices. | Left sample is red and right sample is cyan. |
 | Atlas UV quadrants | Upload a 2×2 atlas (red, green, blue, white), draw one textured quad and sample all four quadrants. | Four readbacks match the four source colors, verifying UV interpolation and orientation. |
 
-Every test is run on the GL thread and uses a small 16×16 offscreen target. These are correctness probes, not performance benchmarks.
+Every test is run on the GL thread and uses a small 16×16 offscreen target. The user has now confirmed that all four expanded tests display PASS on the actual TV. These are correctness probes, not performance benchmarks.
 
 ## What a PASS does and does not mean
 
@@ -37,4 +37,4 @@ A PASS means the tested GLES2 operation worked on the current device/driver and 
 
 ## Next integration gate
 
-After the new tests pass on the Philips TV, implement a separate, Android-only GLES2 HUD prototype with bounded reusable VBO storage, 2D atlas sampling, alpha blending and scissor. Keep the existing wgpu renderer unchanged for other platforms. Only then adapt Horizon's CPU-side HUD command/batch data through a narrow adapter.
+With the expanded tests now passing on the Philips TV, implement a separate, Android-only GLES2 HUD prototype with bounded reusable VBO storage, 2D atlas sampling, alpha blending and scissor. Keep the existing wgpu renderer unchanged for other platforms. Only then adapt Horizon's CPU-side HUD command/batch data through a narrow adapter.
