@@ -166,3 +166,26 @@ This rules out a safe one-file swap in `android_main.rs`. The first integration 
 ### CI guard
 
 `tools/check_android5_renderer_boundary.py` checks these exact upstream integration markers before applying the diagnostic patches. It is a source-drift guard, not a renderer implementation or a device test. If Horizon changes its Android lifecycle or renderer ownership, CI stops so the GLES2 integration plan can be reviewed before producing another diagnostic APK.
+
+
+## Native window handoff for the GLES2 host
+
+The pinned Horizon Android host uses winit 0.30.13 with the `rwh_06` feature enabled by its default feature set. The Android raw-window-handle 0.6 contract exposes the existing native window as:
+
+- `window.window_handle()?.as_raw()`
+- Match `RawWindowHandle::AndroidNdk(handle)`.
+- Read `handle.a_native_window`, a non-null pointer to the `ANativeWindow`.
+
+This is the appropriate handoff for an EGL implementation hosted in `horizon-android`: winit remains the owner of the Activity/window lifecycle, while the selected renderer creates its EGL display/config/context/window surface from that same native window. The raw pointer must only be used while the corresponding winit window is valid and resumed; do not cache it across Android surface destruction.
+
+This does **not** permit EGL to coexist with the current wgpu surface on that window. The Android renderer selection must happen before `game::loading_renderer` calls `Renderer::new`. On suspend, the GLES2 backend must unbind and destroy its EGL window surface (and context/display resources according to its ownership policy); on resume it must obtain the current native window again and recreate the surface before drawing.
+
+The first backend seam should be deliberately small:
+
+1. A host-side Android renderer enum/facade selected before launcher renderer creation.
+2. A wgpu variant preserving the current behavior unchanged.
+3. A GLES2 variant owning EGL/GLES2 resources in the Android host crate, not in the `forbid(unsafe_code)` render crate.
+4. A first GLES2 draw path consuming the existing `Gles2HudFrame` for a deterministic boot/loading frame.
+5. Explicitly return an unsupported-renderer result for world/gameplay until terrain, entities, sky, particles, depth and presentation passes are implemented.
+
+The raw handle provides the native window; it does not solve the larger `Renderer` API coupling. In particular, existing launcher/game code reads renderer configuration and GPU/HUD fields directly. Those call sites need to move behind backend-neutral methods or a narrower shared frame interface before the GLES2 variant can be substituted safely.
