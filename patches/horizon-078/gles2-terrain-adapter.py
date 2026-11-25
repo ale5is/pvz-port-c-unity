@@ -23,7 +23,8 @@ adapter_source = r'''//! CPU conversion of Horizon section meshes to a GLES2 ver
 //!
 //! No GL calls or unsafe code live here. The output avoids integer attributes and
 //! texture arrays; a GLES2 renderer can sample a 2D atlas using atlas_origin/scale
-//! and fract(uv) in its GLSL ES 1.00 fragment shader.
+//! and Horizon's exact tile_uv formula in its GLSL ES 1.00 fragment shader
+//! (uv - max(ceil(uv) - 1, 0)).
 use crate::mesher::{SectionMesh, TerrainVertex};
 
 /// Horizon stores the opaque-layer marker in the high bit; the remaining bits are
@@ -199,6 +200,20 @@ pub fn convert_mesh(mesh: &SectionMesh, atlas: &AtlasGrid) -> Result<Gles2Terrai
 mod tests {
     use super::*;
     use crate::mesher::TerrainVertex;
+
+    #[test]
+    fn vertex_layout_matches_gles2_attribute_contract() {
+        assert_eq!(std::mem::offset_of!(Gles2TerrainVertex, position), 0);
+        assert_eq!(std::mem::offset_of!(Gles2TerrainVertex, uv), 12);
+        assert_eq!(std::mem::offset_of!(Gles2TerrainVertex, atlas_origin), 20);
+        assert_eq!(std::mem::offset_of!(Gles2TerrainVertex, atlas_scale), 28);
+        assert_eq!(std::mem::offset_of!(Gles2TerrainVertex, color), 36);
+        assert_eq!(std::mem::offset_of!(Gles2TerrainVertex, emission), 40);
+        assert_eq!(std::mem::offset_of!(Gles2TerrainVertex, material_flags), 41);
+        assert_eq!(std::mem::offset_of!(Gles2TerrainVertex, light), 42);
+        assert_eq!(std::mem::offset_of!(Gles2TerrainVertex, opaque_layer), 44);
+        assert_eq!(std::mem::size_of::<Gles2TerrainVertex>(), 48);
+    }
 
     #[test]
     fn atlas_grid_fits_layer_count_inside_texture_limit() {

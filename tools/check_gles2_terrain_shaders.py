@@ -38,6 +38,12 @@ for field in ["position: [f32; 3]", "uv: [f32; 2]", "atlas_origin: [f32; 2]",
     assert field in adapter, f"CPU vertex field missing: {field}"
 
 assert "if (texel.a < 0.5 && v_opaque < 0.5)" in solid
+assert "std::mem::offset_of!(Gles2TerrainVertex, position), 0" in adapter, "position offset contract missing"
+for field, offset in [("uv", 12), ("atlas_origin", 20), ("atlas_scale", 28), ("color", 36),
+                      ("emission", 40), ("material_flags", 41), ("light", 42), ("opaque_layer", 44)]:
+    assert f"std::mem::offset_of!(Gles2TerrainVertex, {field}), {offset}" in adapter, f"{field} offset contract missing"
+assert "std::mem::size_of::<Gles2TerrainVertex>(), 48" in adapter, "GLES2 vertex stride contract missing"
+assert "vec4 color = vec4(texel.rgb * v_color.rgb * light, 1.0);" in solid, "solid terrain must output opaque alpha after cutout"
 assert "let emission = 15 - (packed_color[3] & 0x0f);" in adapter, "HDR emission nibble is not decoded"
 assert "let material_flags = packed_color[3] >> 4;" in adapter, "upper material/fluid face nibble is not preserved"
 assert "texel.a * v_color.a" not in solid and "texel.a * v_color.a" not in translucent, "packed vertex alpha must not be treated as texture transparency"
@@ -45,4 +51,6 @@ assert "if (color.a < 0.01)" in translucent
 print("PASS: GLES2 terrain shader inputs match the CPU vertex adapter.")
 print("PASS: solid cutout and translucent paths retain separate alpha semantics.")
 print("PASS: packed vertex alpha is decoded into emission and material flags.")
+print("PASS: GLES2 vertex offsets and 48-byte stride are asserted.")
+print("PASS: solid terrain writes opaque alpha after cutout.")
 print("NOTE: GLSL compilation is checked separately; this is not a GPU render test.")
