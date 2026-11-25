@@ -259,7 +259,7 @@ fn slot_for(game: &mut Game<'_>, id: i32) -> Option<(usize, bool)> {
     if let Some(slot) = game.maps.slots.show(&id) {
         return Some((slot, false));
     }
-    let (slot, old) = game.maps.slots.claim(id)?;
+    let (slot, old) = game.maps.slots.claim(id);
     if let Some(old) = old {
         m::with(|state| state.images.forget_id(old));
     }
@@ -346,7 +346,9 @@ pub(super) fn paint(
                 game.native_text(batch, &text, at, rgb, shadow);
             }
             m::Draw::Quad(points, argb) => batch.fill_quad(&game.gui.atlas, points, argb),
-            m::Draw::Item(item, at, size) => game.native_item(batch, &item, at, size),
+            m::Draw::Item(item, at, size) => {
+                let _ = game.native_item(batch, &item, at, size);
+            }
             m::Draw::Skin(skin, dst) => {
                 game.native_sprite(batch, &skin, [8.0, 8.0, 8.0, 8.0], dst);
                 game.native_sprite(batch, &skin, [40.0, 8.0, 8.0, 8.0], dst);
