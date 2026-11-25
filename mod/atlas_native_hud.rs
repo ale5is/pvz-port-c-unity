@@ -142,6 +142,14 @@ pub(super) fn atlas_native_hud(
         return;
     };
 
+    // Keep the world clock current even when the native minimap is hidden,
+    // moved to another corner, or unavailable.
+    let clock = game.native_clock();
+    let day_time = clock
+        .filter(|_| player.dimension == "minecraft:overworld")
+        .map(|value| value.day_time);
+    crate::game::atlas_mod::with(|state| state.set_day_time(day_time));
+
     // Horizon 0.7.8 keeps the exact camera pose used by the last world
     // render for its locator bar. Reuse it instead of depending on Atlas'
     // newer API-415 camera hook, which API 80 does not expose.
@@ -170,12 +178,7 @@ pub(super) fn atlas_native_hud(
         return;
     }
 
-    let clock = game.native_clock();
-    let day_time = clock
-        .filter(|_| player.dimension == "minecraft:overworld")
-        .map(|value| value.day_time);
     let (settings, waypoints, active_set, grid) = crate::game::atlas_mod::with(|state| {
-        state.set_day_time(day_time);
         (
             state.settings(),
             state.waypoints.clone(),
