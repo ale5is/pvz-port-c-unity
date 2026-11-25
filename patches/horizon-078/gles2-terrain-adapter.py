@@ -132,11 +132,18 @@ pub struct Gles2TerrainVertex {
     pub opaque_layer: f32,
 }
 
-pub fn convert_vertex(vertex: &TerrainVertex, atlas: &AtlasGrid) -> Result<Gles2TerrainVertex, &'static str> {
+pub fn convert_vertex_with_uv_step(
+    vertex: &TerrainVertex,
+    atlas: &AtlasGrid,
+    uv_step: f32,
+) -> Result<Gles2TerrainVertex, &'static str> {
+    if !uv_step.is_finite() || uv_step <= 0.0 {
+        return Err("terrain UV step must be finite and positive");
+    }
     let (atlas_origin, atlas_scale, opaque) = atlas.tile(vertex.layer)?;
     Ok(Gles2TerrainVertex {
         position: vertex.pos,
-        uv: vertex.uv(),
+        uv: vertex.uv.map(|value| f32::from(value) * uv_step),
         atlas_origin,
         atlas_scale,
         color: vertex.color.to_le_bytes(),
@@ -145,24 +152,38 @@ pub fn convert_vertex(vertex: &TerrainVertex, atlas: &AtlasGrid) -> Result<Gles2
     })
 }
 
+/// Convert an ordinary 16x16 section mesh, whose UV fixed-point step is 1/32768.
+pub fn convert_vertex(vertex: &TerrainVertex, atlas: &AtlasGrid) -> Result<Gles2TerrainVertex, &'static str> {
+    convert_vertex_with_uv_step(vertex, atlas, 1.0 / crate::mesher::UV_STEPS)
+}
+
 #[derive(Default)]
 pub struct Gles2TerrainMesh {
     pub solid: Vec<Gles2TerrainVertex>,
     pub translucent: Vec<Gles2TerrainVertex>,
 }
 
-pub fn convert_mesh(mesh: &SectionMesh, atlas: &AtlasGrid) -> Result<Gles2TerrainMesh, &'static str> {
+pub fn convert_mesh_with_uv_step(
+    mesh: &SectionMesh,
+    atlas: &AtlasGrid,
+    uv_step: f32,
+) -> Result<Gles2TerrainMesh, &'static str> {
     let mut converted = Gles2TerrainMesh {
         solid: Vec::with_capacity(mesh.solid.len()),
         translucent: Vec::with_capacity(mesh.translucent.len()),
     };
     for vertex in &mesh.solid {
-        converted.solid.push(convert_vertex(vertex, atlas)?);
+        converted.solid.push(convert_vertex_with_uv_step(vertex, atlas, uv_step)?);
     }
     for vertex in &mesh.translucent {
-        converted.translucent.push(convert_vertex(vertex, atlas)?);
+        converted.translucent.push(convert_vertex_with_uv_step(vertex, atlas, uv_step)?);
     }
     Ok(converted)
+}
+
+/// Convert an ordinary section mesh using Horizon's standard 1/32768 UV step.
+pub fn convert_mesh(mesh: &SectionMesh, atlas: &AtlasGrid) -> Result<Gles2TerrainMesh, &'static str> {
+    convert_mesh_with_uv_step(mesh, atlas, 1.0 / crate::mesher::UV_STEPS)
 }
 
 #[cfg(test)]
@@ -221,6 +242,16 @@ mod tests {
         assert_eq!(converted.color, [0x11, 0x22, 0x33, 0x44]);
         assert_eq!(converted.light, [0xCD, 0xAB]);
         assert_eq!(converted.opaque_layer, 1.0);
+    }
+
+    #[test]
+    fn preserves_distant_tile_uv_step_separately_from_section_uvs() {
+        let atlas = AtlasGrid::new(16, 1, 4096).unwrap();
+        let tiled = TerrainVertex::tiled([0.0; 3], [32.0, 64.0], 0, u32::MAX, 0);
+        let section = convert_vertex(&tiled, &atlas).unwrap();
+        let distant = convert_vertex_with_uv_step(&tiled, &atlas, 1.0 / crate::mesher::TILED_UV_STEPS).unwrap();
+        assert_eq!(section.uv, [2.0, 2.0]);
+        assert_eq!(distant.uv, [32.0, 64.0]);
     }
 
     #[test]
