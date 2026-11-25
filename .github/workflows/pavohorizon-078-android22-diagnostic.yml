@@ -9,6 +9,10 @@ on:
       - 'tools/check_android5_renderer_boundary.py'
       - 'patches/horizon-078/gles2-hud-adapter.py'
       - 'patches/horizon-078/gles2-terrain-adapter.py'
+      - 'patches/horizon-078/gles2-terrain.vert'
+      - 'patches/horizon-078/gles2-terrain-solid.frag'
+      - 'patches/horizon-078/gles2-terrain-translucent.frag'
+      - 'tools/check_gles2_terrain_shaders.py'
       - '.github/workflows/pavohorizon-078-android22-diagnostic.yml'
   workflow_dispatch:
 
@@ -89,6 +93,9 @@ jobs:
       - name: Test Horizon GLES2 HUD CPU adapter
         working-directory: ${{ runner.temp }}/horizon-078
         run: cargo test -p horizon-client-render --lib gles2_hud::tests
+
+      - name: Check GLES2 terrain shader contract
+        run: python3 tools/check_gles2_terrain_shaders.py
 
       - name: Test Horizon GLES2 terrain CPU adapter
         working-directory: ${{ runner.temp }}/horizon-078
