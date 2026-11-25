@@ -122,11 +122,13 @@ The methods are still implemented by the current wgpu renderer; this is an owner
 
 ## Follow-up boundary reduction: frame timing
 
-The game-side upload budget and frame graph now use renderer methods rather than reading or draining timing fields directly:
+The game-side upload budget, frame graph, slow-frame diagnostics, and Android performance telemetry now use renderer methods rather than reading or draining timing fields directly:
 
 - `last_wait_duration()` returns the wait time from the previous render.
-- `take_latest_gpu_time()` returns the most recent GPU timing sample and drains the collected samples in one operation.
+- `last_encode_duration()` returns the CPU-side encoding time from the previous render.
+- `take_latest_gpu_time()` returns the most recent GPU timing sample for the loading-screen graph and drains that sample set.
+- `take_gpu_times()` transfers the main-loop GPU timing samples to the game for frame statistics and Android telemetry.
 
-This preserves the existing timing flow: the upload budget receives the previous frame's wait duration; the loading-screen frame graph subtracts that wait from elapsed CPU time; the graph receives the latest GPU sample; and samples are then cleared. The patch asserts the exact upstream call-site counts before replacing them.
+The main loop drains samples once and shares that owned sample vector with the frame graph, GPU-utilization calculation, frame statistics, and Android performance recorder. This preserves the previous behavior of recording the full sample set and clearing the renderer's collection after consumption. The patch asserts the expected upstream call-site counts before replacing them.
 
 This does not yet move frame pacing, GPU timestamp collection, or upload-budget policy into a backend-neutral interface. It only establishes a narrow renderer-owned API so a future backend can implement or omit GPU timing without exposing wgpu's storage layout to game code. CI validation remains pending.
