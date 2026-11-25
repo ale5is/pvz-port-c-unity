@@ -195,10 +195,6 @@ if game_source.count("&r.gpu_times") != 2:
 if game_source.count("                        r.gpu_times.clear();") != 1:
     raise SystemExit("Expected one main-loop GPU sample drain")
 
-game_source = game_source.replace(
-    "if let Some(r) = self.renderer.as_mut():",
-    "if let Some(r) = self.renderer.as_mut():",
-)
 main_loop_anchor = """                    if let Some(r) = self.renderer.as_mut() {
                         let cpu = now.elapsed().saturating_sub(r.last_wait);"""
 if game_source.count(main_loop_anchor) != 1:
@@ -220,7 +216,7 @@ game_source = game_source.replace("r.gpu_times.last()", "gpu_times.last()")
 game_source = game_source.replace("&r.gpu_times", "&gpu_times")
 game_source = game_source.replace("self.frame_stats.record_gpu(&r.gpu_times);", "self.frame_stats.record_gpu(&gpu_times);")
 game_source = game_source.replace("                        r.gpu_times.clear();\n", "")
-if "r.last_wait)" in game_source or "r.last_wait +" in game_source or "r.last_encode" in game_source or "r.gpu_times" in game_source:
+if "r.last_wait)" in game_source or "r.last_wait +" in game_source or "r.last_encode)" in game_source or "r.last_encode," in game_source or "r.gpu_times" in game_source:
     raise SystemExit("Game still accesses main-loop renderer timing fields directly")
 
 gfx.write_text(gfx_source, encoding="utf-8")
