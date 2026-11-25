@@ -5837,6 +5837,76 @@ impl State {
         if live && self.share_asks() {
             self.draw_share_ask(out, size);
         }
+        self.draw_map_sidebar(out, size, &dimension, live);
+    }
+
+    /// A persistent map dock: waypoint navigation and map controls stay
+    /// visible without hiding the world map behind another screen.
+    fn draw_map_sidebar(
+        &self,
+        out: &mut Out<'_>,
+        size: [f32; 2],
+        dimension: &str,
+        live: bool,
+    ) {
+        let width = (size[0] * 0.29).clamp(112.0, 164.0).min(size[0] * 0.44);
+        let height = size[1];
+        out.fill([0.0, 0.0, width, height], 0xE0111822);
+        out.fill([width - 1.0, 0.0, 1.0, height], 0xFF52677D);
+        out.fill([0.0, 0.0, width, 30.0], 0xFF182431);
+        out.text("ATLAS", [10.0, 8.0], INK);
+        out.text("WORLD MAP", [10.0, 38.0], MUTED);
+        out.fill([8.0, 54.0, width - 16.0, 1.0], 0x6052677D);
+
+        let mut row = 0usize;
+        for (index, waypoint) in self.waypoints.iter().enumerate() {
+            if waypoint.hidden || waypoint.dimension != dimension {
+                continue;
+            }
+            let y = 61.0 + row as f32 * 22.0;
+            if y + 20.0 > height - 76.0 {
+                break;
+            }
+            let rect = [6.0, y, width - 12.0, 20.0];
+            let hovered = inside(rect, out.mouse);
+            out.fill(rect, if hovered { 0xA0445F78 } else { 0x50303D4B });
+            let color = 0xFF000000 | (waypoint.color & RGB);
+            out.fill([12.0, y + 6.0, 8.0, 8.0], color);
+            let name = out.fit(&waypoint.name, width - 38.0);
+            out.text(&name, [25.0, y + 6.0], INK);
+            if live {
+                out.widgets.push(Widget {
+                    rect,
+                    action: Action::MapWaypoint(index),
+                });
+            }
+            row += 1;
+        }
+
+        if row == 0 {
+            out.text("No waypoints", [10.0, 66.0], MUTED);
+        }
+        out.fill([8.0, height - 70.0, width - 16.0, 1.0], 0x6052677D);
+        if live {
+            out.button(
+                [8.0, height - 62.0, width - 16.0, 18.0],
+                "Waypoints",
+                Action::OpenList,
+                false,
+            );
+            out.button(
+                [8.0, height - 40.0, width - 16.0, 18.0],
+                "Centre",
+                Action::Centre,
+                self.map.follow,
+            );
+            out.button(
+                [8.0, height - 18.0, width - 16.0, 14.0],
+                "Settings",
+                Action::GoPage(Page::Main),
+                false,
+            );
+        }
     }
 
     /// The world map's portal highlights and the server's view distance
