@@ -6,6 +6,7 @@ on:
       - port/android-5-low-end
     paths:
       - 'tools/android5_patch.py'
+      - 'tools/check_android5_renderer_boundary.py'
       - 'patches/horizon-078/gles2-hud-adapter.py'
       - '.github/workflows/pavohorizon-078-android22-diagnostic.yml'
   workflow_dispatch:
