@@ -221,7 +221,11 @@ pub fn convert_mesh_with_uv_step(
 ) -> Result<Gles2TerrainMesh, &'static str> {
     let mut converted = Gles2TerrainMesh {
         solid: Vec::with_capacity(mesh.solid.len() / 4 * 6),
-        sides: mesh.sides,
+        sides: if mesh.sides.quads() == (mesh.solid.len() / 4) as u32 {
+            mesh.sides
+        } else {
+            Sides::unsorted((mesh.solid.len() / 4) as u32)
+        },
         translucent: Vec::with_capacity(mesh.translucent.len() / 4 * 6),
     };
     append_triangle_list(&mesh.solid, &mut converted.solid, atlas, uv_step)?;
@@ -361,6 +365,20 @@ mod tests {
         assert_eq!(ranges, vec![(0, 18)]);
         let sides = Sides::default();
         assert!(visible_solid_triangle_ranges(&sides, [0.0; 3]).is_empty());
+    }
+
+    #[test]
+    fn replaces_stale_side_ranges_when_solid_quad_count_changes() {
+        let atlas = AtlasGrid::new(16, 1, 4096).unwrap();
+        let vertex = TerrainVertex::new([0.0; 3], [0.0; 2], 0, u32::MAX, 0);
+        let mesh = SectionMesh {
+            solid: vec![vertex; 8],
+            sides: Sides::unsorted(1),
+            ..Default::default()
+        };
+        let converted = convert_mesh(&mesh, &atlas).unwrap();
+        assert_eq!(converted.sides, Sides::unsorted(2));
+        assert_eq!(visible_solid_triangle_ranges(&converted.sides, [0.0; 3]), vec![(0, 12)]);
     }
 
     #[test]
