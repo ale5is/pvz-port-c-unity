@@ -31,6 +31,17 @@ pub(super) fn frame(game: &mut Game<'_>) {
         game.native_set_setting(m::ID, m::SETTINGS_FILE, &changed.to_text());
     }
 
+    let (teleport, say) = m::with(|state| {
+        state.can_teleport = game.ui.registries.permission >= 2;
+        (state.take_teleport(), state.take_say())
+    });
+    if let Some(command) = teleport {
+        game.send_chat(&command);
+    }
+    if let Some(message) = say {
+        game.send_chat(&message);
+    }
+
     let native_player = game.native_player();
     let dimension = native_player.as_ref().map(|p| p.dimension.to_owned());
     let key = if let Some(world) = game.integrated.as_ref() {
