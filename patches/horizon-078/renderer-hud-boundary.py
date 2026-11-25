@@ -65,6 +65,16 @@ method = """    /// Install the GUI atlas state without exposing the backend dev
         latest
     }
 
+    /// Drain all GPU timing samples for frame statistics and platform telemetry.
+    pub fn take_gpu_times(&mut self) -> Vec<f32> {
+        std::mem::take(&mut self.gpu_times)
+    }
+
+    /// CPU-side render encoding time from the previous frame.
+    pub fn last_encode_duration(&self) -> std::time::Duration {
+        self.last_encode
+    }
+
 """
 anchor = "impl Renderer {\n    /// Sections with GPU buffers, for soak tests watching residency.\n"
 if gfx_source.count(method) == 0:
@@ -170,6 +180,49 @@ game_source = game_source.replace("                renderer.gpu_times.clear();\n
 if "renderer.last_wait" in game_source or "renderer.gpu_times" in game_source:
     raise SystemExit("Game still accesses renderer timing storage directly")
 
+if game_source.count("now.elapsed().saturating_sub(r.last_wait)") != 2:
+    raise SystemExit("Expected two main-loop wait-duration calculations")
+if game_source.count("r.last_wait + render") != 1:
+    raise SystemExit("Expected one render-phase wait-duration calculation")
+if game_source.count("r.last_encode") != 1:
+    raise SystemExit("Expected one render-encoding duration read")
+if game_source.count("r.gpu_times.last().copied()") != 1:
+    raise SystemExit("Expected one main-loop latest GPU timing read")
+if game_source.count("r.gpu_times.last()") != 1:
+    raise SystemExit("Expected one main-loop GPU utilization timing read")
+if game_source.count("&r.gpu_times") != 2:
+    raise SystemExit("Expected two main-loop GPU sample consumers")
+if game_source.count("                        r.gpu_times.clear();") != 1:
+    raise SystemExit("Expected one main-loop GPU sample drain")
+
+game_source = game_source.replace(
+    "if let Some(r) = self.renderer.as_mut():",
+    "if let Some(r) = self.renderer.as_mut():",
+)
+main_loop_anchor = """                    if let Some(r) = self.renderer.as_mut() {
+                        let cpu = now.elapsed().saturating_sub(r.last_wait);"""
+if game_source.count(main_loop_anchor) != 1:
+    raise SystemExit("Could not uniquely locate main-loop renderer timing block")
+game_source = game_source.replace(
+    main_loop_anchor,
+    """                    if let Some(r) = self.renderer.as_mut() {
+                        let gpu_times = r.take_gpu_times();
+                        let cpu = now.elapsed().saturating_sub(r.last_wait_duration());""",
+)
+game_source = game_source.replace(
+    "now.elapsed().saturating_sub(r.last_wait)",
+    "now.elapsed().saturating_sub(r.last_wait_duration())",
+)
+game_source = game_source.replace("r.last_wait + render", "r.last_wait_duration() + render")
+game_source = game_source.replace("r.last_encode", "r.last_encode_duration()")
+game_source = game_source.replace("r.gpu_times.last().copied()", "gpu_times.last().copied()")
+game_source = game_source.replace("r.gpu_times.last()", "gpu_times.last()")
+game_source = game_source.replace("&r.gpu_times", "&gpu_times")
+game_source = game_source.replace("self.frame_stats.record_gpu(&r.gpu_times);", "self.frame_stats.record_gpu(&gpu_times);")
+game_source = game_source.replace("                        r.gpu_times.clear();\n", "")
+if "r.last_wait" in game_source or "r.last_encode" in game_source or "r.gpu_times" in game_source:
+    raise SystemExit("Game still accesses main-loop renderer timing fields directly")
+
 gfx.write_text(gfx_source, encoding="utf-8")
 game.write_text(game_source, encoding="utf-8")
-print("Installed renderer HUD/screen/LOD/screenshot/timing accessors and migrated game-side timing reads.")
+print("Installed renderer HUD/screen/LOD/screenshot/timing accessors and migrated main-loop GPU telemetry.")
