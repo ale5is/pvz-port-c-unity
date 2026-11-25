@@ -52,7 +52,9 @@ impl AtlasGrid {
         if sprite_size > max_texture_size {
             return Err("one sprite exceeds the GLES2 texture limit");
         }
-        let columns = max_texture_size / sprite_size;
+        let max_columns = max_texture_size / sprite_size;
+        let ideal_columns = (texture_layers as f64).sqrt().ceil() as u32;
+        let columns = ideal_columns.clamp(1, max_columns);
         let rows = texture_layers.div_ceil(columns);
         if rows > max_texture_size / sprite_size {
             return Err("terrain sprite layers do not fit in one GLES2 atlas");
@@ -79,6 +81,37 @@ impl AtlasGrid {
             [1.0 / self.columns as f32, 1.0 / self.rows as f32],
             encoded_layer & OPAQUE_LAYER_BIT != 0,
         ))
+    }
+
+    /// Pack Horizon's layer-major RGBA sprite pixels into the 2D atlas.
+    /// Extra source bytes are ignored because resource preparation may append
+    /// data for other texture families; every requested base layer must exist.
+    pub fn pack_rgba(&self, pixels: &[u8]) -> Result<Vec<u8>, &'static str> {
+        let row_bytes = self.sprite_size.checked_mul(4).ok_or("sprite row size overflow")? as usize;
+        let layer_bytes = row_bytes.checked_mul(self.sprite_size as usize).ok_or("sprite layer size overflow")?;
+        let source_bytes = layer_bytes.checked_mul(self.texture_layers as usize).ok_or("sprite source size overflow")?;
+        if pixels.len() < source_bytes {
+            return Err("sprite pixel data is shorter than the declared layer count");
+        }
+        let atlas_bytes = (self.width as usize)
+            .checked_mul(self.height as usize)
+            .and_then(|size| size.checked_mul(4))
+            .ok_or("terrain atlas allocation size overflow")?;
+        let mut atlas = vec![0u8; atlas_bytes];
+        for layer in 0..self.texture_layers {
+            let tile_x = layer % self.columns;
+            let tile_y = layer / self.columns;
+            let source_layer = layer as usize * layer_bytes;
+            for row in 0..self.sprite_size {
+                let source_start = source_layer + row as usize * row_bytes;
+                let source_end = source_start + row_bytes;
+                let dest_start = (((tile_y * self.sprite_size + row) * self.width
+                    + tile_x * self.sprite_size) * 4) as usize;
+                let dest_end = dest_start + row_bytes;
+                atlas[dest_start..dest_end].copy_from_slice(&pixels[source_start..source_end]);
+            }
+        }
+        Ok(atlas)
     }
 }
 
@@ -140,13 +173,33 @@ mod tests {
     #[test]
     fn atlas_grid_fits_layer_count_inside_texture_limit() {
         let atlas = AtlasGrid::new(16, 300, 4096).unwrap();
-        assert_eq!((atlas.columns, atlas.rows), (256, 2));
-        assert_eq!((atlas.width, atlas.height), (4096, 32));
+        assert_eq!((atlas.columns, atlas.rows), (18, 17));
+        assert_eq!((atlas.width, atlas.height), (288, 272));
         assert_eq!(atlas.tile(0).unwrap().0, [0.0, 0.0]);
-        assert_eq!(atlas.tile(255).unwrap().0, [255.0 / 256.0, 0.0]);
-        assert_eq!(atlas.tile(256).unwrap().0, [0.0, 0.5]);
+        assert_eq!(atlas.tile(17).unwrap().0, [17.0 / 18.0, 0.0]);
+        assert_eq!(atlas.tile(18).unwrap().0, [0.0, 1.0 / 17.0]);
         assert!(AtlasGrid::new(4097, 1, 4096).is_err());
         assert!(AtlasGrid::new(16, 65536, 4096).is_err());
+    }
+
+    #[test]
+    fn packs_layer_major_rgba_pixels_into_compact_atlas_tiles() {
+        let atlas = AtlasGrid::new(2, 3, 8).unwrap();
+        let pixels = [
+            1, 1, 1, 255, 1, 1, 1, 255,
+            1, 1, 1, 255, 1, 1, 1, 255,
+            2, 2, 2, 255, 2, 2, 2, 255,
+            2, 2, 2, 255, 2, 2, 2, 255,
+            3, 3, 3, 255, 3, 3, 3, 255,
+            3, 3, 3, 255, 3, 3, 3, 255,
+        ];
+        let packed = atlas.pack_rgba(&pixels).unwrap();
+        assert_eq!((atlas.width, atlas.height), (4, 4));
+        assert_eq!(packed.len(), 4 * 4 * 4);
+        assert_eq!(&packed[0..4], &[1, 1, 1, 255]);
+        assert_eq!(&packed[2 * 4..2 * 4 + 4], &[2, 2, 2, 255]);
+        assert_eq!(&packed[2 * 4 * 4..2 * 4 * 4 + 4], &[3, 3, 3, 255]);
+        assert!(atlas.pack_rgba(&pixels[..pixels.len() - 1]).is_err());
     }
 
     #[test]
