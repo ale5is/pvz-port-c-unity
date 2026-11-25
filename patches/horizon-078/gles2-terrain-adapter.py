@@ -120,7 +120,6 @@ impl AtlasGrid {
 /// uv remains sprite-local; the shader must use Horizon's exact tile_uv formula
 /// (uv - max(ceil(uv) - 1, 0)) before adding atlas_origin.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq)]
 /// Decoded face metadata retained in TerrainVertex::color's upper alpha nibble.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Gles2MaterialFlags {
@@ -134,6 +133,9 @@ pub fn decode_material_flags(flags: u8) -> Gles2MaterialFlags {
     Gles2MaterialFlags { fluid_face }
 }
 
+/// GLES2-compatible vertex: float attributes plus normalized byte colour/light.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Gles2TerrainVertex {
     pub position: [f32; 3],
     pub uv: [f32; 2],
