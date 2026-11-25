@@ -34,7 +34,7 @@ void main() {
         vec2(15.5 / 16.0)
     );
     vec3 light = texture2D(u_lightmap, light_uv).rgb;
-    vec4 color = vec4(texel.rgb * v_color.rgb * light, texel.a * v_color.a);
+    vec4 color = vec4(texel.rgb * v_color.rgb * light, texel.a);
     if (color.a < 0.01) {
         discard;
     }
