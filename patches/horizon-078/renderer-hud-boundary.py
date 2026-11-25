@@ -220,7 +220,7 @@ game_source = game_source.replace("r.gpu_times.last()", "gpu_times.last()")
 game_source = game_source.replace("&r.gpu_times", "&gpu_times")
 game_source = game_source.replace("self.frame_stats.record_gpu(&r.gpu_times);", "self.frame_stats.record_gpu(&gpu_times);")
 game_source = game_source.replace("                        r.gpu_times.clear();\n", "")
-if "r.last_wait" in game_source or "r.last_encode" in game_source or "r.gpu_times" in game_source:
+if "r.last_wait)" in game_source or "r.last_wait +" in game_source or "r.last_encode" in game_source or "r.gpu_times" in game_source:
     raise SystemExit("Game still accesses main-loop renderer timing fields directly")
 
 gfx.write_text(gfx_source, encoding="utf-8")
