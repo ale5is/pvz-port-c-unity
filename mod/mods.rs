@@ -17,6 +17,7 @@ fn register_native_mods(
             ["enlarge".to_owned(), "Enlarge Minimap".to_owned(), crate::game::atlas_mod::DEFAULT_ENLARGE.to_owned()],
             ["zoom_in".to_owned(), "Zoom In".to_owned(), crate::game::atlas_mod::DEFAULT_ZOOM_IN.to_owned()],
             ["zoom_out".to_owned(), "Zoom Out".to_owned(), crate::game::atlas_mod::DEFAULT_ZOOM_OUT.to_owned()],
+            ["dimension".to_owned(), "Change Map Dimension".to_owned(), crate::game::atlas_mod::DEFAULT_DIMENSION.to_owned()],
         ],
     });
     let _ = game;
