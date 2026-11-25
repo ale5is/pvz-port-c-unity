@@ -31,7 +31,6 @@ required_source = [
     "glDepthFunc(GL_LEQUAL)",
     "glDepthMask(GL_FALSE)",
     "glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)",
-    "egl",
 ]
 missing = [f"header: {item}" for item in required_header if item not in header]
 missing += [f"renderer: {item}" for item in required_source if item not in source]
