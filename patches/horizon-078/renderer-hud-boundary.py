@@ -33,6 +33,26 @@ method = """    /// Install the GUI atlas state without exposing the backend dev
         crate::graphics::lod_distance_capped(distance, &self.info)
     }
 
+    /// Number of world sections drawn by the last completed frame.
+    pub fn drawn_section_count(&self) -> usize {
+        self.drawn_sections
+    }
+
+    /// Whether a screenshot request is waiting for a frame.
+    pub fn has_pending_screenshot(&self) -> bool {
+        self.screenshot.is_some()
+    }
+
+    /// Queue a screenshot without exposing the renderer's request slot.
+    pub fn request_screenshot(&mut self, request: crate::gfx::ScreenshotRequest) -> bool {
+        if self.screenshot.is_some() {
+            false
+        } else {
+            self.screenshot = Some(request);
+            true
+        }
+    }
+
 """
 anchor = "impl Renderer {\n    /// Sections with GPU buffers, for soak tests watching residency.\n"
 if gfx_source.count(method) == 0:
@@ -103,6 +123,26 @@ if "lod_distance_capped(distance, &renderer.info)" in game_source or "lod_distan
 if "renderer.hud.sprite_animations" in game_source or ".set_text_shader(&renderer.device" in game_source:
     raise SystemExit("Game still accesses HUD/backend internals after migration")
 
+if game_source.count("renderer.drawn_sections <= 10") != 1:
+    raise SystemExit("Expected one world-icon drawn-section threshold")
+if game_source.count("renderer.screenshot.is_some()") != 1:
+    raise SystemExit("Expected one pending-screenshot check")
+if game_source.count("renderer.screenshot = Some(horizon_client::gfx::ScreenshotRequest {") != 1:
+    raise SystemExit("Expected one world-icon screenshot request")
+game_source = game_source.replace("renderer.drawn_sections <= 10", "renderer.drawn_section_count() <= 10")
+game_source = game_source.replace("renderer.screenshot.is_some()", "renderer.has_pending_screenshot()")
+game_source = game_source.replace(
+    "renderer.screenshot = Some(horizon_client::gfx::ScreenshotRequest {",
+    "renderer.request_screenshot(horizon_client::gfx::ScreenshotRequest {",
+)
+game_source = game_source.replace(
+    "            scaled: false,\n        });",
+    "            scaled: false,\n        });",
+)
+
+if "renderer.drawn_sections" in game_source or "renderer.screenshot" in game_source:
+    raise SystemExit("Game still accesses renderer screenshot or drawn-section storage directly")
+
 gfx.write_text(gfx_source, encoding="utf-8")
 game.write_text(game_source, encoding="utf-8")
-print("Installed Renderer::configure_hud and Renderer::screen_size; migrated all HUD setup and 21 framebuffer-size reads in Game.")
+print("Installed renderer HUD/screen/LOD accessors and encapsulated world-icon screenshot and drawn-section state.")
