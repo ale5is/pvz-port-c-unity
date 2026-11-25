@@ -18,24 +18,18 @@ pub(super) fn poll(game: &mut crate::game::Game<'_>) {
     for output in crate::platform::poll() {
         match output {
             horizon_client::osk::Output::Text(text) => {
-                crate::game::atlas_mod::with(|state| {
-                    for character in text.chars() {
-                        state.char_typed(character);
-                    }
-                });
+                game.screen_chars_typed(Some(&text));
             }
             horizon_client::osk::Output::Backspace => {
-                crate::game::atlas_mod::with(|state| {
-                    state.key("key.keyboard.backspace", false, None, ["", "", "", ""]);
-                });
+                game.screen_key_pressed(winit::keyboard::KeyCode::Backspace, false);
             }
             horizon_client::osk::Output::Enter => {
-                crate::game::atlas_mod::with(|state| {
-                    state.key("key.keyboard.enter", false, None, ["", "", "", ""]);
-                });
+                game.screen_key_pressed(winit::keyboard::KeyCode::Enter, false);
             }
             horizon_client::osk::Output::Close => crate::platform::hide(),
-            horizon_client::osk::Output::Key(_) => {}
+            horizon_client::osk::Output::Key(code) => {
+                game.screen_key_pressed(code, false);
+            }
         }
     }
 
