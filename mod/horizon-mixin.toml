@@ -236,13 +236,6 @@ name = "atlas_bridge"
 source = "atlas_bridge.rs"
 visibility = "pub(crate)"
 
-[[module]]
-id = "atlas_android_ime"
-file = "crates/horizon-client/src/game.rs"
-name = "atlas_android_ime"
-source = "atlas_android_ime.rs"
-visibility = "pub(crate)"
-
 [[injection]]
 id = "atlas_frame"
 kind = "HEAD"
