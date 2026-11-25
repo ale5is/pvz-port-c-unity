@@ -17,3 +17,30 @@ fn atlas_screen_render(
     });
     crate::game::atlas_bridge::paint(game, batch, draws);
 }
+
+
+fn atlas_screen_char_typed(
+    game: &crate::game::Game<'_>,
+    screen: &crate::game::native_hooks::NativeScreenView<'_>,
+    c: char,
+    modifiers: u32,
+    canceled: &mut bool,
+) {
+    let _ = modifiers;
+    if !game.native_on("atlas") || screen.id != "paused" {
+        return;
+    }
+
+    let focused = crate::game::atlas_mod::with(|state| match &state.mode {
+        crate::game::atlas_mod::Mode::Edit(_) => true,
+        crate::game::atlas_mod::Mode::List => state.filter_focus,
+        crate::game::atlas_mod::Mode::Settings(view) => view.searching,
+        _ => false,
+    });
+    if !focused {
+        return;
+    }
+
+    crate::game::atlas_mod::with(|state| state.char_typed(c));
+    *canceled = true;
+}
