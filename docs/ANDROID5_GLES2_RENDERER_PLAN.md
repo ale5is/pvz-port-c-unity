@@ -166,3 +166,25 @@ El workflow Android 5 ahora instala y ejecuta sus pruebas unitarias junto a las 
 El adaptador ahora también copia las capas RGBA base de Horizon a un atlas 2D compacto, en orden de capa y sin reservar automáticamente todo el ancho máximo de la GPU. La cuadrícula intenta mantener una forma aproximadamente cuadrada y valida el tamaño de entrada, los cálculos de memoria y el límite de 4096 px. Se agregó una prueba de ubicación de píxeles para verificar que las capas 0, 1 y 2 terminan en los tiles esperados.
 
 El empaquetador trabaja con el bloque RGBA base layer-major que Horizon entrega a su preparación de texturas; todavía no reproduce los mipmaps ni el sistema de animación de sprites. El renderer GLES2 tendrá que actualizar las regiones de atlas cuando cambien las texturas animadas y aplicar un margen de muestreo para evitar bleeding entre tiles.
+
+
+### Prototipo inicial de shaders GLES2 para terreno (25-11-2026)
+
+Se añadieron tres fuentes GLSL ES 1.00 independientes:
+- `gles2-terrain.vert`: recibe el layout CPU convertido (posición, UV, origen/escala de atlas, color, luz y marca opaca) y calcula posición/profundidad de cámara.
+- `gles2-terrain-solid.frag`: muestrea el atlas y lightmap, aplica alpha cutout para hojas/vegetación y niebla lineal.
+- `gles2-terrain-translucent.frag`: conserva alpha y separa el descarte de píxeles casi transparentes para el pase translúcido.
+
+La fórmula de repetición UV se ajustó a la función `tile_uv` exacta del WGSL de Horizon; no se usa `fract` porque en UV enteras (por ejemplo 1.0) produciría un borde distinto. El adaptador CPU también expone ahora un paso UV explícito: 1/32768 para secciones normales y 1/32 para mallas de terreno distante. Así no se confunden las dos codificaciones fijas de Horizon.
+
+Se añadió `tools/check_gles2_terrain_shaders.py` al CI para verificar que los atributos del shader coincidan con el adaptador y que los pases sólido/translúcido mantengan contratos separados. Este control es estático: no es un compilador GLSL, no ejecuta OpenGL y no demuestra que el shader se vea correctamente en el Philips.
+
+Pendiente antes de integrar:
+- compilar/linkar ambos programas en el dispositivo con el contexto GLES2 real;
+- implementar la creación de VBO y los punteros de atributos usando offsets/stride exactos de `Gles2TerrainVertex`;
+- confirmar la orientación y contenido del lightmap cargado;
+- enlazar matrices, origen relativo, niebla y atlas desde el renderer;
+- implementar EGL, carga de texturas, subida de mallas y los pases de profundidad/mezcla;
+- manejar sprites animados y sus actualizaciones del atlas.
+
+Por tanto, estos shaders son una primera implementación fuente del camino de terreno, pero aún no se ejecutan en Horizon ni forman parte de un APK jugable.
