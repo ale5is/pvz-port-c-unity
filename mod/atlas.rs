@@ -9370,6 +9370,7 @@ pub(crate) mod bridge {
         let list = game.native_mod_key(m::ID, m::KEY_LIST, m::DEFAULT_LIST);
         let settings = game.native_mod_key(m::ID, m::KEY_SETTINGS, m::DEFAULT_SETTINGS);
         let temporary = game.native_mod_key(m::ID, m::KEY_TEMP, m::DEFAULT_TEMP);
+        let dimension = game.native_mod_key(m::ID, m::KEY_DIMENSION, m::DEFAULT_DIMENSION);
 
         if !pressed {
             if key == enlarge {
@@ -9396,6 +9397,10 @@ pub(crate) mod bridge {
                 if map_mode && key == zoom_out {
                     let size = state.screen_size;
                     state.map.zoom(-1.0, [size[0] / 2.0, size[1] / 2.0], size);
+                    return;
+                }
+                if map_mode && key == dimension {
+                    state.act(m::Action::CycleMapDimension, here.as_ref());
                     return;
                 }
                 if (map_mode || list_mode) && key == temporary {
