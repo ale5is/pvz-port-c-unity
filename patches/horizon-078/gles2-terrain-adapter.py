@@ -121,6 +121,19 @@ impl AtlasGrid {
 /// (uv - max(ceil(uv) - 1, 0)) before adding atlas_origin.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
+/// Decoded face metadata retained in TerrainVertex::color's upper alpha nibble.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Gles2MaterialFlags {
+    pub fluid_face: Option<u8>,
+}
+
+/// Horizon encodes fluid faces as 8 + Direction (0..5); other values are not fluids.
+pub fn decode_material_flags(flags: u8) -> Gles2MaterialFlags {
+    let high = flags >> 4;
+    let fluid_face = if high >= 8 && (high & 7) < 6 { Some(high & 7) } else { None };
+    Gles2MaterialFlags { fluid_face }
+}
+
 pub struct Gles2TerrainVertex {
     pub position: [f32; 3],
     pub uv: [f32; 2],
@@ -213,6 +226,16 @@ mod tests {
         assert_eq!(std::mem::offset_of!(Gles2TerrainVertex, light), 42);
         assert_eq!(std::mem::offset_of!(Gles2TerrainVertex, opaque_layer), 44);
         assert_eq!(std::mem::size_of::<Gles2TerrainVertex>(), 48);
+    }
+
+    #[test]
+    fn decodes_horizon_fluid_face_nibble_without_misclassifying_other_materials() {
+        for face in 0u8..6 {
+            assert_eq!(decode_material_flags((8 + face) << 4).fluid_face, Some(face));
+        }
+        assert_eq!(decode_material_flags(0x70).fluid_face, None);
+        assert_eq!(decode_material_flags(0xE0).fluid_face, None);
+        assert_eq!(decode_material_flags(0xF0).fluid_face, None);
     }
 
     #[test]

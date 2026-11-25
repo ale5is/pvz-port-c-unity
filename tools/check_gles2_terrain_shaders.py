@@ -46,6 +46,8 @@ assert "std::mem::size_of::<Gles2TerrainVertex>(), 48" in adapter, "GLES2 vertex
 assert "vec4 color = vec4(texel.rgb * v_color.rgb * light, 1.0);" in solid, "solid terrain must output opaque alpha after cutout"
 assert "let emission = 15 - (packed_color[3] & 0x0f);" in adapter, "HDR emission nibble is not decoded"
 assert "let material_flags = packed_color[3] >> 4;" in adapter, "upper material/fluid face nibble is not preserved"
+assert "pub fn decode_material_flags(flags: u8)" in adapter, "fluid face nibble decoder missing"
+assert "let fluid_face = if high >= 8 && (high & 7) < 6 { Some(high & 7) } else { None };" in adapter, "Horizon fluid face encoding is not decoded"
 assert "texel.a * v_color.a" not in solid and "texel.a * v_color.a" not in translucent, "packed vertex alpha must not be treated as texture transparency"
 assert "if (color.a < 0.01)" in translucent
 print("PASS: GLES2 terrain shader inputs match the CPU vertex adapter.")
