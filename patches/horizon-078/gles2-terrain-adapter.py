@@ -117,8 +117,8 @@ impl AtlasGrid {
 }
 
 /// GLES2-compatible vertex: float attributes plus normalized byte colour/light.
-/// uv remains sprite-local; the shader must wrap it with fract() before adding
-/// atlas_origin, otherwise merged distant-terrain faces bleed into neighbours.
+/// uv remains sprite-local; the shader must use Horizon's exact tile_uv formula
+/// (uv - max(ceil(uv) - 1, 0)) before adding atlas_origin.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Gles2TerrainVertex {
