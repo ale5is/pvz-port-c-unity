@@ -107,3 +107,15 @@ This inventory is based on the exact upstream revision above. It is an architect
 The patch script `patches/horizon-078/renderer-hud-boundary.py` now also moves the two game-side far-terrain distance decisions behind `Renderer::lod_distance_capped(distance)`. The wgpu adapter metadata remains inside the current wgpu renderer; game code no longer needs to pass `wgpu::AdapterInfo` into the graphics policy for those two decisions.
 
 This is deliberately a narrow migration, not a claim that adapter metadata is fully backend-neutral. The Android workflow now adds a cross-target `cargo check --target armv7-linux-androideabi -p horizon-client --lib` after applying the source patches. This should compile the patched game and renderer for the target architecture without packaging an APK. Its success remains unverified until GitHub Actions reports a completed run.
+
+## Follow-up boundary reduction: screenshot and section state
+
+The same patch now moves the world-icon screenshot path behind three renderer operations:
+
+- `drawn_section_count()` exposes the last frame's section count as a value, rather than exposing the storage field.
+- `has_pending_screenshot()` checks whether another screenshot owns the next frame.
+- `request_screenshot(request)` queues a request only when the slot is free and reports whether it accepted it.
+
+This preserves the existing world-icon behavior: it waits until more than ten sections have been drawn, does not overwrite an F2/agent screenshot, and queues the 64×64 icon capture. The game no longer reads or writes `Renderer::drawn_sections` or `Renderer::screenshot` directly at these call sites.
+
+The methods are still implemented by the current wgpu renderer; this is an ownership/API cleanup, not yet a second backend or a backend-neutral screenshot implementation. The patch script asserts the expected upstream call-site counts and fails rather than silently applying to a changed source layout. The cross-target build and the patch itself still need a completed CI run before they can be considered validated.
