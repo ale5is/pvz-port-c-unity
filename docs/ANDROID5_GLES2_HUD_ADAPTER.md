@@ -148,3 +148,21 @@ The API-22 diagnostic workflow installs this adapter into the pinned source and 
 `cargo test -p horizon-client-render --lib gles2_hud::tests` before the Android build.
 That validates source compatibility and CPU conversion only; it does not validate GL drawing
 or game integration.
+
+
+## Launcher and renderer integration inventory
+
+A second source pass pinned the first integration boundary to the exact Android call sites:
+
+- `android_main.rs` creates `Launcher` and runs the single winit `EventLoop`.
+- `android/launcher.rs` stores `renderer: Option<Renderer>`. Its `open` method creates the native window, calls `game::loading_renderer`, builds the GUI atlas and calls `set_loading_ui`.
+- The launcher's `RedrawRequested` event enters `draw_pages`; the launcher therefore needs a renderer capable of drawing the actual launcher HUD, not merely clearing the screen.
+- The launcher's Android `suspended` callback calls `Renderer::suspend_surface`; `resumed` reaches `open`, which calls `recreate_surface` for an existing renderer.
+- `game.rs` also creates the same concrete `Renderer` for loading and gameplay. Its loading frames call `renderer.render(&loading_frame(&hud))`.
+- `horizon-client-render` forbids unsafe code, while the Android host crate is the appropriate place to isolate any EGL/GLES2 FFI.
+
+This rules out a safe one-file swap in `android_main.rs`. The first integration refactor must introduce a backend boundary shared by launcher and game, then provide a GLES2 implementation for the launcher's HUD frame. It must preserve the single winit-owned Android window and mirror the existing suspend/resume lifecycle. Until that seam exists, do not create a second EGL surface alongside wgpu.
+
+### CI guard
+
+`tools/check_android5_renderer_boundary.py` checks these exact upstream integration markers before applying the diagnostic patches. It is a source-drift guard, not a renderer implementation or a device test. If Horizon changes its Android lifecycle or renderer ownership, CI stops so the GLES2 integration plan can be reviewed before producing another diagnostic APK.
