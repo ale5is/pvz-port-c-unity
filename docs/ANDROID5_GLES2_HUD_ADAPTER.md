@@ -1,74 +1,99 @@
-# Android 5 GLES2 HUD adapter — implementation boundary
+# Horizon 0.7.8 GLES2 HUD adapter
 
-Target: Horizon 0.7.8 at `68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29`, Philips QM152E (API 22, ARMv7, Mali-450 MP, GLES2).
+## Status
 
-Status: source-level adapter design. The hardware probes pass, but no Horizon GLES2 renderer or game integration is claimed by this document.
+The pinned-source patch installer is `patches/horizon-078/gles2-hud-adapter.py`. It adds
+`horizon_client_render::gles2_hud` to the exact Horizon 0.7.8 source tree during the API-22
+build. The adapter is CPU-only: it does not create an EGL context, issue GL calls, replace
+`HudRenderer`, or make the game render on GLES2.
 
-## Reusable CPU interface
+The adapter deliberately keeps Horizon's existing `HudBatch` as the source of truth. It
+exports the batch, atlas pixels, glint texture, glyph patches and ordered draw runs through a
+GLES2-friendly data layout. The existing wgpu renderer remains unchanged.
 
-The pinned source already exposes a useful renderer-independent boundary in `horizon-client-render`:
+## Vertex data contract
 
-- `HudBatch.vertices: Vec<HudVertex>` contains screen-space triangles (six vertices per quad).
-- `HudVertex` contains `pos: [f32; 2]`, `uv: [f32; 2]`, packed RGBA `color: u32`, `depth: f32`, `glint_uv`, and `text`.
-- `HudBatch::runs()` returns ordered vertex ranges and their `Blend` state.
-- `HudBatch.patches` contains dynamic glyph-atlas updates to apply before drawing.
-- `HudBatch.scale`, `width`, and `height` define the GUI coordinate system.
-- `HudAtlas` owns the RGBA pixels, dimensions, and normalized sprite rectangles.
-- `screen_draw::Draw` is the higher-level menu command model; `screen_draw::paint` already lowers it into a `HudBatch`.
+`Gles2HudVertex` is `#[repr(C)]`, 36 bytes, with this layout:
 
-The GLES2 path should consume these CPU values. It must not call, wrap, or attempt to reuse the wgpu-specific `HudRenderer`.
+| Byte offset | Attribute | GLES2 format |
+|---:|---|---|
+| 0 | position, 2 floats | `GL_FLOAT`, 2 |
+| 8 | UV, 2 floats | `GL_FLOAT`, 2 |
+| 16 | RGBA color, 4 bytes | `GL_UNSIGNED_BYTE`, normalized |
+| 20 | depth, 1 float | `GL_FLOAT`, 1 |
+| 24 | glint UV, 2 floats | `GL_FLOAT`, 2 |
+| 32 | text marker, 1 float | `GL_FLOAT`, 1 |
 
-## First GLES2 vertex interface
+The source color is packed as AABBGGRR. The adapter uses `to_le_bytes()`, yielding RGBA
+bytes on the target ARM little-endian ABI. The text marker is converted to 0.0 or 1.0 because
+GLES2 has no integer vertex attributes.
 
-Use a compact dedicated vertex structure rather than passing `HudVertex` as an opaque GPU layout:
+GUI positions are in top-left-origin GUI pixels. The vertex shader must apply
+`batch.scale` and convert to clip coordinates using the actual framebuffer dimensions.
+The adapter does not pre-transform positions, so the same batch remains usable for different
+surface sizes.
 
-| Attribute | GLES2 representation | Source |
+## Frame and texture data
+
+The frame exposes:
+
+- Atlas RGBA pixels and dimensions from `HudAtlas`.
+- The independent glint RGBA texture and dimensions.
+- `HudBatch::patches`, preserving x/y/width/height and RGBA data for glyph uploads.
+- GUI width, height, scale, glint alpha, game time, blur boundary and End Portal parameters.
+- Ordered draw runs, each with first vertex, vertex count and the original blend mode.
+
+A GLES2 consumer must apply glyph patches with `glTexSubImage2D` before drawing that frame.
+It must also respect the texture row orientation: the existing probe's atlas UV test validates
+the driver path, but the production atlas upload/UV convention still needs an explicit
+comparison against Horizon's source atlas.
+
+For a depth run, `scissor_top_left` retains Horizon's top-left pixel rectangle. GLES scissor
+uses a bottom-left origin, so the GL backend must convert y to
+`framebuffer_height - (y + height)` at draw time.
+
+## Blend behavior to preserve
+
+The exact blend states in Horizon 0.7.8 `HudRenderer::new` are:
+
+| Horizon mode | Color factors | Alpha factors |
 |---|---|---|
-| Position | 2 × GL_FLOAT | `HudVertex.pos` |
-| UV | 2 × GL_FLOAT | `HudVertex.uv` |
-| Color | 4 × GL_UNSIGNED_BYTE, normalized | four in-memory bytes of `HudVertex.color` |
-| Depth | 1 × GL_FLOAT | `HudVertex.depth` (initially reserved; enable only in the depth-run stage) |
+| Alpha | SRC_ALPHA, ONE_MINUS_SRC_ALPHA | ONE, ONE_MINUS_SRC_ALPHA |
+| Invert | ONE_MINUS_DST_COLOR, ONE_MINUS_SRC_COLOR | ONE, ZERO |
+| Additive | ONE, ONE | ONE, ONE |
+| Vignette | ZERO, ONE_MINUS_SRC_COLOR | ZERO, ONE |
+| Depth | SRC_ALPHA, ONE_MINUS_SRC_ALPHA | ONE, ONE_MINUS_SRC_ALPHA |
+| EndPortal | replacement (opaque) | replacement (opaque) |
 
-Ignore `glint_uv` and `text` in the first pass. They belong to later feature stages. Keep the CPU vertex order unchanged: the batch is already triangulated.
+Use `glBlendFuncSeparate` where the color and alpha factors differ. Depth runs additionally
+need a Depth16 buffer, depth clear and scissor. EndPortal needs its own GLSL ES 1.00 fragment
+implementation; it is not equivalent to an ordinary textured quad.
 
-The vertex shader maps GUI pixels to clip coordinates using the batch's physical target size and GUI scale. The fragment shader samples one `sampler2D` atlas and multiplies by vertex color. Verify the V coordinate convention against the actual atlas upload before accepting the first screenshot; the standalone quadrant probe confirms UV interpolation, not Horizon's PNG row convention.
+## Memory and texture constraints
 
-## Initial supported run states
+- The TV reports a maximum texture dimension of 4096; do not inherit Horizon's 16384 desktop
+  atlas cap without a device-specific override.
+- Start with a 2048 maximum atlas side and measure actual pack requirements before raising it.
+- The boot atlas is 1024 × 1024 and is a useful first deterministic fixture.
+- If an atlas is rescaled, every glyph patch coordinate and dimension must be scaled consistently.
+- Reuse a bounded VBO and grow in capped steps; do not allocate a new buffer every frame.
+- The initial target should avoid blur, post-processing, MSAA and extra render targets.
 
-- `Blend::Alpha`: enable `GL_BLEND`, use `GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA`.
-- Default alpha runs: same state.
-- Ordered adjacent ranges: preserve their order and issue one draw call per contiguous run; do not reorder transparent UI.
-- Atlas glyph patches: upload with `glTexSubImage2D` before drawing, after validating bounds.
+## Explicitly not implemented yet
 
-The device probe now confirms alpha blending, scissor, batched quads and atlas UV quadrants on the actual TV. Those results validate the GL operations, not this adapter.
+- EGL/GLES2 context ownership inside Horizon's runtime.
+- Calling this adapter from the real frame submission path.
+- GLES2 VBO upload/draw calls consuming this exact frame.
+- Atlas animation frame updates and full glyph upload validation.
+- Resource-pack text shaders, menu blur, EndPortal shader and full depth-run parity.
+- A GLES2 terrain/world renderer or a complete playable client.
 
-## Explicitly deferred
+The existing NativeActivity test app validates EGL/GLES2 on the Philips independently. Its four
+colored squares are not rendered from Horizon's `HudBatch`.
 
-- `Blend::Invert`, `Additive`, `Vignette`, and `EndPortal`: each needs its own shader/blend semantics and deterministic pixel test.
-- `Blend::Depth([x,y,w,h])`: requires a depth-isolated pass and coordinate-correct scissor. Depth16 is validated on device, but the Horizon run semantics still need to be reproduced.
-- Resource-pack text shaders, glint UVs, inline player heads/skins, map/trim/pack icon slots, animation uploads and all non-HUD world rendering.
-- Stencil: no Stencil8 functional test has been run.
+## CI validation
 
-## Atlas and memory guardrails
-
-- The hardware maximum texture dimension is 4096; do not inherit `HudAtlas::MAX_ATLAS_SIZE = 16384`.
-- Start with a 2048 × 2048 maximum atlas allocation, then measure real resource-pack dimensions and memory before choosing a final policy.
-- The boot atlas is 1024 × 1024 and is a useful first end-to-end HUD fixture.
-- If an atlas is rescaled, keep normalized sprite UV rectangles unchanged, but scale the pixel buffer and every later glyph-patch coordinate/dimension consistently. Do not scale only the initial texture and leave patch coordinates untouched.
-- Reuse a bounded VBO. Grow in capped steps; do not allocate a new VBO every frame.
-- Keep the first target free of blur, post-processing, MSAA and additional render targets unless a later feature explicitly requires them.
-
-## Integration constraints
-
-The Android 5 workflow currently builds a diagnostic APK by cloning the pinned source and applying `tools/android5_patch.py`. A future GLES2 implementation must therefore be applied reproducibly by that patch/build path or by a pinned source patch. Do not edit only a local copy that CI will not build.
-
-The current game renderer owns a wgpu instance, surface, device, queue, render targets and many world passes. A GLES2 HUD module alone cannot be selected by changing the manifest: the Android render lifecycle must provide a real GLES2 context and surface, and the frame path must not still require the wgpu GLES3 device. Before wiring the HUD into the game, establish that context/surface ownership and the fallback boundary. Do not create two unrelated contexts competing for the same Android window surface.
-
-## Next implementation gate
-
-1. Add an isolated Android-only GLES2 context/surface owner with pause/resume and surface-recreation handling.
-2. Render the existing `HudAtlas::boot()` and a synthetic `HudBatch` to the actual window surface using the dedicated vertex/shader interface.
-3. Add pixel/visual checks for top-left origin, color packing, alpha, scissor and repeated frames.
-4. Only then adapt the real `HudBatch` and dynamic glyph patches.
-5. Keep wgpu paths unchanged on other platforms. Do not claim a playable Horizon port until the world renderer is also implemented.
-
+The API-22 diagnostic workflow installs this adapter into the pinned source and runs
+`cargo test -p horizon-client-render --lib gles2_hud::tests` before the Android build.
+That validates source compatibility and CPU conversion only; it does not validate GL drawing
+or game integration.
