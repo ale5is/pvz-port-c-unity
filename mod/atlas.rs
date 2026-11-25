@@ -46,6 +46,26 @@ pub const DEFAULT_ZOOM_OUT: &str = "key.keyboard.left.bracket";
 /// dimension's map (unbound until the player picks a key).
 pub const KEY_DIMENSION: &str = "dimension";
 pub const DEFAULT_DIMENSION: &str = "key.keyboard.unknown";
+pub const KEY_PAN_UP: &str = "pan_up";
+pub const DEFAULT_PAN_UP: &str = "key.keyboard.up";
+pub const KEY_PAN_DOWN: &str = "pan_down";
+pub const DEFAULT_PAN_DOWN: &str = "key.keyboard.down";
+pub const KEY_PAN_LEFT: &str = "pan_left";
+pub const DEFAULT_PAN_LEFT: &str = "key.keyboard.left";
+pub const KEY_PAN_RIGHT: &str = "pan_right";
+pub const DEFAULT_PAN_RIGHT: &str = "key.keyboard.right";
+pub const KEY_WORLD_ZOOM_IN: &str = "world_zoom_in";
+pub const DEFAULT_WORLD_ZOOM_IN: &str = "key.keyboard.equal";
+pub const KEY_WORLD_ZOOM_OUT: &str = "world_zoom_out";
+pub const DEFAULT_WORLD_ZOOM_OUT: &str = "key.keyboard.minus";
+pub const KEY_CENTRE: &str = "centre";
+pub const DEFAULT_CENTRE: &str = "key.keyboard.space";
+pub const KEY_DRAW: &str = "draw";
+pub const DEFAULT_DRAW: &str = "key.keyboard.d";
+pub const KEY_UNDO: &str = "undo";
+pub const DEFAULT_UNDO: &str = "key.keyboard.z";
+pub const KEY_TELEPORT: &str = "teleport";
+pub const DEFAULT_TELEPORT: &str = "key.keyboard.t";
 pub const KEY_TEMP: &str = "temporary";
 pub const DEFAULT_TEMP: &str = "key.keyboard.h";
 pub const KEY_MAP: &str = "map";
@@ -4642,7 +4662,12 @@ impl State {
     /// A key pressed over the mod's screen (all of them are the mod's).
     /// `keys` are the player's map, create, list and settings keys.
     pub fn key(&mut self, key: &str, shift: bool, here: Option<&Here>, keys: [&str; 4]) {
+        self.key_with_controls(key, shift, here, keys, [DEFAULT_PAN_UP, DEFAULT_PAN_DOWN, DEFAULT_PAN_LEFT, DEFAULT_PAN_RIGHT, DEFAULT_WORLD_ZOOM_IN, DEFAULT_WORLD_ZOOM_OUT, DEFAULT_CENTRE, DEFAULT_DRAW, DEFAULT_UNDO, DEFAULT_TELEPORT]);
+    }
+
+    pub fn key_with_controls(&mut self, key: &str, shift: bool, here: Option<&Here>, keys: [&str; 4], controls: [&str; 10]) {
         let [map_key, create_key, list_key, settings_key] = keys;
+        let [pan_up, pan_down, pan_left, pan_right, world_zoom_in, world_zoom_out, centre_key, draw_key, undo_key, teleport_key] = controls;
         match &mut self.mode {
             Mode::Closed => {}
             Mode::Settings(v) => match key {
@@ -4663,13 +4688,13 @@ impl State {
             },
             Mode::List => match key {
                 "key.keyboard.escape" => self.close(),
-                "key.keyboard.t" => {
+                teleport_key => {
                     if let Some(i) = self.selected {
                         self.act(Action::Teleport(i), here);
                     }
                 }
-                "key.keyboard.up" => self.scroll = self.scroll.saturating_sub(1),
-                "key.keyboard.down" => self.scroll += 1,
+                pan_up => self.scroll = self.scroll.saturating_sub(1),
+                pan_down => self.scroll += 1,
                 k if k == list_key => self.close(),
                 k if k == map_key => self.open_map(here, key_char(k)),
                 k if k == create_key => {
@@ -4686,15 +4711,15 @@ impl State {
                     "key.keyboard.escape" => self.close(),
                     "key.keyboard.up" => self.map.pan([0.0, pan]),
                     "key.keyboard.down" => self.map.pan([0.0, -pan]),
-                    "key.keyboard.left" => self.map.pan([pan, 0.0]),
-                    "key.keyboard.right" => self.map.pan([-pan, 0.0]),
-                    "key.keyboard.equal" | "key.keyboard.keypad.add" => {
+                    pan_left => self.map.pan([pan, 0.0]),
+                    pan_right => self.map.pan([-pan, 0.0]),
+                    world_zoom_in => {
                         self.map.zoom(1.0, [size[0] / 2.0, size[1] / 2.0], size);
                     }
-                    "key.keyboard.minus" | "key.keyboard.keypad.subtract" => {
+                    world_zoom_out => {
                         self.map.zoom(-1.0, [size[0] / 2.0, size[1] / 2.0], size);
                     }
-                    "key.keyboard.space" => self.act(Action::Centre, here),
+                    centre_key => self.act(Action::Centre, here),
                     k if k == map_key => self.close(),
                     k if k == list_key => self.open_list(key_char(k)),
                     // A new waypoint where the pointer is.
@@ -4702,8 +4727,8 @@ impl State {
                         let mouse = self.mouse;
                         self.create_at_pointer(mouse, here, key_char(k));
                     }
-                    "key.keyboard.d" => self.act(Action::ToggleDraw, here),
-                    "key.keyboard.z" if self.draw.on => self.act(Action::UndoStroke, here),
+                    draw_key => self.act(Action::ToggleDraw, here),
+                    undo_key if self.draw.on => self.act(Action::UndoStroke, here),
                     _ => {}
                 }
             }
@@ -7295,6 +7320,7 @@ mod tests {
     use super::*;
 
     const KEYS: [&str; 4] = [DEFAULT_MAP, DEFAULT_CREATE, DEFAULT_LIST, DEFAULT_SETTINGS];
+    const CONTROL_KEYS: [&str; 10] = [DEFAULT_PAN_UP, DEFAULT_PAN_DOWN, DEFAULT_PAN_LEFT, DEFAULT_PAN_RIGHT, DEFAULT_WORLD_ZOOM_IN, DEFAULT_WORLD_ZOOM_OUT, DEFAULT_CENTRE, DEFAULT_DRAW, DEFAULT_UNDO, DEFAULT_TELEPORT];
 
     fn here(dim: &str) -> Here {
         Here {
@@ -9371,6 +9397,16 @@ pub(crate) mod bridge {
         let settings = game.native_mod_key(m::ID, m::KEY_SETTINGS, m::DEFAULT_SETTINGS);
         let temporary = game.native_mod_key(m::ID, m::KEY_TEMP, m::DEFAULT_TEMP);
         let dimension = game.native_mod_key(m::ID, m::KEY_DIMENSION, m::DEFAULT_DIMENSION);
+        let pan_up = game.native_mod_key(m::ID, m::KEY_PAN_UP, m::DEFAULT_PAN_UP);
+        let pan_down = game.native_mod_key(m::ID, m::KEY_PAN_DOWN, m::DEFAULT_PAN_DOWN);
+        let pan_left = game.native_mod_key(m::ID, m::KEY_PAN_LEFT, m::DEFAULT_PAN_LEFT);
+        let pan_right = game.native_mod_key(m::ID, m::KEY_PAN_RIGHT, m::DEFAULT_PAN_RIGHT);
+        let world_zoom_in = game.native_mod_key(m::ID, m::KEY_WORLD_ZOOM_IN, m::DEFAULT_WORLD_ZOOM_IN);
+        let world_zoom_out = game.native_mod_key(m::ID, m::KEY_WORLD_ZOOM_OUT, m::DEFAULT_WORLD_ZOOM_OUT);
+        let centre = game.native_mod_key(m::ID, m::KEY_CENTRE, m::DEFAULT_CENTRE);
+        let draw = game.native_mod_key(m::ID, m::KEY_DRAW, m::DEFAULT_DRAW);
+        let undo = game.native_mod_key(m::ID, m::KEY_UNDO, m::DEFAULT_UNDO);
+        let teleport = game.native_mod_key(m::ID, m::KEY_TELEPORT, m::DEFAULT_TELEPORT);
 
         if !pressed {
             if key == enlarge {
@@ -9417,7 +9453,7 @@ pub(crate) mod bridge {
                     }
                     return;
                 }
-                state.key(key, false, here.as_ref(), [&map, &create, &list, &settings]);
+                state.key_with_controls(key, false, here.as_ref(), [&map, &create, &list, &settings], [pan_up, pan_down, pan_left, pan_right, world_zoom_in, world_zoom_out, centre, draw, undo, teleport]);
                 if let Some(character) = m::key_char(key) {
                     state.char_typed(character);
                 }
