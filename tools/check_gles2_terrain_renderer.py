@@ -6,6 +6,7 @@ import sys
 root = Path(sys.argv[1]).resolve()
 header = (root / "gles2_terrain_renderer.h").read_text(encoding="utf-8")
 source = (root / "gles2_terrain_renderer.cpp").read_text(encoding="utf-8")
+cmake = (root / "CMakeLists.txt").read_text(encoding="utf-8")
 
 required_header = [
     "offsetof(Gles2TerrainVertex, position) == 0",
@@ -34,6 +35,8 @@ required_source = [
 ]
 missing = [f"header: {item}" for item in required_header if item not in header]
 missing += [f"renderer: {item}" for item in required_source if item not in source]
+if "find_library(glesv2-lib GLESv2)" not in cmake or "${glesv2-lib}" not in cmake:
+    missing.append("CMake: GLESv2 must be linked to the native target")
 if missing:
     print("\n".join("FAIL: " + item for item in missing), file=sys.stderr)
     raise SystemExit(1)
