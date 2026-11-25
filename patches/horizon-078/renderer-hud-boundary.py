@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Move HUD atlas setup behind Renderer so callers no longer touch wgpu internals."""
+"""Keep HUD setup and framebuffer sizing behind Renderer instead of exposing wgpu internals."""
 import argparse
 from pathlib import Path
 
@@ -21,6 +21,11 @@ method = """    /// Install the GUI atlas state without exposing the backend dev
             .collect();
         self.hud
             .set_text_shader(&self.device, atlas.text_shader.as_deref());
+    }
+
+    /// Current framebuffer dimensions, without exposing the wgpu surface configuration.
+    pub fn screen_size(&self) -> [u32; 2] {
+        [self.config.width, self.config.height]
     }
 
 """
@@ -48,6 +53,13 @@ gui_atlas_block = """renderer.hud.sprite_animations = gui
                 .iter()
                 .map(|(rect, animation)| (*rect, animation.clone(), (usize::MAX, 0, 0)))
                 .collect();"""
+screen_size_calls = "[renderer.config.width, renderer.config.height]"
+screen_size_closure = "[r.config.width, r.config.height]"
+if game_source.count(screen_size_calls) != 4:
+    raise SystemExit(f"Expected 4 loading HUD framebuffer-size reads, found {game_source.count(screen_size_calls)}")
+if game_source.count(screen_size_closure) != 1:
+    raise SystemExit(f"Expected 1 main-frame framebuffer-size read, found {game_source.count(screen_size_closure)}")
+
 atlas_shader = """renderer
         .hud
         .set_text_shader(&renderer.device, atlas.text_shader.as_deref());"""
@@ -68,6 +80,9 @@ game_source = game_source.replace(atlas_block, "renderer.configure_hud(atlas);")
 game_source = game_source.replace(atlas_block_deep, "renderer.configure_hud(atlas);")
 game_source = game_source.replace(gui_atlas_block, "renderer.configure_hud(&gui.atlas);")
 game_source = game_source.replace(atlas_shader, "")
+game_source = game_source.replace(screen_size_calls, "renderer.screen_size()")
+game_source = game_source.replace(screen_size_closure, "r.screen_size()")
+
 game_source = game_source.replace(gui_shader, "")
 
 if "renderer.hud.sprite_animations" in game_source or ".set_text_shader(&renderer.device" in game_source:
@@ -75,4 +90,4 @@ if "renderer.hud.sprite_animations" in game_source or ".set_text_shader(&rendere
 
 gfx.write_text(gfx_source, encoding="utf-8")
 game.write_text(game_source, encoding="utf-8")
-print("Installed Renderer::configure_hud and migrated all four Game HUD setup paths.")
+print("Installed Renderer::configure_hud and Renderer::screen_size; migrated HUD setup and all framebuffer-size reads in Game.")
