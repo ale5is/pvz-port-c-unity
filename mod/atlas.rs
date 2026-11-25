@@ -5869,16 +5869,26 @@ impl State {
             }
             let rect = [6.0, y, width - 12.0, 20.0];
             let hovered = inside(rect, out.mouse);
-            out.fill(rect, if hovered { 0xA0445F78 } else { 0x50303D4B });
+            let selected = self.selected == Some(index);
+            out.fill(
+                rect,
+                if selected { 0xA04FC3F7 } else if hovered { 0xA0445F78 } else { 0x50303D4B },
+            );
             let color = 0xFF000000 | (waypoint.color & RGB);
             out.fill([12.0, y + 6.0, 8.0, 8.0], color);
-            let name = out.fit(&waypoint.name, width - 38.0);
+            let name = out.fit(&waypoint.name, width - 58.0);
             out.text(&name, [25.0, y + 6.0], INK);
             if live {
                 out.widgets.push(Widget {
                     rect,
-                    action: Action::MapWaypoint(index),
+                    action: Action::Select(index),
                 });
+                mc_button(
+                    out,
+                    [width - 25.0, y + 2.0, 17.0, 16.0],
+                    "T",
+                    self.can_teleport.then_some(Action::Teleport(index)),
+                );
             }
             row += 1;
         }
