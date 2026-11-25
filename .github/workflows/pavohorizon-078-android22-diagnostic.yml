@@ -74,6 +74,10 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Test Horizon mobile atlas fitting
+        working-directory: ${{ runner.temp }}/horizon-078
+        run: cargo test -p horizon-client-render --lib mobile_atlas
+
       - name: Test Horizon GLES2 HUD CPU adapter
         working-directory: ${{ runner.temp }}/horizon-078
         run: cargo test -p horizon-client-render --lib gles2_hud::tests
