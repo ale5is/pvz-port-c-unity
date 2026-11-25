@@ -7,6 +7,7 @@ root = Path(sys.argv[1]).resolve()
 header = (root / "gles2_terrain_renderer.h").read_text(encoding="utf-8")
 source = (root / "gles2_terrain_renderer.cpp").read_text(encoding="utf-8")
 cmake = (root / "CMakeLists.txt").read_text(encoding="utf-8")
+native_host = (root / "native_hud.cpp").read_text(encoding="utf-8")
 
 required_header = [
     "offsetof(Gles2TerrainVertex, position) == 0",
@@ -35,6 +36,16 @@ required_source = [
 ]
 missing = [f"header: {item}" for item in required_header if item not in header]
 missing += [f"renderer: {item}" for item in required_source if item not in source]
+required_host = [
+    '#include "gles2_terrain_renderer.h"',
+    "pavo::Gles2TerrainRenderer renderer;",
+    "renderer.initialize(",
+    "renderer.upload_solid(",
+    "renderer.draw(",
+    "renderer.release();",
+    "EGL_DEPTH_SIZE, 16",
+]
+missing += [f"native host: {item}" for item in required_host if item not in native_host]
 if "find_library(glesv2-lib GLESv2)" not in cmake or "${glesv2-lib}" not in cmake:
     missing.append("CMake: GLESv2 must be linked to the native target")
 if missing:
@@ -43,3 +54,4 @@ if missing:
 print("PASS: 48-byte Rust/C++ terrain vertex ABI")
 print("PASS: seven GLES2 attributes, atlas/lightmap sampling and VBO draw path")
 print("PASS: opaque depth pass and translucent blend/depth-mask pass")
+print("PASS: Android NativeActivity executes the GLES2 terrain renderer")
