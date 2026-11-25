@@ -26,7 +26,7 @@ for item in required_vertex:
 for label, shader in [("solid", solid), ("translucent", translucent)]:
     assert "#version 100" in shader, f"{label}: not GLSL ES 1.00"
     assert "texture2D(u_terrain_atlas" in shader, f"{label}: atlas sampler missing"
-    assert "fract(v_uv)" in shader, f"{label}: sprite UVs are not wrapped"
+    assert "v_uv - max(ceil(v_uv) - 1.0, vec2(0.0))" in shader, f"{label}: Horizon tile_uv wrapping is missing"
     assert "u_atlas_size" in shader and "u_sprite_size" in shader, f"{label}: atlas inset missing"
     assert "texture2D(u_lightmap" in shader, f"{label}: lightmap sampling missing"
     assert "u_fog_range" in shader, f"{label}: fog range missing"
