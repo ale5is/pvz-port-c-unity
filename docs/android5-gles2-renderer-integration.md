@@ -101,3 +101,9 @@ The HUD setup and screen-size accesses have already been partially moved behind 
 5. Only after the wgpu implementation passes the same call-site tests should the Android EGL/GLES2 implementation be selected by the Android launcher.
 
 This inventory is based on the exact upstream revision above. It is an architectural map, not a claim that a backend trait or GLES2 game-loop integration has already been implemented.
+
+## Follow-up boundary reduction: adapter policy
+
+The patch script `patches/horizon-078/renderer-hud-boundary.py` now also moves the two game-side far-terrain distance decisions behind `Renderer::lod_distance_capped(distance)`. The wgpu adapter metadata remains inside the current wgpu renderer; game code no longer needs to pass `wgpu::AdapterInfo` into the graphics policy for those two decisions.
+
+This is deliberately a narrow migration, not a claim that adapter metadata is fully backend-neutral. The Android workflow now adds a cross-target `cargo check --target armv7-linux-androideabi -p horizon-client --lib` after applying the source patches. This should compile the patched game and renderer for the target architecture without packaging an APK. Its success remains unverified until GitHub Actions reports a completed run.
