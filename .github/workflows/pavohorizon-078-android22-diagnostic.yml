@@ -84,6 +84,17 @@ jobs:
       - name: Encapsulate renderer HUD backend setup
         run: python3 patches/horizon-078/renderer-hud-boundary.py "$RUNNER_TEMP/horizon-078"
 
+      - name: Configure native GLES2 prototype for Android 5 ARMv7
+        run: |
+          set -euo pipefail
+          cmake -S tools/gles2-hud-prototype/app/src/main/cpp \\
+            -B "$RUNNER_TEMP/pavo-gles2-native-build" \\
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_HOME/ndk/28.2.13676358/build/cmake/android.toolchain.cmake" \\
+            -DANDROID_ABI=armeabi-v7a \\
+            -DANDROID_PLATFORM=android-22 \\
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build "$RUNNER_TEMP/pavo-gles2-native-build" --parallel 2
+
       - name: Install Rust ARMv7 target
         working-directory: ${{ runner.temp }}/horizon-078
         run: |
