@@ -189,3 +189,16 @@ The first backend seam should be deliberately small:
 5. Explicitly return an unsupported-renderer result for world/gameplay until terrain, entities, sky, particles, depth and presentation passes are implemented.
 
 The raw handle provides the native window; it does not solve the larger `Renderer` API coupling. In particular, existing launcher/game code reads renderer configuration and GPU/HUD fields directly. Those call sites need to move behind backend-neutral methods or a narrower shared frame interface before the GLES2 variant can be substituted safely.
+
+
+### Concrete API surface that must be separated
+
+The pinned Android launcher page renderer is not limited to `render`: `draw_pages_with` reads `Renderer.config`, checks `Renderer.suspended`, and calls `Renderer.render`. The game runtime has a much wider direct dependency on the concrete type. The source inventory includes:
+
+- Frame submission and lifecycle: `render`, `resize`, `suspend_surface`, `recreate_surface`, `release_surface`.
+- GPU-owned state: `device`, `queue`, `hud`, `info`, `config`.
+- World streaming and GPU uploads: `upload`, `upload_lods`, `queue_lods`, `clear_lods`, `remove_columns`, `set_world_assets`, `start_occlusion`.
+- Timing and telemetry: `gpu_times`, `last_wait`, `set_pass_timing`, `set_detailed_gpu_timing`, `drawn_sections`, `lod_detail_revision`.
+- Screenshots and menu effects: `screenshot`, `has_cached_menu_blur`, `invalidate_menu_blur`.
+
+These are not all methods a GLES2 renderer should implement. They demonstrate why a backend trait must be split by responsibility instead of mechanically mirroring every wgpu field. The first launcher-only interface can be narrow (framebuffer size, suspended state, atlas/UI upload, HUD frame submission and lifecycle). The gameplay renderer will need separate world-streaming, resource-upload, depth and pass interfaces later. Do not expose `wgpu::Device` or `wgpu::Queue` through the backend-neutral interface.
