@@ -234,6 +234,17 @@ pub fn convert_mesh(mesh: &SectionMesh, atlas: &AtlasGrid) -> Result<Gles2Terrai
     convert_mesh_with_uv_step(mesh, atlas, 1.0 / crate::mesher::UV_STEPS)
 }
 
+/// Return visible solid draw ranges in GLES2 triangle-vertex units.
+/// Horizon's Sides reports (first, count) in four-vertex quad units;
+/// the converted buffer stores six vertices per quad.
+pub fn visible_solid_triangle_ranges(sides: &Sides, eye: [f32; 3]) -> Vec<(u32, u32)> {
+    let mut ranges = Vec::new();
+    sides.visible(eye, |first_quad, quad_count| {
+        ranges.push((first_quad * 6, quad_count * 6));
+    });
+    ranges
+}
+
 /// Sort the expanded six-vertex triangles for each Horizon translucent quad.
 /// convert_mesh() expands each original quad as (0,1,2, 2,3,0); vertices 0 and 2
 /// remain the opposite corners used by Horizon's own quad-centroid sorting.
@@ -340,6 +351,16 @@ mod tests {
             [0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0],
             [1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 0.0],
         ]);
+    }
+
+
+    #[test]
+    fn converts_horizon_visible_quad_ranges_to_triangle_vertex_ranges() {
+        let sides = Sides::unsorted(3);
+        let ranges = visible_solid_triangle_ranges(&sides, [0.0, 0.0, 0.0]);
+        assert_eq!(ranges, vec![(0, 18)]);
+        let sides = Sides::default();
+        assert!(visible_solid_triangle_ranges(&sides, [0.0; 3]).is_empty());
     }
 
     #[test]
