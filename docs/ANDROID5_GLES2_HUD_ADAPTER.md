@@ -97,6 +97,39 @@ The 2048px value is a conservative starting point for the Philips 1 GiB device, 
 final optimum. It must be checked against the actual official/resource-pack atlas and visual
 quality on the TV before being treated as final.
 
+## Renderer integration boundary found in Horizon 0.7.8
+
+The pinned source has one concrete wgpu renderer, not a renderer trait or interchangeable
+backend:
+
+1. Android enters through `crates/horizon-client/src/android_main.rs`.
+2. The launcher creates its window and calls `Renderer::new` from
+   `crates/horizon-client/src/android/launcher.rs`.
+3. Game/loading paths call `build_renderer` in `crates/horizon-client/src/game.rs`.
+4. `Renderer::new_with_context` in `crates/horizon-client-render/src/gfx.rs` calls
+   `open_device`, creates a wgpu surface, requests a wgpu adapter/device, and builds the
+   world and HUD pipelines.
+5. Per-frame drawing goes through `Renderer::render` -> `draw_frame`; HUD preparation,
+   glyph patch uploads and draw ranges are currently wgpu commands.
+
+The Android lifecycle is also explicit: `Game::suspended` and the launcher's
+`suspended` callback call `Renderer::suspend_surface`; their `resumed` callbacks call
+`Renderer::recreate_surface` and resize. A GLES2 backend must release EGL surface/context
+resources on the same suspension path and recreate them only after the new native window is
+available.
+
+This means a GLES2 HUD object cannot simply be added alongside the current `HudRenderer`:
+the wgpu device and surface are created before HUD rendering, and the same window cannot be
+owned by two competing presentation backends. The Android GLES2 path must branch before
+`open_device` and bypass wgpu surface/device creation altogether.
+
+The boundary is broader than the HUD. `gfx.rs` directly uses wgpu for terrain, entities,
+depth targets, sky, particles, post-processing, screenshots, uploads and presentation. A
+playable GLES2 client therefore needs a separate renderer backend with a staged feature set,
+not only a replacement HUD shader. The first safe integration milestone should be a
+GLES2-owned window/context plus a real boot/loading HUD frame; terrain and gameplay passes
+must remain explicitly unavailable until their own GLES2 implementations exist.
+
 ## Explicitly not implemented yet
 
 - EGL/GLES2 context ownership inside Horizon's runtime.
