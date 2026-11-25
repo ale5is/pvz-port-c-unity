@@ -139,6 +139,12 @@ jobs:
         working-directory: ${{ runner.temp }}/horizon-078
         run: cargo test -p horizon-client-render --lib gles2_terrain::tests
 
+      - name: Cross-check the patched Horizon client for Android 5 ARMv7
+        working-directory: ${{ runner.temp }}/horizon-078
+        run: |
+          set -euo pipefail
+          cargo check --target "$RUST_TARGET" -p horizon-client --lib
+
       - name: Pin Mojang manifest to the Horizon lock
         if: github.event_name == 'workflow_dispatch' && inputs.build_diagnostic_apk
         working-directory: ${{ runner.temp }}/horizon-078
