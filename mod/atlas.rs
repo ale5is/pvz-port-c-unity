@@ -9452,7 +9452,7 @@ pub(crate) mod bridge {
                     }
                     return;
                 }
-                state.key_with_controls(key, false, here.as_ref(), [&map, &create, &list, &settings], [pan_up, pan_down, pan_left, pan_right, world_zoom_in, world_zoom_out, centre, draw, undo, teleport]);
+                state.key_with_controls(key, false, here.as_ref(), [&map, &create, &list, &settings], [&pan_up, &pan_down, &pan_left, &pan_right, &world_zoom_in, &world_zoom_out, &centre, &draw, &undo, &teleport]);
                 if let Some(character) = m::key_char(key) {
                     state.char_typed(character);
                 }
