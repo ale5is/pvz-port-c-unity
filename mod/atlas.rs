@@ -81,8 +81,8 @@ pub const END: &str = "minecraft:the_end";
 
 /// The colours a waypoint can have: Minecraft's text colours and a brown.
 pub const PALETTE: [u32; 16] = [
-    0xFF5555, 0xFFAA00, 0xFFFF55, 0x55FF55, 0x00AA00, 0x55FFFF, 0x00AAAA, 0x5555FF, 0x0000AA,
-    0xAA00AA, 0xFF55FF, 0xFFFFFF, 0xAAAAAA, 0x555555, 0xAA5500, 0x000000,
+    0xE53935, 0xFB8C00, 0xFDD835, 0x7CB342, 0x43A047, 0x00ACC1, 0x26C6DA, 0x039BE5,
+    0x1E88E5, 0x3949AB, 0x5E35B1, 0x8E24AA, 0xD81B60, 0xF06292, 0xECEFF1, 0x8D6E63,
 ];
 
 const NAME_MAX: usize = 32;
@@ -90,19 +90,22 @@ const COORD_MAX: usize = 9;
 const LINE: f32 = 10.0;
 const ROW: f32 = 24.0;
 
-const INK: u32 = 0xFFFFFF;
-const MUTED: u32 = 0xAAAAAA;
-const ERROR: u32 = 0xFF5555;
-const SHADE: u32 = 0xA000_0000;
-const PANEL: u32 = 0xE010_1018;
-const PANEL_EDGE: u32 = 0xFF50_5064;
-const FIELD: u32 = 0xFF00_0000;
-const FIELD_EDGE: u32 = 0xFF70_7070;
-const FIELD_FOCUS: u32 = 0xFFFF_FFFF;
-const ROW_BG: u32 = 0x3000_0000;
-const LABEL_BG: u32 = 0x9000_0000;
+const INK: u32 = 0xF2F5F8;
+const MUTED: u32 = 0xAAB7C4;
+const ERROR: u32 = 0xFFFF6B6B;
+const SHADE: u32 = 0xA8000000;
+const PANEL: u32 = 0xE01B232D;
+const PANEL_EDGE: u32 = 0xFF52677D;
+const FIELD: u32 = 0xFF18212B;
+const FIELD_EDGE: u32 = 0xFF60758A;
+const FIELD_FOCUS: u32 = 0xFF4FC3F7;
+const ROW_BG: u32 = 0x40303D4B;
+const LABEL_BG: u32 = 0xC01A222C;
+const UI_ACCENT: u32 = 0xFF4FC3F7;
+const UI_FIELD_BG: u32 = 0xFF18212B;
+const UI_FIELD_EDGE: u32 = 0xFF52677D;
 /// The world map where nothing has been seen, and its bars.
-const MAP_VOID: u32 = 0xFF00_0000;
+const MAP_VOID: u32 = 0xFF171D26;
 
 /// What sort of waypoint one is.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -2843,14 +2846,14 @@ impl Maps {
 
 /// The pens of the world map's drawing tool (as XaeroPlus's), ARGB.
 pub const DRAW_COLORS: [(u32, &str); 8] = [
-    (0xFFFF_FFFF, "White"),
-    (0xFFE8_3030, "Red"),
-    (0xFFF0_D020, "Yellow"),
-    (0xFF40_D040, "Green"),
-    (0xFF40_D8E8, "Aqua"),
-    (0xFF38_68F8, "Blue"),
-    (0xFFC8_48E8, "Purple"),
-    (0xFF10_1010, "Black"),
+    (0xFFF2F5F8, "White"),
+    (0xFFE53935, "Red"),
+    (0xFFFDD835, "Yellow"),
+    (0xFF43A047, "Green"),
+    (0xFF00ACC1, "Cyan"),
+    (0xFF1E88E5, "Blue"),
+    (0xFF8E24AA, "Purple"),
+    (0xFF263238, "Dark"),
 ];
 /// Beside a dimension's map.
 pub const DRAWINGS_FILE: &str = "drawings.txt";
@@ -3519,7 +3522,13 @@ impl Out<'_> {
     fn button(&mut self, rect: [f32; 4], label: &str, action: Action, on: bool) {
         let hover = inside(rect, self.mouse);
         let sprite = if hover { "gui/sprites/widget/button_highlighted" } else { "gui/sprites/widget/button" };
-        let tint = if on { 0xFFA0_FFA0 } else { 0xFFFF_FFFF };
+        let tint = if on {
+            0xFF8BCBEE
+        } else if hover {
+            0xFFB9DDF5
+        } else {
+            0xFFD5DDE6
+        };
         self.draws.push(Draw::Nine(sprite, rect, tint));
         let w = self.width(label);
         let at = [(rect[0] + (rect[2] - w) / 2.0).round(), (rect[1] + (rect[3] - 8.0) / 2.0).round()];
@@ -5907,11 +5916,11 @@ impl State {
 
         // The search box, top right.
         let rect = [left + bw + gap, 22.0, bw, 16.0];
-        out.draws.push(Draw::Fill(rect, if view.searching { 0xFFFF_FFFF } else { 0xFFA0_A0A0 }));
-        out.draws.push(Draw::Fill([rect[0] + 1.0, rect[1] + 1.0, rect[2] - 2.0, rect[3] - 2.0], 0xFF00_0000));
+        out.draws.push(Draw::Fill(rect, if view.searching { UI_ACCENT } else { UI_FIELD_EDGE }));
+        out.draws.push(Draw::Fill([rect[0] + 1.0, rect[1] + 1.0, rect[2] - 2.0, rect[3] - 2.0], UI_FIELD_BG));
         let shown = if view.searching { format!("{}_", view.search) } else { view.search.clone() };
         if shown.is_empty() {
-            out.text("Search...", [rect[0] + 4.0, rect[1] + 4.0], 0x707070);
+            out.text("Search...", [rect[0] + 4.0, rect[1] + 4.0], MUTED);
         } else {
             out.text(&shown, [rect[0] + 4.0, rect[1] + 4.0], INK);
         }
@@ -5965,7 +5974,7 @@ impl State {
         let left = ((size[0] - w) / 2.0).floor();
         let half = ((w - 4.0) / 2.0).floor();
         let boxed = |out: &mut Out<'_>, rect: [f32; 4], text: &str| {
-            out.boxed(rect, 0xFF20_2030, 0xFF10_1420);
+            out.boxed(rect, PANEL_EDGE, PANEL);
             let t = out.fit(text, rect[2] - 6.0);
             let tw = out.width(&t);
             out.text(&t, [(rect[0] + (rect[2] - tw) / 2.0).round(), rect[1] + 2.0], INK);
@@ -5997,11 +6006,11 @@ impl State {
 
         // The filter.
         let frect = [left, 51.0, side + 40.0, 13.0];
-        out.fill(frect, if self.filter_focus { 0xFFFF_FFFF } else { 0xFFA0_A0A0 });
-        out.fill([frect[0] + 1.0, frect[1] + 1.0, frect[2] - 2.0, frect[3] - 2.0], 0xFF00_0000);
+        out.fill(frect, if self.filter_focus { UI_ACCENT } else { UI_FIELD_EDGE });
+        out.fill([frect[0] + 1.0, frect[1] + 1.0, frect[2] - 2.0, frect[3] - 2.0], UI_FIELD_BG);
         let shown = if self.filter_focus { format!("{}_", self.list_filter) } else { self.list_filter.clone() };
         if shown.is_empty() {
-            out.text("Filter...", [frect[0] + 3.0, frect[1] + 3.0], 0x707070);
+            out.text("Filter...", [frect[0] + 3.0, frect[1] + 3.0], MUTED);
         } else {
             let t = out.fit(&shown, frect[2] - 6.0);
             out.text(&t, [frect[0] + 3.0, frect[1] + 3.0], INK);
@@ -6038,9 +6047,9 @@ impl State {
             let ry = top + slot as f32 * ROW;
             let rect = [left, ry, w, ROW - 2.0];
             if self.selected == Some(i) {
-                out.boxed(rect, FIELD_FOCUS, 0x6040_4060);
+                out.boxed(rect, UI_ACCENT, 0x70405C73);
             } else {
-                out.fill(rect, if inside(rect, out.mouse) { 0x5040_4050 } else { ROW_BG });
+                out.fill(rect, if inside(rect, out.mouse) { 0x60445F78 } else { ROW_BG });
             }
             let mut marks = Vec::new();
             letter_marker(&mut marks, [left + 11.0, ry + 11.0], wp, 5.0, false, 255);
@@ -6117,7 +6126,8 @@ fn mc_button(out: &mut Out<'_>, rect: [f32; 4], label: &str, action: Option<Acti
     } else {
         "gui/sprites/widget/button"
     };
-    out.draws.push(Draw::Nine(sprite, rect, 0xFFFF_FFFF));
+    let tint = if !active { 0xFF909EAA } else if hover { 0xFFB9DDF5 } else { 0xFFD5DDE6 };
+    out.draws.push(Draw::Nine(sprite, rect, tint));
     let label = out.fit(label, rect[2] - 6.0);
     let tw = out.width(&label);
     let ink = if active { INK } else { 0xA0A0A0 };
