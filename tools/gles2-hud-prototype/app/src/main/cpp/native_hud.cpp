@@ -3,8 +3,11 @@
 #include <android/log.h>
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
+#include "gles2_terrain_renderer.h"
 
+#include <array>
 #include <atomic>
+#include <cstdint>
 #include <chrono>
 #include <cstddef>
 #include <thread>
@@ -20,123 +23,54 @@ struct Engine {
     std::atomic<bool> paused{true};
 };
 
-static GLuint compile_shader(GLenum type, const char* source) {
-    GLuint shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, nullptr);
-    glCompileShader(shader);
-    GLint compiled = GL_FALSE;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-    if (compiled != GL_TRUE) {
-        GLint length = 0;
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
-        char log[2048] = {};
-        glGetShaderInfoLog(shader, sizeof(log), nullptr, log);
-        LOGE("Shader compile failed (%u): %s", type, log);
-        glDeleteShader(shader);
-        return 0;
-    }
-    return shader;
-}
-
-static GLuint create_program() {
-    static const char* vertex_source =
-        "attribute vec2 aPosition;\n"
-        "attribute vec2 aUv;\n"
-        "attribute vec4 aColor;\n"
-        "varying vec2 vUv;\n"
-        "varying vec4 vColor;\n"
-        "void main(){gl_Position=vec4(aPosition,0.0,1.0);vUv=aUv;vColor=aColor;}";
-
-    static const char* fragment_source =
-        "precision mediump float;\n"
-        "uniform sampler2D uAtlas;\n"
-        "varying vec2 vUv;\n"
-        "varying vec4 vColor;\n"
-        "void main(){gl_FragColor=texture2D(uAtlas,vUv)*vColor;}";
-
-    GLuint vertex = compile_shader(GL_VERTEX_SHADER, vertex_source);
-    GLuint fragment = compile_shader(GL_FRAGMENT_SHADER, fragment_source);
-    if (!vertex || !fragment) {
-        if (vertex) glDeleteShader(vertex);
-        if (fragment) glDeleteShader(fragment);
-        return 0;
-    }
-
-    GLuint program = glCreateProgram();
-    glAttachShader(program, vertex);
-    glAttachShader(program, fragment);
-    glLinkProgram(program);
-
-    GLint linked = GL_FALSE;
-    glGetProgramiv(program, GL_LINK_STATUS, &linked);
-    if (linked != GL_TRUE) {
-        char log[2048] = {};
-        glGetProgramInfoLog(program, sizeof(log), nullptr, log);
-        LOGE("Program link failed: %s", log);
-        glDeleteProgram(program);
-        program = 0;
-    }
-
-    glDeleteShader(vertex);
-    glDeleteShader(fragment);
-    return program;
-}
-
-static GLuint create_atlas() {
-    const GLubyte pixels[] = {
-        255, 0, 0, 255,       0, 255, 0, 255,
-        0, 0, 255, 255,       255, 255, 255, 255
+static std::array<pavo::Gles2TerrainVertex, 24> create_terrain_vertices() {
+    std::array<pavo::Gles2TerrainVertex, 24> vertices{};
+    const float quads[4][6][3] = {
+        {{-0.88f, 0.82f, 0.0f}, {-0.06f, 0.82f, 0.0f}, {-0.88f, 0.06f, 0.0f},
+         {-0.06f, 0.82f, 0.0f}, {-0.06f, 0.06f, 0.0f}, {-0.88f, 0.06f, 0.0f}},
+        {{0.06f, 0.82f, 0.0f}, {0.88f, 0.82f, 0.0f}, {0.06f, 0.06f, 0.0f},
+         {0.88f, 0.82f, 0.0f}, {0.88f, 0.06f, 0.0f}, {0.06f, 0.06f, 0.0f}},
+        {{-0.88f, -0.06f, 0.0f}, {-0.06f, -0.06f, 0.0f}, {-0.88f, -0.82f, 0.0f},
+         {-0.06f, -0.06f, 0.0f}, {-0.06f, -0.82f, 0.0f}, {-0.88f, -0.82f, 0.0f}},
+        {{0.06f, -0.06f, 0.0f}, {0.88f, -0.06f, 0.0f}, {0.06f, -0.82f, 0.0f},
+         {0.88f, -0.06f, 0.0f}, {0.88f, -0.82f, 0.0f}, {0.06f, -0.82f, 0.0f}}
     };
-
-    GLuint texture = 0;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 2, 2, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-    return texture;
+    const float atlas_origins[4][2] = {
+        {0.0f, 0.0f}, {0.5f, 0.0f}, {0.0f, 0.5f}, {0.5f, 0.5f}
+    };
+    for (std::size_t quad = 0; quad < 4; ++quad) {
+        for (std::size_t vertex = 0; vertex < 6; ++vertex) {
+            auto& out = vertices[quad * 6 + vertex];
+            for (int axis = 0; axis < 3; ++axis) out.position[axis] = quads[quad][vertex][axis];
+            out.uv[0] = vertex == 1 || vertex == 3 || vertex == 4 ? 1.0f : 0.0f;
+            out.uv[1] = vertex == 2 || vertex == 4 || vertex == 5 ? 1.0f : 0.0f;
+            out.atlas_origin[0] = atlas_origins[quad][0];
+            out.atlas_origin[1] = atlas_origins[quad][1];
+            out.atlas_scale[0] = 0.5f;
+            out.atlas_scale[1] = 0.5f;
+            out.color[0] = 255;
+            out.color[1] = 255;
+            out.color[2] = 255;
+            out.color[3] = 255;
+            out.light[0] = 0;
+            out.light[1] = 0;
+            out.opaque_layer = 1.0f;
+        }
+    }
+    return vertices;
 }
 
-static GLuint create_vbo() {
-    static const GLfloat vertices[] = {
-        -0.88f,  0.82f, 0.25f, 0.25f, 1, 1, 1, 1,
-        -0.06f,  0.82f, 0.25f, 0.25f, 1, 1, 1, 1,
-        -0.88f,  0.06f, 0.25f, 0.25f, 1, 1, 1, 1,
-        -0.06f,  0.82f, 0.25f, 0.25f, 1, 1, 1, 1,
-        -0.06f,  0.06f, 0.25f, 0.25f, 1, 1, 1, 1,
-        -0.88f,  0.06f, 0.25f, 0.25f, 1, 1, 1, 1,
+static std::array<std::uint8_t, 16> create_test_atlas() {
+    return {{
+        255, 0, 0, 255, 0, 255, 0, 255,
+        0, 0, 255, 255, 255, 255, 255, 255
+    }};
+}
 
-         0.06f,  0.82f, 0.75f, 0.25f, 1, 1, 1, 1,
-         0.88f,  0.82f, 0.75f, 0.25f, 1, 1, 1, 1,
-         0.06f,  0.06f, 0.75f, 0.25f, 1, 1, 1, 1,
-         0.88f,  0.82f, 0.75f, 0.25f, 1, 1, 1, 1,
-         0.88f,  0.06f, 0.75f, 0.25f, 1, 1, 1, 1,
-         0.06f,  0.06f, 0.75f, 0.25f, 1, 1, 1, 1,
-
-        -0.88f, -0.06f, 0.25f, 0.75f, 1, 1, 1, 1,
-        -0.06f, -0.06f, 0.25f, 0.75f, 1, 1, 1, 1,
-        -0.88f, -0.82f, 0.25f, 0.75f, 1, 1, 1, 1,
-        -0.06f, -0.06f, 0.25f, 0.75f, 1, 1, 1, 1,
-        -0.06f, -0.82f, 0.25f, 0.75f, 1, 1, 1, 1,
-        -0.88f, -0.82f, 0.25f, 0.75f, 1, 1, 1, 1,
-
-         0.06f, -0.06f, 0.75f, 0.75f, 1, 1, 1, 0.72f,
-         0.88f, -0.06f, 0.75f, 0.75f, 1, 1, 1, 0.72f,
-         0.06f, -0.82f, 0.75f, 0.75f, 1, 1, 1, 0.72f,
-         0.88f, -0.06f, 0.75f, 0.75f, 1, 1, 1, 0.72f,
-         0.88f, -0.82f, 0.75f, 0.75f, 1, 1, 1, 0.72f,
-         0.06f, -0.82f, 0.75f, 0.75f, 1, 1, 1, 0.72f
-    };
-
-    GLuint buffer = 0;
-    glGenBuffers(1, &buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    return buffer;
+static std::array<std::uint8_t, 16 * 16 * 4> create_test_lightmap() {
+    std::array<std::uint8_t, 16 * 16 * 4> pixels{};
+    pixels.fill(255);
+    return pixels;
 }
 
 static bool create_egl(ANativeWindow* window, EGLDisplay* out_display,
@@ -161,7 +95,7 @@ static bool create_egl(ANativeWindow* window, EGLDisplay* out_display,
         EGL_GREEN_SIZE, 8,
         EGL_BLUE_SIZE, 8,
         EGL_ALPHA_SIZE, 8,
-        EGL_DEPTH_SIZE, 0,
+        EGL_DEPTH_SIZE, 16,
         EGL_STENCIL_SIZE, 0,
         EGL_NONE
     };
@@ -230,34 +164,36 @@ static void render_loop(Engine* engine, ANativeWindow* window) {
 
     if (!create_egl(window, &display, &surface, &context)) return;
 
-    const char* renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+    const char* renderer_name = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
     const char* version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
-    LOGI("GL_RENDERER=%s GL_VERSION=%s", renderer ? renderer : "unknown",
+    LOGI("GL_RENDERER=%s GL_VERSION=%s", renderer_name ? renderer_name : "unknown",
          version ? version : "unknown");
 
-    GLuint program = create_program();
-    GLuint texture = create_atlas();
-    GLuint vbo = create_vbo();
-
-    if (!program || !texture || !vbo) {
-        LOGE("Failed to create HUD resources");
-        if (vbo) glDeleteBuffers(1, &vbo);
-        if (texture) glDeleteTextures(1, &texture);
-        if (program) glDeleteProgram(program);
+    pavo::Gles2TerrainRenderer renderer;
+    const auto atlas = create_test_atlas();
+    const auto lightmap = create_test_lightmap();
+    const auto vertices = create_terrain_vertices();
+    const bool initialized = renderer.initialize(atlas.data(), 2, 2, lightmap.data(), 16, 16, 1);
+    const bool uploaded = initialized && renderer.upload_solid(vertices.data(), vertices.size());
+    if (!uploaded) {
+        LOGE("GLES2 terrain renderer setup failed: %s", renderer.last_error());
+        renderer.release();
         destroy_egl(display, surface, context);
         return;
     }
 
-    GLint position = glGetAttribLocation(program, "aPosition");
-    GLint uv = glGetAttribLocation(program, "aUv");
-    GLint color = glGetAttribLocation(program, "aColor");
-    GLint atlas = glGetUniformLocation(program, "uAtlas");
+    const float mvp[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+    const float section_origin[3] = {0.0f, 0.0f, 0.0f};
+    const float camera_position[3] = {0.0f, 0.0f, 2.0f};
+    const float fog_color[4] = {0.055f, 0.075f, 0.11f, 0.0f};
+    const float fog_range[2] = {1.0f, 2.0f};
 
-    glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
     int width = 0;
     int height = 0;
     eglQuerySurface(display, surface, EGL_WIDTH, &width);
@@ -267,35 +203,10 @@ static void render_loop(Engine* engine, ANativeWindow* window) {
     while (!engine->stop.load()) {
         glViewport(0, 0, width, height);
         glClearColor(0.055f, 0.075f, 0.11f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        renderer.draw(mvp, section_origin, camera_position, fog_color, fog_range);
 
-        glUseProgram(program);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture);
-        glUniform1i(atlas, 0);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-        const GLsizei stride = 8 * static_cast<GLsizei>(sizeof(GLfloat));
-        glEnableVertexAttribArray(static_cast<GLuint>(position));
-        glEnableVertexAttribArray(static_cast<GLuint>(uv));
-        glEnableVertexAttribArray(static_cast<GLuint>(color));
-        glVertexAttribPointer(static_cast<GLuint>(position), 2, GL_FLOAT, GL_FALSE, stride, nullptr);
-        glVertexAttribPointer(static_cast<GLuint>(uv), 2, GL_FLOAT, GL_FALSE, stride,
-                              reinterpret_cast<const void*>(2 * sizeof(GLfloat)));
-        glVertexAttribPointer(static_cast<GLuint>(color), 4, GL_FLOAT, GL_FALSE, stride,
-                              reinterpret_cast<const void*>(4 * sizeof(GLfloat)));
-
-        glEnable(GL_SCISSOR_TEST);
-        glScissor(0, 0, width, height);
-        glDrawArrays(GL_TRIANGLES, 0, 24);
-        glDisable(GL_SCISSOR_TEST);
-
-        glDisableVertexAttribArray(static_cast<GLuint>(position));
-        glDisableVertexAttribArray(static_cast<GLuint>(uv));
-        glDisableVertexAttribArray(static_cast<GLuint>(color));
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-        GLenum error = glGetError();
+        const GLenum error = glGetError();
         if (error != GL_NO_ERROR) {
             LOGE("GLES error 0x%x after frame %llu", error, frames);
             break;
@@ -307,15 +218,13 @@ static void render_loop(Engine* engine, ANativeWindow* window) {
 
         ++frames;
         if (frames == 1 || frames % 300 == 0) {
-            LOGI("Presented %llu frames at %dx%d", frames, width, height);
+            LOGI("Presented %llu terrain-renderer frames at %dx%d", frames, width, height);
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
     }
 
-    LOGI("Stopping GLES2 render loop after %llu frames", frames);
-    glDeleteBuffers(1, &vbo);
-    glDeleteTextures(1, &texture);
-    glDeleteProgram(program);
+    LOGI("Stopping GLES2 terrain render loop after %llu frames", frames);
+    renderer.release();
     destroy_egl(display, surface, context);
 }
 
