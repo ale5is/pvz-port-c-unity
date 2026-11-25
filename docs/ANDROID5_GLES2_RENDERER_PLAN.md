@@ -159,3 +159,10 @@ La cuadrícula calcula columnas y filas respetando el límite de textura GLES2 y
 Este es el primer adaptador de malla real del terreno; no es todavía el cargador/empacador de píxeles del atlas, el shader GLSL ES 1.00, la subida VBO ni el renderer EGL. La ruta wgpu de Horizon sigue siendo la que crea el launcher y el juego, por lo que este módulo todavía no se ejecuta durante una partida.
 
 El workflow Android 5 ahora instala y ejecuta sus pruebas unitarias junto a las del adaptador HUD. La aceptación de esta etapa requiere que el CI compile el módulo contra el commit exacto de Horizon. La integración visual en el televisor seguirá siendo una etapa posterior.
+
+
+### Actualización del adaptador de terreno: empaquetado de texturas
+
+El adaptador ahora también copia las capas RGBA base de Horizon a un atlas 2D compacto, en orden de capa y sin reservar automáticamente todo el ancho máximo de la GPU. La cuadrícula intenta mantener una forma aproximadamente cuadrada y valida el tamaño de entrada, los cálculos de memoria y el límite de 4096 px. Se agregó una prueba de ubicación de píxeles para verificar que las capas 0, 1 y 2 terminan en los tiles esperados.
+
+El empaquetador trabaja con el bloque RGBA base layer-major que Horizon entrega a su preparación de texturas; todavía no reproduce los mipmaps ni el sistema de animación de sprites. El renderer GLES2 tendrá que actualizar las regiones de atlas cuando cambien las texturas animadas y aplicar un margen de muestreo para evitar bleeding entre tiles.
