@@ -53,6 +53,18 @@ method = """    /// Install the GUI atlas state without exposing the backend dev
         }
     }
 
+    /// Time the previous render spent waiting on GPU or presentation.
+    pub fn last_wait_duration(&self) -> std::time::Duration {
+        self.last_wait
+    }
+
+    /// Return the latest GPU timing and drain the timing samples.
+    pub fn take_latest_gpu_time(&mut self) -> Option<f32> {
+        let latest = self.gpu_times.last().copied();
+        self.gpu_times.clear();
+        latest
+    }
+
 """
 anchor = "impl Renderer {\n    /// Sections with GPU buffers, for soak tests watching residency.\n"
 if gfx_source.count(method) == 0:
@@ -143,6 +155,21 @@ game_source = game_source.replace(
 if "renderer.drawn_sections" in game_source or "renderer.screenshot" in game_source:
     raise SystemExit("Game still accesses renderer screenshot or drawn-section storage directly")
 
+if game_source.count("renderer.last_wait") != 2:
+    raise SystemExit(f"Expected 2 renderer wait-duration reads, found {game_source.count('renderer.last_wait')}")
+if game_source.count("renderer.gpu_times.last().copied()") != 1:
+    raise SystemExit("Expected one latest GPU timing read")
+if game_source.count("renderer.gpu_times.clear()") != 1:
+    raise SystemExit("Expected one GPU timing drain")
+game_source = game_source.replace("renderer.last_wait", "renderer.last_wait_duration()")
+game_source = game_source.replace(
+    "renderer.gpu_times.last().copied()",
+    "renderer.take_latest_gpu_time()",
+)
+game_source = game_source.replace("                renderer.gpu_times.clear();\n", "")
+if "renderer.last_wait" in game_source or "renderer.gpu_times" in game_source:
+    raise SystemExit("Game still accesses renderer timing storage directly")
+
 gfx.write_text(gfx_source, encoding="utf-8")
 game.write_text(game_source, encoding="utf-8")
-print("Installed renderer HUD/screen/LOD accessors and encapsulated world-icon screenshot and drawn-section state.")
+print("Installed renderer HUD/screen/LOD/screenshot/timing accessors and migrated game-side timing reads.")
