@@ -6,6 +6,7 @@ on:
       - port/android-5-low-end
     paths:
       - 'tools/android5_patch.py'
+      - 'patches/horizon-078/gles2-hud-adapter.py'
       - '.github/workflows/pavohorizon-078-android22-diagnostic.yml'
   workflow_dispatch:
 
@@ -61,6 +62,9 @@ jobs:
 
       - name: Apply limited Android 5 diagnostic patch
         run: python3 tools/android5_patch.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Install Horizon HUD GLES2 CPU adapter
+        run: python3 patches/horizon-078/gles2-hud-adapter.py "$RUNNER_TEMP/horizon-078"
 
       - name: Install Rust ARMv7 target
         working-directory: ${{ runner.temp }}/horizon-078
