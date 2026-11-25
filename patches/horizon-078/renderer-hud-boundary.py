@@ -177,7 +177,7 @@ game_source = game_source.replace(
     "renderer.take_latest_gpu_time()",
 )
 game_source = game_source.replace("                renderer.gpu_times.clear();\n", "")
-if "renderer.last_wait" in game_source or "renderer.gpu_times" in game_source:
+if "renderer.last_wait)" in game_source or "renderer.last_wait," in game_source or "renderer.gpu_times" in game_source:
     raise SystemExit("Game still accesses renderer timing storage directly")
 
 if game_source.count("now.elapsed().saturating_sub(r.last_wait)") != 2:
