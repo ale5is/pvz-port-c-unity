@@ -25,7 +25,7 @@ adapter_source = r'''//! CPU conversion of Horizon section meshes to a GLES2 ver
 //! texture arrays; a GLES2 renderer can sample a 2D atlas using atlas_origin/scale
 //! and Horizon's exact tile_uv formula in its GLSL ES 1.00 fragment shader
 //! (uv - max(ceil(uv) - 1, 0)).
-use crate::mesher::{SectionMesh, TerrainVertex};
+use crate::mesher::{SectionMesh, Sides, TerrainVertex};
 
 /// Horizon stores the opaque-layer marker in the high bit; the remaining bits are
 /// the sprite-array layer, as used by the terrain material shader.
@@ -185,6 +185,10 @@ pub fn convert_vertex(vertex: &TerrainVertex, atlas: &AtlasGrid) -> Result<Gles2
 #[derive(Default)]
 pub struct Gles2TerrainMesh {
     pub solid: Vec<Gles2TerrainVertex>,
+    /// Horizon's solid face buckets, retained in quad units. Convert each
+    /// (first, count) returned by Sides::visible() to triangle vertices by
+    /// multiplying both values by six before drawing this expanded buffer.
+    pub sides: Sides,
     pub translucent: Vec<Gles2TerrainVertex>,
 }
 
@@ -217,6 +221,7 @@ pub fn convert_mesh_with_uv_step(
 ) -> Result<Gles2TerrainMesh, &'static str> {
     let mut converted = Gles2TerrainMesh {
         solid: Vec::with_capacity(mesh.solid.len() / 4 * 6),
+        sides: mesh.sides,
         translucent: Vec::with_capacity(mesh.translucent.len() / 4 * 6),
     };
     append_triangle_list(&mesh.solid, &mut converted.solid, atlas, uv_step)?;
@@ -319,12 +324,15 @@ mod tests {
         let atlas = AtlasGrid::new(16, 1, 4096).unwrap();
         let make = |x, y| TerrainVertex::new([x, y, 0.0], [x, y], 0, u32::MAX, 0);
         let quad = [make(0.0, 0.0), make(1.0, 0.0), make(1.0, 1.0), make(0.0, 1.0)];
+        let sides = Sides::unsorted(1);
         let mesh = SectionMesh {
             solid: quad.to_vec(),
+            sides,
             translucent: quad.to_vec(),
             ..Default::default()
         };
         let converted = convert_mesh(&mesh, &atlas).unwrap();
+        assert_eq!(converted.sides, sides);
         assert_eq!(converted.solid.len(), 6);
         assert_eq!(converted.translucent.len(), 6);
         let positions: Vec<_> = converted.solid.iter().map(|v| v.position).collect();
