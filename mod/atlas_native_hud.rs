@@ -141,6 +141,26 @@ pub(super) fn atlas_native_hud(
     let Some(player) = game.native_player() else {
         return;
     };
+
+    // Horizon 0.7.8 keeps the exact camera pose used by the last world
+    // render for its locator bar. Reuse it instead of depending on Atlas'
+    // newer API-415 camera hook, which API 80 does not expose.
+    if let Some((camera_pos, camera_yaw, camera_pitch, camera_fov)) = game.locator_camera {
+        let camera = crate::game::atlas_mod::Camera {
+            pos: camera_pos,
+            yaw: camera_yaw,
+            pitch: camera_pitch,
+            fov: camera_fov,
+        };
+        let player_pos = [player.x, player.y, player.z];
+        let size = [batch.width, batch.height];
+        let measure = |text: &str| game.native_text_width(text);
+        let draws = crate::game::atlas_mod::with(|state| {
+            state.labels(camera, player_pos, &player.dimension, size, &measure)
+        });
+        crate::game::atlas_bridge::paint(game, batch, draws);
+    }
+
     let Some(minimap) = game.native_minimap_now() else {
         return;
     };
