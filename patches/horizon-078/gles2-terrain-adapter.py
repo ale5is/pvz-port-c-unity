@@ -215,8 +215,9 @@ mod tests {
         let converted = convert_vertex(&vertex, &atlas).unwrap();
         assert_eq!(converted.position, [1.25, 2.5, 3.75]);
         assert_eq!(converted.uv, [0.25, 1.5]);
-        assert_eq!(converted.atlas_origin, [0.0, 0.5]);
-        assert_eq!(converted.atlas_scale, [1.0 / 256.0, 0.5]);
+        // Layer 256 occupies column 4, row 14 in the 18x17 compact grid.
+        assert_eq!(converted.atlas_origin, [4.0 / 18.0, 14.0 / 17.0]);
+        assert_eq!(converted.atlas_scale, [1.0 / 18.0, 1.0 / 17.0]);
         assert_eq!(converted.color, [0x11, 0x22, 0x33, 0x44]);
         assert_eq!(converted.light, [0xCD, 0xAB]);
         assert_eq!(converted.opaque_layer, 1.0);
