@@ -39,18 +39,19 @@ jobs:
             sdkmanager=$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -n 1)
           fi
           test -x "$sdkmanager"
-          "$sdkmanager" --sdk_root="$ANDROID_HOME" "platforms;android-35" "build-tools;35.0.0"
+          "$sdkmanager" --sdk_root="$ANDROID_HOME" "platforms;android-35" "build-tools;35.0.0" "ndk;28.2.13676358" "cmake;3.22.1"
 
       - name: Build API-22 GLES2 HUD prototype
         working-directory: tools/gles2-hud-prototype
         run: |
           set -euo pipefail
-          gradle --no-daemon --stacktrace assembleDebug
+          gradle --no-daemon --stacktrace -Pandroid.ndkVersion=28.2.13676358 assembleDebug
           apk="app/build/outputs/apk/debug/app-debug.apk"
           test -s "$apk"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$apk" > badging.txt
           grep -F "sdkVersion:'22'" badging.txt
           grep -F "dev.pavo.gles2hud" badging.txt
+          grep -F "armeabi-v7a" badging.txt
           mkdir -p "$GITHUB_WORKSPACE/dist"
           cp "$apk" "$GITHUB_WORKSPACE/dist/Pavo-GLES2-HUD-Surface-Prototype-API22.apk"
           cp badging.txt "$GITHUB_WORKSPACE/dist/badging.txt"
