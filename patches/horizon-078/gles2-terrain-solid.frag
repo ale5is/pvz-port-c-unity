@@ -29,7 +29,7 @@ void main() {
     );
 
     vec4 texel = texture2D(u_terrain_atlas, atlas_uv);
-    if (texel.a * v_color.a < 0.5 && v_opaque < 0.5) {
+    if (texel.a < 0.5 && v_opaque < 0.5) {
         discard;
     }
 
@@ -39,7 +39,7 @@ void main() {
         vec2(15.5 / 16.0)
     );
     vec3 light = texture2D(u_lightmap, light_uv).rgb;
-    vec4 color = vec4(texel.rgb * v_color.rgb * light, texel.a * v_color.a);
+    vec4 color = vec4(texel.rgb * v_color.rgb * light, texel.a);
 
     float fog_span = max(u_fog_range.y - u_fog_range.x, 0.0001);
     float fog = clamp((v_distance - u_fog_range.x) / fog_span, 0.0, 1.0);
