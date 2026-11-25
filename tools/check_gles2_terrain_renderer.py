@@ -29,10 +29,10 @@ required_source = [
     "offsetof(Gles2TerrainVertex, color)",
     "offsetof(Gles2TerrainVertex, light)",
     "offsetof(Gles2TerrainVertex, emission)",
-    "offsetof(Gles2TerrainVertex, material_flags)",
     "glBufferData(GL_ARRAY_BUFFER",
     "glDrawArrays(GL_TRIANGLES, 0, count)",
     "index <= 7",
+    "glEnableVertexAttribArray(7)",
     "glDepthFunc(GL_LEQUAL)",
     "glDepthMask(GL_FALSE)",
     "glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)",
@@ -49,9 +49,9 @@ required_host = [
 ]
 missing = [f"header: {item}" for item in required_header if item not in header]
 missing += [f"renderer: {item}" for item in required_source if item not in source]
-required_host += [
-    "renderer.initialize(",
-]
+missing += [f"native host: {item}" for item in required_host if item not in native_host]
+if source.count("attribute ") != 8:
+    missing.append("renderer: GLES2 path must stay within the eight guaranteed vertex attribute slots")
 if "find_library(glesv2-lib GLESv2)" not in cmake or "${glesv2-lib}" not in cmake:
     missing.append("CMake: GLESv2 must be linked to the native target")
 if missing:
