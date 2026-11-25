@@ -37,7 +37,8 @@ for field in ["position: [f32; 3]", "uv: [f32; 2]", "atlas_origin: [f32; 2]",
               "opaque_layer: f32"]:
     assert field in adapter, f"CPU vertex field missing: {field}"
 
-assert "if (texel.a * v_color.a < 0.5 && v_opaque < 0.5)" in solid
+assert "if (texel.a < 0.5 && v_opaque < 0.5)" in solid
+assert "texel.a * v_color.a" not in solid and "texel.a * v_color.a" not in translucent, "packed vertex alpha must not be treated as texture transparency"
 assert "if (color.a < 0.01)" in translucent
 print("PASS: GLES2 terrain shader inputs match the CPU vertex adapter.")
 print("PASS: solid cutout and translucent paths retain separate alpha semantics.")
