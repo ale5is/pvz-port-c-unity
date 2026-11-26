@@ -369,7 +369,7 @@ pub fn convert_section(
 ///
 /// Enqueue coalesces pending updates by section key: the newest payload replaces
 /// the older one and moves to the back of the queue. The budget accounts for
-/// payload logical bytes, not allocator capacity or GPU memory.
+/// reserved vector capacity and inline metadata, not allocator bookkeeping or GPU memory.
 pub struct Gles2SectionQueue {
     pending: VecDeque<Gles2SectionPayload>,
     max_bytes: usize,
