@@ -408,6 +408,9 @@ impl Gles2SectionQueue {
             Some(bytes) if bytes <= self.max_bytes => bytes,
             _ => return Err(payload),
         };
+        if existing.is_none() && self.pending.try_reserve(1).is_err() {
+            return Err(payload);
+        }
 
         let replaced = existing.and_then(|index| self.pending.remove(index));
         self.queued_bytes = next_bytes;
