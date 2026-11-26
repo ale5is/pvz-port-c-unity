@@ -504,13 +504,13 @@ mod tests {
         let second = test_payload((4, 5, 6), 1);
         let replacement = test_payload((1, 2, 3), 2);
         let mut queue = Gles2SectionQueue::new(4096);
-        assert!(queue.enqueue(first).unwrap().is_none());
-        assert!(queue.enqueue(second).unwrap().is_none());
-        let replaced = queue.enqueue(replacement).unwrap().unwrap();
+        assert!(matches!(queue.enqueue(first), Ok(None)));
+        assert!(matches!(queue.enqueue(second), Ok(None)));
+        let replaced = match queue.enqueue(replacement) { Ok(Some(payload)) => payload, _ => panic!("expected replaced section") };
         assert_eq!(replaced.key, (1, 2, 3));
         assert_eq!(queue.len(), 2);
-        assert_eq!(queue.pop_front().unwrap().key, (4, 5, 6));
-        assert_eq!(queue.pop_front().unwrap().key, (1, 2, 3));
+        assert_eq!(queue.pop_front().map(|payload| payload.key), Some((4, 5, 6)));
+        assert_eq!(queue.pop_front().map(|payload| payload.key), Some((1, 2, 3)));
         assert!(queue.is_empty());
         assert_eq!(queue.queued_bytes(), 0);
     }
@@ -520,8 +520,8 @@ mod tests {
         let existing = test_payload((1, 2, 3), 1);
         let bytes = existing.byte_len().unwrap();
         let mut queue = Gles2SectionQueue::new(bytes);
-        queue.enqueue(existing).unwrap();
-        let rejected = queue.enqueue(test_payload((4, 5, 6), 1)).unwrap_err();
+        assert!(matches!(queue.enqueue(existing), Ok(None)));
+        let rejected = match queue.enqueue(test_payload((4, 5, 6), 1)) { Err(payload) => payload, Ok(_) => panic!("expected budget rejection") };
         assert_eq!(rejected.key, (4, 5, 6));
         assert_eq!(queue.len(), 1);
         assert_eq!(queue.queued_bytes(), bytes);
@@ -534,20 +534,20 @@ mod tests {
         let bytes = existing.byte_len().unwrap();
         let mut queue = Gles2SectionQueue::new(bytes);
         queue.enqueue(existing).unwrap();
-        let rejected = queue.enqueue(test_payload((1, 2, 3), 2)).unwrap_err();
+        let rejected = match queue.enqueue(test_payload((1, 2, 3), 2)) { Err(payload) => payload, Ok(_) => panic!("expected replacement rejection") };
         assert_eq!(rejected.key, (1, 2, 3));
         assert_eq!(queue.len(), 1);
         assert_eq!(queue.queued_bytes(), bytes);
-        assert_eq!(queue.pop_front().unwrap().geometry.solid.len(), 1);
+        assert_eq!(queue.pop_front().map(|payload| payload.geometry.solid.len()), Some(1));
     }
 
     #[test]
     fn queue_removes_unloaded_sections_and_horizontal_columns() {
         let mut queue = Gles2SectionQueue::new(8192);
-        queue.enqueue(test_payload((1, 0, 2), 1)).unwrap();
-        queue.enqueue(test_payload((1, 1, 2), 1)).unwrap();
-        queue.enqueue(test_payload((3, 0, 4), 1)).unwrap();
-        assert!(queue.remove_section((3, 0, 4)).is_some());
+        assert!(matches!(queue.enqueue(test_payload((1, 0, 2), 1)), Ok(None)));
+        assert!(matches!(queue.enqueue(test_payload((1, 1, 2), 1)), Ok(None)));
+        assert!(matches!(queue.enqueue(test_payload((3, 0, 4), 1)), Ok(None)));
+        assert_eq!(queue.remove_section((3, 0, 4)).map(|payload| payload.key), Some((3, 0, 4)));
         assert_eq!(queue.remove_columns(&[(1, 2)]), 2);
         assert!(queue.is_empty());
         assert_eq!(queue.queued_bytes(), 0);
@@ -556,10 +556,10 @@ mod tests {
     #[test]
     fn queue_accounts_bytes_after_pop_remove_and_clear() {
         let mut queue = Gles2SectionQueue::new(8192);
-        queue.enqueue(test_payload((1, 0, 1), 1)).unwrap();
-        queue.enqueue(test_payload((2, 0, 2), 2)).unwrap();
+        assert!(matches!(queue.enqueue(test_payload((1, 0, 1), 1)), Ok(None)));
+        assert!(matches!(queue.enqueue(test_payload((2, 0, 2), 2)), Ok(None)));
         assert!(queue.queued_bytes() > 0);
-        queue.pop_front().unwrap();
+        let _ = queue.pop_front();
         assert!(queue.queued_bytes() > 0);
         queue.clear();
         assert_eq!(queue.len(), 0);
