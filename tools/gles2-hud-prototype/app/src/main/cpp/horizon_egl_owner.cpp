@@ -155,30 +155,43 @@ extern "C" int pavo_egl_resume(PavoEglOwner* owner, void* native_window) {
         fail(owner, "eglCreateWindowSurface");
         ANativeWindow_release(owner->window); owner->window = nullptr; return 0;
     }
-    if (eglMakeCurrent(owner->display, owner->surface, owner->surface, owner->context) != EGL_TRUE) {
-        const EGLint error = eglGetError();
-        if (error == EGL_CONTEXT_LOST) {
+    bool context_recreated = owner->context == EGL_NO_CONTEXT;
+    if (context_recreated) {
+        const EGLint context_attributes[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
+        owner->context = eglCreateContext(owner->display, owner->config, EGL_NO_CONTEXT, context_attributes);
+        if (owner->context == EGL_NO_CONTEXT ||
+            eglMakeCurrent(owner->display, owner->surface, owner->surface, owner->context) != EGL_TRUE) {
+            fail(owner, "create GLES2 context during resume");
             if (owner->context != EGL_NO_CONTEXT) eglDestroyContext(owner->display, owner->context);
-            const EGLint context_attributes[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
-            owner->context = eglCreateContext(owner->display, owner->config, EGL_NO_CONTEXT, context_attributes);
-            if (owner->context != EGL_NO_CONTEXT) ++owner->context_generation;
-            if (owner->context == EGL_NO_CONTEXT ||
-                eglMakeCurrent(owner->display, owner->surface, owner->surface, owner->context) != EGL_TRUE) {
-                fail(owner, "recreate GLES2 context");
-                if (owner->context != EGL_NO_CONTEXT) eglDestroyContext(owner->display, owner->context);
-                owner->context = EGL_NO_CONTEXT;
-                eglDestroySurface(owner->display, owner->surface); owner->surface = EGL_NO_SURFACE;
-                ANativeWindow_release(owner->window); owner->window = nullptr;
-                return 0;
-            }
-        } else {
-            owner->error = "eglMakeCurrent during resume failed";
-            if (owner->surface != EGL_NO_SURFACE) eglDestroySurface(owner->display, owner->surface);
-            owner->surface = EGL_NO_SURFACE;
+            owner->context = EGL_NO_CONTEXT;
+            eglDestroySurface(owner->display, owner->surface); owner->surface = EGL_NO_SURFACE;
             ANativeWindow_release(owner->window); owner->window = nullptr;
             return 0;
         }
+    } else if (eglMakeCurrent(owner->display, owner->surface, owner->surface, owner->context) != EGL_TRUE) {
+        const EGLint error = eglGetError();
+        if (error != EGL_CONTEXT_LOST) {
+            owner->error = "eglMakeCurrent during resume failed";
+            eglDestroySurface(owner->display, owner->surface); owner->surface = EGL_NO_SURFACE;
+            ANativeWindow_release(owner->window); owner->window = nullptr;
+            return 0;
+        }
+        eglDestroyContext(owner->display, owner->context);
+        owner->context = EGL_NO_CONTEXT;
+        const EGLint context_attributes[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
+        owner->context = eglCreateContext(owner->display, owner->config, EGL_NO_CONTEXT, context_attributes);
+        if (owner->context == EGL_NO_CONTEXT ||
+            eglMakeCurrent(owner->display, owner->surface, owner->surface, owner->context) != EGL_TRUE) {
+            fail(owner, "recreate GLES2 context");
+            if (owner->context != EGL_NO_CONTEXT) eglDestroyContext(owner->display, owner->context);
+            owner->context = EGL_NO_CONTEXT;
+            eglDestroySurface(owner->display, owner->surface); owner->surface = EGL_NO_SURFACE;
+            ANativeWindow_release(owner->window); owner->window = nullptr;
+            return 0;
+        }
+        context_recreated = true;
     }
+    if (context_recreated) ++owner->context_generation;
     EGLint width = 0, height = 0;
     if (eglQuerySurface(owner->display, owner->surface, EGL_WIDTH, &width) != EGL_TRUE ||
         eglQuerySurface(owner->display, owner->surface, EGL_HEIGHT, &height) != EGL_TRUE ||
