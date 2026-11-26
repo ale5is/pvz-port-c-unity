@@ -261,3 +261,12 @@ A terrain-only backend is still not a playable backend. The contract must includ
 ### Verified source anchors
 
 The Android 5 workflow now checks the pinned game-loop upload/lifecycle seam. The additional backend-selection check verifies that the upstream source still maps `GraphicsApi::OpenGl` to wgpu GL and that the Android launcher constructs the loading renderer before handing control to the game. These are source-contract checks only; they do not claim a GLES2 context was created or a frame was rendered.
+
+## Native atlas integration correction
+
+The packed GLES2 atlas uses cells of `sprite_size + 2` texels because every sprite receives a one-texel filtering gutter. Therefore an atlas generated from 16×16 source sprites commonly has 18×18 cells, and the final atlas width/height are multiples of the cell size, not necessarily multiples of 16.
+
+The native renderer previously rejected such valid atlases by requiring `atlas_width % sprite_size == 0` and `atlas_height % sprite_size == 0`. That validation contradicted the CPU atlas builder and prevented the packed atlas from reaching texture upload. The renderer now validates positive dimensions and lets the atlas builder's checked cell/grid calculations own layout validation. The native renderer checker includes a 16px sprite / 18px cell regression guard.
+
+This fixes a native prototype integration defect only. It does not connect the prototype to Horizon's launcher or game loop.
+
