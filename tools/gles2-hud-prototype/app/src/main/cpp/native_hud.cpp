@@ -211,6 +211,15 @@ static void render_loop(Engine* engine, ANativeWindow* window) {
     const std::int32_t section_key[3] = {0, 0, 0};
     const bool section_uploaded = uploaded && renderer.upload_section(
         section_key, vertices.data(), vertices.size(), nullptr, 0);
+    if (section_uploaded) {
+        glEnable(static_cast<GLenum>(0xdead));
+        if (!renderer.update_lightmap(lightmap.data(), lightmap.size())) {
+            LOGE("GLES2 lightmap update failed after clearing stale GL errors: %s", renderer.last_error());
+            renderer.release();
+            destroy_egl(display, surface, context);
+            return;
+        }
+    }
     if (!section_uploaded) {
         LOGE("GLES2 terrain renderer setup failed: %s", renderer.last_error());
         renderer.release();
