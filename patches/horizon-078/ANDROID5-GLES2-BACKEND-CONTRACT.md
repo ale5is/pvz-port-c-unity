@@ -236,3 +236,28 @@ This means the upstream game already has a CPU-side scheduling/coalescing queue.
 5. Only after terrain can be drawn from live Horizon sections, add a real-world integration smoke test and build an integration APK. A playable APK additionally requires the remaining visible game passes and lifecycle/input path; CPU tests and a native demo do not establish playability.
 
 No upstream game-loop or renderer source has been changed by this audit. The PC renderer and `main` remain outside this Android-only port.
+
+
+## Backend-selection audit: OpenGL is not the GLES2 port
+
+A further audit of the pinned source resolved an important ambiguity: setting Horizon's existing `GraphicsApi::OpenGl` does **not** select the new GLES2 adapter. It selects wgpu's `Backends::GL` path:
+
+- `horizon-client-render/Cargo.toml` enables wgpu's `gles` feature for non-macOS targets.
+- `horizon-client-render/src/gfx.rs::backend_order()` maps `GraphicsApi::OpenGl` to `wgpu::Backends::GL`.
+- `gfx::Renderer::new()` / `new_with_context()` still create a wgpu instance, adapter, device, queue, surface, pipelines and the existing wgpu resource graph.
+- The Android launcher creates this wgpu renderer for the loading UI before it creates the gameplay handler. Therefore, replacing only `Game.renderer` after loading would be too late: the boot/loading renderer also needs a backend-neutral owner and an Android-specific implementation.
+- The wgpu GL backend is not a contract for OpenGL ES 2.0. No GLES2 guarantee can be inferred from the word "OpenGL", from enabling wgpu's `gles` feature, or from a successful ARMv7 cargo check.
+
+The Philips QM152E target reports OpenGL ES 2.0 / GLSL ES 1.00. The GLES2 shaders and CPU mesh adapter in this repository are therefore a separate backend implementation, not a configuration switch for the existing wgpu renderer.
+
+### Architecture consequence
+
+Do not route this device through `GraphicsApi::OpenGl` and call it GLES2. The Android-only branch must be selected before the launcher constructs its loading renderer. A viable split needs a shared renderer-facing contract (or an Android-specific launcher/game facade) whose lifecycle covers both loading and gameplay. The desktop build must continue to instantiate the existing wgpu renderer without behavior changes.
+
+The current render crate has `#![forbid(unsafe_code)]`; native EGL/GLES calls should not be smuggled into that crate by weakening the lint globally. Keep the unsafe platform boundary isolated (for example, a small Android native/FFI crate or the existing NDK layer), expose a narrow safe Rust API to the game, and make the event-thread ownership explicit. This also avoids two independent EGL owners attempting to present to the same winit window.
+
+A terrain-only backend is still not a playable backend. The contract must include at least the loading/menu/HUD path, world terrain, entities/block entities, sky/weather, particles/effects, text/UI, input-driven camera updates, resize and Android suspend/resume. Unsupported passes must be tracked explicitly rather than silently omitted.
+
+### Verified source anchors
+
+The Android 5 workflow now checks the pinned game-loop upload/lifecycle seam. The additional backend-selection check verifies that the upstream source still maps `GraphicsApi::OpenGl` to wgpu GL and that the Android launcher constructs the loading renderer before handing control to the game. These are source-contract checks only; they do not claim a GLES2 context was created or a frame was rendered.
