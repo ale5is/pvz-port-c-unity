@@ -307,17 +307,15 @@ impl Gles2SectionPayload {
         let sprite_layers = self.sprite_layers.capacity()
             .checked_mul(std::mem::size_of::<u16>())
             .ok_or("terrain payload sprite-layer byte count overflow")?;
-        let bounds = if self.bounds.is_some() { 6 * std::mem::size_of::<f32>() } else { 0 };
+        // Count the complete inline payload, including Vec headers, Sides,
+        // bounds, key and flags. Counting individual fields missed the Vec
+        // descriptors and understated the per-section queue footprint.
         [
             vertices,
             block_entities,
             lights,
             sprite_layers,
-            bounds,
-            std::mem::size_of::<Sides>(),
-            std::mem::size_of::<(i32, i32, i32)>(),
-            std::mem::size_of::<u64>(),
-            std::mem::size_of::<bool>(),
+            std::mem::size_of::<Gles2SectionPayload>(),
         ]
         .into_iter()
         .try_fold(0usize, |total, bytes| total.checked_add(bytes))
@@ -677,6 +675,12 @@ mod tests {
         queue.clear();
         assert_eq!(queue.len(), 0);
         assert_eq!(queue.queued_bytes(), 0);
+    }
+
+    #[test]
+    fn payload_budget_includes_inline_payload_and_vector_descriptors() {
+        let payload = test_payload((7, 0, 7), 0);
+        assert!(payload.byte_len().unwrap() >= std::mem::size_of::<Gles2SectionPayload>());
     }
 
     #[test]
