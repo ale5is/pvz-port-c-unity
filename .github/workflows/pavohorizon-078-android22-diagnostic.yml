@@ -12,6 +12,7 @@ on:
       - 'tools/check_android5_renderer_ownership.py'
       - 'tools/check_android5_game_loop.py'
       - 'tools/check_android5_backend_selection.py'
+      - 'tools/check_android5_renderer_callsite_inventory.py'
       - 'patches/horizon-078/gles2-terrain-adapter.py'
       - 'patches/horizon-078/gles2-terrain.vert'
       - 'patches/horizon-078/gles2-terrain-solid.frag'
@@ -98,6 +99,9 @@ jobs:
 
       - name: Verify wgpu GL is not mistaken for the native GLES2 backend
         run: python3 tools/check_android5_backend_selection.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Verify Android renderer construction and call-site inventory
+        run: python3 tools/check_android5_renderer_callsite_inventory.py "$RUNNER_TEMP/horizon-078"
 
       - name: Apply limited Android 5 diagnostic patch
         run: python3 tools/android5_patch.py "$RUNNER_TEMP/horizon-078"
