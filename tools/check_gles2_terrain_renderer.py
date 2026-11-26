@@ -461,6 +461,9 @@ for item in [
     "self.lights.capacity()",
     "self.sprite_layers.capacity()",
     "std::mem::size_of::<Gles2SectionPayload>()",
+    "pub const MAX_PENDING_SECTIONS: usize = 512;",
+    "self.pending.len() >= MAX_PENDING_SECTIONS",
+    "queue_caps_distinct_pending_sections_and_still_coalesces_at_capacity",
     "payload_budget_includes_inline_payload_and_vector_descriptors",
     "payload_budget_counts_reserved_capacity_not_only_live_vertices",
 ]:
@@ -468,4 +471,5 @@ for item in [
         raise SystemExit(f"FAIL: GLES2 queue budget must account for reserved CPU payload memory: missing {item}")
 if "payload logical bytes, not allocator capacity" in terrain_source:
     raise SystemExit("FAIL: GLES2 queue documentation must not claim capacity is excluded from its budget")
-print("PASS: bounded GLES2 CPU queue budgets reserved vector capacity, not just live payload lengths")
+print("PASS: bounded GLES2 CPU queue budgets reserved vector capacity and caps distinct pending sections")
+
