@@ -1,6 +1,6 @@
 # Android 5 EGL lifecycle and native-window ownership contract
 
-Status: design contract derived from the pinned Horizon source; not an implemented EGL backend.
+Status: native EGL owner and Rust runtime now expose suspend/resume plus context-generation detection. Horizon Launcher/Game ownership transfer and call-site integration remain unimplemented.
 
 - Upstream: `starling-client/starling`
 - Revision: `68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29`
@@ -44,6 +44,8 @@ The generation is a monotonically increasing unsigned integer. Increment it when
 
 A surface-only recreation may retain the context and GL resources only if the EGL implementation and context lifecycle permit it. If context loss is reported, rebuild every GL object from CPU-owned source data; never assume texture or buffer names survive.
 
+The native owner now exposes a context-generation counter through `pavo_egl_context_generation`. It increments when `pavo_egl_resume` has to recreate an `EGL_CONTEXT_LOST` context. The Rust `Runtime::resume` compares this value: unchanged means surface-only resume and existing resources remain valid; changed means the old GLES2 backend is replaced and `is_initialized()` becomes false. The caller must call `initialize` again and re-upload retained section meshes/animated atlas state before drawing. This counter tracks GL context validity, not native-window generations.
+
 ## Event mapping
 
 1. **Initial launcher start:** create window -> acquire native-window reference -> initialize EGL display/config/context -> create window surface -> make current -> set viewport -> create loading/UI resources -> first present.
@@ -70,7 +72,10 @@ Before wiring this owner into Horizon:
 - [ ] A single owner controls EGL and the native-window reference across launcher/game transitions.
 - [ ] All lifecycle callbacks run on the documented owner thread.
 - [ ] Generation checks reject stale resize, draw and present work.
-- [ ] Context-loss recovery recreates resources from CPU-owned data.
+- [x] Native EGL owner detects context loss and reports a monotonically increasing GL context generation.
+- [x] Rust runtime recreates the backend after a generation change and blocks terrain uploads/draws until reinitialized.
+- [ ] Launcher/Game callbacks invoke the runtime suspend/resume methods and restore atlas, lightmap, animations and section meshes.
+- [ ] Context-loss recovery recreates all resources from CPU-owned data.
 - [ ] Desktop wgpu construction and lifecycle remain unchanged.
 - [ ] An Android integration test exercises initial attach, suspend/resume, window replacement, context loss and shutdown.
 
