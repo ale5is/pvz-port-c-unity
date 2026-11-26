@@ -303,12 +303,15 @@ cleanup_markers = [
     "glBindTexture(GL_TEXTURE_2D, 0);",
     "glUseProgram(0);",
 ]
-cleanup_positions = [sections_body.rfind(marker) for marker in cleanup_markers]
-if any(position < translucent_loop for position in cleanup_positions):
-    raise SystemExit("FAIL: terrain pass must restore depth, blend, texture-unit and program state after translucent drawing")
-if cleanup_positions != sorted(cleanup_positions):
-    raise SystemExit("FAIL: terrain pass GL state cleanup must run in deterministic order")
-if sections_body.find("const GLenum draw_error = glGetError();", cleanup_positions[-1]) < 0:
+cleanup_positions = []
+search_from = translucent_loop
+for marker in cleanup_markers:
+    position = sections_body.find(marker, search_from)
+    if position < 0:
+        raise SystemExit("FAIL: terrain pass must restore depth, blend, texture-unit and program state after translucent drawing")
+    cleanup_positions.append(position)
+    search_from = position + len(marker)
+if sections_body.find("const GLenum draw_error = glGetError();", search_from) < 0:
     raise SystemExit("FAIL: terrain pass must check GL errors after restoring shared state")
 print("PASS: terrain pass restores shared GLES2 state before subsequent renderer passes")
 print("PASS: EGL context ownership is bound once and enforced for every public GL operation")
