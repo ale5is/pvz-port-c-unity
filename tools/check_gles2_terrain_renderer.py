@@ -141,6 +141,11 @@ for item in [
         raise SystemExit(f"FAIL: animated atlas update contract missing {item}")
 if "glTexImage2D" in atlas_update_body:
     raise SystemExit("FAIL: animated atlas updates must replace one cell, not reallocate the full texture")
+for marker in ("renderer.upload_section(", "renderer.draw_sections(invalid_mvp", "GLES2 section draw and invalid-parameter reporting passed"):
+    if marker not in native_host:
+        raise SystemExit(f"FAIL: native smoke test does not exercise {marker}")
+print("PASS: GLES2 section draw path and invalid-matrix error reporting")
+
 if "renderer.update_atlas_layer(0, pixels.data(), pixels.size())" not in native_host:
     raise SystemExit("FAIL: native GLES2 render loop must exercise animated atlas cell updates")
 if "next_animation_update = animation_now + std::chrono::milliseconds(500)" not in native_host:
