@@ -204,7 +204,7 @@ The Rust adapter now defines `Gles2SectionQueue`, a FIFO queue for owned `Gles2S
 - `clear()` releases all pending payloads and resets byte accounting.
 - Tests cover replacement order, over-budget rejection, atomic replacement failure, section/column unload, and accounting after pop/clear.
 
-The limit measures logical payload bytes (converted vertex lengths and owned metadata lengths), not allocator capacity, temporary conversion peaks, atlas/lightmap memory, or GPU allocations. It is therefore a bounded pending-upload budget, not a complete process-memory ceiling. The queue is CPU-only and owns no GL/EGL handles. It is not yet connected to Horizon's meshing completion path, game section unload events, or a renderer; the launcher still constructs wgpu. Passing its unit tests will validate queue semantics only, not terrain presentation or playability.
+The limit measures the complete inline `Gles2SectionPayload` size plus the reserved capacities of its converted vertex and owned metadata vectors. It therefore includes spare capacity retained by those payload vectors, but excludes allocator bookkeeping, spare capacity in the queue's own `VecDeque`, temporary conversion peaks before enqueue, atlas/lightmap memory, and GPU allocations. It is a bounded pending-payload budget, not a complete process-memory ceiling. The queue is CPU-only and owns no GL/EGL handles. It is not yet connected to Horizon's meshing completion path, game section unload events, or a renderer; the launcher still constructs wgpu. Passing its unit tests will validate queue semantics only, not terrain presentation or playability.
 
 ## Live game-loop integration seam (pinned upstream audit)
 
