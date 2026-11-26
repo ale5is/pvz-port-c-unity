@@ -32,6 +32,8 @@ use std::collections::VecDeque;
 /// the sprite-array layer, as used by the terrain material shader.
 pub const OPAQUE_LAYER_BIT: u16 = crate::mesher::OPAQUE_LAYER;
 pub const SPRITE_LAYER_MASK: u16 = !OPAQUE_LAYER_BIT;
+/// Hard cap for pending section updates, independent of their vertex byte size.
+pub const MAX_PENDING_SECTIONS: usize = 512;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AtlasGrid {
@@ -370,11 +372,13 @@ pub fn convert_section(
     })
 }
 
-/// A byte-bounded FIFO of owned section updates waiting for the GLES2 owner.
+/// A byte- and entry-bounded FIFO of owned section updates waiting for the GLES2 owner.
 ///
 /// Enqueue coalesces pending updates by section key: the newest payload replaces
-/// the older one and moves to the back of the queue. The budget accounts for
-/// reserved vector capacity and inline metadata, not allocator bookkeeping or GPU memory.
+/// the older one and moves to the back of the queue. The queue accepts at most
+/// MAX_PENDING_SECTIONS distinct pending keys, even when their geometry is empty.
+/// The byte budget accounts for reserved vector capacity and inline metadata, not
+/// allocator bookkeeping, VecDeque spare capacity or GPU memory.
 pub struct Gles2SectionQueue {
     pending: VecDeque<Gles2SectionPayload>,
     max_bytes: usize,
@@ -402,6 +406,9 @@ impl Gles2SectionQueue {
             _ => return Err(payload),
         };
         let existing = self.pending.iter().position(|item| item.key == payload.key);
+        if existing.is_none() && self.pending.len() >= MAX_PENDING_SECTIONS {
+            return Err(payload);
+        }
         let old_bytes = match existing {
             Some(index) => match self.pending[index].byte_len() {
                 Ok(bytes) => bytes,
@@ -614,6 +621,31 @@ mod tests {
             bounds: None,
             keep: false,
         }
+    }
+
+    #[test]
+    fn queue_caps_distinct_pending_sections_and_still_coalesces_at_capacity() {
+        let mut queue = Gles2SectionQueue::new(usize::MAX);
+        for index in 0..MAX_PENDING_SECTIONS {
+            assert!(matches!(
+                queue.enqueue(test_payload((index as i32, 0, 0), 0)),
+                Ok(None)
+            ));
+        }
+        assert_eq!(queue.len(), MAX_PENDING_SECTIONS);
+        let rejected = match queue.enqueue(test_payload((MAX_PENDING_SECTIONS as i32, 0, 0), 0)) {
+            Err(payload) => payload,
+            Ok(_) => panic!("queue must reject a new key after reaching its entry cap"),
+        };
+        assert_eq!(rejected.key, (MAX_PENDING_SECTIONS as i32, 0, 0));
+        assert_eq!(queue.len(), MAX_PENDING_SECTIONS);
+
+        let replaced = match queue.enqueue(test_payload((0, 0, 0), 0)) {
+            Ok(Some(payload)) => payload,
+            _ => panic!("queue must continue coalescing an existing key at capacity"),
+        };
+        assert_eq!(replaced.key, (0, 0, 0));
+        assert_eq!(queue.len(), MAX_PENDING_SECTIONS);
     }
 
     #[test]
