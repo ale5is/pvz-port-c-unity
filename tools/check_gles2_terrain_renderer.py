@@ -49,6 +49,10 @@ required_adapter_header = [
 ]
 required_adapter_source = [
     "layer_major_rgba",
+    "pixel_bytes < source_bytes",
+    "(vertex_count % 4) != 0",
+    "output->push_back(converted[i + 2])",
+    "output->push_back(converted[i + 3])",
     "All sprite layers do not fit in one GLES2 atlas texture",
     "15 - (alpha_flags & 0x0f)",
     "alpha_flags >> 4",
