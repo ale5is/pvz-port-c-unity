@@ -130,6 +130,20 @@ extern "C" int pavo_egl_resize(PavoEglOwner* owner, int* width, int* height) {
     return 1;
 }
 
+extern "C" int pavo_egl_begin_frame(PavoEglOwner* owner, float red, float green, float blue, float alpha) {
+    if (!on_owner_thread(owner) || !pavo_egl_make_current(owner)) return 0;
+    EGLint width = 0, height = 0;
+    if (eglQuerySurface(owner->display, owner->surface, EGL_WIDTH, &width) != EGL_TRUE ||
+        eglQuerySurface(owner->display, owner->surface, EGL_HEIGHT, &height) != EGL_TRUE ||
+        width <= 0 || height <= 0) {
+        fail(owner, "eglQuerySurface"); return 0;
+    }
+    glViewport(0, 0, width, height);
+    glClearColor(red, green, blue, alpha);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    return 1;
+}
+
 extern "C" int pavo_egl_swap(PavoEglOwner* owner) {
     if (!on_owner_thread(owner) || !pavo_egl_make_current(owner)) return 0;
     if (eglSwapBuffers(owner->display, owner->surface) != EGL_TRUE) {
