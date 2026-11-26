@@ -253,12 +253,16 @@ for item in [
     "Gles2TerrainVertex quad[4]{};",
     "converted.reserve(quad_count * 6)",
     "output->swap(converted)",
+    "catch (const std::bad_alloc&)",
+    "catch (const std::length_error&)",
+    "Not enough memory to expand the Horizon terrain mesh",
+    "Not enough memory to allocate the GLES2 terrain atlas",
 ]:
     if item not in conversion_body:
         raise SystemExit(f"FAIL: Horizon CPU adapter conversion contract missing {item}")
 if "output->clear()" in conversion_body or "converted.reserve(vertex_count)" in conversion_body:
     raise SystemExit("FAIL: Horizon CPU adapter must preserve output atomically and avoid the oversized intermediate vertex buffer")
-print("PASS: Horizon CPU vertex conversion is overflow-checked, bounded and atomic")
+print("PASS: Horizon CPU vertex conversion is overflow-checked, bounded, allocation-safe and atomic")
 print("PASS: layer-major sprite pixels pack with duplicated filtering gutters")
 print("PASS: light, emission tier, fluid face, opaque flag and UV scale are decoded")
 print("PASS: eight GLES2 attributes, including packed emission/material bytes")
