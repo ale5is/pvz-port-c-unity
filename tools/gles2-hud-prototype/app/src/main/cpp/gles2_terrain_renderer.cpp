@@ -468,10 +468,22 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
     if (existing != sections_.end()) {
         if (existing->second.solid_vbo) glDeleteBuffers(1, &existing->second.solid_vbo);
         if (existing->second.translucent_vbo) glDeleteBuffers(1, &existing->second.translucent_vbo);
-        existing->second = replacement;
+        existing->second = std::move(replacement);
         resident_bytes_ = retained_bytes + replacement_bytes;
     } else {
-        sections_.emplace(section_key, replacement);
+        try {
+            sections_.emplace(section_key, std::move(replacement));
+        } catch (const std::bad_alloc&) {
+            if (replacement.solid_vbo) glDeleteBuffers(1, &replacement.solid_vbo);
+            if (replacement.translucent_vbo) glDeleteBuffers(1, &replacement.translucent_vbo);
+            std::snprintf(error_, sizeof(error_), "Not enough memory to register the resident GLES2 section");
+            return false;
+        } catch (const std::length_error&) {
+            if (replacement.solid_vbo) glDeleteBuffers(1, &replacement.solid_vbo);
+            if (replacement.translucent_vbo) glDeleteBuffers(1, &replacement.translucent_vbo);
+            std::snprintf(error_, sizeof(error_), "Resident GLES2 section table exceeds its allocation limit");
+            return false;
+        }
         resident_bytes_ += replacement_bytes;
     }
     error_[0] = '\0';
