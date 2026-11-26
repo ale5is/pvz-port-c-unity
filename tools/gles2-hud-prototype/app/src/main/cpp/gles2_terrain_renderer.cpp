@@ -688,8 +688,13 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
                                          const float fog_color[4], const float fog_range[2],
                                          float max_distance) {
     if (!check_owner_thread("draw_sections")) return;
+    error_[0] = '\0';
+    while (glGetError() != GL_NO_ERROR) {}
     if (!solid_program_ || !translucent_program_ || !mvp || !camera_position ||
-        !fog_color || !fog_range) return;
+        !fog_color || !fog_range) {
+        std::snprintf(error_, sizeof(error_), "Terrain renderer or draw parameters are not initialized");
+        return;
+    }
     const auto finite_values = [](const float* values, std::size_t count) {
         return std::all_of(values, values + count,
                            [](float value) { return std::isfinite(value); });
@@ -776,6 +781,11 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);
+    const GLenum draw_error = glGetError();
+    if (draw_error != GL_NO_ERROR) {
+        std::snprintf(error_, sizeof(error_), "Terrain draw failed (GL 0x%x)", draw_error);
+        return;
+    }
     error_[0] = '\0';
 }
 
