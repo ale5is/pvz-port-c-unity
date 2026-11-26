@@ -224,7 +224,11 @@ fn append_triangle_list(
     if source.len() % 4 != 0 {
         return Err("Horizon terrain mesh must contain complete four-vertex quads");
     }
-    destination.reserve(source.len() / 4 * 6);
+    let expanded_count = (source.len() / 4)
+        .checked_mul(6)
+        .ok_or("expanded Horizon terrain vertex count overflow")?;
+    destination.try_reserve(expanded_count)
+        .map_err(|_| "not enough memory to expand the Horizon terrain mesh")?;
     for quad in source.chunks_exact(4) {
         let v0 = convert_vertex_with_uv_step(&quad[0], atlas, uv_step)?;
         let v1 = convert_vertex_with_uv_step(&quad[1], atlas, uv_step)?;
@@ -240,15 +244,25 @@ pub fn convert_mesh_with_uv_step(
     atlas: &AtlasGrid,
     uv_step: f32,
 ) -> Result<Gles2TerrainMesh, &'static str> {
+    let solid_capacity = (mesh.solid.len() / 4)
+        .checked_mul(6)
+        .ok_or("expanded Horizon solid vertex count overflow")?;
+    let translucent_capacity = (mesh.translucent.len() / 4)
+        .checked_mul(6)
+        .ok_or("expanded Horizon translucent vertex count overflow")?;
     let mut converted = Gles2TerrainMesh {
-        solid: Vec::with_capacity(mesh.solid.len() / 4 * 6),
+        solid: Vec::new(),
         sides: if mesh.sides.quads() == (mesh.solid.len() / 4) as u32 {
             mesh.sides
         } else {
             Sides::unsorted((mesh.solid.len() / 4) as u32)
         },
-        translucent: Vec::with_capacity(mesh.translucent.len() / 4 * 6),
+        translucent: Vec::new(),
     };
+    converted.solid.try_reserve_exact(solid_capacity)
+        .map_err(|_| "not enough memory to allocate converted Horizon solid terrain")?;
+    converted.translucent.try_reserve_exact(translucent_capacity)
+        .map_err(|_| "not enough memory to allocate converted Horizon translucent terrain")?;
     append_triangle_list(&mesh.solid, &mut converted.solid, atlas, uv_step)?;
     append_triangle_list(&mesh.translucent, &mut converted.translucent, atlas, uv_step)?;
     Ok(converted)
