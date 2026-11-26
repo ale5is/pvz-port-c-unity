@@ -50,6 +50,7 @@ void pavo_gles2_draw_sections(
     const float fog_color[4],
     const float fog_range[2],
     float max_distance);
+int pavo_gles2_update_lightmap(PavoGles2Handle* handle, const std::uint8_t* rgba, std::size_t byte_count);
 int pavo_gles2_update_atlas_layer(
     PavoGles2Handle* handle,
     std::uint32_t layer,
