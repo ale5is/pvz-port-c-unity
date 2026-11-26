@@ -12,7 +12,6 @@ cmake = (root / "CMakeLists.txt").read_text(encoding="utf-8")
 native_host = (root / "native_hud.cpp").read_text(encoding="utf-8")
 
 required_header = [
-    "bool upload_horizon_section(",
     "thread that owns the current EGL context",
     "std::thread::id owner_thread_",
     "bool owner_thread_set_ = false;",
@@ -299,7 +298,7 @@ for item in quad_order:
 if "output->clear()" in conversion_body or "converted.reserve(vertex_count)" in conversion_body:
     raise SystemExit("FAIL: Horizon CPU adapter must preserve output atomically and avoid the oversized intermediate vertex buffer")
 upload_start = adapter_source.index("bool upload_horizon_section(")
-upload_body = adapter_source[upload_start:adapter_source.index("\\n}  // namespace pavo", upload_start)]
+upload_body = adapter_source[upload_start:adapter_source.index("}  // namespace pavo", upload_start)]
 for item in [
     "if (!renderer || !key)",
     "convert_horizon_terrain_vertices(solid, solid_count",
