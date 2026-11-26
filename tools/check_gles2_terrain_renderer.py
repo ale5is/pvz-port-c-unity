@@ -17,6 +17,8 @@ required_header = [
     "UniformLocations solid_uniforms_",
     "UniformLocations translucent_uniforms_",
     "bool upload_section(",
+    "bool set_section_solid_ranges(",
+    "bool has_solid_ranges = false;",
     "void remove_section(",
     "void remove_column(",
     "void draw_sections(",
@@ -44,13 +46,15 @@ required_source = [
     "glBufferData(GL_ARRAY_BUFFER",
     "void Gles2TerrainRenderer::cache_uniforms",
     'uniforms->mvp = glGetUniformLocation(program, "u_mvp")',
-    "draw_buffer(solid_program_, solid_uniforms_",
-    "draw_buffer(translucent_program_, translucent_uniforms_",
+    "draw_buffer_range(solid_program_, solid_uniforms_",
+    "draw_buffer_range(translucent_program_, translucent_uniforms_",
     "glActiveTexture(GL_TEXTURE1)",
     "glBufferData(GL_ARRAY_BUFFER",
     "(count % 3) != 0",
     "Terrain vertex count must be a triangle list",
-    "glDrawArrays(GL_TRIANGLES, 0, count)",
+    "glDrawArrays(GL_TRIANGLES, first, count)",
+    "Solid side range",
+    "range.first, range.second",
     "index <= 7",
     "glEnableVertexAttribArray(7)",
     "glDepthFunc(GL_LEQUAL)",
@@ -101,7 +105,7 @@ if "upload_texture(&atlas_texture_, atlas_rgba, atlas_width, atlas_height, GL_LI
     raise SystemExit("FAIL: renderer: guttered terrain atlas must use linear filtering")
 if "rgba_byte_size" not in source or "max_size / (w * 4)" not in source:
     raise SystemExit("FAIL: renderer: RGBA texture allocation must use overflow-safe byte arithmetic")
-draw_start = source.index("void Gles2TerrainRenderer::draw_buffer")
+draw_start = source.index("void Gles2TerrainRenderer::draw_buffer_range")
 draw_end = source.index("void Gles2TerrainRenderer::draw(", draw_start)
 if "glGetUniformLocation" in source[draw_start:draw_end]:
     raise SystemExit("FAIL: renderer: uniform locations must not be queried in the per-frame draw path")
