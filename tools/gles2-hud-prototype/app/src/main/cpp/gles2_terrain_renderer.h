@@ -1,8 +1,10 @@
 #pragma once
 
 #include <GLES2/gl2.h>
+#include <array>
 #include <cstddef>
 #include <cstdint>
+#include <map>
 
 namespace pavo {
 
@@ -43,6 +45,15 @@ public:
                     int sprite_size);
     bool upload_solid(const Gles2TerrainVertex* vertices, std::size_t count);
     bool upload_translucent(const Gles2TerrainVertex* vertices, std::size_t count);
+    bool upload_section(const std::int32_t key[3],
+                        const Gles2TerrainVertex* solid, std::size_t solid_count,
+                        const Gles2TerrainVertex* translucent, std::size_t translucent_count);
+    void remove_column(std::int32_t section_x, std::int32_t section_z);
+    void clear_sections();
+    std::size_t section_count() const { return sections_.size(); }
+    void draw_sections(const float* mvp, const float camera_position[3],
+                       const float fog_color[4], const float fog_range[2],
+                       float max_distance);
     void draw(const float* mvp, const float section_origin[3],
               const float camera_position[3], const float fog_color[4],
               const float fog_range[2]);
@@ -51,6 +62,13 @@ public:
     const char* last_error() const { return error_; }
 
 private:
+    struct SectionBuffers {
+        GLuint solid_vbo = 0;
+        GLuint translucent_vbo = 0;
+        GLsizei solid_count = 0;
+        GLsizei translucent_count = 0;
+    };
+
     struct UniformLocations {
         GLint mvp = -1;
         GLint section_origin = -1;
@@ -85,6 +103,7 @@ private:
     GLuint translucent_vbo_ = 0;
     GLsizei solid_count_ = 0;
     GLsizei translucent_count_ = 0;
+    std::map<std::array<std::int32_t, 3>, SectionBuffers> sections_;
     int atlas_width_ = 0;
     int atlas_height_ = 0;
     int sprite_size_ = 0;
