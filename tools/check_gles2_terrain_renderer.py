@@ -193,6 +193,7 @@ required_adapter_header = [
     "bool build_gles2_terrain_atlas(",
     "bool convert_horizon_terrain_vertices(",
     "bool upload_horizon_section(",
+    "bool upload_horizon_section_with_ranges(",
 ]
 required_adapter_source = [
     "layer_major_rgba",
@@ -217,6 +218,8 @@ required_adapter_source = [
     "converted_translucent.data(), converted_translucent.size()",
     "renderer->upload_section(key,",
     "renderer->last_error()",
+    "renderer->set_section_solid_ranges(key, first_count_pairs, range_count)",
+    "if (range_count != 0 && !first_count_pairs)",
 ]
 required_host = [
     '#include "gles2_terrain_renderer.h"',
@@ -312,6 +315,19 @@ if not (upload_body.index("convert_horizon_terrain_vertices(solid") <
         upload_body.index("convert_horizon_terrain_vertices(translucent") <
         upload_body.index("renderer->upload_section(key,")):
     raise SystemExit("FAIL: both section layers must convert before the atomic GPU replacement")
+ranges_start = adapter_source.index("bool upload_horizon_section_with_ranges(")
+ranges_end = adapter_source.index("}  // namespace pavo", ranges_start)
+ranges_body = adapter_source[ranges_start:ranges_end]
+for item in [
+    "if (range_count != 0 && !first_count_pairs)",
+    "upload_horizon_section(renderer, key",
+    "renderer->set_section_solid_ranges(key, first_count_pairs, range_count)",
+]:
+    if item not in ranges_body:
+        raise SystemExit(f"FAIL: Horizon side-range upload adapter missing {item}")
+if not (ranges_body.index("upload_horizon_section(renderer, key") <
+        ranges_body.index("renderer->set_section_solid_ranges(")):
+    raise SystemExit("FAIL: Horizon side ranges must be applied only after the section VBO replacement succeeds")
 print("PASS: Horizon CPU vertex conversion is overflow-checked, bounded, allocation-safe and atomic")
 print("PASS: Horizon quad expansion preserves exact (0,1,2,2,3,0) triangle winding")
 print("PASS: layer-major sprite pixels pack with duplicated filtering gutters")
