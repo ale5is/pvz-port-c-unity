@@ -117,15 +117,26 @@ extern "C" void pavo_gles2_clear_sections(PavoGles2Handle* handle) {
     handle->renderer.clear_sections();
 }
 
-extern "C" void pavo_gles2_draw_sections(
+extern "C" int pavo_gles2_draw_sections(
     PavoGles2Handle* handle,
     const float mvp[16],
     const float camera_position[3],
     const float fog_color[4],
     const float fog_range[2],
     float max_distance) {
-    if (!handle || !handle->initialized) return;
+    if (!handle || !handle->initialized || !mvp || !camera_position ||
+        !fog_color || !fog_range || !std::isfinite(max_distance)) {
+        set_error(handle, "Invalid or uninitialized GLES2 terrain draw");
+        return 0;
+    }
     handle->renderer.draw_sections(mvp, camera_position, fog_color, fog_range, max_distance);
+    const char* error = handle->renderer.last_error();
+    if (error && error[0]) {
+        set_error(handle, error);
+        return 0;
+    }
+    handle->error.clear();
+    return 1;
 }
 
 extern "C" int pavo_gles2_update_lightmap(
