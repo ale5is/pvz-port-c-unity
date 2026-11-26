@@ -42,6 +42,19 @@ required_source = [
     "glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)",
     "v_material.x * 119.0",
 ]
+required_atlas_contract = [
+    "if (sprite_size <= 0 || atlas_width <= 0 || atlas_height <= 0)",
+    "Atlas dimensions and sprite size must be positive",
+]
+if "atlas_width % sprite_size" in source or "atlas_height % sprite_size" in source:
+    raise SystemExit("FAIL: renderer: gutter-packed atlas dimensions must not be required to divide by sprite size")
+if (16 + 2) % 16 == 0:
+    raise SystemExit("FAIL: regression fixture must exercise a non-divisible gutter-packed atlas cell")
+for item in required_atlas_contract:
+    if item not in source:
+        raise SystemExit(f"FAIL: renderer atlas contract missing {item}")
+print("PASS: gutter-packed 18px cells are accepted for 16px source sprites")
+
 required_adapter_header = [
     "sizeof(HorizonTerrainVertex) == 24",
     "bool build_gles2_terrain_atlas(",
