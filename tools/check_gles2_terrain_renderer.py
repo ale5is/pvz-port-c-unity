@@ -203,7 +203,9 @@ if not (solid_loop < sort_call < blend_enable < blend_func < depth_disable < tra
     raise SystemExit("FAIL: renderer: opaque pass must precede sorted translucent blending with depth writes restored")
 if "return a.distance_squared > b.distance_squared;" not in sections_body:
     raise SystemExit("FAIL: renderer: translucent sections must be sorted far-to-near")
-print("PASS: opaque pass precedes far-to-near translucent blending and restores depth state")
+if "return a.key < b.key;" not in sections_body:
+    raise SystemExit("FAIL: renderer: equal-distance translucent sections must use deterministic section-key ordering")
+print("PASS: opaque pass precedes deterministic far-to-near translucent section blending and restores depth state")
 print("PASS: EGL context ownership is bound once and enforced for every public GL operation")
 
 required_adapter_header = [
