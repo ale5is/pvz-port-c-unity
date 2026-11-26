@@ -425,11 +425,31 @@ impl Drop for EglOwner {
 /// Owns one EGL context and one GLES2 renderer. Field order is intentional:
 /// Rust drops the GL renderer first, while its EGL context is still current,
 /// and only then destroys the EGL surface/context/display.
+#[derive(Clone)]
+struct CachedSection {
+    solid: Vec<super::gles2_native::HorizonTerrainVertex>,
+    translucent: Vec<super::gles2_native::HorizonTerrainVertex>,
+    ranges: Vec<u32>,
+}
+
+#[derive(Clone)]
+struct CachedAssets {
+    sprite_pixels: Vec<u8>,
+    layers: usize,
+    sprite_size: i32,
+    lightmap: Vec<u8>,
+    lightmap_width: i32,
+    lightmap_height: i32,
+    uv_steps: f32,
+}
+
 pub(crate) struct Runtime {
     renderer: super::gles2_native::Backend,
     egl: EglOwner,
     context_generation: u64,
     initialized: bool,
+    cached_assets: Option<CachedAssets>,
+    cached_sections: std::collections::HashMap<[i32; 3], CachedSection>,
 }
 
 impl Runtime {
@@ -438,7 +458,10 @@ impl Runtime {
         egl.make_current()?;
         let renderer = super::gles2_native::Backend::new()?;
         let context_generation = egl.generation()?;
-        Ok(Self { renderer, egl, context_generation, initialized: false })
+        Ok(Self {
+            renderer, egl, context_generation, initialized: false,
+            cached_assets: None, cached_sections: std::collections::HashMap::new(),
+        })
     }
 
     pub(crate) fn initialize(
@@ -448,6 +471,10 @@ impl Runtime {
         self.egl.make_current()?;
         self.renderer.initialize(sprite_pixels, layers, sprite_size,
             lightmap, lightmap_width, lightmap_height, uv_steps)?;
+        self.cached_assets = Some(CachedAssets {
+            sprite_pixels: sprite_pixels.to_vec(), layers, sprite_size,
+            lightmap: lightmap.to_vec(), lightmap_width, lightmap_height, uv_steps,
+        });
         self.initialized = true;
         Ok(())
     }
@@ -467,6 +494,18 @@ impl Runtime {
         self.renderer = super::gles2_native::Backend::new()?;
         self.context_generation = generation;
         self.initialized = false;
+        if let Some(assets) = self.cached_assets.clone() {
+            self.renderer.initialize(
+                &assets.sprite_pixels, assets.layers, assets.sprite_size,
+                &assets.lightmap, assets.lightmap_width, assets.lightmap_height, assets.uv_steps,
+            )?;
+            for (key, section) in &self.cached_sections {
+                self.renderer.upload_section(
+                    *key, &section.solid, &section.translucent, &section.ranges,
+                )?;
+            }
+            self.initialized = true;
+        }
         Ok(true)
     }
 
@@ -498,19 +537,27 @@ impl Runtime {
     ) -> Result<(), String> {
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.egl.make_current()?;
-        self.renderer.upload_section(key, solid, translucent, ranges)
+        self.renderer.upload_section(key, solid, translucent, ranges)?;
+        self.cached_sections.insert(key, CachedSection {
+            solid: solid.to_vec(), translucent: translucent.to_vec(), ranges: ranges.to_vec(),
+        });
+        Ok(())
     }
 
     pub(crate) fn remove_column(&mut self, x: i32, z: i32) -> Result<(), String> {
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.egl.make_current()?;
-        self.renderer.remove_column(x, z)
+        self.renderer.remove_column(x, z)?;
+        self.cached_sections.retain(|key, _| key[0] != x || key[2] != z);
+        Ok(())
     }
 
     pub(crate) fn clear_sections(&mut self) -> Result<(), String> {
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.egl.make_current()?;
-        self.renderer.clear_sections()
+        self.renderer.clear_sections()?;
+        self.cached_sections.clear();
+        Ok(())
     }
 
     pub(crate) fn draw_sections(
