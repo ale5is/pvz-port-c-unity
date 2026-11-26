@@ -1,6 +1,6 @@
 # Android 5 GLES2 backend integration contract
 
-Status: architecture contract and implementation plan; this document does not claim that the GLES2 prototype is connected to Horizon or that the game renders on the Philips QM152E.
+Status: the native GLES2 terrain backend is compiled into the Android cdylib and a Rust EGL runtime now exposes surface suspend/resume, context-generation recovery and draw-error propagation. It is still not selected by Horizon's Launcher/Game renderer, and the game has not been demonstrated on the Philips QM152E.
 
 Pinned upstream source: `starling-client/starling` at `68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29`.
 
@@ -30,7 +30,7 @@ A GLES2 backend must therefore cover both loading and world rendering, and must 
 
 ### The current prototype is not a world renderer
 
-The C++ `Gles2TerrainRenderer` accepts already-converted vertices, atlas pixels and lightmap pixels. Its current Activity supplies synthetic test textures and geometry. It does not consume Horizon's section meshes, atlas/animation data, camera matrices, fog state, world lighting or game lifecycle. Its API is a prototype boundary, not a completed adapter.
+The C++ `Gles2TerrainRenderer` accepts already-converted vertices, atlas pixels and lightmap pixels. Its native smoke Activity supplies synthetic test textures and geometry, while the Android cdylib now links the same C++ implementation and exposes a Rust `Runtime` that can create an EGL ES2 owner from a winit Android window. The runtime supports suspend/resume and detects a recreated EGL context; after context loss it invalidates the GLES2 backend and requires asset/section re-upload. The native section draw path now reports GL errors across C++ and Rust. It still does not consume live Horizon atlas/lightmap/camera/fog state from `Game`, and its API is not yet selected by the application renderer.
 
 ## Implemented CPU upload-queue generation guard
 
@@ -44,6 +44,16 @@ The Rust-side Gles2SectionQueue now carries a monotonically increasing window/co
 This closes one CPU-side lifecycle hazard: a delayed meshing result cannot be admitted to a queue after the owner has moved to a newer native-window generation, provided the future bridge tags every enqueue with the generation captured when the work was scheduled.
 
 This is **not yet wired into Horizon's live Game upload path or an EGL owner**. The caller must still capture the active generation when scheduling conversion and pass it to enqueue_for_generation; no live window-generation source or native bridge currently exists. The guard is therefore implemented and unit-testable, but stale native-window work is not yet prevented in the running game.
+## Implemented native runtime milestone
+
+- Android `horizon-android` builds and links the GLES2 terrain bridge and EGL owner for ARMv7/API 22.
+- `Runtime` owns the EGL context and terrain backend on one thread and exposes `suspend`, `resume`, `initialize`, section upload/removal, draw and presentation methods.
+- A context-generation change replaces the stale GL backend and blocks section operations until `initialize` succeeds again. CPU-side section meshes remain the caller's responsibility to retain and resend.
+- Terrain drawing now returns a status through the C ABI; invalid matrices and GL errors are surfaced to Rust rather than silently treated as a successful draw.
+- The standalone NativeActivity smoke test now uploads a real section-shaped buffer, exercises `draw_sections`, checks invalid-matrix reporting and then continues its animation/render loop.
+
+These are compiled native/runtime capabilities, not proof that the Horizon game loop calls them. The `Launcher` still constructs wgpu renderers, and the `Game` still calls `Renderer::upload` / `Renderer::render`.
+
 ## Required ownership model
 
 Do not put fake wgpu handles behind a GLES2 implementation. Do not move EGL objects, GL names, or context-bound resources through the existing wgpu `Renderer` fields.
