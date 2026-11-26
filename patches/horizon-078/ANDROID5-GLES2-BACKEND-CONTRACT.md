@@ -328,3 +328,10 @@ A separate `horizon_egl_owner.{h,cpp}` owns one Android native-window reference,
 The Android patch script copies these native sources into `crates/horizon-android/gles2-native`, adds a `cc` build dependency and `build.rs`, links EGL/GLESv2/android/log, and installs the Rust FFI and winit Android native-window wrapper. The API is therefore part of the Android cdylib build rather than a separately compiled demo-only shared library.
 
 **Remaining integration boundary:** `Game` and `Loading` still store `Option<gfx::Renderer>`, and their render/upload paths still invoke wgpu. The new `gles2_egl::Runtime` is not yet constructed by the launcher, transferred into `Game`, or called from `renderer.upload` / `renderer.render`. EGL surface detach/re-attach and context-loss recovery are also not yet wired to Android lifecycle callbacks. This commit series must not be described as a connected game renderer until those call sites are replaced and the Android cdylib build passes.
+
+## Latest Android 5 cross-check
+
+Workflow run [#277](https://github.com/ale5is/pvz-port-c-unity/actions/runs/45861521542), for commit `7a8aa36e6d39ef1afe693e362b57565cdbd8ad44`, completed its ARMv7/API-22 job successfully. The following steps completed successfully: Android SDK/NDK setup, exact Horizon source checkout, renderer/lifecycle source-contract checks, native GLES2 CMake build, HUD and terrain CPU adapter tests, reference and embedded GLSL ES 1.00 compilation, native ABI/source checks, and both Horizon ARMv7 Rust checks (client and Android cdylib).
+
+The workflow's manual-only steps were skipped, not passed: Mojang manifest preparation, official game-resource preparation, diagnostic APK build, and artifact upload. The Rust build emitted dead-code warnings for the EGL owner/runtime entry points, confirming that these APIs are linked but not yet called by the launcher/game. This run does not establish an APK, a GLES2 frame, or gameplay on hardware.
+
