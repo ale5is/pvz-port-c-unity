@@ -502,8 +502,15 @@ impl Runtime {
     }
 
     pub(crate) fn remove_column(&mut self, x: i32, z: i32) -> Result<(), String> {
+        if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.egl.make_current()?;
         self.renderer.remove_column(x, z)
+    }
+
+    pub(crate) fn clear_sections(&mut self) -> Result<(), String> {
+        if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
+        self.egl.make_current()?;
+        self.renderer.clear_sections()
     }
 
     pub(crate) fn draw_sections(
