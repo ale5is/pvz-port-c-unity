@@ -435,6 +435,17 @@ pub fn visible_solid_triangle_ranges(sides: &Sides, eye: [f32; 3]) -> Vec<(u32, 
     ranges
 }
 
+/// Pack visible triangle ranges as [first, count, first, count, ...] for the
+/// native GLES2 upload boundary. Values are in expanded GL_TRIANGLES vertices.
+pub fn visible_solid_triangle_ranges_packed(sides: &Sides, eye: [f32; 3]) -> Vec<u32> {
+    let mut packed = Vec::new();
+    sides.visible(eye, |first_quad, quad_count| {
+        packed.push(first_quad * 6);
+        packed.push(quad_count * 6);
+    });
+    packed
+}
+
 /// Sort the expanded six-vertex triangles for each Horizon translucent quad.
 /// convert_mesh() expands each original quad as (0,1,2, 2,3,0); vertices 0 and 2
 /// remain the opposite corners used by Horizon's own quad-centroid sorting.
@@ -477,6 +488,12 @@ mod tests {
     use super::*;
     use crate::mesher::TerrainVertex;
 
+
+    #[test]
+    fn packed_solid_ranges_match_native_triangle_vertex_units() {
+        let packed = visible_solid_triangle_ranges_packed(&Sides::unsorted(3), [0.0; 3]);
+        assert_eq!(packed, vec![0, 18]);
+    }
 
     fn test_payload(key: (i32, i32, i32), vertex_count: usize) -> Gles2SectionPayload {
         Gles2SectionPayload {
