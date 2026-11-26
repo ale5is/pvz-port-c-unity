@@ -290,19 +290,21 @@ pub struct Gles2SectionPayload {
 }
 
 impl Gles2SectionPayload {
-    /// CPU bytes owned by this payload, with checked arithmetic for queue budgets.
+    /// Reserved CPU buffer bytes owned by this payload, with checked arithmetic.
+    /// Capacities are used rather than lengths so queue limits include spare Vec
+    /// allocations retained by the payload on memory-constrained Android devices.
     pub fn byte_len(&self) -> Result<usize, &'static str> {
-        let vertices = self.geometry.solid.len()
-            .checked_add(self.geometry.translucent.len())
+        let vertices = self.geometry.solid.capacity()
+            .checked_add(self.geometry.translucent.capacity())
             .and_then(|count| count.checked_mul(std::mem::size_of::<Gles2TerrainVertex>()))
             .ok_or("terrain payload vertex byte count overflow")?;
-        let block_entities = self.block_entities.len()
+        let block_entities = self.block_entities.capacity()
             .checked_mul(std::mem::size_of::<([i32; 3], u32)>())
             .ok_or("terrain payload block-entity byte count overflow")?;
-        let lights = self.lights.len()
+        let lights = self.lights.capacity()
             .checked_mul(std::mem::size_of::<([i32; 3], u32)>())
             .ok_or("terrain payload light byte count overflow")?;
-        let sprite_layers = self.sprite_layers.len()
+        let sprite_layers = self.sprite_layers.capacity()
             .checked_mul(std::mem::size_of::<u16>())
             .ok_or("terrain payload sprite-layer byte count overflow")?;
         let bounds = if self.bounds.is_some() { 6 * std::mem::size_of::<f32>() } else { 0 };
@@ -674,6 +676,24 @@ mod tests {
         assert!(queue.queued_bytes() > 0);
         queue.clear();
         assert_eq!(queue.len(), 0);
+        assert_eq!(queue.queued_bytes(), 0);
+    }
+
+    #[test]
+    fn payload_budget_counts_reserved_capacity_not_only_live_vertices() {
+        let mut payload = test_payload((9, 0, 9), 1);
+        let live_bytes = payload.byte_len().unwrap();
+        payload.geometry.solid.reserve(256);
+        let reserved_bytes = payload.byte_len().unwrap();
+        assert!(reserved_bytes > live_bytes);
+
+        let mut queue = Gles2SectionQueue::new(live_bytes);
+        let rejected = match queue.enqueue(payload) {
+            Err(payload) => payload,
+            Ok(_) => panic!("queue must reject a payload whose reserved buffers exceed its budget"),
+        };
+        assert!(rejected.byte_len().unwrap() > queue.max_bytes());
+        assert!(queue.is_empty());
         assert_eq!(queue.queued_bytes(), 0);
     }
 
