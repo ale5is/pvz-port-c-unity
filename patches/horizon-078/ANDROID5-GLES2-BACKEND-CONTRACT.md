@@ -156,7 +156,7 @@ The first adapter should copy the two existing mesh lists independently:
 - The section origin remains metadata, not baked into each vertex, so camera-relative precision is retained.
 - Empty meshes must be valid zero-count uploads; all byte-size multiplication and GLES2 `GLsizei` conversions must be checked.
 
-This establishes a concrete conversion contract from Horizon's existing section meshes to the prototype's expanded GLES2 vertex. It does not yet implement that conversion or prove the atlas packing/filtering matches the game's output.
+This establishes the conversion contract from Horizon's existing section meshes to the prototype's expanded GLES2 vertex. A first CPU-only implementation now exists in `tools/gles2-hud-prototype/app/src/main/cpp/horizon_terrain_adapter.{h,cpp}`; its exact scope and remaining gaps are listed below.
 
 ### Existing GL shader path is not the ES2 implementation
 
@@ -164,3 +164,18 @@ The pinned `gfx/terrain_source.rs` is a legacy GLSL/WGSL lowering path for wgpu'
 
 
 The pinned `sprites.rs` confirms the pixel layout precisely: `Sprites::finish()` resamples every sprite frame to one common square edge length (`RenderAssets.sprite_size`) and appends each layer's RGBA bytes consecutively to `RenderAssets.pixels`. Thus the CPU buffer is layer-major, with exactly `sprite_size * sprite_size * 4` bytes per layer. The ES2 atlas builder can copy layer `n` from byte range `n * layer_bytes .. (n + 1) * layer_bytes`; it must not assume the source buffer is already a single 2D atlas. Animated sprite frames are maintained separately in `RenderAssets.animations` and will need matching atlas-cell updates when animation support is integrated.
+
+
+## First CPU adapter implementation
+
+The native prototype now contains a CPU-only conversion layer, compiled into its Android CMake target:
+
+- `HorizonTerrainVertex` declares the exact 24-byte input layout and checks every field offset at compile time.
+- `build_gles2_terrain_atlas()` copies the layer-major RGBA source into a deterministic 2D grid. It checks multiplication overflow, the 15-bit sprite-index limit and `GL_MAX_TEXTURE_SIZE`; it fails explicitly if every layer cannot fit in the one atlas instead of silently dropping layers.
+- `convert_horizon_terrain_vertices()` expands positions, decodes fixed-point UVs using an explicit scale argument (32768 for ordinary section meshes; 32 for tiled distant-terrain UVs), maps sprite indices to atlas rectangles, unpacks RGBA bytes, splits sky/block light, and preserves the opaque-layer flag.
+- The alpha metadata is decoded using the pinned Horizon logic: `tier = 15 - (alpha & 0x0f)`; fluid-face metadata is detected from the upper nibble. The emission attribute is kept as the tier byte, and the ES2 fragment shader converts its normalized value using the same `tier * 7 / 15` scale used by `gfx/native_material.rs`.
+- Mesh input is rejected unless its vertex count is a triangle list. Invalid sprite references clear the partially converted output and return an error.
+
+### Explicit limitations
+
+This is not yet the game integration. The Rust `SectionMesh` and `RenderAssets` are not passed to this C++ adapter; the NativeActivity still feeds synthetic test geometry. The adapter currently builds one atlas and returns an error if the full layer set exceeds it. Animation-frame updates, lightmap generation/upload from Horizon, side-bucket culling, camera-sorted translucent meshes, section upload/eviction, and the winit launcher/lifecycle bridge remain unimplemented. The static workflow checks and Android NDK compilation validate the code boundary, not pixel correctness or playability on the Philips TV.
