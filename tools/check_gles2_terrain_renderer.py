@@ -11,6 +11,36 @@ adapter_header = (root / "horizon_terrain_adapter.h").read_text(encoding="utf-8"
 adapter_source = (root / "horizon_terrain_adapter.cpp").read_text(encoding="utf-8")
 cmake = (root / "CMakeLists.txt").read_text(encoding="utf-8")
 native_host = (root / "native_hud.cpp").read_text(encoding="utf-8")
+bridge_header = (root / "horizon_gles2_bridge.h").read_text(encoding="utf-8")
+bridge_source = (root / "horizon_gles2_bridge.cpp").read_text(encoding="utf-8")
+repo_root = Path(__file__).resolve().parents[1]
+android_build_patch = (repo_root / "patches/horizon-078/gles2-native-build.py").read_text(encoding="utf-8")
+
+for label, source, markers in [
+    ("renderer context-loss abandonment", header, ("void abandon_context() noexcept;",)),
+    ("renderer context-loss abandonment implementation", source, (
+        "void Gles2TerrainRenderer::abandon_context() noexcept",
+        "sections_.clear();",
+        "owner_thread_set_ = false;",
+    )),
+    ("native bridge context-loss ABI", bridge_header, ("void pavo_gles2_abandon(PavoGles2Handle* handle);",)),
+    ("native bridge context-loss ABI implementation", bridge_source, (
+        'extern "C" void pavo_gles2_abandon(PavoGles2Handle* handle)',
+        "handle->renderer.abandon_context();",
+        "handle->initialized = false;",
+    )),
+    ("Rust EGL context-loss recovery", android_build_patch, (
+        "fn pavo_gles2_abandon(handle: *mut c_void);",
+        "pub(crate) fn abandon(self)",
+        "std::mem::ManuallyDrop::new(self)",
+        "self.renderer.abandon();",
+        "self.renderer = super::gles2_native::Backend::new()?;",
+    )),
+]:
+    missing_markers = [item for item in markers if item not in source]
+    if missing_markers:
+        raise SystemExit(f"FAIL: {label}: missing {missing_markers}")
+print("PASS: EGL context loss abandons stale GL names before creating the replacement backend")
 
 error_clears = re.findall(r"error_\[0\]\s*=\s*'([^']*)';", source)
 if not error_clears or any(value != r"\0" for value in error_clears):
