@@ -116,6 +116,33 @@ pub(crate) struct HorizonTerrainVertex {
     pub color: u32,
 }
 
+/// Copy Horizon's native SectionMesh vertices into the stable C ABI layout.
+/// Mesh workers retain ownership of the source; the returned vectors can be
+/// moved to the EGL owner thread without carrying wgpu or GL objects.
+pub(crate) fn copy_section_vertices(
+    source: &[horizon_client::mesher::TerrainVertex],
+) -> Result<Vec<HorizonTerrainVertex>, String> {
+    let mut output = Vec::new();
+    output.try_reserve_exact(source.len())
+        .map_err(|_| "Not enough memory to stage Horizon terrain vertices".to_owned())?;
+    output.extend(source.iter().map(|vertex| HorizonTerrainVertex {
+        position: vertex.pos,
+        uv: vertex.uv,
+        layer: vertex.layer,
+        light: vertex.light,
+        color: vertex.color,
+    }));
+    Ok(output)
+}
+
+pub(crate) fn visible_solid_ranges(
+    sides: &horizon_client::mesher::Sides,
+    eye: [f32; 3],
+) -> Result<Vec<u32>, String> {
+    horizon_client_render::gles2_terrain::visible_solid_triangle_ranges_packed(sides, eye)
+        .map_err(str::to_owned)
+}
+
 unsafe extern "C" {
     fn pavo_gles2_create() -> *mut c_void;
     fn pavo_gles2_destroy(handle: *mut c_void);
