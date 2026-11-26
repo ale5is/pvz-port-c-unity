@@ -338,7 +338,7 @@ bool Gles2TerrainRenderer::upload_buffer(GLuint* buffer, GLsizei* vertex_count,
         if (*buffer) glDeleteBuffers(1, buffer);
         *buffer = 0;
         *vertex_count = 0;
-        error_[0] = '\\0';
+        error_[0] = '\0';
         return true;
     }
 
@@ -363,7 +363,7 @@ bool Gles2TerrainRenderer::upload_buffer(GLuint* buffer, GLsizei* vertex_count,
     if (*buffer) glDeleteBuffers(1, buffer);
     *buffer = replacement_buffer;
     *vertex_count = static_cast<GLsizei>(count);
-    error_[0] = '\\0';
+    error_[0] = '\0';
     return true;
 }
 
