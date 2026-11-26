@@ -318,6 +318,7 @@ egl_module = root / "crates/horizon-client/src/android/gles2_egl.rs"
 egl_source = r'''use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use std::ffi::{CStr, c_char, c_void};
 use std::ptr::NonNull;
+use std::sync::Arc;
 use std::thread::{self, ThreadId};
 use winit::window::Window;
 
