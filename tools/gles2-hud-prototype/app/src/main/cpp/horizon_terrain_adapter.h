@@ -46,4 +46,12 @@ bool convert_horizon_terrain_vertices(const HorizonTerrainVertex* source,
                                       std::vector<Gles2TerrainVertex>* output,
                                       std::string* error = nullptr);
 
+bool upload_horizon_section(Gles2TerrainRenderer* renderer,
+                            const std::int32_t key[3],
+                            const HorizonTerrainVertex* solid, std::size_t solid_count,
+                            const HorizonTerrainVertex* translucent,
+                            std::size_t translucent_count,
+                            const Gles2TerrainAtlas& atlas, float uv_steps,
+                            std::string* error = nullptr);
+
 }  // namespace pavo
