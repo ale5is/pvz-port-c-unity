@@ -44,7 +44,7 @@ The generation is a monotonically increasing unsigned integer. Increment it when
 
 A surface-only recreation may retain the context and GL resources only if the EGL implementation and context lifecycle permit it. If context loss is reported, rebuild every GL object from CPU-owned source data; never assume texture or buffer names survive.
 
-The native owner now exposes a context-generation counter through `pavo_egl_context_generation`. It increments when `pavo_egl_resume` has to recreate an `EGL_CONTEXT_LOST` context. The Rust `Runtime::resume` compares this value: unchanged means surface-only resume and existing resources remain valid; changed means the old GLES2 backend is replaced and `is_initialized()` becomes false. The caller must call `initialize` again and re-upload retained section meshes/animated atlas state before drawing. This counter tracks GL context validity, not native-window generations.
+The native owner now exposes a context-generation counter through `pavo_egl_context_generation`. It increments when `pavo_egl_resume` has to recreate an `EGL_CONTEXT_LOST` context. The Rust `Runtime::resume` compares this value: unchanged means surface-only resume and existing resources remain valid; changed means the old GLES2 backend is replaced and `is_initialized()` becomes false. The runtime now retains the initial sprite-atlas pixels, lightmap pixels, and uploaded section vertex/range payloads in CPU memory. On a changed context generation it creates a fresh GLES2 backend, reinitializes textures, replays every cached section, and only then marks itself initialized. `remove_column` and `clear_sections` keep the CPU cache in sync. This closes the prototype runtime's mesh/texture-loss gap; animated atlas updates and live Game call-site wiring are still not connected. This counter tracks GL context validity, not native-window generations.
 
 ## Event mapping
 
@@ -75,7 +75,8 @@ Before wiring this owner into Horizon:
 - [x] Native EGL owner detects context loss and reports a monotonically increasing GL context generation.
 - [x] Rust runtime recreates the backend after a generation change and blocks terrain uploads/draws until reinitialized.
 - [ ] Launcher/Game callbacks invoke the runtime suspend/resume methods and restore atlas, lightmap, animations and section meshes.
-- [ ] Context-loss recovery recreates all resources from CPU-owned data.
+- [x] Runtime context-loss recovery recreates its cached sprite atlas, lightmap and uploaded terrain sections from CPU-owned data.
+- [ ] Runtime cache receives the live Game atlas/lightmap and all streaming updates; animated atlas state is still not wired.
 - [ ] Desktop wgpu construction and lifecycle remain unchanged.
 - [ ] An Android integration test exercises initial attach, suspend/resume, window replacement, context loss and shutdown.
 
