@@ -345,11 +345,16 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
                                           std::size_t solid_count,
                                           const Gles2TerrainVertex* translucent,
                                           std::size_t translucent_count) {
-    if (!key || (solid_count == 0 && translucent_count == 0)) {
-        std::snprintf(error_, sizeof(error_), "Section key and at least one terrain pass are required");
+    if (!key) {
+        std::snprintf(error_, sizeof(error_), "Section key is required");
         return false;
     }
     const std::array<std::int32_t, 3> section_key{{key[0], key[1], key[2]}};
+    if (solid_count == 0 && translucent_count == 0) {
+        remove_section(key);
+        error_[0] = '\\0';
+        return true;
+    }
     const auto existing = sections_.find(section_key);
     constexpr std::size_t kMaximumResidentSections = 512;
     if (existing == sections_.end() && sections_.size() >= kMaximumResidentSections) {
@@ -376,6 +381,16 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
     }
     error_[0] = '\\0';
     return true;
+}
+
+void Gles2TerrainRenderer::remove_section(const std::int32_t key[3]) {
+    if (!key) return;
+    const std::array<std::int32_t, 3> section_key{{key[0], key[1], key[2]}};
+    const auto it = sections_.find(section_key);
+    if (it == sections_.end()) return;
+    if (it->second.solid_vbo) glDeleteBuffers(1, &it->second.solid_vbo);
+    if (it->second.translucent_vbo) glDeleteBuffers(1, &it->second.translucent_vbo);
+    sections_.erase(it);
 }
 
 void Gles2TerrainRenderer::remove_column(std::int32_t section_x, std::int32_t section_z) {
@@ -410,9 +425,10 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
     };
     std::vector<VisibleSection> visible;
     visible.reserve(sections_.size());
-    const float max_distance_squared = max_distance > 0.0f ? max_distance * max_distance : 0.0f;
+    constexpr float kSectionCullRadius = 13.85640646f;
+    const float max_cull_distance = max_distance > 0.0f ? max_distance + kSectionCullRadius : 0.0f;
+    const float max_distance_squared = max_cull_distance * max_cull_distance;
     constexpr float kSectionSize = 16.0f;
-    constexpr float kSectionHalfDiagonalSquared = 192.0f;
     for (const auto& entry : sections_) {
         const float origin[3] = {
             static_cast<float>(entry.first[0]) * kSectionSize,
@@ -424,7 +440,7 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
         const float dz = origin[2] + 8.0f - camera_position[2];
         const float distance_squared = dx * dx + dy * dy + dz * dz;
         if (max_distance_squared > 0.0f &&
-            distance_squared > max_distance_squared + kSectionHalfDiagonalSquared) continue;
+            distance_squared > max_distance_squared) continue;
         visible.push_back({distance_squared, &entry.second, {origin[0], origin[1], origin[2]}});
     }
 
