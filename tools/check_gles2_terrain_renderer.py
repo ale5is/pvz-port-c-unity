@@ -447,6 +447,31 @@ terrain_patch = Path("patches/horizon-078/gles2-terrain-adapter.py")
 if not terrain_patch.is_file():
     raise SystemExit("FAIL: Horizon GLES2 terrain adapter patch is missing")
 terrain_source = terrain_patch.read_text(encoding="utf-8")
+animation_tracker_start = terrain_source.index("pub struct Gles2SpriteAnimationTracker")
+animation_tracker_end = terrain_source.index("#[derive(Clone, Copy, Debug, PartialEq)]", animation_tracker_start)
+animation_tracker = terrain_source[animation_tracker_start:animation_tracker_end]
+for item in [
+    "pub fn animation_blend_changed(last: Option<&FrameBlend>, current: &FrameBlend) -> bool",
+    "last != Some(current)",
+    "animation_blend_changed(self.last_blends.get(&animation.layer), &blend)",
+    "self.pending_blends.clear()",
+    "self.last_blends.clear()",
+]:
+    if item not in terrain_source:
+        raise SystemExit(f"FAIL: animation change tracking contract is missing {item}")
+if "animation_blend_change_detection_covers_first_upload_and_all_fields" not in terrain_source:
+    raise SystemExit("FAIL: animation blend detection regression tests are missing")
+for item in [
+    "assert!(animation_blend_changed(None, &first)",
+    "assert!(!animation_blend_changed(Some(&first), &first)",
+    "FrameBlend { millis: 1, ..first }",
+    "FrameBlend { frame: 1, next: 0, millis: 0 }",
+    "FrameBlend { next: 2, ..first }",
+]:
+    if item not in terrain_source:
+        raise SystemExit(f"FAIL: animation blend test does not cover {item}")
+print("PASS: animation tracker distinguishes first upload, unchanged blend, interpolation and frame changes")
+
 sort_start = terrain_source.index("pub fn sort_translucent_back_to_front(")
 sort_end = terrain_source.index("#[cfg(test)]", sort_start)
 sort_body = terrain_source[sort_start:sort_end]
