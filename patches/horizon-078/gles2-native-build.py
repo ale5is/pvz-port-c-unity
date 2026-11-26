@@ -183,6 +183,7 @@ unsafe extern "C" {
 pub(crate) struct Backend {
     handle: NonNull<c_void>,
     owner: ThreadId,
+    abandoned: bool,
     _not_send_or_sync: PhantomData<*mut ()>,
 }
 
@@ -193,17 +194,21 @@ impl Backend {
         Ok(Self {
             handle,
             owner: thread::current().id(),
+            abandoned: false,
             _not_send_or_sync: PhantomData,
         })
     }
 
-    pub(crate) fn abandon(self) {
-        let backend = std::mem::ManuallyDrop::new(self);
-        if thread::current().id() != backend.owner {
+    pub(crate) fn abandon(&mut self) {
+        if self.abandoned {
+            return;
+        }
+        if thread::current().id() != self.owner {
             log::error!("Refusing to abandon GLES2 backend outside its EGL owner thread");
             return;
         }
-        unsafe { pavo_gles2_abandon(backend.handle.as_ptr()) };
+        unsafe { pavo_gles2_abandon(self.handle.as_ptr()) };
+        self.abandoned = true;
     }
 
     fn check_owner(&self) -> Result<*mut c_void, String> {
@@ -302,6 +307,9 @@ impl Backend {
 
 impl Drop for Backend {
     fn drop(&mut self) {
+        if self.abandoned {
+            return;
+        }
         if thread::current().id() != self.owner {
             log::error!("Refusing to destroy GLES2 backend outside its EGL owner thread");
             return;
