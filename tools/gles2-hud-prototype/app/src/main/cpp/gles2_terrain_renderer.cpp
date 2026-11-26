@@ -393,8 +393,9 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
     }
     std::vector<std::pair<GLint, GLsizei>> solid_ranges;
     if (use_solid_ranges) {
-        if (solid_count % 3 != 0 || range_count > solid_count / 3) {
-            std::snprintf(error_, sizeof(error_), "Solid side range count exceeds the incoming triangle list");
+        if (range_count > std::numeric_limits<std::size_t>::max() / 2 ||
+            solid_count % 3 != 0 || range_count > solid_count / 3) {
+            std::snprintf(error_, sizeof(error_), "Solid side range count exceeds the incoming triangle list or packed-index limit");
             return false;
         }
         try {
@@ -517,8 +518,9 @@ bool Gles2TerrainRenderer::set_section_solid_ranges(
         std::snprintf(error_, sizeof(error_), "Cannot set solid ranges for a nonresident section");
         return false;
     }
-    if (range_count > static_cast<std::size_t>(it->second.solid_count) / 3) {
-        std::snprintf(error_, sizeof(error_), "Solid side range count exceeds the resident triangle list");
+    if (range_count > std::numeric_limits<std::size_t>::max() / 2 ||
+        range_count > static_cast<std::size_t>(it->second.solid_count) / 3) {
+        std::snprintf(error_, sizeof(error_), "Solid side range count exceeds the resident triangle list or packed-index limit");
         return false;
     }
     std::vector<std::pair<GLint, GLsizei>> ranges;
