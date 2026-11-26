@@ -135,12 +135,12 @@ jobs:
         run: python3 patches/horizon-078/renderer-hud-boundary.py "$RUNNER_TEMP/horizon-078"
 
       - name: Separate the CPU frame contract from wgpu
-        run: |
-          python3 patches/horizon-078/renderer-frame-contract.py "$RUNNER_TEMP/horizon-078"
-          python3 tools/check_android5_frame_contract.py "$RUNNER_TEMP/horizon-078"
+        run: python3 patches/horizon-078/renderer-frame-contract.py "$RUNNER_TEMP/horizon-078"
 
       - name: Move CPU render inputs out of wgpu implementation modules
-        run: python3 patches/horizon-078/renderer-frame-inputs.py "$RUNNER_TEMP/horizon-078"
+        run: |
+          python3 patches/horizon-078/renderer-frame-inputs.py "$RUNNER_TEMP/horizon-078"
+          python3 tools/check_android5_frame_contract.py "$RUNNER_TEMP/horizon-078"
 
       - name: Audit remaining renderer GPU ownership references
         run: python3 tools/check_android5_renderer_ownership.py "$RUNNER_TEMP/horizon-078"
