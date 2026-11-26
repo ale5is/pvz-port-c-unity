@@ -21,6 +21,7 @@ on:
       - 'patches/horizon-078/gles2-terrain-translucent.frag'
       - 'tools/check_gles2_terrain_shaders.py'
       - 'tools/check_gles2_terrain_renderer.py'
+      - 'tools/check_gles2_embedded_shaders.py'
       - 'tools/gles2-hud-prototype/app/src/main/cpp/**'
       - '.github/workflows/pavohorizon-078-android22-diagnostic.yml'
   workflow_dispatch:
@@ -164,6 +165,9 @@ jobs:
 
       - name: Check GLES2 terrain shader contract
         run: python3 tools/check_gles2_terrain_shaders.py
+
+      - name: Compile exact shaders embedded in native GLES2 renderer
+        run: python3 tools/check_gles2_embedded_shaders.py tools/gles2-hud-prototype/app/src/main/cpp/gles2_terrain_renderer.cpp "$(command -v glslangValidator)"
 
       - name: Check native GLES2 renderer ABI and emission path
         run: python3 tools/check_gles2_terrain_renderer.py tools/gles2-hud-prototype/app/src/main/cpp
