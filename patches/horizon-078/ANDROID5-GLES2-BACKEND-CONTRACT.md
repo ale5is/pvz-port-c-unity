@@ -287,3 +287,12 @@ The native draw path also caches all nine uniform locations once after linking e
 
 A new workflow step extracts the three exact GLSL strings compiled at runtime by `Gles2TerrainRenderer` and runs `glslangValidator` on them. This closes a previous validation gap: compiling the separate reference shader files did not prove that the shader strings actually embedded in the Android C++ renderer were valid.
 
+
+
+## EGL owner-thread enforcement in the native prototype
+
+The native terrain renderer now binds its EGL owner thread on the first `initialize()` call. Every public operation that can touch GL state checks that same thread before doing work: texture/program initialization, standalone and keyed uploads, side-range updates, section/column eviction, cache clearing, both draw paths, and release.
+
+An operation issued before initialization or from a different thread is rejected before its first GL call. Boolean operations return `false`; void operations leave the GL resources untouched and record a diagnostic in `last_error()`. Reinitialization is permitted only on the original owner thread. The renderer does not silently migrate its context ownership.
+
+This is a defensive guard, not a replacement for lifecycle coordination: the owner must still make the EGL context current before calling the API, call `release()` before EGL teardown, and destroy the renderer on its owner thread. A wrong-thread destructor cannot safely delete GL objects; callers must obey the destruction contract. The static GLES2 checker now verifies that each public GL entry point contains its owner-thread guard. Android NDK CI is the compile check for the C++ implementation; neither check demonstrates integration with Horizon's live game loop.
