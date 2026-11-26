@@ -70,6 +70,7 @@ public:
               const float camera_position[3], const float fog_color[4],
               const float fog_range[2]);
     void release();
+    void abandon_context() noexcept;
 
     const char* last_error() const { return error_; }
 
