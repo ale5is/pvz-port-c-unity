@@ -12,6 +12,8 @@ on:
       - 'tools/check_android5_renderer_boundary.py'
       - 'patches/horizon-078/gles2-hud-adapter.py'
       - 'patches/horizon-078/renderer-hud-boundary.py'
+      - 'patches/horizon-078/renderer-frame-contract.py'
+      - 'tools/check_android5_frame_contract.py'
       - 'tools/check_android5_renderer_ownership.py'
       - 'tools/check_android5_game_loop.py'
       - 'tools/check_android5_backend_selection.py'
@@ -130,6 +132,11 @@ jobs:
 
       - name: Encapsulate renderer HUD backend setup
         run: python3 patches/horizon-078/renderer-hud-boundary.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Separate the CPU frame contract from wgpu
+        run: |
+          python3 patches/horizon-078/renderer-frame-contract.py "$RUNNER_TEMP/horizon-078"
+          python3 tools/check_android5_frame_contract.py "$RUNNER_TEMP/horizon-078"
 
       - name: Audit remaining renderer GPU ownership references
         run: python3 tools/check_android5_renderer_ownership.py "$RUNNER_TEMP/horizon-078"
