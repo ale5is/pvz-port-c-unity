@@ -21,6 +21,7 @@ required_header = [
     "UniformLocations solid_uniforms_",
     "UniformLocations translucent_uniforms_",
     "bool upload_section(",
+    "bool use_solid_ranges = false",
     "bool set_section_solid_ranges(",
     "bool has_solid_ranges = false;",
     "void remove_section(",
@@ -200,6 +201,7 @@ required_adapter_header = [
     "bool convert_horizon_terrain_vertices(",
     "bool upload_horizon_section(",
     "bool upload_horizon_section_with_ranges(",
+    "first_count_pairs, range_count, true",
 ]
 required_adapter_source = [
     "layer_major_rgba",
@@ -327,14 +329,17 @@ ranges_end = adapter_source.index("}  // namespace pavo", ranges_start)
 ranges_body = adapter_source[ranges_start:ranges_end]
 for item in [
     "if (range_count != 0 && !first_count_pairs)",
-    "upload_horizon_section(renderer, key",
-    "renderer->set_section_solid_ranges(key, first_count_pairs, range_count)",
+    "convert_horizon_terrain_vertices(solid, solid_count",
+    "convert_horizon_terrain_vertices(translucent, translucent_count",
+    "renderer->upload_section(key,",
+    "first_count_pairs, range_count, true",
 ]:
     if item not in ranges_body:
         raise SystemExit(f"FAIL: Horizon side-range upload adapter missing {item}")
-if not (ranges_body.index("upload_horizon_section(renderer, key") <
-        ranges_body.index("renderer->set_section_solid_ranges(")):
-    raise SystemExit("FAIL: Horizon side ranges must be applied only after the section VBO replacement succeeds")
+if not (ranges_body.index("convert_horizon_terrain_vertices(solid") <
+        ranges_body.index("convert_horizon_terrain_vertices(translucent") <
+        ranges_body.index("renderer->upload_section(key,")):
+    raise SystemExit("FAIL: both Horizon mesh layers must convert before atomic geometry/range upload")
 print("PASS: Horizon CPU vertex conversion is overflow-checked, bounded, allocation-safe and atomic")
 print("PASS: Horizon quad expansion preserves exact (0,1,2,2,3,0) triangle winding")
 print("PASS: layer-major sprite pixels pack with duplicated filtering gutters")
