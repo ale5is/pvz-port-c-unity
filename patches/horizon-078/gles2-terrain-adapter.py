@@ -1059,7 +1059,8 @@ mod tests {
         assert_eq!(pixel(1, 1), &[1, 1, 1, 1]);
         assert!(atlas.update_layer_rgba(&mut packed, 2, &animated).is_err());
         assert!(atlas.update_layer_rgba(&mut packed, 1, &animated[..15]).is_err());
-        assert!(atlas.update_layer_rgba(&mut packed[..packed.len() - 1], 1, &animated).is_err());
+        let truncated_len = packed.len() - 1;
+        assert!(atlas.update_layer_rgba(&mut packed[..truncated_len], 1, &animated).is_err());
     }
 
     #[test]
