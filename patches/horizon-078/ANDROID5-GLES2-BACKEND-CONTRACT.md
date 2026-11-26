@@ -283,3 +283,7 @@ The standalone native terrain prototype now applies the CPU atlas contract consi
 
 The native renderer checker now guards these requirements, including the 16px sprite / 18px gutter-cell atlas case. These changes harden the isolated GLES2 prototype and its resource uploads; they do not yet implement Horizon's complete material system or connect the renderer to the winit launcher.
 
+The native draw path also caches all nine uniform locations once after linking each solid/translucent program, rather than calling `glGetUniformLocation` for every section pass on every frame. It clears both texture units after drawing and resets cached locations when GL resources are released. The CI source checker rejects a regression that performs uniform lookups inside the per-frame draw function.
+
+A new workflow step extracts the three exact GLSL strings compiled at runtime by `Gles2TerrainRenderer` and runs `glslangValidator` on them. This closes a previous validation gap: compiling the separate reference shader files did not prove that the shader strings actually embedded in the Android C++ renderer were valid.
+
