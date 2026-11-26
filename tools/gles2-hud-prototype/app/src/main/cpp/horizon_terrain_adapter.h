@@ -30,6 +30,7 @@ struct Gles2TerrainAtlas {
     int height = 0;
     int columns = 0;
     int sprite_size = 0;
+    int cell_size = 0;
     std::size_t layer_count = 0;
 };
 
