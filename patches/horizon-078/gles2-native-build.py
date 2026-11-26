@@ -136,6 +136,7 @@ unsafe extern "C" {
         handle: *mut c_void, mvp: *const f32, camera: *const f32,
         fog_color: *const f32, fog_range: *const f32, max_distance: f32,
     );
+    fn pavo_gles2_update_lightmap(handle: *mut c_void, rgba: *const u8, byte_count: usize) -> i32;
     fn pavo_gles2_update_atlas_layer(
         handle: *mut c_void, layer: u32, rgba: *const u8, byte_count: usize,
     ) -> i32;
@@ -238,6 +239,12 @@ impl Backend {
             )
         };
         Ok(())
+    }
+
+    pub(crate) fn update_lightmap(&mut self, rgba: &[u8]) -> Result<(), String> {
+        let handle = self.check_owner()?;
+        let ok = unsafe { pavo_gles2_update_lightmap(handle, rgba.as_ptr(), rgba.len()) };
+        if ok == 1 { Ok(()) } else { Err(self.native_error()) }
     }
 
     pub(crate) fn update_atlas_layer(&mut self, layer: u32, rgba: &[u8]) -> Result<(), String> {
@@ -413,6 +420,11 @@ impl Runtime {
 
     pub(crate) fn present(&mut self) -> Result<(), String> {
         self.egl.present()
+    }
+
+    pub(crate) fn update_lightmap(&mut self, rgba: &[u8]) -> Result<(), String> {
+        self.egl.make_current()?;
+        self.renderer.update_lightmap(rgba)
     }
 
     pub(crate) fn update_atlas_layer(&mut self, layer: u32, rgba: &[u8]) -> Result<(), String> {
