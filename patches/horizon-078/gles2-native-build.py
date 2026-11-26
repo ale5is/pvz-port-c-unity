@@ -413,9 +413,9 @@ if not egl_module.exists():
 
 render_lib = root / "crates/horizon-client/src/android_main.rs"
 render_text = render_lib.read_text(encoding="utf-8")
-egl_decl = '#[path = "android/gles2_egl.rs"]\\nmod gles2_egl;\\n'
+egl_decl = '#[path = "android/gles2_egl.rs"]\nmod gles2_egl;\n'
 if egl_decl not in render_text:
-    anchor_decl = "mod gles2_native;\\n"
+    anchor_decl = "mod gles2_native;\n"
     if render_text.count(anchor_decl) != 1:
         raise SystemExit("Could not uniquely locate gles2_native module declaration")
     render_lib.write_text(render_text.replace(anchor_decl, anchor_decl + egl_decl), encoding="utf-8")
@@ -423,8 +423,8 @@ if egl_decl not in render_text:
 android_cargo = root / "crates/horizon-android/Cargo.toml"
 android_cargo_text = android_cargo.read_text(encoding="utf-8")
 if 'raw-window-handle = "0.6"' not in android_cargo_text:
-    marker = 'winit = { version = "0.30.13", features = ["android-native-activity"] }\\n'
+    marker = 'winit = { version = "0.30.13", features = ["android-native-activity"] }\n'
     if android_cargo_text.count(marker) != 1:
         raise SystemExit("Could not uniquely locate winit dependency for raw-window-handle")
-    android_cargo.write_text(android_cargo_text.replace(marker, marker + 'raw-window-handle = "0.6"\\n'), encoding="utf-8")
+    android_cargo.write_text(android_cargo_text.replace(marker, marker + 'raw-window-handle = "0.6"\n'), encoding="utf-8")
 print("Installed reusable GLES2 native sources and Android ARMv7 C++ build integration.")
