@@ -29,6 +29,12 @@ for label, candidate, markers in [
         "handle->renderer.abandon_context();",
         "handle->initialized = false;",
     )),
+    ("native bridge partial-initialization cleanup", bridge_source, (
+        "void pavo_gles2_destroy(PavoGles2Handle* handle)",
+        "handle->renderer.release();",
+        "set_error(handle, handle->renderer.last_error());",
+        "handle->renderer.release();",
+    )),
     ("Rust EGL context-loss recovery", android_build_patch, (
         "fn pavo_gles2_abandon(handle: *mut c_void);",
         "pub(crate) fn abandon(&mut self)",
