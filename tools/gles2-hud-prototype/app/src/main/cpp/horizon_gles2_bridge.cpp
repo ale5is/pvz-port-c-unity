@@ -128,6 +128,20 @@ extern "C" void pavo_gles2_draw_sections(
     handle->renderer.draw_sections(mvp, camera_position, fog_color, fog_range, max_distance);
 }
 
+extern "C" int pavo_gles2_update_lightmap(
+    PavoGles2Handle* handle, const std::uint8_t* rgba, std::size_t byte_count) {
+    if (!handle || !handle->initialized || !rgba) {
+        set_error(handle, "Invalid or uninitialized GLES2 lightmap update");
+        return 0;
+    }
+    if (!handle->renderer.update_lightmap(rgba, byte_count)) {
+        set_error(handle, handle->renderer.last_error());
+        return 0;
+    }
+    handle->error.clear();
+    return 1;
+}
+
 extern "C" int pavo_gles2_update_atlas_layer(
     PavoGles2Handle* handle,
     std::uint32_t layer,
