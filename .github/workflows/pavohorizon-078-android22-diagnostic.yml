@@ -98,6 +98,9 @@ jobs:
           git -C "$RUNNER_TEMP/horizon-078" checkout --detach "$HORIZON_REV"
           test "$(git -C "$RUNNER_TEMP/horizon-078" rev-parse HEAD)" = "$HORIZON_REV"
 
+      - name: Report complete GLES2 renderer migration contract
+        run: python3 tools/report_android5_gles2_migration.py "$RUNNER_TEMP/horizon-078"
+
       - name: Verify Horizon GLES2 renderer integration boundary
         run: python3 tools/check_android5_renderer_boundary.py "$RUNNER_TEMP/horizon-078"
 
