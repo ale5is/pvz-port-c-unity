@@ -60,6 +60,8 @@ fn main() {
         "horizon_terrain_adapter.cpp",
         "horizon_gles2_bridge.h",
         "horizon_gles2_bridge.cpp",
+        "horizon_egl_owner.h",
+        "horizon_egl_owner.cpp",
     ] {
         println!("cargo:rerun-if-changed={}", native.join(file).display());
     }
@@ -251,7 +253,7 @@ if not rust_module.exists():
 
 android_main = root / "crates/horizon-client/src/android_main.rs"
 main_text = android_main.read_text(encoding="utf-8")
-module_decl = "mod gles2_native;\n"
+module_decl = '#[path = "../../horizon-android/gles2_native.rs"]\nmod gles2_native;\n'
 if module_decl not in main_text:
     anchor_main = "mod game;\n"
     if main_text.count(anchor_main) != 1:
@@ -415,7 +417,7 @@ render_lib = root / "crates/horizon-client/src/android_main.rs"
 render_text = render_lib.read_text(encoding="utf-8")
 egl_decl = '#[path = "android/gles2_egl.rs"]\nmod gles2_egl;\n'
 if egl_decl not in render_text:
-    anchor_decl = "mod gles2_native;\n"
+    anchor_decl = '#[path = "../../horizon-android/gles2_native.rs"]\nmod gles2_native;\n'
     if render_text.count(anchor_decl) != 1:
         raise SystemExit("Could not uniquely locate gles2_native module declaration")
     render_lib.write_text(render_text.replace(anchor_decl, anchor_decl + egl_decl), encoding="utf-8")
