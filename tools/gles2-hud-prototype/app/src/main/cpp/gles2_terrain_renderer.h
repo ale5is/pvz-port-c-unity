@@ -48,6 +48,8 @@ public:
                     int sprite_size);
     bool upload_solid(const Gles2TerrainVertex* vertices, std::size_t count);
     bool upload_translucent(const Gles2TerrainVertex* vertices, std::size_t count);
+    bool update_atlas_layer(std::uint32_t layer, const std::uint8_t* rgba,
+                            std::size_t byte_count);
     bool upload_section(const std::int32_t key[3],
                         const Gles2TerrainVertex* solid, std::size_t solid_count,
                         const Gles2TerrainVertex* translucent, std::size_t translucent_count,
