@@ -8,6 +8,20 @@
 namespace pavo {
 namespace {
 
+void clear_gl_errors() {
+    while (glGetError() != GL_NO_ERROR) {}
+}
+
+bool rgba_byte_size(int width, int height, std::size_t* bytes) {
+    if (!bytes || width <= 0 || height <= 0) return false;
+    const std::size_t w = static_cast<std::size_t>(width);
+    const std::size_t h = static_cast<std::size_t>(height);
+    const std::size_t max_size = std::numeric_limits<std::size_t>::max();
+    if (w > max_size / 4 || h > max_size / (w * 4)) return false;
+    *bytes = w * h * 4;
+    return *bytes <= static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max());
+}
+
 const char* kVertexShader = R"GLSL(#version 100
 precision highp float;
 attribute vec3 a_position;
@@ -28,7 +42,7 @@ varying lowp vec4 v_color;
 varying mediump vec2 v_light;
 varying mediump vec2 v_material;
 varying mediump float v_opaque;
-varying highp float v_distance;
+varying mediump float v_distance;
 void main() {
     vec3 world_position = a_position + u_section_origin;
     gl_Position = u_mvp * vec4(world_position, 1.0);
@@ -44,7 +58,11 @@ void main() {
 )GLSL";
 
 const char* kSolidFragmentShader = R"GLSL(#version 100
+#ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
+#else
+precision mediump float;
+#endif
 uniform sampler2D u_terrain_atlas;
 uniform sampler2D u_lightmap;
 uniform vec2 u_atlas_size;
@@ -58,7 +76,7 @@ varying lowp vec4 v_color;
 varying mediump vec2 v_light;
 varying mediump vec2 v_material;
 varying mediump float v_opaque;
-varying highp float v_distance;
+varying mediump float v_distance;
 void main() {
     vec2 local_uv = v_uv - max(ceil(v_uv) - 1.0, vec2(0.0));
     vec2 half_texel = 0.5 / u_atlas_size;
@@ -82,7 +100,11 @@ void main() {
 )GLSL";
 
 const char* kTranslucentFragmentShader = R"GLSL(#version 100
+#ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
+#else
+precision mediump float;
+#endif
 uniform sampler2D u_terrain_atlas;
 uniform sampler2D u_lightmap;
 uniform vec2 u_atlas_size;
@@ -96,7 +118,7 @@ varying lowp vec4 v_color;
 varying mediump vec2 v_light;
 varying mediump vec2 v_material;
 varying mediump float v_opaque;
-varying highp float v_distance;
+varying mediump float v_distance;
 void main() {
     vec2 local_uv = v_uv - max(ceil(v_uv) - 1.0, vec2(0.0));
     vec2 half_texel = 0.5 / u_atlas_size;
@@ -183,18 +205,29 @@ bool Gles2TerrainRenderer::create_programs() {
 
 bool Gles2TerrainRenderer::upload_texture(GLuint* texture, const std::uint8_t* pixels,
                                           int width, int height, GLint filter) {
-    if (!pixels || width <= 0 || height <= 0) {
-        std::snprintf(error_, sizeof(error_), "Invalid texture data or dimensions");
+    std::size_t byte_size = 0;
+    if (!texture || !pixels || !rgba_byte_size(width, height, &byte_size)) {
+        std::snprintf(error_, sizeof(error_), "Invalid texture data, dimensions, or byte size");
         return false;
     }
+    clear_gl_errors();
     GLint max_size = 0;
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_size);
+    const GLenum limit_error = glGetError();
+    if (limit_error != GL_NO_ERROR || max_size <= 0) {
+        std::snprintf(error_, sizeof(error_), "Could not query GL_MAX_TEXTURE_SIZE: 0x%x", limit_error);
+        return false;
+    }
     if (width > max_size || height > max_size) {
         std::snprintf(error_, sizeof(error_), "Texture %dx%d exceeds GL_MAX_TEXTURE_SIZE %d",
                       width, height, max_size);
         return false;
     }
     glGenTextures(1, texture);
+    if (!*texture) {
+        std::snprintf(error_, sizeof(error_), "glGenTextures returned texture 0");
+        return false;
+    }
     glBindTexture(GL_TEXTURE_2D, *texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
@@ -202,6 +235,7 @@ bool Gles2TerrainRenderer::upload_texture(GLuint* texture, const std::uint8_t* p
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
     const GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
         std::snprintf(error_, sizeof(error_), "glTexImage2D failed: 0x%x", error);
@@ -209,6 +243,8 @@ bool Gles2TerrainRenderer::upload_texture(GLuint* texture, const std::uint8_t* p
         *texture = 0;
         return false;
     }
+    glBindTexture(GL_TEXTURE_2D, 0);
+    (void)byte_size;
     return true;
 }
 
@@ -216,8 +252,13 @@ bool Gles2TerrainRenderer::initialize(const std::uint8_t* atlas_rgba, int atlas_
                                       int atlas_height, const std::uint8_t* lightmap_rgba,
                                       int lightmap_width, int lightmap_height, int sprite_size) {
     release();
-    if (sprite_size <= 0 || atlas_width <= 0 || atlas_height <= 0) {
-        std::snprintf(error_, sizeof(error_), "Atlas dimensions and sprite size must be positive");
+    std::size_t atlas_bytes = 0;
+    std::size_t lightmap_bytes = 0;
+    if (sprite_size <= 0 || sprite_size > atlas_width || sprite_size > atlas_height ||
+        !rgba_byte_size(atlas_width, atlas_height, &atlas_bytes) ||
+        !rgba_byte_size(lightmap_width, lightmap_height, &lightmap_bytes) ||
+        !atlas_rgba || !lightmap_rgba) {
+        std::snprintf(error_, sizeof(error_), "Invalid atlas/lightmap pixels, dimensions, or sprite size");
         return false;
     }
     atlas_width_ = atlas_width;
@@ -227,11 +268,14 @@ bool Gles2TerrainRenderer::initialize(const std::uint8_t* atlas_rgba, int atlas_
         release();
         return false;
     }
-    if (!upload_texture(&atlas_texture_, atlas_rgba, atlas_width, atlas_height, GL_NEAREST) ||
+    if (!upload_texture(&atlas_texture_, atlas_rgba, atlas_width, atlas_height, GL_LINEAR) ||
         !upload_texture(&lightmap_texture_, lightmap_rgba, lightmap_width, lightmap_height, GL_LINEAR)) {
         release();
         return false;
     }
+    error_[0] = '\0';
+    (void)atlas_bytes;
+    (void)lightmap_bytes;
     return true;
 }
 
@@ -239,7 +283,8 @@ bool Gles2TerrainRenderer::upload_buffer(GLuint* buffer, GLsizei* vertex_count,
                                          const Gles2TerrainVertex* vertices, std::size_t count) {
     if ((count && !vertices) || (count % 3) != 0 ||
         count > static_cast<std::size_t>(std::numeric_limits<GLsizei>::max()) ||
-        count > std::numeric_limits<std::size_t>::max() / sizeof(Gles2TerrainVertex)) {
+        count > std::numeric_limits<std::size_t>::max() / sizeof(Gles2TerrainVertex) ||
+        count > static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max()) / sizeof(Gles2TerrainVertex)) {
         std::snprintf(error_, sizeof(error_), "Terrain vertex count must be a triangle list with a valid buffer size");
         return false;
     }
@@ -247,7 +292,12 @@ bool Gles2TerrainRenderer::upload_buffer(GLuint* buffer, GLsizei* vertex_count,
     *buffer = 0;
     *vertex_count = 0;
     if (count == 0) return true;
+    clear_gl_errors();
     glGenBuffers(1, buffer);
+    if (!*buffer) {
+        std::snprintf(error_, sizeof(error_), "glGenBuffers returned buffer 0");
+        return false;
+    }
     glBindBuffer(GL_ARRAY_BUFFER, *buffer);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(count * sizeof(Gles2TerrainVertex)),
                  vertices, GL_STATIC_DRAW);
@@ -260,6 +310,7 @@ bool Gles2TerrainRenderer::upload_buffer(GLuint* buffer, GLsizei* vertex_count,
         return false;
     }
     *vertex_count = static_cast<GLsizei>(count);
+    error_[0] = '\0';
     return true;
 }
 
