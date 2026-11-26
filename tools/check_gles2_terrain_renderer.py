@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Static ABI and draw-path checks for the native GLES2 terrain renderer."""
 from pathlib import Path
+import re
 import sys
 
 root = Path(sys.argv[1]).resolve()
@@ -10,6 +11,10 @@ adapter_header = (root / "horizon_terrain_adapter.h").read_text(encoding="utf-8"
 adapter_source = (root / "horizon_terrain_adapter.cpp").read_text(encoding="utf-8")
 cmake = (root / "CMakeLists.txt").read_text(encoding="utf-8")
 native_host = (root / "native_hud.cpp").read_text(encoding="utf-8")
+
+error_clears = re.findall(r"error_\[0\]\s*=\s*'([^']*)';", source)
+if not error_clears or any(value != r"\0" for value in error_clears):
+    raise SystemExit("FAIL: renderer error buffers must be cleared with the single-character NUL literal")
 
 required_header = [
     "thread that owns the current EGL context",
