@@ -139,7 +139,15 @@ for item in [
         raise SystemExit(f"FAIL: animated atlas update contract missing {item}")
 if "glTexImage2D" in atlas_update_body:
     raise SystemExit("FAIL: animated atlas updates must replace one cell, not reallocate the full texture")
-print("PASS: animated sprite updates upload one guttered atlas cell without reallocating the texture")
+if "renderer.update_atlas_layer(0, pixels.data(), pixels.size())" not in native_host:
+    raise SystemExit("FAIL: native GLES2 render loop must exercise animated atlas cell updates")
+if "next_animation_update = animation_now + std::chrono::milliseconds(500)" not in native_host:
+    raise SystemExit("FAIL: animated atlas smoke test must be frame-time scheduled, not updated every draw")
+if "create_animation_frame(animation_frame)" not in native_host:
+    raise SystemExit("FAIL: animated atlas smoke test must alternate source frame pixels")
+if "renderer.initialize(atlas.data(), 6, 6, lightmap.data(), 16, 16, 1)" not in native_host:
+    raise SystemExit("FAIL: animated atlas smoke test must use a valid 2x2 grid of guttered 1px sprites")
+print("PASS: GLES2 render loop animates a sprite by updating one atlas cell every 500ms")
 if (16 + 2) % 16 == 0:
     raise SystemExit("FAIL: regression fixture must exercise a non-divisible gutter-packed atlas cell")
 for item in required_atlas_contract:
