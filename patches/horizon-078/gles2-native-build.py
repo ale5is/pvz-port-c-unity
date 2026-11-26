@@ -153,6 +153,7 @@ pub(crate) fn visible_solid_ranges(
 unsafe extern "C" {
     fn pavo_gles2_create() -> *mut c_void;
     fn pavo_gles2_destroy(handle: *mut c_void);
+    fn pavo_gles2_abandon(handle: *mut c_void);
     fn pavo_gles2_initialize(
         handle: *mut c_void, sprite_pixels: *const u8, sprite_bytes: usize,
         layers: usize, sprite_size: i32, lightmap: *const u8,
@@ -194,6 +195,11 @@ impl Backend {
             owner: thread::current().id(),
             _not_send_or_sync: PhantomData,
         })
+    }
+
+    pub(crate) fn abandon(self) {
+        let backend = std::mem::ManuallyDrop::new(self);
+        unsafe { pavo_gles2_abandon(backend.handle.as_ptr()) };
     }
 
     fn check_owner(&self) -> Result<*mut c_void, String> {
@@ -503,6 +509,7 @@ impl Runtime {
         let generation = self.egl.resume(window)?;
         let context_changed = generation != self.context_generation;
         if context_changed {
+            self.renderer.abandon();
             self.renderer = super::gles2_native::Backend::new()?;
             self.context_generation = generation;
             self.initialized = false;
