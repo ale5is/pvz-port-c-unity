@@ -303,9 +303,9 @@ cleanup_markers = [
     "glBindTexture(GL_TEXTURE_2D, 0);",
     "glUseProgram(0);",
 ]
-cleanup_positions = [sections_body.find(marker, translucent_loop) for marker in cleanup_markers]
-if any(position < 0 for position in cleanup_positions):
-    raise SystemExit("FAIL: terrain pass must restore depth, blend, texture-unit and program state")
+cleanup_positions = [sections_body.rfind(marker) for marker in cleanup_markers]
+if any(position < translucent_loop for position in cleanup_positions):
+    raise SystemExit("FAIL: terrain pass must restore depth, blend, texture-unit and program state after translucent drawing")
 if cleanup_positions != sorted(cleanup_positions):
     raise SystemExit("FAIL: terrain pass GL state cleanup must run in deterministic order")
 if sections_body.find("const GLenum draw_error = glGetError();", cleanup_positions[-1]) < 0:
