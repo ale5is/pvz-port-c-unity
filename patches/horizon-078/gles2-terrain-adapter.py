@@ -323,30 +323,43 @@ impl Gles2SectionPayload {
     }
 }
 
-/// Consume a real Horizon section into an owned CPU payload. Geometry is
-/// converted before the source mesh is dropped; metadata vectors are moved,
-/// not cloned, so the adapter does not keep duplicate copies of those arrays.
-/// Section identity, visibility, bounds and retention state travel with it.
+/// Convert a real Horizon section into an owned CPU payload. The source
+/// SectionMesh remains borrowed so Horizon's streaming owner can release its
+/// meshing allocation through its existing free(spent) path after upload.
+/// Metadata is copied into the payload because the render owner outlives that
+/// source allocation; this temporary duplication must be included in budgeting.
 pub fn convert_section(
     key: (i32, i32, i32),
-    mesh: SectionMesh,
+    mesh: &SectionMesh,
     atlas: &AtlasGrid,
     uv_step: f32,
 ) -> Result<Gles2SectionPayload, &'static str> {
-    let geometry = convert_mesh_with_uv_step(&mesh, atlas, uv_step)?;
-    let visibility = mesh.visibility;
-    let bounds = mesh.bounds.map(|bounds| [bounds[0].to_array(), bounds[1].to_array()]);
-    let keep = mesh.keep;
+    let geometry = convert_mesh_with_uv_step(mesh, atlas, uv_step)?;
+
+    let mut block_entities = Vec::new();
+    block_entities.try_reserve_exact(mesh.block_entities.len())
+        .map_err(|_| "not enough memory to copy Horizon block-entity metadata")?;
+    block_entities.extend_from_slice(&mesh.block_entities);
+
+    let mut lights = Vec::new();
+    lights.try_reserve_exact(mesh.lights.len())
+        .map_err(|_| "not enough memory to copy Horizon light metadata")?;
+    lights.extend_from_slice(&mesh.lights);
+
+    let mut sprite_layers = Vec::new();
+    sprite_layers.try_reserve_exact(mesh.sprite_layers.len())
+        .map_err(|_| "not enough memory to copy Horizon sprite-layer metadata")?;
+    sprite_layers.extend_from_slice(&mesh.sprite_layers);
 
     Ok(Gles2SectionPayload {
         key,
         geometry,
-        visibility,
-        block_entities: mesh.block_entities,
-        lights: mesh.lights,
-        sprite_layers: mesh.sprite_layers,
-        bounds,
-        keep,
+        visibility: mesh.visibility,
+        block_entities,
+        lights,
+        sprite_layers,
+        bounds: mesh.bounds.map(|bounds| [bounds[0].to_array(), bounds[1].to_array()]),
+        keep: mesh.keep,
     })
 }
 
