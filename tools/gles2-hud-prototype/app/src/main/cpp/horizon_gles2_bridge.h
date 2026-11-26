@@ -2,20 +2,15 @@
 
 #include <cstddef>
 #include <cstdint>
+#include "horizon_terrain_adapter.h"
+
+using PavoHorizonTerrainVertex = pavo::HorizonTerrainVertex;
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
 typedef struct PavoGles2Handle PavoGles2Handle;
-
-typedef struct PavoHorizonTerrainVertex {
-    float position[3];
-    std::uint16_t uv[2];
-    std::uint16_t layer;
-    std::uint16_t light;
-    std::uint32_t color;
-} PavoHorizonTerrainVertex;
 
 PavoGles2Handle* pavo_gles2_create();
 void pavo_gles2_destroy(PavoGles2Handle* handle);
