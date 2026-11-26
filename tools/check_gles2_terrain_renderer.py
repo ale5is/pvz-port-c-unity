@@ -90,6 +90,8 @@ required_source = [
     "void Gles2TerrainRenderer::remove_section",
     "void Gles2TerrainRenderer::remove_column",
     "void Gles2TerrainRenderer::draw_sections",
+    "const GLenum draw_error = glGetError();",
+    "Terrain draw failed (GL 0x%x)",
     "std::sort(visible.begin()",
     "distance_squared > max_distance_squared",
     "clear_sections();",
