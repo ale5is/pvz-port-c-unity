@@ -15,6 +15,7 @@ required = (
     "pub struct Frame<'a>",
     "pub struct BorderDraw",
     "pub camera: DVec3",
+    "use crate::mesher::Vertex;",
     "pub hud: &'a crate::hud::HudBatch",
     "pub entities: &'a [Vertex]",
     "pub post_effects: crate::post_chain::Request<'a>",
