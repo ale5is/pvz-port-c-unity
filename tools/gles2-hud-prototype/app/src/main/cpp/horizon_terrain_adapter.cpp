@@ -22,7 +22,7 @@ bool checked_product(std::size_t a, std::size_t b, std::size_t* result) {
 }  // namespace
 
 bool build_gles2_terrain_atlas(const std::uint8_t* layer_major_rgba,
-                               std::size_t layer_count, int sprite_size,
+                               std::size_t pixel_bytes, std::size_t layer_count, int sprite_size,
                                int max_texture_size, Gles2TerrainAtlas* atlas,
                                std::string* error) {
     if (!atlas || !layer_major_rgba || layer_count == 0 || sprite_size <= 0 ||
@@ -39,6 +39,10 @@ bool build_gles2_terrain_atlas(const std::uint8_t* layer_major_rgba,
         !checked_product(layer_bytes, layer_count, &source_bytes) ||
         source_bytes > static_cast<std::size_t>(std::numeric_limits<std::ptrdiff_t>::max())) {
         set_error(error, "Sprite atlas source size overflows size_t");
+        return false;
+    }
+    if (pixel_bytes < source_bytes) {
+        set_error(error, "Sprite pixel buffer is shorter than the declared layer count");
         return false;
     }
     if (layer_count > 32768) {
@@ -99,16 +103,22 @@ bool convert_horizon_terrain_vertices(const HorizonTerrainVertex* source,
                                       float uv_steps,
                                       std::vector<Gles2TerrainVertex>* output,
                                       std::string* error) {
-    if (!output || (vertex_count != 0 && !source) || (vertex_count % 3) != 0 ||
+    if (!output || (vertex_count != 0 && !source) || (vertex_count % 4) != 0 ||
         atlas.width <= 0 || atlas.height <= 0 || atlas.columns <= 0 ||
         atlas.sprite_size <= 0 || atlas.layer_count == 0 ||
-        !std::isfinite(uv_steps) || uv_steps <= 0.0f) {
-        set_error(error, "Invalid terrain mesh, atlas, or UV scale");
+        atlas.width % atlas.sprite_size != 0 || atlas.height % atlas.sprite_size != 0 ||
+        atlas.columns > atlas.width / atlas.sprite_size ||
+        atlas.layer_count > static_cast<std::size_t>(atlas.columns) *
+                            static_cast<std::size_t>(atlas.height / atlas.sprite_size) ||
+        !std::isfinite(uv_steps) || uv_steps <= 0.0f ||
+        vertex_count / 4 > output->max_size() / 6) {
+        set_error(error, "Invalid Horizon quad mesh, atlas, or UV scale");
         return false;
     }
 
     output->clear();
-    output->reserve(vertex_count);
+    std::vector<Gles2TerrainVertex> converted;
+    converted.reserve(vertex_count);
     const float atlas_width = static_cast<float>(atlas.width);
     const float atlas_height = static_cast<float>(atlas.height);
     const float sprite_size = static_cast<float>(atlas.sprite_size);
@@ -117,7 +127,6 @@ bool convert_horizon_terrain_vertices(const HorizonTerrainVertex* source,
         const HorizonTerrainVertex& input = source[i];
         const std::uint16_t sprite_layer = input.layer & 0x7fffu;
         if (static_cast<std::size_t>(sprite_layer) >= atlas.layer_count) {
-            output->clear();
             set_error(error, "Terrain vertex references a sprite layer absent from the atlas");
             return false;
         }
@@ -145,18 +154,24 @@ bool convert_horizon_terrain_vertices(const HorizonTerrainVertex* source,
         vertex.color[3] = alpha_flags;
 
         vertex.emission = static_cast<std::uint8_t>(15 - (alpha_flags & 0x0f));
-        const std::uint8_t high = alpha_flags >> 4;
-        const bool fluid = high >= 8 && (high & 7) < 6;
-        vertex.material_flags = high;
-
+        vertex.material_flags = alpha_flags >> 4;
         vertex.light[0] = static_cast<std::uint8_t>(input.light);
         vertex.light[1] = static_cast<std::uint8_t>(input.light >> 8);
         vertex.opaque_layer = (input.layer & 0x8000u) != 0 ? 1.0f : 0.0f;
-        output->push_back(vertex);
+        converted.push_back(vertex);
+    }
+
+    output->reserve((vertex_count / 4) * 6);
+    for (std::size_t i = 0; i < converted.size(); i += 4) {
+        output->push_back(converted[i]);
+        output->push_back(converted[i + 1]);
+        output->push_back(converted[i + 2]);
+        output->push_back(converted[i + 2]);
+        output->push_back(converted[i + 3]);
+        output->push_back(converted[i]);
     }
 
     if (error) error->clear();
     return true;
-}
 
 }  // namespace pavo
