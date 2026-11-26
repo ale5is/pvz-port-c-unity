@@ -446,9 +446,9 @@ impl Drop for EglOwner {
 /// Rust drops the GL renderer first, while its EGL context is still current,
 /// and only then destroys the EGL surface/context/display.
 struct CachedSection {
-    solid: Arc<[super::gles2_native::HorizonTerrainVertex]>,
-    translucent: Arc<[super::gles2_native::HorizonTerrainVertex]>,
-    ranges: Arc<[u32]>,
+    solid: Vec<super::gles2_native::HorizonTerrainVertex>,
+    translucent: Vec<super::gles2_native::HorizonTerrainVertex>,
+    ranges: Vec<u32>,
 }
 
 struct CachedAssets {
@@ -576,36 +576,22 @@ impl Runtime {
         let solid = super::gles2_native::copy_section_vertices(&mesh.solid)?;
         let translucent = super::gles2_native::copy_section_vertices(&mesh.translucent)?;
         let ranges = super::gles2_native::visible_solid_ranges(&mesh.sides, eye_in_section)?;
-        self.upload_section(key, &solid, &translucent, &ranges)
+        self.upload_section(key, solid, translucent, ranges)
     }
 
+    /// Upload owned CPU staging buffers and retain those same allocations for
+    /// context recovery. Passing slices and cloning here doubled resident
+    /// terrain memory on the 1 GiB Android target.
     pub(crate) fn upload_section(
         &mut self, key: [i32; 3],
-        solid: &[super::gles2_native::HorizonTerrainVertex],
-        translucent: &[super::gles2_native::HorizonTerrainVertex],
-        ranges: &[u32],
+        solid: Vec<super::gles2_native::HorizonTerrainVertex>,
+        translucent: Vec<super::gles2_native::HorizonTerrainVertex>,
+        ranges: Vec<u32>,
     ) -> Result<(), String> {
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
-        let mut cached_solid = Vec::new();
-        cached_solid.try_reserve_exact(solid.len())
-            .map_err(|_| "Not enough memory to retain GLES2 solid section".to_owned())?;
-        cached_solid.extend_from_slice(solid);
-        let mut cached_translucent = Vec::new();
-        cached_translucent.try_reserve_exact(translucent.len())
-            .map_err(|_| "Not enough memory to retain GLES2 translucent section".to_owned())?;
-        cached_translucent.extend_from_slice(translucent);
-        let mut cached_ranges = Vec::new();
-        cached_ranges.try_reserve_exact(ranges.len())
-            .map_err(|_| "Not enough memory to retain GLES2 section ranges".to_owned())?;
-        cached_ranges.extend_from_slice(ranges);
-        let cached = CachedSection {
-            solid: Arc::from(cached_solid),
-            translucent: Arc::from(cached_translucent),
-            ranges: Arc::from(cached_ranges),
-        };
         self.egl.make_current()?;
-        self.renderer.upload_section(key, solid, translucent, ranges)?;
-        self.cached_sections.insert(key, cached);
+        self.renderer.upload_section(key, &solid, &translucent, &ranges)?;
+        self.cached_sections.insert(key, CachedSection { solid, translucent, ranges });
         Ok(())
     }
 
