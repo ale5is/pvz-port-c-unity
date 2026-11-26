@@ -258,6 +258,75 @@ pub fn convert_mesh(mesh: &SectionMesh, atlas: &AtlasGrid) -> Result<Gles2Terrai
     convert_mesh_with_uv_step(mesh, atlas, 1.0 / crate::mesher::UV_STEPS)
 }
 
+/// Owned, backend-neutral section data ready to cross from Horizon's meshing
+/// workers to a serialized GLES2 upload owner. It contains no GL/EGL handles.
+pub struct Gles2SectionPayload {
+    pub key: (i32, i32, i32),
+    pub geometry: Gles2TerrainMesh,
+    pub visibility: u64,
+    pub block_entities: Vec<([i32; 3], u32)>,
+    pub lights: Vec<([i32; 3], u32)>,
+    pub sprite_layers: Vec<u16>,
+    pub bounds: Option<[[f32; 3]; 2]>,
+    pub keep: bool,
+}
+
+impl Gles2SectionPayload {
+    /// CPU bytes owned by this payload, with checked arithmetic for queue budgets.
+    pub fn byte_len(&self) -> Result<usize, &'static str> {
+        let vertices = self.geometry.solid.len()
+            .checked_add(self.geometry.translucent.len())
+            .and_then(|count| count.checked_mul(std::mem::size_of::<Gles2TerrainVertex>()))
+            .ok_or("terrain payload vertex byte count overflow")?;
+        let block_entities = self.block_entities.len()
+            .checked_mul(std::mem::size_of::<([i32; 3], u32)>())
+            .ok_or("terrain payload block-entity byte count overflow")?;
+        let lights = self.lights.len()
+            .checked_mul(std::mem::size_of::<([i32; 3], u32)>())
+            .ok_or("terrain payload light byte count overflow")?;
+        let sprite_layers = self.sprite_layers.len()
+            .checked_mul(std::mem::size_of::<u16>())
+            .ok_or("terrain payload sprite-layer byte count overflow")?;
+        let bounds = if self.bounds.is_some() { 6 * std::mem::size_of::<f32>() } else { 0 };
+        [
+            vertices,
+            block_entities,
+            lights,
+            sprite_layers,
+            bounds,
+            std::mem::size_of::<Sides>(),
+            std::mem::size_of::<(i32, i32, i32)>(),
+            std::mem::size_of::<u64>(),
+            std::mem::size_of::<bool>(),
+        ]
+        .into_iter()
+        .try_fold(0usize, |total, bytes| total.checked_add(bytes))
+        .ok_or("terrain payload total byte count overflow")
+    }
+}
+
+/// Convert a real Horizon section into an owned CPU payload. Section identity,
+/// culling visibility, block entities, light sources, used sprite layers,
+/// bounds and the far-mesh retention flag travel with its converted geometry.
+pub fn convert_section(
+    key: (i32, i32, i32),
+    mesh: &SectionMesh,
+    atlas: &AtlasGrid,
+    uv_step: f32,
+) -> Result<Gles2SectionPayload, &'static str> {
+    let geometry = convert_mesh_with_uv_step(mesh, atlas, uv_step)?;
+    Ok(Gles2SectionPayload {
+        key,
+        geometry,
+        visibility: mesh.visibility,
+        block_entities: mesh.block_entities.clone(),
+        lights: mesh.lights.clone(),
+        sprite_layers: mesh.sprite_layers.clone(),
+        bounds: mesh.bounds.map(|bounds| [bounds[0].to_array(), bounds[1].to_array()]),
+        keep: mesh.keep,
+    })
+}
+
 /// Return visible solid draw ranges in GLES2 triangle-vertex units.
 /// Horizon's Sides reports (first, count) in four-vertex quad units;
 /// the converted buffer stores six vertices per quad.
@@ -377,6 +446,32 @@ mod tests {
         ]);
     }
 
+
+    #[test]
+    fn section_payload_preserves_horizon_identity_and_non_geometry_metadata() {
+        let atlas = AtlasGrid::new(16, 1, 4096).unwrap();
+        let mesh = SectionMesh {
+            visibility: 0x1234,
+            block_entities: vec![([1, 2, 3], 44)],
+            lights: vec![([4, 5, 6], 55)],
+            sprite_layers: vec![0],
+            bounds: Some([
+                glam::Vec3::new(1.0, 2.0, 3.0),
+                glam::Vec3::new(4.0, 5.0, 6.0),
+            ]),
+            keep: true,
+            ..Default::default()
+        };
+        let payload = convert_section((7, 8, 9), &mesh, &atlas, 1.0 / crate::mesher::UV_STEPS).unwrap();
+        assert_eq!(payload.key, (7, 8, 9));
+        assert_eq!(payload.visibility, 0x1234);
+        assert_eq!(payload.block_entities, vec![([1, 2, 3], 44)]);
+        assert_eq!(payload.lights, vec![([4, 5, 6], 55)]);
+        assert_eq!(payload.sprite_layers, vec![0]);
+        assert_eq!(payload.bounds, Some([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]));
+        assert!(payload.keep);
+        assert!(payload.byte_len().unwrap() >= 64);
+    }
 
     #[test]
     fn converts_horizon_visible_quad_ranges_to_triangle_vertex_ranges() {
