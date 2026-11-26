@@ -69,6 +69,8 @@ for marker in ("pavo_egl_context_generation", "pavo_egl_suspend", "pavo_egl_resu
     print(f"PASS: native EGL lifecycle {marker}")
 if "++owner->context_generation" not in egl_cpp:
     raise SystemExit("FAIL: EGL context generation is not advanced after context recreation")
-print("PASS: EGL context-loss generation increment")
+if "bool context_recreated = owner->context == EGL_NO_CONTEXT;" not in egl_cpp:
+    raise SystemExit("FAIL: EGL resume cannot recover from a prior failed context recreation")
+print("PASS: EGL context-loss generation increment and failed-recreate retry")
 
 print("Native GLES2 library is linked; EGL surface resume and context-generation recovery are exposed. Game call-site integration remains separate.")
