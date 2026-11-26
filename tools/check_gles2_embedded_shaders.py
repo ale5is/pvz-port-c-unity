@@ -12,7 +12,7 @@ if len(sys.argv) != 3:
 source_path = Path(sys.argv[1]).resolve()
 validator = sys.argv[2]
 source = source_path.read_text(encoding="utf-8")
-pattern = re.compile(r'const char\\* (k\\w+) = R"GLSL\\((.*?)\\)GLSL";', re.DOTALL)
+pattern = re.compile(r'const char\* (k\w+) = R"GLSL\((.*?)\)GLSL";', re.DOTALL)
 shaders = dict(pattern.findall(source))
 expected = {
     "kVertexShader": "vert",
