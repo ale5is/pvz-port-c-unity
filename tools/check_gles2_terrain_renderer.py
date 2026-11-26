@@ -242,7 +242,7 @@ if missing:
 print("PASS: 48-byte Rust/C++ terrain vertex ABI")
 print("PASS: 24-byte Horizon input converts into the 48-byte GLES2 vertex ABI")
 conversion_start = adapter_source.index("bool convert_horizon_terrain_vertices(")
-conversion_end = adapter_source.index("\\n}  // namespace pavo", conversion_start)
+conversion_end = adapter_source.index("\n}  // namespace pavo", conversion_start)
 conversion_body = adapter_source[conversion_start:conversion_end]
 for item in [
     "atlas.sprite_size > std::numeric_limits<int>::max() - 2",
