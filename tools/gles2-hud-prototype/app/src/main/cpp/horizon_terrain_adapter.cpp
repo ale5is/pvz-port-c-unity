@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <utility>
 
 namespace pavo {
 namespace {
@@ -35,7 +36,8 @@ bool build_gles2_terrain_atlas(const std::uint8_t* layer_major_rgba,
     std::size_t source_bytes = 0;
     if (!checked_product(side, side, &layer_bytes) ||
         !checked_product(layer_bytes, 4, &layer_bytes) ||
-        !checked_product(layer_bytes, layer_count, &source_bytes)) {
+        !checked_product(layer_bytes, layer_count, &source_bytes) ||
+        source_bytes > static_cast<std::size_t>(std::numeric_limits<std::ptrdiff_t>::max())) {
         set_error(error, "Sprite atlas source size overflows size_t");
         return false;
     }
