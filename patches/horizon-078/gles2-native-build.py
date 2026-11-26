@@ -19,6 +19,8 @@ for name in (
     "horizon_terrain_adapter.cpp",
     "horizon_gles2_bridge.h",
     "horizon_gles2_bridge.cpp",
+    "horizon_egl_owner.h",
+    "horizon_egl_owner.cpp",
 ):
     source_file = cpp_source / name
     if not source_file.is_file():
@@ -69,6 +71,7 @@ fn main() {
         .file(native.join("gles2_terrain_renderer.cpp"))
         .file(native.join("horizon_terrain_adapter.cpp"))
         .file(native.join("horizon_gles2_bridge.cpp"))
+        .file(native.join("horizon_egl_owner.cpp"))
         .compile("pavo_horizon_gles2");
 
     println!("cargo:rustc-link-lib=EGL");
