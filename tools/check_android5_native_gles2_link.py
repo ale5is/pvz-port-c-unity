@@ -63,7 +63,7 @@ for marker in ("pub(crate) struct Runtime", "pavo_egl_create", "pavo_egl_swap", 
 
 runtime_resume = egl_text.split("pub(crate) fn resume", 1)[1].split("pub(crate) fn is_initialized", 1)[0]
 resume_order = ("let generation = self.egl.resume(window)?;", "if generation == self.context_generation", "self.renderer = super::gles2_native::Backend::new()?;", "self.context_generation = generation;", "self.initialized = false;")
-for marker in ("cached_assets: Option<CachedAssets>", "cached_sections: std::collections::HashMap", "animated_layers: std::collections::HashMap", "sprite_pixels: sprite_pixels.to_vec()", "solid: solid.to_vec()", "self.cached_sections.retain", "for (key, section) in &self.cached_sections", "for (layer, pixels) in &assets.animated_layers", "assets.lightmap.extend_from_slice(rgba)", "assets.animated_layers.insert(layer, rgba.to_vec())", "self.initialized = true;"):
+for marker in ("cached_assets: Option<CachedAssets>", "cached_sections: std::collections::HashMap", "animated_layers: std::collections::HashMap", "sprite_pixels: Arc<[u8]>", "solid: Arc<[super::gles2_native::HorizonTerrainVertex]>", "sprite_pixels: Arc::from(cached_sprites)", "solid: Arc::from(cached_solid)", "translucent: Arc::from(cached_translucent)", "ranges: Arc::from(cached_ranges)", "self.cached_sections.retain", "for (key, section) in &self.cached_sections", "for (layer, pixels) in &assets.animated_layers", "assets.lightmap = replacement", "assets.animated_layers.insert(layer, replacement)", "self.initialized = true;"):
     if marker not in egl_text:
         raise SystemExit(f"FAIL: GLES2 context recovery does not retain/replay CPU data: {marker}")
     print(f"PASS: context recovery cache {marker}")
@@ -72,9 +72,16 @@ resume_positions = [runtime_resume.find(marker) for marker in resume_order]
 if any(position < 0 for position in resume_positions) or resume_positions != sorted(resume_positions):
     raise SystemExit("FAIL: Runtime does not invalidate and replace GLES2 resources in context-loss order")
 initialize_body = egl_text.split("pub(crate) fn initialize", 1)[1].split("pub(crate) fn suspend", 1)[0]
-if initialize_body.find("self.renderer.initialize") < 0 or initialize_body.find("self.initialized = true;") < initialize_body.find("self.renderer.initialize"):
-    raise SystemExit("FAIL: Runtime marks GLES2 initialized before native asset upload succeeds")
-print("PASS: Rust runtime context-loss invalidation and reinitialization order")
+allocation_markers = ("cached_sprites.try_reserve_exact(sprite_pixels.len())", "cached_lightmap.try_reserve_exact(lightmap.len())", "let cached_assets = CachedAssets")
+allocation_positions = [initialize_body.find(marker) for marker in allocation_markers]
+native_initialize = initialize_body.find("self.renderer.initialize")
+cache_publish = initialize_body.find("self.cached_assets = Some(cached_assets)")
+initialized_publish = initialize_body.find("self.initialized = true;")
+if any(position < 0 for position in allocation_positions) or native_initialize < 0 or cache_publish < 0 or initialized_publish < 0:
+    raise SystemExit("FAIL: GLES2 initialization is missing preallocated recovery data or success publication")
+if allocation_positions != sorted(allocation_positions) or allocation_positions[-1] > native_initialize or native_initialize > cache_publish or cache_publish > initialized_publish:
+    raise SystemExit("FAIL: recovery cache must be fully allocated before GPU initialization and published only after upload succeeds")
+print("PASS: recovery cache allocations precede GPU initialization and publication follows successful upload")
 
 egl_header = (Path(__file__).resolve().parents[1] / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_egl_owner.h").read_text(encoding="utf-8")
 egl_cpp = (Path(__file__).resolve().parents[1] / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_egl_owner.cpp").read_text(encoding="utf-8")
