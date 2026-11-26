@@ -192,3 +192,16 @@ The Rust adapter tests verify all four edges/corners of a small sprite and the r
 ## Owned section payload boundary
 
 The Rust adapter's `convert_section()` creates an owned payload from a real `SectionMesh` without retaining references to meshing-worker memory or introducing GPU handles. It carries the key and all section metadata needed by later renderer stages. `byte_len()` uses checked arithmetic so a bounded CPU-to-render upload queue can account for payload sizes before accepting them. The payload is currently only produced and unit-tested; the streaming completion path does not enqueue it, and no EGL/GL object is created or uploaded from it yet.
+
+## Bounded CPU section queue
+
+The Rust adapter now defines `Gles2SectionQueue`, a FIFO queue for owned `Gles2SectionPayload` values. Its byte limit is supplied at construction and is enforced using each payload's checked `byte_len()` before accepting an update.
+
+- A pending update for an already queued section key is coalesced: the older payload is replaced and the newest payload moves to the back of the queue.
+- A payload larger than the entire budget, an accounting overflow, or an update that would exceed the budget is rejected. Rejection returns ownership of the incoming payload and leaves the existing queue unchanged, including when an oversized update targets a key already pending.
+- `pop_front()` transfers the next payload to the consumer and decrements accounting.
+- `remove_section()` removes one exact section key; `remove_columns()` removes every queued vertical section for the requested horizontal (x, z) chunk columns.
+- `clear()` releases all pending payloads and resets byte accounting.
+- Tests cover replacement order, over-budget rejection, atomic replacement failure, section/column unload, and accounting after pop/clear.
+
+The limit measures logical payload bytes (converted vertex lengths and owned metadata lengths), not allocator capacity, temporary conversion peaks, atlas/lightmap memory, or GPU allocations. It is therefore a bounded pending-upload budget, not a complete process-memory ceiling. The queue is CPU-only and owns no GL/EGL handles. It is not yet connected to Horizon's meshing completion path, game section unload events, or a renderer; the launcher still constructs wgpu. Passing its unit tests will validate queue semantics only, not terrain presentation or playability.
