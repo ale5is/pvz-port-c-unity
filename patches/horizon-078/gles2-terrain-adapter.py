@@ -26,6 +26,7 @@ adapter_source = r'''//! CPU conversion of Horizon section meshes to a GLES2 ver
 //! and Horizon's exact tile_uv formula in its GLSL ES 1.00 fragment shader
 //! (uv - max(ceil(uv) - 1, 0)).
 use crate::mesher::{SectionMesh, Sides, TerrainVertex};
+use crate::sprites::SpriteAnimation;
 use std::collections::VecDeque;
 
 /// Horizon stores the opaque-layer marker in the high bit; the remaining bits are
@@ -60,6 +61,28 @@ pub fn blend_animation_rgba(
         );
     }
     Ok(output)
+}
+
+/// Evaluate Horizon's real animation clock and return the RGBA pixels for
+/// the atlas layer at this tick. The caller tracks the last FrameBlend per
+/// layer and uploads the returned pixels only when the blend changes.
+pub struct AnimatedSpriteUpdate {
+    pub layer: u32,
+    pub pixels: Vec<u8>,
+}
+
+pub fn animated_sprite_update(
+    animation: &SpriteAnimation,
+    tick: u64,
+) -> Result<AnimatedSpriteUpdate, &'static str> {
+    let blend = animation.blend(tick);
+    let current = animation.pixels(blend.frame);
+    let next = animation.pixels(blend.next);
+    let pixels = blend_animation_rgba(current, next, blend.millis)?;
+    Ok(AnimatedSpriteUpdate {
+        layer: animation.layer,
+        pixels,
+    })
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
