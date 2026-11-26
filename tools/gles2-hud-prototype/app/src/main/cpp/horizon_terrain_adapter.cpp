@@ -142,14 +142,12 @@ bool convert_horizon_terrain_vertices(const HorizonTerrainVertex* source,
         vertex.color[0] = static_cast<std::uint8_t>(color);
         vertex.color[1] = static_cast<std::uint8_t>(color >> 8);
         vertex.color[2] = static_cast<std::uint8_t>(color >> 16);
-        vertex.color[3] = 255;
+        vertex.color[3] = alpha_flags;
 
         vertex.emission = static_cast<std::uint8_t>(15 - (alpha_flags & 0x0f));
         const std::uint8_t high = alpha_flags >> 4;
         const bool fluid = high >= 8 && (high & 7) < 6;
-        vertex.material_flags = fluid
-            ? static_cast<std::uint8_t>(0x80 | (high & 7))
-            : 0;
+        vertex.material_flags = high;
 
         vertex.light[0] = static_cast<std::uint8_t>(input.light);
         vertex.light[1] = static_cast<std::uint8_t>(input.light >> 8);
