@@ -459,6 +459,29 @@ for item in [
 ]:
     if item not in terrain_source:
         raise SystemExit(f"FAIL: animation change tracking contract is missing {item}")
+for item in [
+    "generation: u64",
+    "pub fn generation(&self) -> u64",
+    "pub fn advance_generation(&mut self, generation: u64)",
+    "generation <= self.generation",
+    "self.clear()",
+    "pub fn enqueue_for_generation(",
+    "generation != self.generation",
+]:
+    if item not in terrain_source:
+        raise SystemExit(f"FAIL: generation-safe GLES2 upload queue is missing {item}")
+if "queue_generation_discards_old_window_work_and_rejects_stale_producers" not in terrain_source:
+    raise SystemExit("FAIL: upload queue generation regression test is missing")
+for item in [
+    "queue.advance_generation(1).unwrap()",
+    "queue.enqueue_for_generation(0, test_payload((2, 0, 2), 1))",
+    "queue.enqueue_for_generation(1, test_payload((3, 0, 3), 1))",
+    "assert!(queue.advance_generation(1).is_err())",
+]:
+    if item not in terrain_source:
+        raise SystemExit(f"FAIL: generation regression test does not cover {item}")
+print("PASS: GLES2 upload queue invalidates old-window work and rejects stale generations")
+
 if "animation_blend_change_detection_covers_first_upload_and_all_fields" not in terrain_source:
     raise SystemExit("FAIL: animation blend detection regression tests are missing")
 for item in [
