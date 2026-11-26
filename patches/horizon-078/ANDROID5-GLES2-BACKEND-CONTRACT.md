@@ -270,3 +270,16 @@ The native renderer previously rejected such valid atlases by requiring `atlas_w
 
 This fixes a native prototype integration defect only. It does not connect the prototype to Horizon's launcher or game loop.
 
+## Native GLES2 renderer hardening batch
+
+The standalone native terrain prototype now applies the CPU atlas contract consistently and checks device-sized allocations before issuing GL calls:
+
+- The terrain atlas uses linear filtering so the duplicated one-texel gutters actually protect sprite edges during interpolation. The lightmap remains linearly filtered.
+- Atlas and lightmap inputs are checked for null pointers, positive dimensions, and overflow-safe RGBA byte counts. The byte count must fit the signed pointer-sized GL upload range on 32-bit ARM.
+- `GL_MAX_TEXTURE_SIZE` is queried and validated before texture allocation; a failed or invalid capability query is reported instead of accepting an unbounded texture.
+- Texture allocation failure is detected, and unpack alignment is restored to the GLES default after uploads so the renderer does not leak pixel-store state into other code.
+- VBO uploads validate both `GLsizei` vertex counts and `GLsizeiptr` byte sizes, reject a zero buffer name, and clear stale error text after successful uploads.
+- Both fragment shaders select high precision when `GL_FRAGMENT_PRECISION_HIGH` is available and fall back to mediump otherwise. The distance varying uses matching mediump precision across the vertex/fragment interface.
+
+The native renderer checker now guards these requirements, including the 16px sprite / 18px gutter-cell atlas case. These changes harden the isolated GLES2 prototype and its resource uploads; they do not yet implement Horizon's complete material system or connect the renderer to the winit launcher.
+
