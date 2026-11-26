@@ -40,6 +40,21 @@ bool on_owner_thread(PavoEglOwner* owner) {
     return false;
 }
 
+void release_window_surface(PavoEglOwner* owner) {
+    if (!owner) return;
+    if (owner->display != EGL_NO_DISPLAY) {
+        eglMakeCurrent(owner->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        if (owner->surface != EGL_NO_SURFACE) {
+            eglDestroySurface(owner->display, owner->surface);
+            owner->surface = EGL_NO_SURFACE;
+        }
+    }
+    if (owner->window) {
+        ANativeWindow_release(owner->window);
+        owner->window = nullptr;
+    }
+}
+
 void teardown(PavoEglOwner* owner) {
     if (!owner) return;
     if (owner->display != EGL_NO_DISPLAY) {
@@ -196,7 +211,9 @@ extern "C" int pavo_egl_resume(PavoEglOwner* owner, void* native_window) {
     if (eglQuerySurface(owner->display, owner->surface, EGL_WIDTH, &width) != EGL_TRUE ||
         eglQuerySurface(owner->display, owner->surface, EGL_HEIGHT, &height) != EGL_TRUE ||
         width <= 0 || height <= 0) {
-        fail(owner, "eglQuerySurface after resume"); return 0;
+        fail(owner, "eglQuerySurface after resume");
+        release_window_surface(owner);
+        return 0;
     }
     glViewport(0, 0, width, height);
     owner->error.clear();
