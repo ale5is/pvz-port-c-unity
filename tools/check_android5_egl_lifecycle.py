@@ -140,6 +140,23 @@ require(
     ),
 )
 
+require(
+    generator_text,
+    "GLES2 terrain context-recovery cache takes ownership of staging vectors without a second copy",
+    (
+        "solid: Vec<super::gles2_native::HorizonTerrainVertex>",
+        "translucent: Vec<super::gles2_native::HorizonTerrainVertex>",
+        "ranges: Vec<u32>",
+        "self.renderer.upload_section(key, &solid, &translucent, &ranges)?;",
+        "self.cached_sections.insert(key, CachedSection { solid, translucent, ranges });",
+    ),
+)
+if "cached_solid.extend_from_slice(solid)" in generator_text:
+    raise SystemExit("FAIL: GLES2 terrain cache duplicates the solid vertex staging allocation")
+if "cached_translucent.extend_from_slice(translucent)" in generator_text:
+    raise SystemExit("FAIL: GLES2 terrain cache duplicates the translucent vertex staging allocation")
+print("PASS: GLES2 terrain cache avoids duplicate CPU vertex buffers")
+
 contract = Path(__file__).resolve().parents[1] / "patches/horizon-078/ANDROID5-EGL-LIFECYCLE-CONTRACT.md"
 if not contract.is_file():
     raise SystemExit("FAIL: missing Android EGL lifecycle contract")
