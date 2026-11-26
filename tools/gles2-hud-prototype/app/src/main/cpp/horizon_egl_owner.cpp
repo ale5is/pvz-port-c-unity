@@ -20,17 +20,27 @@ struct PavoEglOwner {
 };
 
 namespace {
-void fail(PavoEglOwner* owner, const char* operation) {
+void set_error(PavoEglOwner* owner, const char* operation, EGLint value) {
     if (owner) owner->error = std::string(operation) + " failed (EGL 0x" +
-        [] (EGLint value) {
+        [] (EGLint code) {
             constexpr char digits[] = "0123456789abcdef";
             std::string out(4, '0');
             for (int i = 3; i >= 0; --i) {
-                out[static_cast<std::size_t>(i)] = digits[value & 15];
-                value >>= 4;
+                out[static_cast<std::size_t>(i)] = digits[code & 15];
+                code >>= 4;
             }
             return out;
-        }(eglGetError()) + ")";
+        }(value) + ")";
+}
+
+void fail(PavoEglOwner* owner, const char* operation) {
+    set_error(owner, operation, eglGetError());
+}
+
+void invalidate_lost_context(PavoEglOwner* owner) {
+    if (!owner || owner->context == EGL_NO_CONTEXT) return;
+    eglDestroyContext(owner->display, owner->context);
+    owner->context = EGL_NO_CONTEXT;
 }
 
 bool on_owner_thread(PavoEglOwner* owner) {
@@ -129,7 +139,14 @@ extern "C" int pavo_egl_make_current(PavoEglOwner* owner) {
     if (!on_owner_thread(owner) || owner->display == EGL_NO_DISPLAY ||
         owner->surface == EGL_NO_SURFACE || owner->context == EGL_NO_CONTEXT) return 0;
     if (eglMakeCurrent(owner->display, owner->surface, owner->surface, owner->context) != EGL_TRUE) {
-        fail(owner, "eglMakeCurrent"); return 0;
+        const EGLint error = eglGetError();
+        if (error == EGL_CONTEXT_LOST) {
+            invalidate_lost_context(owner);
+            owner->error = "eglMakeCurrent failed (EGL_CONTEXT_LOST); context invalidated for resume recovery";
+        } else {
+            set_error(owner, "eglMakeCurrent", error);
+        }
+        return 0;
     }
     return 1;
 }
@@ -249,7 +266,14 @@ extern "C" int pavo_egl_begin_frame(PavoEglOwner* owner, float red, float green,
 extern "C" int pavo_egl_swap(PavoEglOwner* owner) {
     if (!on_owner_thread(owner) || !pavo_egl_make_current(owner)) return 0;
     if (eglSwapBuffers(owner->display, owner->surface) != EGL_TRUE) {
-        fail(owner, "eglSwapBuffers"); return 0;
+        const EGLint error = eglGetError();
+        if (error == EGL_CONTEXT_LOST) {
+            invalidate_lost_context(owner);
+            owner->error = "eglSwapBuffers failed (EGL_CONTEXT_LOST); context invalidated for resume recovery";
+        } else {
+            set_error(owner, "eglSwapBuffers", error);
+        }
+        return 0;
     }
     return 1;
 }
