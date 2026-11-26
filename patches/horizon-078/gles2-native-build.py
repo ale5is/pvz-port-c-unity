@@ -550,8 +550,6 @@ impl Runtime {
         ranges: &[u32],
     ) -> Result<(), String> {
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
-        self.egl.make_current()?;
-        self.renderer.upload_section(key, solid, translucent, ranges)?;
         let mut cached_solid = Vec::new();
         cached_solid.try_reserve_exact(solid.len())
             .map_err(|_| "Not enough memory to retain GLES2 solid section".to_owned())?;
@@ -564,11 +562,14 @@ impl Runtime {
         cached_ranges.try_reserve_exact(ranges.len())
             .map_err(|_| "Not enough memory to retain GLES2 section ranges".to_owned())?;
         cached_ranges.extend_from_slice(ranges);
-        self.cached_sections.insert(key, CachedSection {
+        let cached = CachedSection {
             solid: Arc::from(cached_solid),
             translucent: Arc::from(cached_translucent),
             ranges: Arc::from(cached_ranges),
-        });
+        };
+        self.egl.make_current()?;
+        self.renderer.upload_section(key, solid, translucent, ranges)?;
+        self.cached_sections.insert(key, cached);
         Ok(())
     }
 
@@ -603,28 +604,30 @@ impl Runtime {
 
     pub(crate) fn update_lightmap(&mut self, rgba: &[u8]) -> Result<(), String> {
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
+        let mut replacement = Vec::new();
+        replacement.try_reserve_exact(rgba.len())
+            .map_err(|_| "Not enough memory to retain updated GLES2 lightmap".to_owned())?;
+        replacement.extend_from_slice(rgba);
+        let replacement = Arc::from(replacement);
         self.egl.make_current()?;
         self.renderer.update_lightmap(rgba)?;
         if let Some(assets) = self.cached_assets.as_mut() {
-            let mut replacement = Vec::new();
-            replacement.try_reserve_exact(rgba.len())
-                .map_err(|_| "Not enough memory to retain updated GLES2 lightmap".to_owned())?;
-            replacement.extend_from_slice(rgba);
-            assets.lightmap = Arc::from(replacement);
+            assets.lightmap = replacement;
         }
         Ok(())
     }
 
     pub(crate) fn update_atlas_layer(&mut self, layer: u32, rgba: &[u8]) -> Result<(), String> {
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
+        let mut replacement = Vec::new();
+        replacement.try_reserve_exact(rgba.len())
+            .map_err(|_| "Not enough memory to retain animated GLES2 atlas layer".to_owned())?;
+        replacement.extend_from_slice(rgba);
+        let replacement = Arc::from(replacement);
         self.egl.make_current()?;
         self.renderer.update_atlas_layer(layer, rgba)?;
         if let Some(assets) = self.cached_assets.as_mut() {
-            let mut replacement = Vec::new();
-            replacement.try_reserve_exact(rgba.len())
-                .map_err(|_| "Not enough memory to retain animated GLES2 atlas layer".to_owned())?;
-            replacement.extend_from_slice(rgba);
-            assets.animated_layers.insert(layer, Arc::from(replacement));
+            assets.animated_layers.insert(layer, replacement);
         }
         Ok(())
     }
