@@ -91,7 +91,7 @@ if "solid_uniforms_ = {};" not in source or "translucent_uniforms_ = {};" not in
     raise SystemExit("FAIL: renderer: cached uniform locations must reset on release")
 release_start = source.index("void Gles2TerrainRenderer::release()")
 release_body = source[release_start:]
-if release_body.find("glActiveTexture(GL_TEXTURE1)") > release_body.find("glActiveTexture(GL_TEXTURE0)"):
+if release_body.find("glActiveTexture(GL_TEXTURE1)") > release_body.rfind("glActiveTexture(GL_TEXTURE0)"):
     raise SystemExit("FAIL: renderer: release must clear both texture units and restore unit zero")
 if "glActiveTexture(GL_TEXTURE0);\\n    glGenTextures(1, texture);" not in source:
     raise SystemExit("FAIL: renderer: texture uploads must begin from a known active texture unit")
