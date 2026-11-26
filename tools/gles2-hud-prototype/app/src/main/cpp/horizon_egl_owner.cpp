@@ -15,6 +15,7 @@ struct PavoEglOwner {
     EGLContext context = EGL_NO_CONTEXT;
     ANativeWindow* window = nullptr;
     std::thread::id owner_thread;
+    std::uint64_t context_generation = 1;
     std::string error;
 };
 
