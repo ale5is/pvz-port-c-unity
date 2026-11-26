@@ -1,6 +1,6 @@
 # Android 5 GLES2 renderer plan — Horizon 0.7.8
 
-Status: design/audit only. No GLES2 renderer has been implemented yet.
+Status: an isolated GLES2 terrain-renderer prototype and CPU adapters exist, but neither is connected to Horizon's live launcher/game loop. The real Philips device has passed the basic GLES2 capability probes; the native terrain prototype itself has not yet been visually validated on the TV.
 
 ## Fixed target and evidence
 
@@ -43,6 +43,14 @@ Still not confirmed on the TV:
 - Integration of any of these operations with Horizon's actual HUD batch data.
 
 The new tests are independent capability checks; they do not imply integration with Horizon's HUD renderer.
+
+## Current prototype implementation boundary
+
+The repository now contains an isolated Android NativeActivity/EGL GLES2 terrain prototype under `tools/gles2-hud-prototype`. It includes GLSL ES 1.00 solid/translucent programs, a 48-byte GLES2 vertex ABI, keyed section VBO storage, solid side ranges, distance culling, section eviction, a 32 MiB resident-VBO ceiling, owner-thread checks, and a CPU-side Horizon vertex/atlas adapter. These are prototype capabilities; the NativeActivity still submits synthetic geometry rather than live `SectionMesh` values.
+
+The CPU atlas adapter now supports replacing one animated sprite layer while regenerating its duplicated one-texel filtering gutter. The native renderer exposes a matching owner-thread-only `update_atlas_layer()` path that stages one padded cell and updates the existing texture with `glTexSubImage2D`, without reallocating the atlas. Horizon's animation clock/frame selection is not yet connected to this API.
+
+The isolated NativeActivity surface lifecycle and NDK compilation are covered by CI, but the native terrain prototype has not yet been confirmed rendering on the Philips TV. The user's successful GLES2 probe results validate device capabilities, not this renderer's complete shaders, atlas, lightmap, or terrain output.
 
 ## Recommended implementation strategy
 
