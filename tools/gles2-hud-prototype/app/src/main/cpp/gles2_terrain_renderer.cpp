@@ -239,6 +239,7 @@ bool Gles2TerrainRenderer::upload_texture(GLuint* texture, const std::uint8_t* p
                       width, height, max_size);
         return false;
     }
+    glActiveTexture(GL_TEXTURE0);
     glGenTextures(1, texture);
     if (!*texture) {
         std::snprintf(error_, sizeof(error_), "glGenTextures returned texture 0");
@@ -416,6 +417,7 @@ void Gles2TerrainRenderer::draw(const float* mvp, const float section_origin[3],
 }
 
 void Gles2TerrainRenderer::release() {
+    glActiveTexture(GL_TEXTURE0);
     if (solid_vbo_) glDeleteBuffers(1, &solid_vbo_);
     if (translucent_vbo_) glDeleteBuffers(1, &translucent_vbo_);
     if (atlas_texture_) glDeleteTextures(1, &atlas_texture_);
@@ -423,6 +425,9 @@ void Gles2TerrainRenderer::release() {
     if (solid_program_) glDeleteProgram(solid_program_);
     if (translucent_program_) glDeleteProgram(translucent_program_);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);
     solid_vbo_ = translucent_vbo_ = atlas_texture_ = lightmap_texture_ = 0;
