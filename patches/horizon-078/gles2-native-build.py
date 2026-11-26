@@ -468,6 +468,7 @@ pub(crate) struct Runtime {
     renderer: super::gles2_native::Backend,
     egl: EglOwner,
     context_generation: u64,
+    surface_attached: bool,
     initialized: bool,
     cached_assets: Option<CachedAssets>,
     cached_sections: std::collections::HashMap<[i32; 3], CachedSection>,
@@ -480,7 +481,7 @@ impl Runtime {
         let renderer = super::gles2_native::Backend::new()?;
         let context_generation = egl.generation()?;
         Ok(Self {
-            renderer, egl, context_generation, initialized: false,
+            renderer, egl, context_generation, surface_attached: true, initialized: false,
             cached_assets: None, cached_sections: std::collections::HashMap::new(),
         })
     }
@@ -511,14 +512,17 @@ impl Runtime {
     }
 
     /// Release only the native window surface; retain the context and GPU objects when possible.
-    pub(crate) fn suspend(&self) -> Result<(), String> {
-        self.egl.suspend()
+    pub(crate) fn suspend(&mut self) -> Result<(), String> {
+        self.egl.suspend()?;
+        self.surface_attached = false;
+        Ok(())
     }
 
     /// Reattach to the resumed Android window. If EGL had to recreate its context,
     /// replace the invalid GL backend and require the caller to upload assets again.
     pub(crate) fn resume(&mut self, window: &Window) -> Result<bool, String> {
         let generation = self.egl.resume(window)?;
+        self.surface_attached = true;
         let context_changed = generation != self.context_generation;
         if context_changed {
             self.renderer.abandon();
@@ -662,6 +666,17 @@ impl Runtime {
             assets.animated_layers.insert(layer, replacement);
         }
         Ok(())
+    }
+}
+
+impl Drop for Runtime {
+    fn drop(&mut self) {
+        // Backend::drop issues GL deletes. They are valid only while this EGL
+        // context is current; after suspend or context loss, abandon the GL
+        // names and let eglDestroyContext reclaim them instead.
+        if !self.surface_attached || self.egl.make_current().is_err() {
+            self.renderer.abandon();
+        }
     }
 }
 '''
