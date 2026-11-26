@@ -562,14 +562,42 @@ pub struct Gles2SectionQueue {
     pending: VecDeque<Gles2SectionPayload>,
     max_bytes: usize,
     queued_bytes: usize,
+    generation: u64,
 }
 
 impl Gles2SectionQueue {
     pub fn new(max_bytes: usize) -> Self {
-        Self { pending: VecDeque::new(), max_bytes, queued_bytes: 0 }
+        Self { pending: VecDeque::new(), max_bytes, queued_bytes: 0, generation: 0 }
     }
 
     pub fn len(&self) -> usize { self.pending.len() }
+    pub fn generation(&self) -> u64 { self.generation }
+
+    /// Advance to a newly attached EGL/window generation.
+    ///
+    /// Pending uploads belong to the previous native window/context lifetime and
+    /// are discarded before the new generation can accept work. Generations are
+    /// strictly increasing so delayed producer messages cannot roll ownership back.
+    pub fn advance_generation(&mut self, generation: u64) -> Result<(), &'static str> {
+        if generation <= self.generation {
+            return Err("GLES2 upload generation must increase monotonically");
+        }
+        self.clear();
+        self.generation = generation;
+        Ok(())
+    }
+
+    /// Reject uploads prepared for an old or not-yet-active native window.
+    pub fn enqueue_for_generation(
+        &mut self,
+        generation: u64,
+        payload: Gles2SectionPayload,
+    ) -> Result<Option<Gles2SectionPayload>, Gles2SectionPayload> {
+        if generation != self.generation {
+            return Err(payload);
+        }
+        self.enqueue(payload)
+    }
     pub fn is_empty(&self) -> bool { self.pending.is_empty() }
     pub fn queued_bytes(&self) -> usize { self.queued_bytes }
     pub fn max_bytes(&self) -> usize { self.max_bytes }
@@ -828,6 +856,40 @@ mod tests {
             bounds: None,
             keep: false,
         }
+    }
+
+    #[test]
+    fn queue_generation_discards_old_window_work_and_rejects_stale_producers() {
+        let mut queue = Gles2SectionQueue::new(8192);
+        assert_eq!(queue.generation(), 0);
+        assert!(matches!(
+            queue.enqueue_for_generation(0, test_payload((1, 0, 1), 1)),
+            Ok(None)
+        ));
+        let old_bytes = queue.queued_bytes();
+        assert!(old_bytes > 0);
+
+        queue.advance_generation(1).unwrap();
+        assert_eq!(queue.generation(), 1);
+        assert!(queue.is_empty());
+        assert_eq!(queue.queued_bytes(), 0);
+
+        let stale = match queue.enqueue_for_generation(0, test_payload((2, 0, 2), 1)) {
+            Err(payload) => payload,
+            Ok(_) => panic!("stale window generation must never enter the upload queue"),
+        };
+        assert_eq!(stale.key, (2, 0, 2));
+        assert!(queue.is_empty());
+
+        assert!(matches!(
+            queue.enqueue_for_generation(1, test_payload((3, 0, 3), 1)),
+            Ok(None)
+        ));
+        assert_eq!(queue.len(), 1);
+        assert!(queue.advance_generation(1).is_err());
+        assert!(queue.advance_generation(0).is_err());
+        assert_eq!(queue.generation(), 1);
+        assert_eq!(queue.len(), 1);
     }
 
     #[test]
