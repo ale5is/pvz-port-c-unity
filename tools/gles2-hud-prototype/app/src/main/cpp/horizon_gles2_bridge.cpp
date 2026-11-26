@@ -37,7 +37,9 @@ extern "C" PavoGles2Handle* pavo_gles2_create() {
 
 extern "C" void pavo_gles2_destroy(PavoGles2Handle* handle) {
     if (!handle) return;
-    if (handle->initialized) handle->renderer.release();
+    // release() is safe before initialization and after partial initialization:
+    // it frees every GL name allocated before a later setup step failed.
+    handle->renderer.release();
     delete handle;
 }
 
@@ -83,6 +85,7 @@ extern "C" int pavo_gles2_initialize(
             handle->atlas.pixels.data(), handle->atlas.width, handle->atlas.height,
             lightmap_rgba, lightmap_width, lightmap_height, sprite_size)) {
         set_error(handle, handle->renderer.last_error());
+        handle->renderer.release();
         handle->atlas = {};
         return 0;
     }
