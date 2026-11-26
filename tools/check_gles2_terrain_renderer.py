@@ -13,6 +13,10 @@ native_host = (root / "native_hud.cpp").read_text(encoding="utf-8")
 
 required_header = [
     "thread that owns the current EGL context",
+    "std::thread::id owner_thread_",
+    "bool owner_thread_set_ = false;",
+    "bool bind_or_check_owner_thread(const char* operation);",
+    "bool check_owner_thread(const char* operation);",
     "struct UniformLocations",
     "UniformLocations solid_uniforms_",
     "UniformLocations translucent_uniforms_",
@@ -75,6 +79,22 @@ required_source = [
     "std::sort(visible.begin()",
     "distance_squared > max_distance_squared",
     "clear_sections();",
+    "Gles2TerrainRenderer::bind_or_check_owner_thread",
+    "Gles2TerrainRenderer::check_owner_thread",
+    "std::this_thread::get_id()",
+    "must run on the EGL context owner thread",
+    "requires initialize() on the EGL context owner thread",
+    "if (!check_owner_thread(\"upload_solid\")) return false;",
+    "if (!check_owner_thread(\"upload_translucent\")) return false;",
+    "if (!check_owner_thread(\"upload_section\")) return false;",
+    "if (!check_owner_thread(\"set_section_solid_ranges\")) return false;",
+    "if (!check_owner_thread(\"remove_section\")) return;",
+    "if (!check_owner_thread(\"remove_column\")) return;",
+    "if (!check_owner_thread(\"clear_sections\")) return;",
+    "if (!check_owner_thread(\"draw_sections\")) return;",
+    "if (!check_owner_thread(\"draw\")) return;",
+    "if (!check_owner_thread(\"release\")) return;",
+    "if (!bind_or_check_owner_thread(\"initialize\")) return false;",
 ]
 required_atlas_contract = [
     "if (sprite_size <= 0 || sprite_size > atlas_width || sprite_size > atlas_height",
@@ -166,6 +186,7 @@ if not (solid_loop < sort_call < blend_enable < blend_func < depth_disable < tra
 if "return a.distance_squared > b.distance_squared;" not in sections_body:
     raise SystemExit("FAIL: renderer: translucent sections must be sorted far-to-near")
 print("PASS: opaque pass precedes far-to-near translucent blending and restores depth state")
+print("PASS: EGL context ownership is bound once and enforced for every public GL operation")
 
 required_adapter_header = [
     "sizeof(HorizonTerrainVertex) == 24",
