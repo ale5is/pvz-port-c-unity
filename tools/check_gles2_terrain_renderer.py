@@ -266,17 +266,30 @@ for item in [
     "GLuint replacement_buffer = 0;",
     "glGenBuffers(1, &replacement_buffer);",
     "glBufferData(GL_ARRAY_BUFFER",
+    "const GLenum error = glGetError();",
+    "if (error != GL_NO_ERROR)",
     "glDeleteBuffers(1, &replacement_buffer);",
     "if (*buffer) glDeleteBuffers(1, buffer);",
     "*buffer = replacement_buffer;",
+    "if (count == 0)",
+    "*buffer = 0;",
+    "*vertex_count = 0;",
 ]:
     if item not in upload_buffer_body:
         raise SystemExit(f"FAIL: renderer standalone VBO replacement missing {item}")
 old_buffer_delete = upload_buffer_body.rindex("if (*buffer) glDeleteBuffers(1, buffer);")
+error_check = upload_buffer_body.index("const GLenum error = glGetError();")
+error_branch = upload_buffer_body.index("if (error != GL_NO_ERROR)")
+temporary_delete = upload_buffer_body.index("glDeleteBuffers(1, &replacement_buffer);")
 if not (upload_buffer_body.index("glBufferData(GL_ARRAY_BUFFER") <
-        old_buffer_delete <
+        error_check < error_branch < temporary_delete < old_buffer_delete <
         upload_buffer_body.index("*buffer = replacement_buffer;")):
     raise SystemExit("FAIL: renderer standalone VBO must retain the previous buffer until replacement upload succeeds")
+empty_branch = upload_buffer_body.index("if (count == 0)")
+if not (empty_branch < upload_buffer_body.index("glGenBuffers(1, &replacement_buffer);") and
+        upload_buffer_body.index("*buffer = 0;", empty_branch) <
+        upload_buffer_body.index("*vertex_count = 0;", empty_branch)):
+    raise SystemExit("FAIL: renderer empty VBO upload must explicitly clear both buffer and vertex count")
 if source.count("attribute ") != 8:
     missing.append("renderer: GLES2 path must stay within the eight guaranteed vertex attribute slots")
 if "horizon_terrain_adapter.cpp" not in cmake:
