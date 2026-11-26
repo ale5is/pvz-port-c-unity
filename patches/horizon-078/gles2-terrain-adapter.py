@@ -525,7 +525,7 @@ mod tests {
         assert_eq!(rejected.key, (4, 5, 6));
         assert_eq!(queue.len(), 1);
         assert_eq!(queue.queued_bytes(), bytes);
-        assert_eq!(queue.pop_front().unwrap().key, (1, 2, 3));
+        assert_eq!(queue.pop_front().map(|payload| payload.key), Some((1, 2, 3)));
     }
 
     #[test]
@@ -533,7 +533,7 @@ mod tests {
         let existing = test_payload((1, 2, 3), 1);
         let bytes = existing.byte_len().unwrap();
         let mut queue = Gles2SectionQueue::new(bytes);
-        queue.enqueue(existing).unwrap();
+        assert!(matches!(queue.enqueue(existing), Ok(None)));
         let rejected = match queue.enqueue(test_payload((1, 2, 3), 2)) { Err(payload) => payload, Ok(_) => panic!("expected replacement rejection") };
         assert_eq!(rejected.key, (1, 2, 3));
         assert_eq!(queue.len(), 1);
