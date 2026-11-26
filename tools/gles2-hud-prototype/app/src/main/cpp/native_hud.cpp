@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <chrono>
 #include <cstddef>
+#include <cstring>
 #include <thread>
 
 #define LOG_TAG "PavoGLES2Native"
@@ -39,7 +40,10 @@ static std::array<pavo::Gles2TerrainVertex, 24> create_terrain_vertices() {
          {0.88f, -0.06f, 0.0f}, {0.88f, -0.82f, 0.0f}, {0.06f, -0.82f, 0.0f}}
     };
     const float atlas_origins[4][2] = {
-        {0.0f, 0.0f}, {0.5f, 0.0f}, {0.0f, 0.5f}, {0.5f, 0.5f}
+        {1.0f / 6.0f, 1.0f / 6.0f},
+        {4.0f / 6.0f, 1.0f / 6.0f},
+        {1.0f / 6.0f, 4.0f / 6.0f},
+        {4.0f / 6.0f, 4.0f / 6.0f}
     };
     for (std::size_t quad = 0; quad < 4; ++quad) {
         for (std::size_t vertex = 0; vertex < 6; ++vertex) {
@@ -49,8 +53,8 @@ static std::array<pavo::Gles2TerrainVertex, 24> create_terrain_vertices() {
             out.uv[1] = vertex == 2 || vertex == 4 || vertex == 5 ? 1.0f : 0.0f;
             out.atlas_origin[0] = atlas_origins[quad][0];
             out.atlas_origin[1] = atlas_origins[quad][1];
-            out.atlas_scale[0] = 0.5f;
-            out.atlas_scale[1] = 0.5f;
+            out.atlas_scale[0] = 1.0f / 6.0f;
+            out.atlas_scale[1] = 1.0f / 6.0f;
             out.color[0] = 255;
             out.color[1] = 255;
             out.color[2] = 255;
@@ -63,11 +67,28 @@ static std::array<pavo::Gles2TerrainVertex, 24> create_terrain_vertices() {
     return vertices;
 }
 
-static std::array<std::uint8_t, 16> create_test_atlas() {
-    return {{
-        255, 0, 0, 255, 0, 255, 0, 255,
-        0, 0, 255, 255, 255, 255, 255, 255
-    }};
+static std::array<std::uint8_t, 6 * 6 * 4> create_test_atlas() {
+    std::array<std::uint8_t, 6 * 6 * 4> pixels{};
+    const std::uint8_t colors[4][4] = {
+        {255, 48, 48, 255}, {48, 255, 48, 255},
+        {48, 96, 255, 255}, {255, 224, 48, 255}
+    };
+    for (std::uint32_t layer = 0; layer < 4; ++layer) {
+        const std::uint32_t cell_x = (layer % 2) * 3;
+        const std::uint32_t cell_y = (layer / 2) * 3;
+        for (std::uint32_t y = 0; y < 3; ++y) {
+            for (std::uint32_t x = 0; x < 3; ++x) {
+                const std::size_t offset = ((cell_y + y) * 6 + cell_x + x) * 4;
+                std::memcpy(pixels.data() + offset, colors[layer], 4);
+            }
+        }
+    }
+    return pixels;
+}
+
+static std::array<std::uint8_t, 4> create_animation_frame(std::uint32_t frame) {
+    if ((frame & 1u) == 0) return {{32, 220, 255, 255}};
+    return {{255, 64, 220, 255}};
 }
 
 static std::array<std::uint8_t, 16 * 16 * 4> create_test_lightmap() {
@@ -184,7 +205,7 @@ static void render_loop(Engine* engine, ANativeWindow* window) {
     const auto atlas = create_test_atlas();
     const auto lightmap = create_test_lightmap();
     const auto vertices = create_terrain_vertices();
-    const bool initialized = renderer.initialize(atlas.data(), 2, 2, lightmap.data(), 16, 16, 1);
+    const bool initialized = renderer.initialize(atlas.data(), 6, 6, lightmap.data(), 16, 16, 1);
     const bool uploaded = initialized && renderer.upload_solid(vertices.data(), vertices.size());
     if (!uploaded) {
         LOGE("GLES2 terrain renderer setup failed: %s", renderer.last_error());
@@ -217,8 +238,21 @@ static void render_loop(Engine* engine, ANativeWindow* window) {
     }
     glClearDepthf(1.0f);
     unsigned long long frames = 0;
+    std::uint32_t animation_frame = 0;
+    auto next_animation_update = std::chrono::steady_clock::now();
 
     while (!engine->stop.load()) {
+        const auto animation_now = std::chrono::steady_clock::now();
+        if (animation_now >= next_animation_update) {
+            const auto pixels = create_animation_frame(animation_frame);
+            if (!renderer.update_atlas_layer(0, pixels.data(), pixels.size())) {
+                LOGE("Animated GLES2 atlas update failed: %s", renderer.last_error());
+                break;
+            }
+            animation_frame = (animation_frame + 1u) & 1u;
+            next_animation_update = animation_now + std::chrono::milliseconds(500);
+        }
+
         const int requested_width = engine->surface_width.load();
         const int requested_height = engine->surface_height.load();
         if (requested_width > 0 && requested_height > 0 &&
