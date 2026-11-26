@@ -7,7 +7,7 @@ import shutil
 parser = argparse.ArgumentParser()
 parser.add_argument("source", type=Path)
 root = parser.parse_args().source.resolve()
-repo = Path(__file__).resolve().parents[1]
+repo = Path(__file__).resolve().parents[2]
 cpp_source = repo / "tools/gles2-hud-prototype/app/src/main/cpp"
 destination = root / "crates/horizon-android/gles2-native"
 destination.mkdir(parents=True, exist_ok=True)
