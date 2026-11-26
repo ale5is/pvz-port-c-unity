@@ -56,9 +56,16 @@ egl_rust = root / "crates/horizon-client/src/android/gles2_egl.rs"
 if not egl_rust.is_file():
     raise SystemExit("FAIL: missing Rust EGL owner")
 egl_text = egl_rust.read_text(encoding="utf-8")
-for marker in ("pub(crate) struct Runtime", "pavo_egl_create", "pavo_egl_swap", "RawWindowHandle::AndroidNdk"):
+for marker in ("pub(crate) struct Runtime", "pavo_egl_create", "pavo_egl_swap", "pavo_egl_suspend", "pavo_egl_resume", "pavo_egl_context_generation", "pub(crate) fn suspend", "pub(crate) fn resume", "context_generation", "initialized: bool", "RawWindowHandle::AndroidNdk"):
     if marker not in egl_text:
         raise SystemExit(f"FAIL: Rust EGL owner missing {marker}")
     print(f"PASS: Rust EGL {marker}")
 
-print("Native GLES2 library is linked into the Android cdylib; EGL ownership and Game call sites remain separate integration gates.")
+egl_header = (root.parent.parent / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_egl_owner.h").read_text(encoding="utf-8")
+egl_cpp = (root.parent.parent / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_egl_owner.cpp").read_text(encoding="utf-8")
+for marker in ("pavo_egl_context_generation", "pavo_egl_suspend", "pavo_egl_resume"):
+    if marker not in egl_header or marker not in egl_cpp:
+        raise SystemExit(f"FAIL: native EGL lifecycle is missing {marker}")
+    print(f"PASS: native EGL lifecycle {marker}")
+
+print("Native GLES2 library is linked; EGL surface resume and context-generation recovery are exposed. Game call-site integration remains separate.")
