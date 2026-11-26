@@ -58,6 +58,11 @@ required_source = [
     "glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)",
     "v_material.x * 119.0",
     "kMaximumResidentSections = 512",
+    "kMaximumResidentBytes = 32u * 1024u * 1024u",
+    "replacement_bytes > kMaximumResidentBytes - retained_bytes",
+    "resident_bytes_ = retained_bytes + replacement_bytes",
+    "resident_bytes_ -= it->second.byte_size",
+    "resident_bytes_ = 0",
     "sections_.emplace(section_key, replacement)",
     "existing->second = replacement",
     "void Gles2TerrainRenderer::remove_section",
@@ -171,6 +176,7 @@ print("PASS: light, emission tier, fluid face, opaque flag and UV scale are deco
 print("PASS: eight GLES2 attributes, including packed emission/material bytes")
 print("PASS: atlas/lightmap sampling and VBO draw path")
 print("PASS: keyed multi-section residency, atomic replacement and bounded 512-section cache")
+print("PASS: 32 MiB GPU VBO budget with replacement-aware accounting and eviction")
 print("PASS: column/section eviction, distance culling and back-to-front translucent sections")
 print("PASS: opaque depth pass and translucent blend/depth-mask pass")
 print("PASS: Android NativeActivity executes the GLES2 terrain renderer")
