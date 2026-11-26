@@ -333,13 +333,29 @@ pub fn convert_section(
     uv_step: f32,
 ) -> Result<Gles2SectionPayload, &'static str> {
     let geometry = convert_mesh_with_uv_step(mesh, atlas, uv_step)?;
+
+    let mut block_entities = Vec::new();
+    block_entities.try_reserve_exact(mesh.block_entities.len())
+        .map_err(|_| "not enough memory to copy Horizon block-entity metadata")?;
+    block_entities.extend_from_slice(&mesh.block_entities);
+
+    let mut lights = Vec::new();
+    lights.try_reserve_exact(mesh.lights.len())
+        .map_err(|_| "not enough memory to copy Horizon light metadata")?;
+    lights.extend_from_slice(&mesh.lights);
+
+    let mut sprite_layers = Vec::new();
+    sprite_layers.try_reserve_exact(mesh.sprite_layers.len())
+        .map_err(|_| "not enough memory to copy Horizon sprite-layer metadata")?;
+    sprite_layers.extend_from_slice(&mesh.sprite_layers);
+
     Ok(Gles2SectionPayload {
         key,
         geometry,
         visibility: mesh.visibility,
-        block_entities: mesh.block_entities.clone(),
-        lights: mesh.lights.clone(),
-        sprite_layers: mesh.sprite_layers.clone(),
+        block_entities,
+        lights,
+        sprite_layers,
         bounds: mesh.bounds.map(|bounds| [bounds[0].to_array(), bounds[1].to_array()]),
         keep: mesh.keep,
     })
