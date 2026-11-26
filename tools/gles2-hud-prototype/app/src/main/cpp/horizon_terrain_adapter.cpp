@@ -182,9 +182,18 @@ bool convert_horizon_terrain_vertices(const HorizonTerrainVertex* source,
             }
 
             Gles2TerrainVertex& vertex = quad[corner];
+            if (!std::all_of(input.position, input.position + 3,
+                             [](float value) { return std::isfinite(value); })) {
+                set_error(error, "Horizon terrain position must contain only finite values");
+                return false;
+            }
             std::copy(input.position, input.position + 3, vertex.position);
             vertex.uv[0] = static_cast<float>(input.uv[0]) / uv_steps;
             vertex.uv[1] = static_cast<float>(input.uv[1]) / uv_steps;
+            if (!std::isfinite(vertex.uv[0]) || !std::isfinite(vertex.uv[1])) {
+                set_error(error, "Converted Horizon terrain UV must contain only finite values");
+                return false;
+            }
 
             const std::size_t layer = sprite_layer;
             const std::size_t x = (layer % atlas_columns) *
