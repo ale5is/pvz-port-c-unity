@@ -6,6 +6,7 @@ add_library(
     native_hud.cpp
     gles2_terrain_renderer.cpp
     horizon_terrain_adapter.cpp
+    horizon_gles2_bridge.cpp
 )
 
 find_library(android-lib android)
