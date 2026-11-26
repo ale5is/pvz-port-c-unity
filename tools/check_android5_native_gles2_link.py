@@ -61,6 +61,16 @@ for marker in ("pub(crate) struct Runtime", "pavo_egl_create", "pavo_egl_swap", 
         raise SystemExit(f"FAIL: Rust EGL owner missing {marker}")
     print(f"PASS: Rust EGL {marker}")
 
+runtime_resume = egl_text.split("pub(crate) fn resume", 1)[1].split("pub(crate) fn is_initialized", 1)[0]
+resume_order = ("let generation = self.egl.resume(window)?;", "if generation == self.context_generation", "self.renderer = super::gles2_native::Backend::new()?;", "self.context_generation = generation;", "self.initialized = false;")
+resume_positions = [runtime_resume.find(marker) for marker in resume_order]
+if any(position < 0 for position in resume_positions) or resume_positions != sorted(resume_positions):
+    raise SystemExit("FAIL: Runtime does not invalidate and replace GLES2 resources in context-loss order")
+initialize_body = egl_text.split("pub(crate) fn initialize", 1)[1].split("pub(crate) fn suspend", 1)[0]
+if initialize_body.find("self.renderer.initialize") < 0 or initialize_body.find("self.initialized = true;") < initialize_body.find("self.renderer.initialize"):
+    raise SystemExit("FAIL: Runtime marks GLES2 initialized before native asset upload succeeds")
+print("PASS: Rust runtime context-loss invalidation and reinitialization order")
+
 egl_header = (Path(__file__).resolve().parents[1] / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_egl_owner.h").read_text(encoding="utf-8")
 egl_cpp = (Path(__file__).resolve().parents[1] / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_egl_owner.cpp").read_text(encoding="utf-8")
 for marker in ("pavo_egl_context_generation", "pavo_egl_suspend", "pavo_egl_resume"):
