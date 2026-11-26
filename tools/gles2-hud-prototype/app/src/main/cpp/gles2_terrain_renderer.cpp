@@ -200,7 +200,23 @@ bool Gles2TerrainRenderer::create_programs() {
     solid_program_ = link_program(kSolidFragmentShader, error_, sizeof(error_));
     if (!solid_program_) return false;
     translucent_program_ = link_program(kTranslucentFragmentShader, error_, sizeof(error_));
-    return translucent_program_ != 0;
+    if (!translucent_program_) return false;
+    cache_uniforms(solid_program_, &solid_uniforms_);
+    cache_uniforms(translucent_program_, &translucent_uniforms_);
+    return true;
+}
+
+void Gles2TerrainRenderer::cache_uniforms(GLuint program, UniformLocations* uniforms) {
+    if (!program || !uniforms) return;
+    uniforms->mvp = glGetUniformLocation(program, "u_mvp");
+    uniforms->section_origin = glGetUniformLocation(program, "u_section_origin");
+    uniforms->camera_position = glGetUniformLocation(program, "u_camera_position");
+    uniforms->fog_color = glGetUniformLocation(program, "u_fog_color");
+    uniforms->fog_range = glGetUniformLocation(program, "u_fog_range");
+    uniforms->atlas_size = glGetUniformLocation(program, "u_atlas_size");
+    uniforms->sprite_size = glGetUniformLocation(program, "u_sprite_size");
+    uniforms->terrain_atlas = glGetUniformLocation(program, "u_terrain_atlas");
+    uniforms->lightmap = glGetUniformLocation(program, "u_lightmap");
 }
 
 bool Gles2TerrainRenderer::upload_texture(GLuint* texture, const std::uint8_t* pixels,
@@ -322,26 +338,26 @@ bool Gles2TerrainRenderer::upload_translucent(const Gles2TerrainVertex* vertices
     return upload_buffer(&translucent_vbo_, &translucent_count_, vertices, count);
 }
 
-void Gles2TerrainRenderer::draw_buffer(GLuint program, GLuint buffer, GLsizei count,
-                                       const float* mvp, const float section_origin[3],
-                                       const float camera_position[3], const float fog_color[4],
-                                       const float fog_range[2]) {
+void Gles2TerrainRenderer::draw_buffer(GLuint program, const UniformLocations& uniforms,
+                                       GLuint buffer, GLsizei count, const float* mvp,
+                                       const float section_origin[3], const float camera_position[3],
+                                       const float fog_color[4], const float fog_range[2]) {
     if (!program || !buffer || count <= 0) return;
     glUseProgram(program);
-    glUniformMatrix4fv(glGetUniformLocation(program, "u_mvp"), 1, GL_FALSE, mvp);
-    glUniform3fv(glGetUniformLocation(program, "u_section_origin"), 1, section_origin);
-    glUniform3fv(glGetUniformLocation(program, "u_camera_position"), 1, camera_position);
-    glUniform4fv(glGetUniformLocation(program, "u_fog_color"), 1, fog_color);
-    glUniform2fv(glGetUniformLocation(program, "u_fog_range"), 1, fog_range);
-    glUniform2f(glGetUniformLocation(program, "u_atlas_size"),
+    if (uniforms.mvp >= 0) glUniformMatrix4fv(uniforms.mvp, 1, GL_FALSE, mvp);
+    if (uniforms.section_origin >= 0) glUniform3fv(uniforms.section_origin, 1, section_origin);
+    if (uniforms.camera_position >= 0) glUniform3fv(uniforms.camera_position, 1, camera_position);
+    if (uniforms.fog_color >= 0) glUniform4fv(uniforms.fog_color, 1, fog_color);
+    if (uniforms.fog_range >= 0) glUniform2fv(uniforms.fog_range, 1, fog_range);
+    if (uniforms.atlas_size >= 0) glUniform2f(uniforms.atlas_size,
                 static_cast<float>(atlas_width_), static_cast<float>(atlas_height_));
-    glUniform1f(glGetUniformLocation(program, "u_sprite_size"), static_cast<float>(sprite_size_));
+    if (uniforms.sprite_size >= 0) glUniform1f(uniforms.sprite_size, static_cast<float>(sprite_size_));
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, atlas_texture_);
-    glUniform1i(glGetUniformLocation(program, "u_terrain_atlas"), 0);
+    if (uniforms.terrain_atlas >= 0) glUniform1i(uniforms.terrain_atlas, 0);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, lightmap_texture_);
-    glUniform1i(glGetUniformLocation(program, "u_lightmap"), 1);
+    if (uniforms.lightmap >= 0) glUniform1i(uniforms.lightmap, 1);
 
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
     const GLsizei stride = sizeof(Gles2TerrainVertex);
@@ -383,15 +399,17 @@ void Gles2TerrainRenderer::draw(const float* mvp, const float section_origin[3],
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
-    draw_buffer(solid_program_, solid_vbo_, solid_count_, mvp, section_origin,
-                camera_position, fog_color, fog_range);
+    draw_buffer(solid_program_, solid_uniforms_, solid_vbo_, solid_count_, mvp,
+                section_origin, camera_position, fog_color, fog_range);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
-    draw_buffer(translucent_program_, translucent_vbo_, translucent_count_, mvp,
-                section_origin, camera_position, fog_color, fog_range);
+    draw_buffer(translucent_program_, translucent_uniforms_, translucent_vbo_,
+                translucent_count_, mvp, section_origin, camera_position, fog_color, fog_range);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);
@@ -409,6 +427,8 @@ void Gles2TerrainRenderer::release() {
     glUseProgram(0);
     solid_vbo_ = translucent_vbo_ = atlas_texture_ = lightmap_texture_ = 0;
     solid_program_ = translucent_program_ = 0;
+    solid_uniforms_ = {};
+    translucent_uniforms_ = {};
     solid_count_ = translucent_count_ = 0;
     atlas_width_ = atlas_height_ = sprite_size_ = 0;
 }
