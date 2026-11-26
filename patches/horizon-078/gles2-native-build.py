@@ -115,6 +115,12 @@ pub(crate) struct HorizonTerrainVertex {
     pub light: u16,
     pub color: u32,
 }
+const _: () = assert!(std::mem::size_of::<HorizonTerrainVertex>() == 24);
+const _: () = assert!(std::mem::offset_of!(HorizonTerrainVertex, position) == 0);
+const _: () = assert!(std::mem::offset_of!(HorizonTerrainVertex, uv) == 12);
+const _: () = assert!(std::mem::offset_of!(HorizonTerrainVertex, layer) == 16);
+const _: () = assert!(std::mem::offset_of!(HorizonTerrainVertex, light) == 18);
+const _: () = assert!(std::mem::offset_of!(HorizonTerrainVertex, color) == 20);
 
 /// Copy Horizon's native SectionMesh vertices into the stable C ABI layout.
 /// Mesh workers retain ownership of the source; the returned vectors can be
