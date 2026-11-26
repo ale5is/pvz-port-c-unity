@@ -326,36 +326,43 @@ bool Gles2TerrainRenderer::initialize(const std::uint8_t* atlas_rgba, int atlas_
 
 bool Gles2TerrainRenderer::upload_buffer(GLuint* buffer, GLsizei* vertex_count,
                                          const Gles2TerrainVertex* vertices, std::size_t count) {
-    if ((count && !vertices) || (count % 3) != 0 ||
+    if (!buffer || !vertex_count || (count && !vertices) || (count % 3) != 0 ||
         count > static_cast<std::size_t>(std::numeric_limits<GLsizei>::max()) ||
         count > std::numeric_limits<std::size_t>::max() / sizeof(Gles2TerrainVertex) ||
         count > static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max()) / sizeof(Gles2TerrainVertex)) {
         std::snprintf(error_, sizeof(error_), "Terrain vertex count must be a triangle list with a valid buffer size");
         return false;
     }
-    if (*buffer) glDeleteBuffers(1, buffer);
-    *buffer = 0;
-    *vertex_count = 0;
-    if (count == 0) return true;
+    if (count == 0) {
+        if (*buffer) glDeleteBuffers(1, buffer);
+        *buffer = 0;
+        *vertex_count = 0;
+        error_[0] = '\\0';
+        return true;
+    }
+
     clear_gl_errors();
-    glGenBuffers(1, buffer);
-    if (!*buffer) {
+    GLuint replacement_buffer = 0;
+    glGenBuffers(1, &replacement_buffer);
+    if (!replacement_buffer) {
         std::snprintf(error_, sizeof(error_), "glGenBuffers returned buffer 0");
         return false;
     }
-    glBindBuffer(GL_ARRAY_BUFFER, *buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, replacement_buffer);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(count * sizeof(Gles2TerrainVertex)),
                  vertices, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     const GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
         std::snprintf(error_, sizeof(error_), "Terrain VBO upload failed: 0x%x", error);
-        glDeleteBuffers(1, buffer);
-        *buffer = 0;
+        glDeleteBuffers(1, &replacement_buffer);
         return false;
     }
+
+    if (*buffer) glDeleteBuffers(1, buffer);
+    *buffer = replacement_buffer;
     *vertex_count = static_cast<GLsizei>(count);
-    error_[0] = '\0';
+    error_[0] = '\\0';
     return true;
 }
 
