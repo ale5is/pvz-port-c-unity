@@ -12,6 +12,7 @@ cmake = (root / "CMakeLists.txt").read_text(encoding="utf-8")
 native_host = (root / "native_hud.cpp").read_text(encoding="utf-8")
 
 required_header = [
+    "thread that owns the current EGL context",
     "struct UniformLocations",
     "UniformLocations solid_uniforms_",
     "UniformLocations translucent_uniforms_",
@@ -88,6 +89,12 @@ if source.count("glGetUniformLocation(") != 9:
     raise SystemExit("FAIL: renderer: expected one cached lookup per shader uniform")
 if "solid_uniforms_ = {};" not in source or "translucent_uniforms_ = {};" not in source:
     raise SystemExit("FAIL: renderer: cached uniform locations must reset on release")
+release_start = source.index("void Gles2TerrainRenderer::release()")
+release_body = source[release_start:]
+if release_body.find("glActiveTexture(GL_TEXTURE1)") > release_body.find("glActiveTexture(GL_TEXTURE0)"):
+    raise SystemExit("FAIL: renderer: release must clear both texture units and restore unit zero")
+if "glActiveTexture(GL_TEXTURE0);\\n    glGenTextures(1, texture);" not in source:
+    raise SystemExit("FAIL: renderer: texture uploads must begin from a known active texture unit")
 required_adapter_header = [
     "sizeof(HorizonTerrainVertex) == 24",
     "bool build_gles2_terrain_atlas(",
