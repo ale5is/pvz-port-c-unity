@@ -260,7 +260,7 @@ missing += [f"adapter header: {item}" for item in required_adapter_header if ite
 missing += [f"adapter source: {item}" for item in required_adapter_source if item not in adapter_source]
 missing += [f"native host: {item}" for item in required_host if item not in native_host]
 upload_buffer_start = source.index("bool Gles2TerrainRenderer::upload_buffer(")
-upload_buffer_end = source.index("\\nbool Gles2TerrainRenderer::upload_solid(", upload_buffer_start)
+upload_buffer_end = source.index("\nbool Gles2TerrainRenderer::upload_solid(", upload_buffer_start)
 upload_buffer_body = source[upload_buffer_start:upload_buffer_end]
 for item in [
     "GLuint replacement_buffer = 0;",
