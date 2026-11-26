@@ -15,7 +15,7 @@ pattern = re.compile(
     r"\b(renderer|previous|r)\."
     r"(device|queue|surface|spare_surface|instance|adapter|background_context|"
     r"config|screenshot_result|screenshot|drawn_sections|last_wait|last_encode|"
-    r"gpu_times|info|hud)\b"
+    r"gpu_times|info|hud|suspended)\b"
 )
 found = collections.Counter(f"{owner}.{member}" for owner, member in pattern.findall(source))
 expected = collections.Counter(

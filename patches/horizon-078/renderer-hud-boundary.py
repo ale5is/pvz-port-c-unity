@@ -14,7 +14,17 @@ gfx_source = gfx.read_text(encoding="utf-8")
 game_source = game.read_text(encoding="utf-8")
 graphics_source = graphics.read_text(encoding="utf-8")
 
-method = """    /// Wait for outstanding GPU work without exposing the wgpu device to Game.
+method = """    /// Whether the renderer has released its window surface due to suspension.
+    pub fn is_suspended(&self) -> bool {
+        self.suspended
+    }
+
+    /// Re-enable the previous renderer after its surface was handed to a replacement worker.
+    pub fn restore_after_renderer_handoff(&mut self) {
+        self.suspended = false;
+    }
+
+    /// Wait for outstanding GPU work without exposing the wgpu device to Game.
     pub fn wait_idle(&self) {
         let _ = self.device.poll(wgpu::PollType::wait_indefinitely());
     }
@@ -315,6 +325,15 @@ game_source = game_source.replace(
     "r.info.backend == wgpu::Backend::Gl",
     "r.is_gl_backend()",
 )
+if game_source.count("r.suspended)") != 1:
+    raise SystemExit("Expected one Android suspended-renderer read")
+if game_source.count("previous.suspended = false;") != 1:
+    raise SystemExit("Expected one renderer handoff state restoration")
+game_source = game_source.replace("r.suspended)", "r.is_suspended())")
+game_source = game_source.replace("previous.suspended = false;", "previous.restore_after_renderer_handoff();")
+if "r.suspended" in game_source or "previous.suspended" in game_source:
+    raise SystemExit("Game still accesses renderer suspension state directly")
+
 if "renderer.info" in game_source or "previous.info" in game_source or "r.info" in game_source:
     raise SystemExit("Game still accesses wgpu adapter metadata directly")
 
