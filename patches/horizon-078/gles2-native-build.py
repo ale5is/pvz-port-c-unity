@@ -199,6 +199,10 @@ impl Backend {
 
     pub(crate) fn abandon(self) {
         let backend = std::mem::ManuallyDrop::new(self);
+        if thread::current().id() != backend.owner {
+            log::error!("Refusing to abandon GLES2 backend outside its EGL owner thread");
+            return;
+        }
         unsafe { pavo_gles2_abandon(backend.handle.as_ptr()) };
     }
 
