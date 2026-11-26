@@ -259,6 +259,23 @@ missing += [f"renderer: {item}" for item in required_source if item not in sourc
 missing += [f"adapter header: {item}" for item in required_adapter_header if item not in adapter_header]
 missing += [f"adapter source: {item}" for item in required_adapter_source if item not in adapter_source]
 missing += [f"native host: {item}" for item in required_host if item not in native_host]
+upload_buffer_start = source.index("bool Gles2TerrainRenderer::upload_buffer(")
+upload_buffer_end = source.index("\\nbool Gles2TerrainRenderer::upload_solid(", upload_buffer_start)
+upload_buffer_body = source[upload_buffer_start:upload_buffer_end]
+for item in [
+    "GLuint replacement_buffer = 0;",
+    "glGenBuffers(1, &replacement_buffer);",
+    "glBufferData(GL_ARRAY_BUFFER",
+    "glDeleteBuffers(1, &replacement_buffer);",
+    "if (*buffer) glDeleteBuffers(1, buffer);",
+    "*buffer = replacement_buffer;",
+]:
+    if item not in upload_buffer_body:
+        raise SystemExit(f"FAIL: renderer standalone VBO replacement missing {item}")
+if not (upload_buffer_body.index("glBufferData(GL_ARRAY_BUFFER") <
+        upload_buffer_body.index("if (*buffer) glDeleteBuffers(1, buffer);") <
+        upload_buffer_body.index("*buffer = replacement_buffer;")):
+    raise SystemExit("FAIL: renderer standalone VBO must retain the previous buffer until replacement upload succeeds")
 if source.count("attribute ") != 8:
     missing.append("renderer: GLES2 path must stay within the eight guaranteed vertex attribute slots")
 if "horizon_terrain_adapter.cpp" not in cmake:
