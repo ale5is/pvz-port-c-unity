@@ -98,6 +98,31 @@ require(
     ),
 )
 
+native = Path(__file__).resolve().parents[1] / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_egl_owner.cpp"
+if not native.is_file():
+    raise SystemExit("FAIL: missing native EGL owner implementation")
+native_text = native.read_text(encoding="utf-8")
+require(
+    native_text,
+    "Runtime frame failures invalidate lost EGL contexts for the next resume",
+    (
+        "void invalidate_lost_context(PavoEglOwner* owner)",
+        "eglMakeCurrent failed (EGL_CONTEXT_LOST); context invalidated for resume recovery",
+        "eglSwapBuffers failed (EGL_CONTEXT_LOST); context invalidated for resume recovery",
+        "owner->context = EGL_NO_CONTEXT;",
+    ),
+)
+require_order(
+    native_text,
+    "Context-loss invalidation is followed by EGL context recreation on resume",
+    (
+        "void invalidate_lost_context(PavoEglOwner* owner)",
+        "extern \"C\" int pavo_egl_make_current",
+        "extern \"C\" int pavo_egl_resume",
+        "if (context_recreated) ++owner->context_generation;",
+    ),
+)
+
 contract = Path(__file__).resolve().parents[1] / "patches/horizon-078/ANDROID5-EGL-LIFECYCLE-CONTRACT.md"
 if not contract.is_file():
     raise SystemExit("FAIL: missing Android EGL lifecycle contract")
