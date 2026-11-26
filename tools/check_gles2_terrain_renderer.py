@@ -482,3 +482,29 @@ if "payload logical bytes, not allocator capacity" in terrain_source:
     raise SystemExit("FAIL: GLES2 queue documentation must not claim capacity is excluded from its budget")
 print("PASS: bounded GLES2 CPU queue budgets reserved vector capacity and caps distinct pending sections")
 
+
+resize_callback = native_host.index("static void on_window_resized(")
+resize_callback_end = native_host.index("static void on_window_destroyed(", resize_callback)
+resize_body = native_host[resize_callback:resize_callback_end]
+for item in [
+    "engine->window != window",
+    "engine->surface_width.store(ANativeWindow_getWidth(window))",
+    "engine->surface_height.store(ANativeWindow_getHeight(window))",
+]:
+    if item not in resize_body:
+        raise SystemExit(f"FAIL: native window resize callback missing {item}")
+if "activity->callbacks->onNativeWindowResized = on_window_resized;" not in native_host:
+    raise SystemExit("FAIL: NativeActivity must register its window resize callback")
+render_start = native_host.index("static void render_loop(")
+render_end = native_host.index("static void stop_renderer(", render_start)
+render_body = native_host[render_start:render_end]
+for item in [
+    "engine->surface_width.load()",
+    "engine->surface_height.load()",
+    "eglQuerySurface(display, surface, EGL_WIDTH, &resized_width)",
+    "eglQuerySurface(display, surface, EGL_HEIGHT, &resized_height)",
+    "glViewport(0, 0, width, height)",
+]:
+    if item not in render_body:
+        raise SystemExit(f"FAIL: GLES2 render loop must refresh resized EGL dimensions: missing {item}")
+print("PASS: NativeActivity resize callback refreshes the EGL viewport dimensions")
