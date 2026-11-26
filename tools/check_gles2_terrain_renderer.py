@@ -180,6 +180,15 @@ print("PASS: solid ranges reject invalid, out-of-bounds, unaligned and overlappi
 sections_start = source.index("void Gles2TerrainRenderer::draw_sections(")
 sections_end = source.index("void Gles2TerrainRenderer::draw(", sections_start)
 sections_body = source[sections_start:sections_end]
+for item in [
+    "visible.reserve(sections_.size())",
+    "catch (const std::bad_alloc&)",
+    "catch (const std::length_error&)",
+    "Not enough memory to build the visible GLES2 section list",
+    "Visible GLES2 section list exceeds the vector allocation limit",
+]:
+    if item not in sections_body:
+        raise SystemExit(f"FAIL: renderer visible-list allocation guard missing {item}")
 solid_loop = sections_body.find("for (const auto& section : visible)")
 sort_call = sections_body.find("std::sort(visible.begin()")
 blend_enable = sections_body.find("glEnable(GL_BLEND)", sort_call)
