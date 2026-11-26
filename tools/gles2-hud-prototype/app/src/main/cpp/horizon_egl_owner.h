@@ -10,6 +10,7 @@ typedef struct PavoEglOwner PavoEglOwner;
 
 PavoEglOwner* pavo_egl_create(void* native_window);
 int pavo_egl_make_current(PavoEglOwner* owner);
+std::uint64_t pavo_egl_context_generation(const PavoEglOwner* owner);
 int pavo_egl_suspend(PavoEglOwner* owner);
 int pavo_egl_resume(PavoEglOwner* owner, void* native_window);
 int pavo_egl_resize(PavoEglOwner* owner, int* width, int* height);
