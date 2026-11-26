@@ -31,8 +31,9 @@ for label, candidate, markers in [
     )),
     ("Rust EGL context-loss recovery", android_build_patch, (
         "fn pavo_gles2_abandon(handle: *mut c_void);",
-        "pub(crate) fn abandon(self)",
-        "std::mem::ManuallyDrop::new(self)",
+        "pub(crate) fn abandon(&mut self)",
+        "abandoned: bool",
+        "self.abandoned = true",
         "self.renderer.abandon();",
         "self.renderer = super::gles2_native::Backend::new()?;",
     )),
