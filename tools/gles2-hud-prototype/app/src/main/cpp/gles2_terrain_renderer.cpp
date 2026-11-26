@@ -423,6 +423,10 @@ bool Gles2TerrainRenderer::set_section_solid_ranges(
         std::snprintf(error_, sizeof(error_), "Cannot set solid ranges for a nonresident section");
         return false;
     }
+    if (range_count > static_cast<std::size_t>(it->second.solid_count) / 3) {
+        std::snprintf(error_, sizeof(error_), "Solid side range count exceeds the resident triangle list");
+        return false;
+    }
     std::vector<std::pair<GLint, GLsizei>> ranges;
     ranges.reserve(range_count);
     std::uint64_t previous_end = 0;
