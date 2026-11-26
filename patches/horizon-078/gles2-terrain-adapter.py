@@ -36,6 +36,33 @@ pub const SPRITE_LAYER_MASK: u16 = !OPAQUE_LAYER_BIT;
 pub const MAX_PENDING_SECTIONS: usize = 512;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
+pub fn blend_animation_rgba(
+    current: &[u8],
+    next: &[u8],
+    interpolation_millis: u32,
+) -> Result<Vec<u8>, &'static str> {
+    if current.is_empty() || current.len() != next.len() || current.len() % 4 != 0 {
+        return Err("animated sprite frames must have equal non-empty RGBA byte lengths");
+    }
+    if interpolation_millis > 1000 {
+        return Err("animated sprite interpolation must be between 0 and 1000");
+    }
+    let mut output = Vec::new();
+    output.try_reserve_exact(current.len())
+        .map_err(|_| "not enough memory to blend animated terrain sprite frames")?;
+    if interpolation_millis == 0 {
+        output.extend_from_slice(current);
+        return Ok(output);
+    }
+    for (&a, &b) in current.iter().zip(next) {
+        output.push(
+            ((u32::from(a) * (1000 - interpolation_millis)
+                + u32::from(b) * interpolation_millis + 500) / 1000) as u8
+        );
+    }
+    Ok(output)
+}
+
 pub struct AtlasGrid {
     pub sprite_size: u32,
     pub texture_layers: u32,
@@ -1034,6 +1061,27 @@ mod tests {
         assert_eq!(pixel(3, 3), &[40, 0, 0, 255]);
         assert_eq!(atlas.tile(0).unwrap().0, [1.0 / 4.0, 1.0 / 4.0]);
         assert_eq!(atlas.tile(0).unwrap().1, [2.0 / 4.0, 2.0 / 4.0]);
+    }
+
+    #[test]
+    fn blends_animated_rgba_frames_with_horizon_integer_rounding() {
+        let current = [0, 20, 100, 255, 10, 40, 90, 200];
+        let next = [255, 80, 0, 0, 110, 140, 190, 0];
+        assert_eq!(
+            blend_animation_rgba(&current, &next, 0).unwrap(),
+            current
+        );
+        assert_eq!(
+            blend_animation_rgba(&current, &next, 500).unwrap(),
+            [128, 50, 50, 128, 60, 90, 140, 100]
+        );
+        assert_eq!(
+            blend_animation_rgba(&current, &next, 1000).unwrap(),
+            next
+        );
+        assert!(blend_animation_rgba(&current, &next[..4], 500).is_err());
+        assert!(blend_animation_rgba(&current, &next, 1001).is_err());
+        assert!(blend_animation_rgba(&current[..7], &next[..7], 500).is_err());
     }
 
     #[test]
