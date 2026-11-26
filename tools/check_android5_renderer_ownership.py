@@ -16,8 +16,8 @@ launcher_source = launcher.read_text(encoding="utf-8")
 
 # The launcher creates the loading renderer before Game exists. Audit this
 # independent owner too, so a Game-only check cannot miss a second surface.
-launcher_field = re.findall(r"(?m)^\\s*renderer:\\s*Option<Renderer>,\\s*$", launcher_source)
-loading_factory = re.findall(r"game::loading_renderer\\s*\\(", launcher_source)
+launcher_field = re.findall(r"(?m)^\s*renderer:\s*Option<Renderer>,\s*$", launcher_source)
+loading_factory = re.findall(r"game::loading_renderer\s*\(", launcher_source)
 if len(launcher_field) != 1 or len(loading_factory) != 1:
     raise SystemExit(
         "Unexpected launcher renderer boundary: "
