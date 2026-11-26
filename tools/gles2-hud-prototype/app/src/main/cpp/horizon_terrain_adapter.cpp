@@ -223,4 +223,37 @@ bool convert_horizon_terrain_vertices(const HorizonTerrainVertex* source,
     return true;
 }
 
+bool upload_horizon_section(Gles2TerrainRenderer* renderer,
+                            const std::int32_t key[3],
+                            const HorizonTerrainVertex* solid, std::size_t solid_count,
+                            const HorizonTerrainVertex* translucent,
+                            std::size_t translucent_count,
+                            const Gles2TerrainAtlas& atlas, float uv_steps,
+                            std::string* error) {
+    if (!renderer || !key) {
+        set_error(error, "Horizon section upload requires a renderer and section key");
+        return false;
+    }
+
+    std::vector<Gles2TerrainVertex> converted_solid;
+    std::vector<Gles2TerrainVertex> converted_translucent;
+    if (!convert_horizon_terrain_vertices(solid, solid_count, atlas, uv_steps,
+                                          &converted_solid, error)) {
+        return false;
+    }
+    if (!convert_horizon_terrain_vertices(translucent, translucent_count, atlas, uv_steps,
+                                          &converted_translucent, error)) {
+        return false;
+    }
+
+    if (!renderer->upload_section(key,
+                                  converted_solid.data(), converted_solid.size(),
+                                  converted_translucent.data(), converted_translucent.size())) {
+        set_error(error, renderer->last_error());
+        return false;
+    }
+    if (error) error->clear();
+    return true;
+}
+
 }  // namespace pavo
