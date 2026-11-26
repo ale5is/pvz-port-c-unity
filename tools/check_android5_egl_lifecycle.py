@@ -123,6 +123,23 @@ require_order(
     ),
 )
 
+generator = Path(__file__).resolve().parents[1] / "patches/horizon-078/gles2-native-build.py"
+if not generator.is_file():
+    raise SystemExit("FAIL: missing GLES2 Android source generator")
+generator_text = generator.read_text(encoding="utf-8")
+require(
+    generator_text,
+    "Generated Runtime never destroys GL resources without a current EGL context",
+    (
+        "surface_attached: bool",
+        "self.surface_attached = false;",
+        "self.surface_attached = true;",
+        "impl Drop for Runtime",
+        "if !self.surface_attached || self.egl.make_current().is_err()",
+        "self.renderer.abandon();",
+    ),
+)
+
 contract = Path(__file__).resolve().parents[1] / "patches/horizon-078/ANDROID5-EGL-LIFECYCLE-CONTRACT.md"
 if not contract.is_file():
     raise SystemExit("FAIL: missing Android EGL lifecycle contract")
