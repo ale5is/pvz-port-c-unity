@@ -155,6 +155,11 @@ upload_end = source.index("bool Gles2TerrainRenderer::initialize(", upload_start
 upload_body = source[upload_start:upload_end]
 if upload_body.find("glActiveTexture(GL_TEXTURE0);") < 0 or upload_body.find("glActiveTexture(GL_TEXTURE0);") > upload_body.find("glGenTextures(1, texture);"):
     raise SystemExit("FAIL: renderer: texture uploads must begin from a known active texture unit")
+upload_section_start = source.index("bool Gles2TerrainRenderer::upload_section(")
+upload_section_end = source.index("bool Gles2TerrainRenderer::set_section_solid_ranges(", upload_section_start)
+upload_section_body = source[upload_section_start:upload_section_end]
+if "range_count > std::numeric_limits<std::size_t>::max() / 2" not in upload_section_body:
+    raise SystemExit("FAIL: upload_section must bound packed range indexing before reading pairs")
 range_start = source.index("bool Gles2TerrainRenderer::set_section_solid_ranges(")
 range_end = source.index("void Gles2TerrainRenderer::remove_section(", range_start)
 range_body = source[range_start:range_end]
@@ -162,6 +167,7 @@ required_range_contract = [
     "if (!key || (range_count && !first_count_pairs))",
     "sections_.find(section_key)",
     "if (it == sections_.end())",
+    "range_count > std::numeric_limits<std::size_t>::max() / 2",
     "range_count > static_cast<std::size_t>(it->second.solid_count) / 3",
     "ranges.reserve(range_count)",
     "catch (const std::bad_alloc&)",
