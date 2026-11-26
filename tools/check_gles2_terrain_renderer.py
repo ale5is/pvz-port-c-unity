@@ -16,7 +16,7 @@ bridge_source = (root / "horizon_gles2_bridge.cpp").read_text(encoding="utf-8")
 repo_root = Path(__file__).resolve().parents[1]
 android_build_patch = (repo_root / "patches/horizon-078/gles2-native-build.py").read_text(encoding="utf-8")
 
-for label, source, markers in [
+for label, candidate, markers in [
     ("renderer context-loss abandonment", header, ("void abandon_context() noexcept;",)),
     ("renderer context-loss abandonment implementation", source, (
         "void Gles2TerrainRenderer::abandon_context() noexcept",
@@ -37,7 +37,7 @@ for label, source, markers in [
         "self.renderer = super::gles2_native::Backend::new()?;",
     )),
 ]:
-    missing_markers = [item for item in markers if item not in source]
+    missing_markers = [item for item in markers if item not in candidate]
     if missing_markers:
         raise SystemExit(f"FAIL: {label}: missing {missing_markers}")
 print("PASS: EGL context loss abandons stale GL names before creating the replacement backend")
