@@ -4,6 +4,7 @@
 
 #include <GLES2/gl2.h>
 #include <algorithm>
+#include <cmath>
 #include <new>
 #include <string>
 
