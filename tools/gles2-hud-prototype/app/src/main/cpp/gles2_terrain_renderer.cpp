@@ -352,7 +352,7 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
     const std::array<std::int32_t, 3> section_key{{key[0], key[1], key[2]}};
     if (solid_count == 0 && translucent_count == 0) {
         remove_section(key);
-        error_[0] = '\\0';
+        error_[0] = '\0';
         return true;
     }
     const auto existing = sections_.find(section_key);
@@ -379,7 +379,7 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
     } else {
         sections_.emplace(section_key, replacement);
     }
-    error_[0] = '\\0';
+    error_[0] = '\0';
     return true;
 }
 
