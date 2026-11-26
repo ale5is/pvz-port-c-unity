@@ -193,6 +193,7 @@ required_adapter_header = [
     "sizeof(HorizonTerrainVertex) == 24",
     "bool build_gles2_terrain_atlas(",
     "bool convert_horizon_terrain_vertices(",
+    "bool upload_horizon_section(",
 ]
 required_adapter_source = [
     "layer_major_rgba",
@@ -213,6 +214,10 @@ required_adapter_source = [
     "input.light >> 8",
     "vertex.opaque_layer",
     "static_cast<float>(input.uv[0]) / uv_steps",
+    "converted_solid.data(), converted_solid.size()",
+    "converted_translucent.data(), converted_translucent.size()",
+    "renderer->upload_section(key,",
+    "renderer->last_error()",
 ]
 required_host = [
     '#include "gles2_terrain_renderer.h"',
@@ -293,6 +298,21 @@ for item in quad_order:
     search_from = position + len(item)
 if "output->clear()" in conversion_body or "converted.reserve(vertex_count)" in conversion_body:
     raise SystemExit("FAIL: Horizon CPU adapter must preserve output atomically and avoid the oversized intermediate vertex buffer")
+upload_start = adapter_source.index("bool upload_horizon_section(")
+upload_body = adapter_source[upload_start:adapter_source.index("\\n}  // namespace pavo", upload_start)]
+for item in [
+    "if (!renderer || !key)",
+    "convert_horizon_terrain_vertices(solid, solid_count",
+    "convert_horizon_terrain_vertices(translucent, translucent_count",
+    "renderer->upload_section(key,",
+    "set_error(error, renderer->last_error())",
+]:
+    if item not in upload_body:
+        raise SystemExit(f"FAIL: Horizon section upload boundary missing {item}")
+if not (upload_body.index("convert_horizon_terrain_vertices(solid") <
+        upload_body.index("convert_horizon_terrain_vertices(translucent") <
+        upload_body.index("renderer->upload_section(key,")):
+    raise SystemExit("FAIL: both section layers must convert before the atomic GPU replacement")
 print("PASS: Horizon CPU vertex conversion is overflow-checked, bounded, allocation-safe and atomic")
 print("PASS: Horizon quad expansion preserves exact (0,1,2,2,3,0) triangle winding")
 print("PASS: layer-major sprite pixels pack with duplicated filtering gutters")
