@@ -148,6 +148,25 @@ if range_body.index("it->second.solid_ranges = std::move(ranges)") < range_body.
     raise SystemExit("FAIL: renderer: solid ranges must be committed only after all entries validate")
 print("PASS: solid ranges reject invalid, out-of-bounds, unaligned and overlapping ranges atomically")
 
+sections_start = source.index("void Gles2TerrainRenderer::draw_sections(")
+sections_end = source.index("void Gles2TerrainRenderer::draw(", sections_start)
+sections_body = source[sections_start:sections_end]
+solid_loop = sections_body.find("for (const auto& section : visible)")
+sort_call = sections_body.find("std::sort(visible.begin()")
+blend_enable = sections_body.find("glEnable(GL_BLEND)", sort_call)
+blend_func = sections_body.find("glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)", sort_call)
+depth_disable = sections_body.find("glDepthMask(GL_FALSE)", sort_call)
+translucent_loop = sections_body.find("for (const auto& section : visible)", solid_loop + 1)
+depth_restore = sections_body.find("glDepthMask(GL_TRUE)", translucent_loop)
+blend_disable = sections_body.find("glDisable(GL_BLEND)", depth_restore)
+if min(solid_loop, sort_call, blend_enable, blend_func, depth_disable, translucent_loop, depth_restore, blend_disable) < 0:
+    raise SystemExit("FAIL: renderer: incomplete solid/translucent pass state sequence")
+if not (solid_loop < sort_call < blend_enable < blend_func < depth_disable < translucent_loop < depth_restore < blend_disable):
+    raise SystemExit("FAIL: renderer: opaque pass must precede sorted translucent blending with depth writes restored")
+if "return a.distance_squared > b.distance_squared;" not in sections_body:
+    raise SystemExit("FAIL: renderer: translucent sections must be sorted far-to-near")
+print("PASS: opaque pass precedes far-to-near translucent blending and restores depth state")
+
 required_adapter_header = [
     "sizeof(HorizonTerrainVertex) == 24",
     "bool build_gles2_terrain_atlas(",
