@@ -125,7 +125,7 @@ The actual `TerrainVertex` is a 24-byte packed structure, not the prototype's 48
 | Field | Horizon representation | Conversion requirement |
 |---|---|---|
 | Position | `[f32; 3]`, section-relative | Preserve exactly; add camera-relative section origin at draw time |
-| UV | `[u16; 2]`, fixed point at `UV_STEPS = 32768` | Decode with `TerrainVertex::uv()`; do not reinterpret as normalized 16-bit UV |
+| UV | `[u16; 2]`, fixed point at `UV_STEPS = 32768` | Decode with `TerrainVertex::uv()`; do not reinterpret as normalized 16-bit UV; reject non-finite positions and UV-scale overflow before enqueue |
 | Layer | `u16` | Separate sprite index from `OPAQUE_LAYER` flag; resolve layer into a 2D atlas rectangle |
 | Light | `u16`, sky in low byte and block in high byte | Decode both channels; do not treat as a single normalized scalar |
 | Colour | packed RGBA8 `u32` | Preserve byte order and alpha metadata; alpha carries HDR emission tier and fluid-face information |
