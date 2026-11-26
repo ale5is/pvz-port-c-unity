@@ -462,9 +462,19 @@ impl Gles2SectionQueue {
     }
 }
 
+/// Horizon's Sides reports ranges in four-vertex quad units; GLES2 stores
+/// six triangle vertices per quad. Reject arithmetic overflow before packing.
+fn expand_solid_quad_range(first_quad: u32, quad_count: u32) -> Result<(u32, u32), &'static str> {
+    let first = first_quad.checked_mul(6)
+        .ok_or("visible Horizon solid range start overflows triangle vertices")?;
+    let count = quad_count.checked_mul(6)
+        .ok_or("visible Horizon solid range length overflows triangle vertices")?;
+    first.checked_add(count)
+        .ok_or("visible Horizon solid range end overflows triangle vertices")?;
+    Ok((first, count))
+}
+
 /// Return visible solid draw ranges in GLES2 triangle-vertex units.
-/// Horizon's Sides reports (first, count) in four-vertex quad units;
-/// the converted buffer stores six vertices per quad.
 pub fn visible_solid_triangle_ranges(
     sides: &Sides,
     eye: [f32; 3],
@@ -472,9 +482,16 @@ pub fn visible_solid_triangle_ranges(
     let mut ranges = Vec::new();
     ranges.try_reserve(sides.quads() as usize)
         .map_err(|_| "not enough memory to allocate visible Horizon solid ranges")?;
+    let mut overflow = false;
     sides.visible(eye, |first_quad, quad_count| {
-        ranges.push((first_quad * 6, quad_count * 6));
+        match expand_solid_quad_range(first_quad, quad_count) {
+            Ok(range) => ranges.push(range),
+            Err(_) => overflow = true,
+        }
     });
+    if overflow {
+        return Err("visible Horizon solid range exceeds GLES2 triangle-list limits");
+    }
     Ok(ranges)
 }
 
@@ -490,10 +507,19 @@ pub fn visible_solid_triangle_ranges_packed(
     let mut packed = Vec::new();
     packed.try_reserve(capacity)
         .map_err(|_| "not enough memory to pack visible Horizon solid ranges")?;
+    let mut overflow = false;
     sides.visible(eye, |first_quad, quad_count| {
-        packed.push(first_quad * 6);
-        packed.push(quad_count * 6);
+        match expand_solid_quad_range(first_quad, quad_count) {
+            Ok((first, count)) => {
+                packed.push(first);
+                packed.push(count);
+            }
+            Err(_) => overflow = true,
+        }
     });
+    if overflow {
+        return Err("visible Horizon solid range exceeds GLES2 triangle-list limits");
+    }
     Ok(packed)
 }
 
@@ -549,6 +575,14 @@ mod tests {
     fn packed_solid_ranges_match_native_triangle_vertex_units() {
         let packed = visible_solid_triangle_ranges_packed(&Sides::unsorted(3), [0.0; 3]).unwrap();
         assert_eq!(packed, vec![0, 18]);
+    }
+
+    #[test]
+    fn solid_quad_range_expansion_rejects_u32_overflow() {
+        assert_eq!(expand_solid_quad_range(3, 2).unwrap(), (18, 12));
+        assert!(expand_solid_quad_range(u32::MAX, 1).is_err());
+        assert!(expand_solid_quad_range(1, u32::MAX).is_err());
+        assert!(expand_solid_quad_range(u32::MAX / 6, 1).is_err());
     }
 
     fn test_payload(key: (i32, i32, i32), vertex_count: usize) -> Gles2SectionPayload {
