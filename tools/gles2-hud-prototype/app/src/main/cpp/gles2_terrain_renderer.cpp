@@ -71,7 +71,7 @@ void main() {
     vec2 light_uv = clamp(vec2(v_light.y, v_light.x) / 256.0 + vec2(0.5 / 16.0),
                           vec2(0.5 / 16.0), vec2(15.5 / 16.0));
     vec3 light = texture2D(u_lightmap, light_uv).rgb;
-    float emission = clamp(v_material.x * 17.0, 0.0, 1.0);
+    float emission = clamp(v_material.x * 119.0, 0.0, 1.0);
     light = mix(light, vec3(1.0), emission);
     vec4 color = vec4(texel.rgb * v_color.rgb * light, 1.0);
     float fog_span = max(u_fog_range.y - u_fog_range.x, 0.0001);
@@ -108,7 +108,7 @@ void main() {
     vec2 light_uv = clamp(vec2(v_light.y, v_light.x) / 256.0 + vec2(0.5 / 16.0),
                           vec2(0.5 / 16.0), vec2(15.5 / 16.0));
     vec3 light = texture2D(u_lightmap, light_uv).rgb;
-    float emission = clamp(v_material.x * 17.0, 0.0, 1.0);
+    float emission = clamp(v_material.x * 119.0, 0.0, 1.0);
     light = mix(light, vec3(1.0), emission);
     vec4 color = vec4(texel.rgb * v_color.rgb * light, texel.a);
     if (color.a < 0.01) discard;
