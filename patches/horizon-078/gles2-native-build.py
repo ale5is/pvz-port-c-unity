@@ -470,9 +470,6 @@ impl Runtime {
         &mut self, sprite_pixels: &[u8], layers: usize, sprite_size: i32,
         lightmap: &[u8], lightmap_width: i32, lightmap_height: i32, uv_steps: f32,
     ) -> Result<(), String> {
-        self.egl.make_current()?;
-        self.renderer.initialize(sprite_pixels, layers, sprite_size,
-            lightmap, lightmap_width, lightmap_height, uv_steps)?;
         let mut cached_sprites = Vec::new();
         cached_sprites.try_reserve_exact(sprite_pixels.len())
             .map_err(|_| "Not enough memory to retain GLES2 atlas for context recovery".to_owned())?;
@@ -481,11 +478,15 @@ impl Runtime {
         cached_lightmap.try_reserve_exact(lightmap.len())
             .map_err(|_| "Not enough memory to retain GLES2 lightmap for context recovery".to_owned())?;
         cached_lightmap.extend_from_slice(lightmap);
-        self.cached_assets = Some(CachedAssets {
+        let cached_assets = CachedAssets {
             sprite_pixels: Arc::from(cached_sprites), layers, sprite_size,
             lightmap: Arc::from(cached_lightmap), lightmap_width, lightmap_height, uv_steps,
             animated_layers: std::collections::HashMap::new(),
-        });
+        };
+        self.egl.make_current()?;
+        self.renderer.initialize(sprite_pixels, layers, sprite_size,
+            lightmap, lightmap_width, lightmap_height, uv_steps)?;
+        self.cached_assets = Some(cached_assets);
         self.initialized = true;
         Ok(())
     }
