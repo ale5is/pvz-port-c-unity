@@ -241,6 +241,22 @@ if missing:
     raise SystemExit(1)
 print("PASS: 48-byte Rust/C++ terrain vertex ABI")
 print("PASS: 24-byte Horizon input converts into the 48-byte GLES2 vertex ABI")
+conversion_start = adapter_source.index("bool convert_horizon_terrain_vertices(")
+conversion_end = adapter_source.index("\\n}  // namespace pavo", conversion_start)
+conversion_body = adapter_source[conversion_start:conversion_end]
+for item in [
+    "atlas.sprite_size > std::numeric_limits<int>::max() - 2",
+    "atlas_columns > std::numeric_limits<std::size_t>::max() / atlas_rows",
+    "quad_count > converted.max_size() / 6",
+    "Gles2TerrainVertex quad[4]{};",
+    "converted.reserve(quad_count * 6)",
+    "output->swap(converted)",
+]:
+    if item not in conversion_body:
+        raise SystemExit(f"FAIL: Horizon CPU adapter conversion contract missing {item}")
+if "output->clear()" in conversion_body or "converted.reserve(vertex_count)" in conversion_body:
+    raise SystemExit("FAIL: Horizon CPU adapter must preserve output atomically and avoid the oversized intermediate vertex buffer")
+print("PASS: Horizon CPU vertex conversion is overflow-checked, bounded and atomic")
 print("PASS: layer-major sprite pixels pack with duplicated filtering gutters")
 print("PASS: light, emission tier, fluid face, opaque flag and UV scale are decoded")
 print("PASS: eight GLES2 attributes, including packed emission/material bytes")
