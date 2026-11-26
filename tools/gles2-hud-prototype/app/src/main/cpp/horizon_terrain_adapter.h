@@ -34,7 +34,7 @@ struct Gles2TerrainAtlas {
 };
 
 bool build_gles2_terrain_atlas(const std::uint8_t* layer_major_rgba,
-                               std::size_t layer_count, int sprite_size,
+                               std::size_t pixel_bytes, std::size_t layer_count, int sprite_size,
                                int max_texture_size, Gles2TerrainAtlas* atlas,
                                std::string* error = nullptr);
 
