@@ -168,7 +168,7 @@ unsafe extern "C" {
     fn pavo_gles2_draw_sections(
         handle: *mut c_void, mvp: *const f32, camera: *const f32,
         fog_color: *const f32, fog_range: *const f32, max_distance: f32,
-    );
+    ) -> i32;
     fn pavo_gles2_update_lightmap(handle: *mut c_void, rgba: *const u8, byte_count: usize) -> i32;
     fn pavo_gles2_update_atlas_layer(
         handle: *mut c_void, layer: u32, rgba: *const u8, byte_count: usize,
@@ -265,13 +265,13 @@ impl Backend {
         fog_color: &[f32; 4], fog_range: &[f32; 2], max_distance: f32,
     ) -> Result<(), String> {
         let handle = self.check_owner()?;
-        unsafe {
+        let ok = unsafe {
             pavo_gles2_draw_sections(
                 handle, mvp.as_ptr(), camera.as_ptr(), fog_color.as_ptr(),
                 fog_range.as_ptr(), max_distance,
             )
         };
-        Ok(())
+        if ok == 1 { Ok(()) } else { Err(self.native_error()) }
     }
 
     pub(crate) fn update_lightmap(&mut self, rgba: &[u8]) -> Result<(), String> {
