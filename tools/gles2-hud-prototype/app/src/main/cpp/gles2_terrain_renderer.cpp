@@ -795,6 +795,7 @@ bool Gles2TerrainRenderer::update_lightmap(const std::uint8_t* rgba, std::size_t
         std::snprintf(error_, sizeof(error_), "Lightmap update requires exactly 16x16 RGBA pixels");
         return false;
     }
+    clear_gl_errors();
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, lightmap_texture_);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
