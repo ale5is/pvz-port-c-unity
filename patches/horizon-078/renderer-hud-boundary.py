@@ -48,6 +48,11 @@ method = """    /// Wait for outstanding GPU work without exposing the wgpu devi
         self.drawn_sections
     }
 
+    /// Take the outcome of the last screenshot without exposing renderer storage.
+    pub fn take_screenshot_result(&mut self) -> Option<std::result::Result<[u32; 2], String>> {
+        self.screenshot_result.take()
+    }
+
     /// Whether a screenshot request is waiting for a frame.
     pub fn has_pending_screenshot(&self) -> bool {
         self.screenshot.is_some()
@@ -160,6 +165,14 @@ game_source = game_source.replace(atlas_shader, "")
 game_source = game_source.replace(screen_size_calls, "renderer.screen_size()")
 game_source = game_source.replace(screen_size_closure, "r.screen_size()")
 
+physical_size = "winit::dpi::PhysicalSize::new(r.config.width, r.config.height)"
+if game_source.count(physical_size) != 1:
+    raise SystemExit(f"Expected one remaining physical framebuffer-size read, found {game_source.count(physical_size)}")
+game_source = game_source.replace(
+    physical_size,
+    "winit::dpi::PhysicalSize::new(r.screen_size()[0], r.screen_size()[1])",
+)
+
 game_source = game_source.replace(gui_shader, "")
 
 
@@ -174,6 +187,12 @@ if "lod_distance_capped(distance, &renderer.info)" in game_source or "lod_distan
 
 if "renderer.hud.sprite_animations" in game_source or ".set_text_shader(&renderer.device" in game_source:
     raise SystemExit("Game still accesses HUD/backend internals after migration")
+
+if game_source.count("r.screenshot_result.take()") != 1:
+    raise SystemExit("Expected one screenshot-result consumption site")
+game_source = game_source.replace("r.screenshot_result.take()", "r.take_screenshot_result()")
+if "r.screenshot_result" in game_source:
+    raise SystemExit("Game still accesses renderer screenshot-result storage directly")
 
 if game_source.count("renderer.drawn_sections <= 10") != 1:
     raise SystemExit("Expected one world-icon drawn-section threshold")
