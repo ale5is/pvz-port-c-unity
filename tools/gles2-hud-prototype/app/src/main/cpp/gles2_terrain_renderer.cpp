@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <vector>
 
 namespace pavo {
 namespace {
@@ -339,6 +340,125 @@ bool Gles2TerrainRenderer::upload_translucent(const Gles2TerrainVertex* vertices
     return upload_buffer(&translucent_vbo_, &translucent_count_, vertices, count);
 }
 
+bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
+                                          const Gles2TerrainVertex* solid,
+                                          std::size_t solid_count,
+                                          const Gles2TerrainVertex* translucent,
+                                          std::size_t translucent_count) {
+    if (!key || (solid_count == 0 && translucent_count == 0)) {
+        std::snprintf(error_, sizeof(error_), "Section key and at least one terrain pass are required");
+        return false;
+    }
+    const std::array<std::int32_t, 3> section_key{{key[0], key[1], key[2]}};
+    const auto existing = sections_.find(section_key);
+    constexpr std::size_t kMaximumResidentSections = 512;
+    if (existing == sections_.end() && sections_.size() >= kMaximumResidentSections) {
+        std::snprintf(error_, sizeof(error_), "GLES2 resident section limit (%zu) reached",
+                      kMaximumResidentSections);
+        return false;
+    }
+
+    SectionBuffers replacement;
+    if (!upload_buffer(&replacement.solid_vbo, &replacement.solid_count, solid, solid_count) ||
+        !upload_buffer(&replacement.translucent_vbo, &replacement.translucent_count,
+                       translucent, translucent_count)) {
+        if (replacement.solid_vbo) glDeleteBuffers(1, &replacement.solid_vbo);
+        if (replacement.translucent_vbo) glDeleteBuffers(1, &replacement.translucent_vbo);
+        return false;
+    }
+
+    if (existing != sections_.end()) {
+        if (existing->second.solid_vbo) glDeleteBuffers(1, &existing->second.solid_vbo);
+        if (existing->second.translucent_vbo) glDeleteBuffers(1, &existing->second.translucent_vbo);
+        existing->second = replacement;
+    } else {
+        sections_.emplace(section_key, replacement);
+    }
+    error_[0] = '\\0';
+    return true;
+}
+
+void Gles2TerrainRenderer::remove_column(std::int32_t section_x, std::int32_t section_z) {
+    for (auto it = sections_.begin(); it != sections_.end();) {
+        if (it->first[0] == section_x && it->first[2] == section_z) {
+            if (it->second.solid_vbo) glDeleteBuffers(1, &it->second.solid_vbo);
+            if (it->second.translucent_vbo) glDeleteBuffers(1, &it->second.translucent_vbo);
+            it = sections_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void Gles2TerrainRenderer::clear_sections() {
+    for (auto& entry : sections_) {
+        if (entry.second.solid_vbo) glDeleteBuffers(1, &entry.second.solid_vbo);
+        if (entry.second.translucent_vbo) glDeleteBuffers(1, &entry.second.translucent_vbo);
+    }
+    sections_.clear();
+}
+
+void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_position[3],
+                                         const float fog_color[4], const float fog_range[2],
+                                         float max_distance) {
+    if (!solid_program_ || !translucent_program_ || !mvp || !camera_position ||
+        !fog_color || !fog_range) return;
+    struct VisibleSection {
+        float distance_squared;
+        const SectionBuffers* buffers;
+        float origin[3];
+    };
+    std::vector<VisibleSection> visible;
+    visible.reserve(sections_.size());
+    const float max_distance_squared = max_distance > 0.0f ? max_distance * max_distance : 0.0f;
+    constexpr float kSectionSize = 16.0f;
+    constexpr float kSectionHalfDiagonalSquared = 192.0f;
+    for (const auto& entry : sections_) {
+        const float origin[3] = {
+            static_cast<float>(entry.first[0]) * kSectionSize,
+            static_cast<float>(entry.first[1]) * kSectionSize,
+            static_cast<float>(entry.first[2]) * kSectionSize
+        };
+        const float dx = origin[0] + 8.0f - camera_position[0];
+        const float dy = origin[1] + 8.0f - camera_position[1];
+        const float dz = origin[2] + 8.0f - camera_position[2];
+        const float distance_squared = dx * dx + dy * dy + dz * dz;
+        if (max_distance_squared > 0.0f &&
+            distance_squared > max_distance_squared + kSectionHalfDiagonalSquared) continue;
+        visible.push_back({distance_squared, &entry.second, {origin[0], origin[1], origin[2]}});
+    }
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+    for (const auto& section : visible) {
+        draw_buffer(solid_program_, solid_uniforms_, section.buffers->solid_vbo,
+                    section.buffers->solid_count, mvp, section.origin,
+                    camera_position, fog_color, fog_range);
+    }
+
+    std::sort(visible.begin(), visible.end(),
+              [](const VisibleSection& a, const VisibleSection& b) {
+                  return a.distance_squared > b.distance_squared;
+              });
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+    for (const auto& section : visible) {
+        draw_buffer(translucent_program_, translucent_uniforms_,
+                    section.buffers->translucent_vbo, section.buffers->translucent_count,
+                    mvp, section.origin, camera_position, fog_color, fog_range);
+    }
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0);
+}
+
 void Gles2TerrainRenderer::draw_buffer(GLuint program, const UniformLocations& uniforms,
                                        GLuint buffer, GLsizei count, const float* mvp,
                                        const float section_origin[3], const float camera_position[3],
@@ -417,6 +537,7 @@ void Gles2TerrainRenderer::draw(const float* mvp, const float section_origin[3],
 }
 
 void Gles2TerrainRenderer::release() {
+    clear_sections();
     glActiveTexture(GL_TEXTURE0);
     if (solid_vbo_) glDeleteBuffers(1, &solid_vbo_);
     if (translucent_vbo_) glDeleteBuffers(1, &translucent_vbo_);
