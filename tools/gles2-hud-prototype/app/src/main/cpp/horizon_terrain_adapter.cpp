@@ -256,4 +256,27 @@ bool upload_horizon_section(Gles2TerrainRenderer* renderer,
     return true;
 }
 
+bool upload_horizon_section_with_ranges(
+    Gles2TerrainRenderer* renderer, const std::int32_t key[3],
+    const HorizonTerrainVertex* solid, std::size_t solid_count,
+    const HorizonTerrainVertex* translucent, std::size_t translucent_count,
+    const std::uint32_t* first_count_pairs, std::size_t range_count,
+    const Gles2TerrainAtlas& atlas, float uv_steps,
+    std::string* error) {
+    if (range_count != 0 && !first_count_pairs) {
+        set_error(error, "Horizon solid side ranges require a first/count array");
+        return false;
+    }
+    if (!upload_horizon_section(renderer, key, solid, solid_count,
+                                translucent, translucent_count, atlas, uv_steps, error)) {
+        return false;
+    }
+    if (!renderer->set_section_solid_ranges(key, first_count_pairs, range_count)) {
+        set_error(error, renderer->last_error());
+        return false;
+    }
+    if (error) error->clear();
+    return true;
+}
+
 }  // namespace pavo
