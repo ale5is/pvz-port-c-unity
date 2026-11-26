@@ -35,7 +35,6 @@ pub const SPRITE_LAYER_MASK: u16 = !OPAQUE_LAYER_BIT;
 /// Hard cap for pending section updates, independent of their vertex byte size.
 pub const MAX_PENDING_SECTIONS: usize = 512;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
 pub fn blend_animation_rgba(
     current: &[u8],
     next: &[u8],
@@ -63,6 +62,7 @@ pub fn blend_animation_rgba(
     Ok(output)
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AtlasGrid {
     pub sprite_size: u32,
     pub texture_layers: u32,
