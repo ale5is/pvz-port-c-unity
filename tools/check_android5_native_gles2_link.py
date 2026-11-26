@@ -73,11 +73,13 @@ print("PASS: Rust runtime context-loss invalidation and reinitialization order")
 
 egl_header = (Path(__file__).resolve().parents[1] / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_egl_owner.h").read_text(encoding="utf-8")
 egl_cpp = (Path(__file__).resolve().parents[1] / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_egl_owner.cpp").read_text(encoding="utf-8")
-bridge_header = (root.parent.parent / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_gles2_bridge.h").read_text(encoding="utf-8")
-bridge_cpp = (root.parent.parent / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_gles2_bridge.cpp").read_text(encoding="utf-8")
+bridge_header = (Path(__file__).resolve().parents[1] / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_gles2_bridge.h").read_text(encoding="utf-8")
+bridge_cpp = (Path(__file__).resolve().parents[1] / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_gles2_bridge.cpp").read_text(encoding="utf-8")
 if "int pavo_gles2_draw_sections(" not in bridge_header or "return 1;" not in bridge_cpp:
     raise SystemExit("FAIL: GLES2 terrain draw status is not propagated through the native bridge")
-if "-> i32;" not in (root / "crates/horizon-android/gles2_native.rs").read_text(encoding="utf-8"):
+rust_native_text = (root / "crates/horizon-android/gles2_native.rs").read_text(encoding="utf-8")
+draw_ffi = rust_native_text.split("fn pavo_gles2_draw_sections", 1)[1].split(");", 1)[0]
+if "-> i32" not in draw_ffi:
     raise SystemExit("FAIL: Rust GLES2 FFI does not receive native draw status")
 print("PASS: terrain draw status crosses C++ and Rust FFI")
 
