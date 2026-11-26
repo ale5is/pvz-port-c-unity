@@ -11,6 +11,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstring>
+#include <limits>
 #include <thread>
 
 #define LOG_TAG "PavoGLES2Native"
@@ -207,7 +208,10 @@ static void render_loop(Engine* engine, ANativeWindow* window) {
     const auto vertices = create_terrain_vertices();
     const bool initialized = renderer.initialize(atlas.data(), 6, 6, lightmap.data(), 16, 16, 1);
     const bool uploaded = initialized && renderer.upload_solid(vertices.data(), vertices.size());
-    if (!uploaded) {
+    const std::int32_t section_key[3] = {0, 0, 0};
+    const bool section_uploaded = uploaded && renderer.upload_section(
+        section_key, vertices.data(), vertices.size(), nullptr, 0);
+    if (!section_uploaded) {
         LOGE("GLES2 terrain renderer setup failed: %s", renderer.last_error());
         renderer.release();
         destroy_egl(display, surface, context);
@@ -224,6 +228,24 @@ static void render_loop(Engine* engine, ANativeWindow* window) {
     const float camera_position[3] = {0.0f, 0.0f, 2.0f};
     const float fog_color[4] = {0.055f, 0.075f, 0.11f, 0.0f};
     const float fog_range[2] = {1.0f, 2.0f};
+    float invalid_mvp[16];
+    std::memcpy(invalid_mvp, mvp, sizeof(mvp));
+    invalid_mvp[0] = std::numeric_limits<float>::quiet_NaN();
+    renderer.draw_sections(invalid_mvp, camera_position, fog_color, fog_range, 64.0f);
+    if (!renderer.last_error()[0]) {
+        LOGE("GLES2 terrain draw did not report a non-finite matrix");
+        renderer.release();
+        destroy_egl(display, surface, context);
+        return;
+    }
+    renderer.draw_sections(mvp, camera_position, fog_color, fog_range, 64.0f);
+    if (renderer.last_error()[0]) {
+        LOGE("GLES2 terrain section draw failed: %s", renderer.last_error());
+        renderer.release();
+        destroy_egl(display, surface, context);
+        return;
+    }
+    LOGI("GLES2 section draw and invalid-parameter reporting passed");
 
     glDisable(GL_CULL_FACE);
     int width = 0;
