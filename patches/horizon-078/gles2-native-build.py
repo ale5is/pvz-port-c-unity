@@ -306,7 +306,7 @@ if not rust_module.exists():
 
 android_main = root / "crates/horizon-client/src/android_main.rs"
 main_text = android_main.read_text(encoding="utf-8")
-module_decl = '#[path = "../../horizon-android/gles2_native.rs"]\nmod gles2_native;\n'
+module_decl = '#[path = "../../horizon-android/gles2_native.rs"]\npub(crate) mod gles2_native;\n'
 if module_decl not in main_text:
     anchor_main = "mod game;\n"
     if main_text.count(anchor_main) != 1:
@@ -484,9 +484,9 @@ if not egl_module.exists():
 
 render_lib = root / "crates/horizon-client/src/android_main.rs"
 render_text = render_lib.read_text(encoding="utf-8")
-egl_decl = '#[path = "android/gles2_egl.rs"]\nmod gles2_egl;\n'
+egl_decl = '#[path = "android/gles2_egl.rs"]\npub(crate) mod gles2_egl;\n'
 if egl_decl not in render_text:
-    anchor_decl = '#[path = "../../horizon-android/gles2_native.rs"]\nmod gles2_native;\n'
+    anchor_decl = '#[path = "../../horizon-android/gles2_native.rs"]\npub(crate) mod gles2_native;\n'
     if render_text.count(anchor_decl) != 1:
         raise SystemExit("Could not uniquely locate gles2_native module declaration")
     render_lib.write_text(render_text.replace(anchor_decl, anchor_decl + egl_decl), encoding="utf-8")
