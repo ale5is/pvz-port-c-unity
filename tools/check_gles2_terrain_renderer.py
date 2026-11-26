@@ -37,7 +37,7 @@ required_source = [
     "offsetof(Gles2TerrainVertex, emission)",
     "glBufferData(GL_ARRAY_BUFFER",
     "void Gles2TerrainRenderer::cache_uniforms",
-    'uniforms.mvp = glGetUniformLocation(program, "u_mvp")',
+    'uniforms->mvp = glGetUniformLocation(program, "u_mvp")',
     "draw_buffer(solid_program_, solid_uniforms_",
     "draw_buffer(translucent_program_, translucent_uniforms_",
     "glActiveTexture(GL_TEXTURE1)",
