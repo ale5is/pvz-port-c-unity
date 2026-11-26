@@ -552,6 +552,8 @@ pub fn convert_section(
 }
 
 /// A byte- and entry-bounded FIFO of owned section updates waiting for the GLES2 owner.
+/// The owner can drain whole payloads under per-frame byte and section budgets.
+/// An oversized FIFO head is retained rather than skipped, preserving update order.
 ///
 /// Enqueue coalesces pending updates by section key: the newest payload replaces
 /// the older one and moves to the back of the queue. The queue accepts at most
@@ -647,6 +649,52 @@ impl Gles2SectionQueue {
         self.queued_bytes = self.queued_bytes.checked_sub(bytes)
             .expect("queued byte accounting must not underflow");
         Some(payload)
+    }
+
+    /// Inspect the next payload's reserved CPU memory without transferring ownership.
+    pub fn front_bytes(&self) -> Option<usize> {
+        self.pending.front().map(|payload| {
+            payload.byte_len().expect("queued payload byte count was validated")
+        })
+    }
+
+    /// Return whether the next FIFO payload fits a caller-provided upload budget.
+    pub fn front_fits_budget(&self, remaining_bytes: usize) -> bool {
+        self.front_bytes().is_some_and(|bytes| bytes <= remaining_bytes)
+    }
+
+    /// Drain complete section payloads within both per-frame limits.
+    ///
+    /// The queue remains FIFO. A payload is never split, and if the next item
+    /// does not fit the remaining byte budget it stays queued for the next
+    /// frame. A zero section or byte budget is a no-op. Allocation failure
+    /// leaves the queue unchanged and returns an error.
+    pub fn drain_budgeted(
+        &mut self,
+        max_bytes: usize,
+        max_sections: usize,
+    ) -> Result<Vec<Gles2SectionPayload>, &'static str> {
+        let limit = self.pending.len().min(max_sections);
+        let mut drained = Vec::new();
+        drained.try_reserve_exact(limit)
+            .map_err(|_| "not enough memory to collect GLES2 section uploads for this frame")?;
+
+        let mut remaining = max_bytes;
+        while drained.len() < limit {
+            let Some(bytes) = self.front_bytes() else {
+                break;
+            };
+            if bytes > remaining {
+                break;
+            }
+            let payload = self.pending.pop_front()
+                .expect("front payload was checked immediately before removal");
+            self.queued_bytes = self.queued_bytes.checked_sub(bytes)
+                .expect("queued byte accounting must not underflow");
+            remaining -= bytes;
+            drained.push(payload);
+        }
+        Ok(drained)
     }
 
     pub fn remove_section(&mut self, key: (i32, i32, i32)) -> Option<Gles2SectionPayload> {
@@ -970,6 +1018,108 @@ mod tests {
         assert_eq!(queue.remove_columns(&[(1, 2)]), 2);
         assert!(queue.is_empty());
         assert_eq!(queue.queued_bytes(), 0);
+    }
+
+    #[test]
+    fn queue_front_budget_reports_the_next_complete_payload() {
+        let payload = test_payload((1, 0, 1), 2);
+        let bytes = payload.byte_len().unwrap();
+        let mut queue = Gles2SectionQueue::new(8192);
+        assert!(queue.front_bytes().is_none());
+        assert!(!queue.front_fits_budget(usize::MAX));
+        assert!(matches!(queue.enqueue(payload), Ok(None)));
+        assert_eq!(queue.front_bytes(), Some(bytes));
+        assert!(queue.front_fits_budget(bytes));
+        assert!(!queue.front_fits_budget(bytes - 1));
+    }
+
+    #[test]
+    fn budgeted_drain_preserves_fifo_and_byte_accounting() {
+        let first = test_payload((1, 0, 1), 1);
+        let second = test_payload((2, 0, 2), 2);
+        let third = test_payload((3, 0, 3), 1);
+        let first_bytes = first.byte_len().unwrap();
+        let second_bytes = second.byte_len().unwrap();
+        let mut queue = Gles2SectionQueue::new(8192);
+        assert!(matches!(queue.enqueue(first), Ok(None)));
+        assert!(matches!(queue.enqueue(second), Ok(None)));
+        assert!(matches!(queue.enqueue(third), Ok(None)));
+
+        let drained = queue.drain_budgeted(first_bytes + second_bytes, 8).unwrap();
+        assert_eq!(drained.len(), 2);
+        assert_eq!(drained[0].key, (1, 0, 1));
+        assert_eq!(drained[1].key, (2, 0, 2));
+        assert_eq!(queue.len(), 1);
+        assert_eq!(queue.queued_bytes(), queue.front_bytes().unwrap());
+        assert_eq!(queue.pop_front().map(|payload| payload.key), Some((3, 0, 3)));
+        assert_eq!(queue.queued_bytes(), 0);
+    }
+
+    #[test]
+    fn budgeted_drain_never_splits_or_skips_an_oversized_front_payload() {
+        let large = test_payload((1, 0, 1), 8);
+        let small = test_payload((2, 0, 2), 0);
+        let large_bytes = large.byte_len().unwrap();
+        let mut queue = Gles2SectionQueue::new(8192);
+        assert!(matches!(queue.enqueue(large), Ok(None)));
+        assert!(matches!(queue.enqueue(small), Ok(None)));
+
+        let drained = queue.drain_budgeted(large_bytes - 1, 8).unwrap();
+        assert!(drained.is_empty());
+        assert_eq!(queue.len(), 2);
+        assert_eq!(queue.front_bytes(), Some(large_bytes));
+        assert_eq!(queue.pop_front().map(|payload| payload.key), Some((1, 0, 1)));
+    }
+
+    #[test]
+    fn budgeted_drain_obeys_section_count_even_with_remaining_bytes() {
+        let mut queue = Gles2SectionQueue::new(8192);
+        for index in 0..4 {
+            assert!(matches!(
+                queue.enqueue(test_payload((index, 0, 0), 0)),
+                Ok(None)
+            ));
+        }
+        let drained = queue.drain_budgeted(8192, 2).unwrap();
+        assert_eq!(drained.len(), 2);
+        assert_eq!(drained[0].key, (0, 0, 0));
+        assert_eq!(drained[1].key, (1, 0, 0));
+        assert_eq!(queue.len(), 2);
+    }
+
+    #[test]
+    fn budgeted_drain_zero_limits_are_noops() {
+        let mut queue = Gles2SectionQueue::new(8192);
+        assert!(matches!(
+            queue.enqueue(test_payload((1, 0, 1), 1)),
+            Ok(None)
+        ));
+        let bytes = queue.queued_bytes();
+        assert!(queue.drain_budgeted(0, 8).unwrap().is_empty());
+        assert!(queue.drain_budgeted(8192, 0).unwrap().is_empty());
+        assert_eq!(queue.len(), 1);
+        assert_eq!(queue.queued_bytes(), bytes);
+    }
+
+    #[test]
+    fn budgeted_drain_generation_reset_cannot_leak_old_window_payloads() {
+        let mut queue = Gles2SectionQueue::new(8192);
+        assert!(matches!(
+            queue.enqueue_for_generation(0, test_payload((1, 0, 1), 1)),
+            Ok(None)
+        ));
+        assert_eq!(queue.drain_budgeted(8192, 1).unwrap().len(), 1);
+        assert!(matches!(
+            queue.enqueue_for_generation(0, test_payload((2, 0, 2), 1)),
+            Ok(None)
+        ));
+        queue.advance_generation(1).unwrap();
+        assert!(queue.drain_budgeted(8192, 8).unwrap().is_empty());
+        assert_eq!(queue.queued_bytes(), 0);
+        assert!(matches!(
+            queue.enqueue_for_generation(0, test_payload((3, 0, 3), 1)),
+            Err(_)
+        ));
     }
 
     #[test]
