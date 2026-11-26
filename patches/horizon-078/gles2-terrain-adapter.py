@@ -38,11 +38,16 @@ pub struct AtlasGrid {
     pub texture_layers: u32,
     pub columns: u32,
     pub rows: u32,
+    pub cell_size: u32,
     pub width: u32,
     pub height: u32,
 }
 
 impl AtlasGrid {
+    /// One duplicated border texel on every side prevents linear filtering
+    /// from sampling a neighbouring sprite at a tile edge.
+    pub const GUTTER: u32 = 1;
+
     pub fn new(sprite_size: u32, texture_layers: u32, max_texture_size: u32) -> Result<Self, &'static str> {
         if sprite_size == 0 || texture_layers == 0 || max_texture_size == 0 {
             return Err("sprite size, layer count and texture limit must be nonzero");
@@ -50,23 +55,28 @@ impl AtlasGrid {
         if texture_layers > u32::from(SPRITE_LAYER_MASK) + 1 {
             return Err("Horizon terrain layer encoding supports at most 32768 sprites");
         }
-        if sprite_size > max_texture_size {
-            return Err("one sprite exceeds the GLES2 texture limit");
+        let cell_size = sprite_size.checked_add(Self::GUTTER * 2)
+            .ok_or("sprite atlas cell size overflow")?;
+        if cell_size > max_texture_size {
+            return Err("sprite plus filtering gutter exceeds the GLES2 texture limit");
         }
-        let max_columns = max_texture_size / sprite_size;
+        let max_columns = max_texture_size / cell_size;
         let ideal_columns = (texture_layers as f64).sqrt().ceil() as u32;
         let columns = ideal_columns.clamp(1, max_columns);
         let rows = texture_layers.div_ceil(columns);
-        if rows > max_texture_size / sprite_size {
+        if rows > max_texture_size / cell_size {
             return Err("terrain sprite layers do not fit in one GLES2 atlas");
         }
+        let width = columns.checked_mul(cell_size).ok_or("terrain atlas width overflow")?;
+        let height = rows.checked_mul(cell_size).ok_or("terrain atlas height overflow")?;
         Ok(Self {
             sprite_size,
             texture_layers,
             columns,
             rows,
-            width: columns * sprite_size,
-            height: rows * sprite_size,
+            cell_size,
+            width,
+            height,
         })
     }
 
@@ -75,18 +85,17 @@ impl AtlasGrid {
         if layer >= self.texture_layers {
             return Err("terrain vertex references a sprite layer outside the atlas");
         }
-        let x = layer % self.columns;
-        let y = layer / self.columns;
+        let x = (layer % self.columns) * self.cell_size + Self::GUTTER;
+        let y = (layer / self.columns) * self.cell_size + Self::GUTTER;
         Ok((
-            [x as f32 / self.columns as f32, y as f32 / self.rows as f32],
-            [1.0 / self.columns as f32, 1.0 / self.rows as f32],
+            [x as f32 / self.width as f32, y as f32 / self.height as f32],
+            [self.sprite_size as f32 / self.width as f32, self.sprite_size as f32 / self.height as f32],
             encoded_layer & OPAQUE_LAYER_BIT != 0,
         ))
     }
 
-    /// Pack Horizon's layer-major RGBA sprite pixels into the 2D atlas.
-    /// Extra source bytes are ignored because resource preparation may append
-    /// data for other texture families; every requested base layer must exist.
+    /// Pack Horizon's layer-major RGBA sprite pixels into a 2D atlas.
+    /// Each cell duplicates its border texels to prevent linear-filter bleeding.
     pub fn pack_rgba(&self, pixels: &[u8]) -> Result<Vec<u8>, &'static str> {
         let row_bytes = self.sprite_size.checked_mul(4).ok_or("sprite row size overflow")? as usize;
         let layer_bytes = row_bytes.checked_mul(self.sprite_size as usize).ok_or("sprite layer size overflow")?;
@@ -102,15 +111,26 @@ impl AtlasGrid {
         for layer in 0..self.texture_layers {
             let tile_x = layer % self.columns;
             let tile_y = layer / self.columns;
+            let cell_x = tile_x * self.cell_size;
+            let cell_y = tile_y * self.cell_size;
             let source_layer = layer as usize * layer_bytes;
             for row in 0..self.sprite_size {
                 let source_start = source_layer + row as usize * row_bytes;
                 let source_end = source_start + row_bytes;
-                let dest_start = (((tile_y * self.sprite_size + row) * self.width
-                    + tile_x * self.sprite_size) * 4) as usize;
+                let dest_start = (((cell_y + Self::GUTTER + row) * self.width
+                    + cell_x + Self::GUTTER) * 4) as usize;
                 let dest_end = dest_start + row_bytes;
+                atlas[dest_start - 4..dest_start].copy_from_slice(&pixels[source_start..source_start + 4]);
                 atlas[dest_start..dest_end].copy_from_slice(&pixels[source_start..source_end]);
+                atlas[dest_end..dest_end + 4].copy_from_slice(&pixels[source_end - 4..source_end]);
             }
+            let cell_row_bytes = self.cell_size as usize * 4;
+            let first_inner = (((cell_y + Self::GUTTER) * self.width + cell_x) * 4) as usize;
+            let top = (cell_y * self.width + cell_x) as usize * 4;
+            let last_inner = (((cell_y + Self::GUTTER + self.sprite_size - 1) * self.width + cell_x) * 4) as usize;
+            let bottom = ((cell_y + self.cell_size - 1) * self.width + cell_x) as usize * 4;
+            atlas.copy_within(first_inner..first_inner + cell_row_bytes, top);
+            atlas.copy_within(last_inner..last_inner + cell_row_bytes, bottom);
         }
         Ok(atlas)
     }
@@ -417,10 +437,11 @@ mod tests {
     fn atlas_grid_fits_layer_count_inside_texture_limit() {
         let atlas = AtlasGrid::new(16, 300, 4096).unwrap();
         assert_eq!((atlas.columns, atlas.rows), (18, 17));
-        assert_eq!((atlas.width, atlas.height), (288, 272));
-        assert_eq!(atlas.tile(0).unwrap().0, [0.0, 0.0]);
-        assert_eq!(atlas.tile(17).unwrap().0, [17.0 / 18.0, 0.0]);
-        assert_eq!(atlas.tile(18).unwrap().0, [0.0, 1.0 / 17.0]);
+        assert_eq!((atlas.cell_size, atlas.width, atlas.height), (18, 324, 306));
+        assert_eq!(atlas.tile(0).unwrap().0, [1.0 / 324.0, 1.0 / 306.0]);
+        assert_eq!(atlas.tile(17).unwrap().0, [307.0 / 324.0, 1.0 / 306.0]);
+        assert_eq!(atlas.tile(18).unwrap().0, [1.0 / 324.0, 19.0 / 306.0]);
+        assert_eq!(atlas.tile(0).unwrap().1, [16.0 / 324.0, 16.0 / 306.0]);
         assert!(AtlasGrid::new(4097, 1, 4096).is_err());
         assert!(AtlasGrid::new(16, 65536, 4096).is_err());
     }
@@ -437,11 +458,16 @@ mod tests {
             3, 3, 3, 255, 3, 3, 3, 255,
         ];
         let packed = atlas.pack_rgba(&pixels).unwrap();
-        assert_eq!((atlas.width, atlas.height), (4, 4));
-        assert_eq!(packed.len(), 4 * 4 * 4);
-        assert_eq!(&packed[0..4], &[1, 1, 1, 255]);
-        assert_eq!(&packed[2 * 4..2 * 4 + 4], &[2, 2, 2, 255]);
-        assert_eq!(&packed[2 * 4 * 4..2 * 4 * 4 + 4], &[3, 3, 3, 255]);
+        assert_eq!((atlas.cell_size, atlas.width, atlas.height), (4, 8, 8));
+        assert_eq!(packed.len(), 8 * 8 * 4);
+        let pixel = |x: usize, y: usize| &packed[(y * 8 + x) * 4..(y * 8 + x + 1) * 4];
+        assert_eq!(pixel(1, 1), &[1, 1, 1, 255]);
+        assert_eq!(pixel(0, 0), &[1, 1, 1, 255]);
+        assert_eq!(pixel(3, 3), &[1, 1, 1, 255]);
+        assert_eq!(pixel(5, 1), &[2, 2, 2, 255]);
+        assert_eq!(pixel(4, 0), &[2, 2, 2, 255]);
+        assert_eq!(pixel(1, 5), &[3, 3, 3, 255]);
+        assert_eq!(pixel(0, 7), &[3, 3, 3, 255]);
         assert!(atlas.pack_rgba(&pixels[..pixels.len() - 1]).is_err());
     }
 
@@ -458,9 +484,9 @@ mod tests {
         let converted = convert_vertex(&vertex, &atlas).unwrap();
         assert_eq!(converted.position, [1.25, 2.5, 3.75]);
         assert_eq!(converted.uv, [0.25, 1.5]);
-        // Layer 256 occupies column 4, row 14 in the 18x17 compact grid.
-        assert_eq!(converted.atlas_origin, [4.0 / 18.0, 14.0 / 17.0]);
-        assert_eq!(converted.atlas_scale, [1.0 / 18.0, 1.0 / 17.0]);
+        // Layer 256 occupies column 4, row 14; origin excludes the duplicated gutter.
+        assert_eq!(converted.atlas_origin, [73.0 / 324.0, 253.0 / 306.0]);
+        assert_eq!(converted.atlas_scale, [16.0 / 324.0, 16.0 / 306.0]);
         assert_eq!(converted.color, [0x11, 0x22, 0x33, 0x44]);
         assert_eq!(converted.emission, 11);
         assert_eq!(converted.material_flags, 4);
