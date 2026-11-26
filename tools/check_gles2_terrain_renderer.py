@@ -413,3 +413,18 @@ if "quads.sort_by(" in sort_body:
 if "fn translucent_sort_keeps_original_order_for_equal_distances()" not in terrain_source:
     raise SystemExit("FAIL: translucent equal-distance ordering regression test is missing")
 print("PASS: translucent sorting is allocation-conscious and deterministic for equal-distance quads")
+
+for item in [
+    "#include <cmath>",
+    "const auto finite_values = [](const float* values, std::size_t count)",
+    "std::isfinite(value)",
+    "!finite_values(mvp, 16)",
+    "!finite_values(camera_position, 3)",
+    "!finite_values(fog_color, 4)",
+    "!finite_values(fog_range, 2)",
+    "!std::isfinite(max_distance)",
+    "Terrain draw parameters must contain only finite values",
+]:
+    if item not in source:
+        raise SystemExit(f"FAIL: renderer must reject non-finite frame parameters: missing {item}")
+print("PASS: GLES2 terrain draw rejects NaN and infinity in matrices, camera, fog and distance")
