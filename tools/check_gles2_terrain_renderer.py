@@ -330,6 +330,9 @@ for item in [
     "atlas_columns > std::numeric_limits<std::size_t>::max() / atlas_rows",
     "quad_count > converted.max_size() / 6",
     "Gles2TerrainVertex quad[4]{};",
+    "std::all_of(input.position, input.position + 3",
+    "std::isfinite(vertex.uv[0])",
+    "std::isfinite(vertex.uv[1])",
     "converted.reserve(quad_count * 6)",
     "output->swap(converted)",
     "catch (const std::bad_alloc&)",
@@ -411,6 +414,21 @@ terrain_source = terrain_patch.read_text(encoding="utf-8")
 sort_start = terrain_source.index("pub fn sort_translucent_back_to_front(")
 sort_end = terrain_source.index("#[cfg(test)]", sort_start)
 sort_body = terrain_source[sort_start:sort_end]
+convert_start = terrain_source.index("pub fn convert_vertex_with_uv_step(")
+convert_end = terrain_source.index("/// Convert an ordinary 16x16 section mesh", convert_start)
+convert_body = terrain_source[convert_start:convert_end]
+for item in [
+    "vertex.pos.iter().any(|value| !value.is_finite())",
+    "let uv = vertex.uv.map(|value| f32::from(value) * uv_step);",
+    "uv.iter().any(|value| !value.is_finite())",
+    "fn rejects_non_finite_horizon_positions_and_overflowed_uvs()",
+]:
+    if item not in terrain_source:
+        raise SystemExit(f"FAIL: Horizon CPU adapter must reject non-finite geometry: missing {item}")
+if "        uv,\n" not in convert_body:
+    raise SystemExit("FAIL: converted terrain vertex must use the validated UV array")
+print("PASS: Horizon CPU adapter rejects non-finite positions and UV overflow")
+
 if "quads.sort_unstable_by(" not in sort_body:
     raise SystemExit("FAIL: translucent quad sorting must avoid the stable sort's hidden scratch allocation")
 if "left.0.cmp(&right.0)" not in sort_body:
