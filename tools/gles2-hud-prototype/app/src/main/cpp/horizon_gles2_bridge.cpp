@@ -41,6 +41,13 @@ extern "C" void pavo_gles2_destroy(PavoGles2Handle* handle) {
     delete handle;
 }
 
+extern "C" void pavo_gles2_abandon(PavoGles2Handle* handle) {
+    if (!handle) return;
+    handle->renderer.abandon_context();
+    handle->initialized = false;
+    delete handle;
+}
+
 extern "C" int pavo_gles2_initialize(
     PavoGles2Handle* handle,
     const std::uint8_t* sprite_layers_rgba,
