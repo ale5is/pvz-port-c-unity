@@ -78,7 +78,7 @@ bridge_cpp = (Path(__file__).resolve().parents[1] / "tools/gles2-hud-prototype/a
 if "int pavo_gles2_draw_sections(" not in bridge_header or "return 1;" not in bridge_cpp:
     raise SystemExit("FAIL: GLES2 terrain draw status is not propagated through the native bridge")
 rust_native_text = (root / "crates/horizon-android/gles2_native.rs").read_text(encoding="utf-8")
-draw_ffi = rust_native_text.split("fn pavo_gles2_draw_sections", 1)[1].split(");", 1)[0]
+draw_ffi = rust_native_text.split("fn pavo_gles2_draw_sections", 1)[1].split(";", 1)[0]
 if "-> i32" not in draw_ffi:
     raise SystemExit("FAIL: Rust GLES2 FFI does not receive native draw status")
 if "if ok == 1 { Ok(()) } else { Err(self.native_error()) }" not in rust_native_text:
