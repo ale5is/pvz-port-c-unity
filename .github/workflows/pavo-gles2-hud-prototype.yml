@@ -1,13 +1,6 @@
 name: Pavo GLES2 HUD surface prototype
 
 on:
-  push:
-    branches:
-      - port/android-5-low-end
-    paths:
-      - 'tools/gles2-hud-prototype/**'
-      - 'tools/check_gles2_terrain_renderer.py'
-      - '.github/workflows/pavo-gles2-hud-prototype.yml'
   workflow_dispatch:
     inputs:
       build_prototype_apk:
