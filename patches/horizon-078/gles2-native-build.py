@@ -496,18 +496,18 @@ impl Runtime {
         self.renderer = super::gles2_native::Backend::new()?;
         self.context_generation = generation;
         self.initialized = false;
-        if let Some(assets) = self.cached_assets.clone() {
+        if let Some(assets) = self.cached_assets.as_ref() {
             self.renderer.initialize(
                 &assets.sprite_pixels, assets.layers, assets.sprite_size,
                 &assets.lightmap, assets.lightmap_width, assets.lightmap_height, assets.uv_steps,
             )?;
+            for (layer, pixels) in &assets.animated_layers {
+                self.renderer.update_atlas_layer(*layer, pixels)?;
+            }
             for (key, section) in &self.cached_sections {
                 self.renderer.upload_section(
                     *key, &section.solid, &section.translucent, &section.ranges,
                 )?;
-            }
-            for (layer, pixels) in &assets.animated_layers {
-                self.renderer.update_atlas_layer(*layer, pixels)?;
             }
             self.initialized = true;
         }
