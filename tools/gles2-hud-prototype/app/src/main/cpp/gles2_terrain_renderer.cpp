@@ -453,6 +453,19 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
         return false;
     }
 
+    auto insertion = sections_.end();
+    if (existing == sections_.end()) {
+        try {
+            insertion = sections_.try_emplace(section_key).first;
+        } catch (const std::bad_alloc&) {
+            std::snprintf(error_, sizeof(error_), "Not enough memory to register the resident GLES2 section");
+            return false;
+        } catch (const std::length_error&) {
+            std::snprintf(error_, sizeof(error_), "Resident GLES2 section table exceeds its allocation limit");
+            return false;
+        }
+    }
+
     SectionBuffers replacement;
     replacement.byte_size = replacement_bytes;
     replacement.has_solid_ranges = use_solid_ranges;
@@ -462,6 +475,7 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
                        translucent, translucent_count)) {
         if (replacement.solid_vbo) glDeleteBuffers(1, &replacement.solid_vbo);
         if (replacement.translucent_vbo) glDeleteBuffers(1, &replacement.translucent_vbo);
+        if (insertion != sections_.end()) sections_.erase(insertion);
         return false;
     }
 
@@ -469,23 +483,10 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
         if (existing->second.solid_vbo) glDeleteBuffers(1, &existing->second.solid_vbo);
         if (existing->second.translucent_vbo) glDeleteBuffers(1, &existing->second.translucent_vbo);
         existing->second = std::move(replacement);
-        resident_bytes_ = retained_bytes + replacement_bytes;
     } else {
-        try {
-            sections_.emplace(section_key, std::move(replacement));
-        } catch (const std::bad_alloc&) {
-            if (replacement.solid_vbo) glDeleteBuffers(1, &replacement.solid_vbo);
-            if (replacement.translucent_vbo) glDeleteBuffers(1, &replacement.translucent_vbo);
-            std::snprintf(error_, sizeof(error_), "Not enough memory to register the resident GLES2 section");
-            return false;
-        } catch (const std::length_error&) {
-            if (replacement.solid_vbo) glDeleteBuffers(1, &replacement.solid_vbo);
-            if (replacement.translucent_vbo) glDeleteBuffers(1, &replacement.translucent_vbo);
-            std::snprintf(error_, sizeof(error_), "Resident GLES2 section table exceeds its allocation limit");
-            return false;
-        }
-        resident_bytes_ += replacement_bytes;
+        insertion->second = std::move(replacement);
     }
+    resident_bytes_ = retained_bytes + replacement_bytes;
     error_[0] = '\0';
     return true;
 }
