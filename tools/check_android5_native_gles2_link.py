@@ -61,8 +61,8 @@ for marker in ("pub(crate) struct Runtime", "pavo_egl_create", "pavo_egl_swap", 
         raise SystemExit(f"FAIL: Rust EGL owner missing {marker}")
     print(f"PASS: Rust EGL {marker}")
 
-egl_header = (root.parent.parent / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_egl_owner.h").read_text(encoding="utf-8")
-egl_cpp = (root.parent.parent / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_egl_owner.cpp").read_text(encoding="utf-8")
+egl_header = (Path(__file__).resolve().parents[1] / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_egl_owner.h").read_text(encoding="utf-8")
+egl_cpp = (Path(__file__).resolve().parents[1] / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_egl_owner.cpp").read_text(encoding="utf-8")
 for marker in ("pavo_egl_context_generation", "pavo_egl_suspend", "pavo_egl_resume"):
     if marker not in egl_header or marker not in egl_cpp:
         raise SystemExit(f"FAIL: native EGL lifecycle is missing {marker}")
