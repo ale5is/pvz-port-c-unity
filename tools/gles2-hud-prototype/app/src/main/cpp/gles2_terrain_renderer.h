@@ -68,6 +68,7 @@ private:
         GLuint translucent_vbo = 0;
         GLsizei solid_count = 0;
         GLsizei translucent_count = 0;
+        std::size_t byte_size = 0;
     };
 
     struct UniformLocations {
@@ -105,6 +106,7 @@ private:
     GLsizei solid_count_ = 0;
     GLsizei translucent_count_ = 0;
     std::map<std::array<std::int32_t, 3>, SectionBuffers> sections_;
+    std::size_t resident_bytes_ = 0;
     int atlas_width_ = 0;
     int atlas_height_ = 0;
     int sprite_size_ = 0;
