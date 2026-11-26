@@ -38,7 +38,7 @@ int pavo_gles2_upload_section(
 
 void pavo_gles2_remove_column(PavoGles2Handle* handle, std::int32_t x, std::int32_t z);
 void pavo_gles2_clear_sections(PavoGles2Handle* handle);
-void pavo_gles2_draw_sections(
+int pavo_gles2_draw_sections(
     PavoGles2Handle* handle,
     const float mvp[16],
     const float camera_position[3],
