@@ -8,9 +8,11 @@ parser.add_argument("source", type=Path)
 root = parser.parse_args().source.resolve()
 gfx = root / "crates/horizon-client-render/src/gfx.rs"
 game = root / "crates/horizon-client/src/game.rs"
+graphics = root / "crates/horizon-client-render/src/graphics.rs"
 
 gfx_source = gfx.read_text(encoding="utf-8")
 game_source = game.read_text(encoding="utf-8")
+graphics_source = graphics.read_text(encoding="utf-8")
 
 method = """    /// Install the GUI atlas state without exposing the backend device or HUD renderer.
     pub fn configure_hud(&mut self, atlas: &crate::hud::HudAtlas) {
@@ -28,9 +30,12 @@ method = """    /// Install the GUI atlas state without exposing the backend dev
         [self.config.width, self.config.height]
     }
 
-    /// Apply the renderer's adapter-specific far-terrain cap without leaking wgpu::AdapterInfo.
+    /// Apply backend-neutral far-terrain policy without leaking wgpu::AdapterInfo.
     pub fn lod_distance_capped(&self, distance: u32) -> u32 {
-        crate::graphics::lod_distance_capped(distance, &self.info)
+        let capabilities = crate::graphics::BackendCapabilities {
+            cap_lod_distance: crate::graphics::lod_capped(&self.info),
+        };
+        crate::graphics::lod_distance_capped_for_backend(distance, capabilities)
     }
 
     /// Number of world sections drawn by the last completed frame.
@@ -273,6 +278,49 @@ game_source = game_source.replace(
 if "renderer.info" in game_source or "previous.info" in game_source or "r.info" in game_source:
     raise SystemExit("Game still accesses wgpu adapter metadata directly")
 
+capability_anchor = "pub fn lod_capped(info: &wgpu::AdapterInfo) -> bool {"
+capability_code = """/// Backend-neutral capabilities that affect shared render-distance policy.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct BackendCapabilities {
+    /// Apply the integrated/low-bandwidth GPU far-terrain limit.
+    pub cap_lod_distance: bool,
+}
+/// A LOD distance capped using backend-neutral capabilities.
+pub fn lod_distance_capped_for_backend(distance: u32, capabilities: BackendCapabilities) -> u32 {
+    let distance = distance.min(crate::lod::MAX_CHUNKS);
+    if capabilities.cap_lod_distance {
+        distance.min(INTEGRATED_LOD_DISTANCE)
+    } else {
+        distance
+    }
+}
+"""
+if graphics_source.count(capability_anchor) != 1:
+    raise SystemExit("Could not uniquely locate backend capability insertion point")
+if "pub struct BackendCapabilities" not in graphics_source:
+    graphics_source = graphics_source.replace(capability_anchor, capability_code + capability_anchor)
+elif graphics_source.count("pub struct BackendCapabilities") != 1:
+    raise SystemExit("Unexpected duplicate BackendCapabilities definition")
+
+test_anchor = """    #[test]
+    fn integrated_gpus_other_than_apple_cap_the_lod_distance() {"""
+test_code = """    #[test]
+    fn backend_neutral_lod_cap_supports_low_bandwidth_gles2_devices() {
+        let low_end_gles2 = BackendCapabilities { cap_lod_distance: true };
+        let unrestricted = BackendCapabilities { cap_lod_distance: false };
+        for (distance, capped) in [(0, 0), (64, 64), (128, 128), (256, 128), (1024, 128)] {
+            assert_eq!(lod_distance_capped_for_backend(distance, low_end_gles2), capped);
+        }
+        assert_eq!(lod_distance_capped_for_backend(256, unrestricted), 256);
+    }
+
+"""
+if graphics_source.count(test_anchor) != 1:
+    raise SystemExit("Could not uniquely locate backend capability test insertion point")
+if "fn backend_neutral_lod_cap_supports_low_bandwidth_gles2_devices" not in graphics_source:
+    graphics_source = graphics_source.replace(test_anchor, test_code + test_anchor)
+
 gfx.write_text(gfx_source, encoding="utf-8")
 game.write_text(game_source, encoding="utf-8")
-print("Installed renderer HUD/screen/LOD/screenshot/timing/adapter accessors and migrated game-side adapter metadata.")
+graphics.write_text(graphics_source, encoding="utf-8")
+print("Installed renderer accessors, backend-neutral LOD capabilities, and migrated game-side adapter metadata.")
