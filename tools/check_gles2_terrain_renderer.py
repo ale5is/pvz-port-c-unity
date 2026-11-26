@@ -442,6 +442,8 @@ for item in [
     "self.block_entities.capacity()",
     "self.lights.capacity()",
     "self.sprite_layers.capacity()",
+    "std::mem::size_of::<Gles2SectionPayload>()",
+    "payload_budget_includes_inline_payload_and_vector_descriptors",
     "payload_budget_counts_reserved_capacity_not_only_live_vertices",
 ]:
     if item not in terrain_source:
