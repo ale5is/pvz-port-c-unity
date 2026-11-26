@@ -109,3 +109,55 @@ Do not start by replacing the entire large renderer with a single trait. First i
 6. **Playable build:** package only after the real launcher, loading flow, world rendering, input, audio policy and lifecycle work together. Then test on the target TV.
 
 Passing the existing ARMv7/API22 cross-check proves compile compatibility only. Passing the native GLES2 prototype checks proves its isolated ABI/shader/build contract only. Neither is evidence that Horizon is playable or that the target television has been tested.
+
+
+## Exact Horizon terrain input discovered
+
+The pinned source already exposes the CPU-side terrain mesh before GPU upload. The authoritative types are in `crates/horizon-client-render/src/mesher.rs`:
+
+- `SectionMesh.solid: Vec<TerrainVertex>`
+- `SectionMesh.translucent: Vec<TerrainVertex>`
+- `SectionMesh.sides` stores directional buckets used for solid-face culling.
+- `SectionMesh.visibility`, `block_entities`, `lights`, `sprite_layers`, `bounds` and `keep` are separate section metadata and must not be discarded by a geometry-only upload.
+
+The actual `TerrainVertex` is a 24-byte packed structure, not the prototype's 48-byte GLES2 structure:
+
+| Field | Horizon representation | Conversion requirement |
+|---|---|---|
+| Position | `[f32; 3]`, section-relative | Preserve exactly; add camera-relative section origin at draw time |
+| UV | `[u16; 2]`, fixed point at `UV_STEPS = 32768` | Decode with `TerrainVertex::uv()`; do not reinterpret as normalized 16-bit UV |
+| Layer | `u16` | Separate sprite index from `OPAQUE_LAYER` flag; resolve layer into a 2D atlas rectangle |
+| Light | `u16`, sky in low byte and block in high byte | Decode both channels; do not treat as a single normalized scalar |
+| Colour | packed RGBA8 `u32` | Preserve byte order and alpha metadata; alpha carries HDR emission tier and fluid-face information |
+
+The mesher deliberately bakes directional face shade, tint and ambient occlusion into colour. The terrain shader then combines that with the lightmap. The alpha byte is not ordinary opacity: `mesher.rs` encodes HDR tier and fluid-face metadata there, and `gfx/native_material.rs` decodes it. A GLES2 adapter must decode and route these flags before it constructs its own vertex attributes; blindly copying alpha as transparency will break water and emissive blocks.
+
+The `layer` value also has semantic flags. The high `OPAQUE_LAYER` bit is used for opaque leaves and quads over opaque texels, while the lower bits identify the sprite layer. The shader tests the high bit for alpha-cutout behavior and masks it before sprite lookup. The GLES2 path must preserve both behaviors.
+
+### Sprite-array to GLES2 texture conversion
+
+`RenderAssets.pixels` is organized as equal-sized sprite layers for `texture_2d_array`, with `sprite_size` and `texture_layers` describing the resource. GLES2 ES 2.0 has no core 2D texture-array sampler. Therefore the ES2 path needs an explicit 2D atlas builder:
+
+1. Choose a grid and cell size from the device's `GL_MAX_TEXTURE_SIZE`; reject an atlas that cannot fit rather than overflowing dimensions.
+2. Copy each source layer into its deterministic cell, preserving the original sprite index to cell mapping.
+3. Convert each mesh vertex's sprite layer to normalized atlas origin/scale.
+4. Add per-cell edge padding or clamp sampling within the sprite rectangle to prevent neighboring sprites bleeding under linear filtering.
+5. Preserve the opaque-layer bit separately from the sprite index.
+6. Upload the atlas and lightmap only while the GLES2 context is current.
+
+The source also supports multiple sprite arrays after the first 2048 layers. An ES2 atlas builder cannot assume the layer index is below 2048; it must cover all `texture_layers` or return a clear unsupported-resource error. Device memory and maximum texture dimensions must be checked before allocating the packed atlas.
+
+### Geometry conversion and ordering
+
+The first adapter should copy the two existing mesh lists independently:
+
+- `solid` remains the opaque/cutout pass, with the source side buckets retained for face culling where possible.
+- `translucent` remains a separate pass and must be sorted using the camera-relative ordering expected by the current renderer. Concatenating it with solid geometry is incorrect.
+- The section origin remains metadata, not baked into each vertex, so camera-relative precision is retained.
+- Empty meshes must be valid zero-count uploads; all byte-size multiplication and GLES2 `GLsizei` conversions must be checked.
+
+This establishes a concrete conversion contract from Horizon's existing section meshes to the prototype's expanded GLES2 vertex. It does not yet implement that conversion or prove the atlas packing/filtering matches the game's output.
+
+### Existing GL shader path is not the ES2 implementation
+
+The pinned `gfx/terrain_source.rs` is a legacy GLSL/WGSL lowering path for wgpu's GL backend. It retains texture-array sampling and other features that are not available in core GLES 2.0. It is useful as a source of rendering semantics, but it cannot be reused as an ES2 shader by changing only the version directive. The ES2 renderer needs its own shader and explicit 2D atlas sampling.
