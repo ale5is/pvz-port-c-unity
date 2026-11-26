@@ -7,6 +7,7 @@ add_library(
     gles2_terrain_renderer.cpp
     horizon_terrain_adapter.cpp
     horizon_gles2_bridge.cpp
+    horizon_egl_owner.cpp
 )
 
 find_library(android-lib android)
