@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -90,6 +91,8 @@ private:
         GLint lightmap = -1;
     };
 
+    bool bind_or_check_owner_thread(const char* operation);
+    bool check_owner_thread(const char* operation);
     bool create_programs();
     void cache_uniforms(GLuint program, UniformLocations* uniforms);
     bool upload_texture(GLuint* texture, const std::uint8_t* pixels,
@@ -117,6 +120,8 @@ private:
     int atlas_width_ = 0;
     int atlas_height_ = 0;
     int sprite_size_ = 0;
+    std::thread::id owner_thread_;
+    bool owner_thread_set_ = false;
     char error_[512] = {};
 };
 
