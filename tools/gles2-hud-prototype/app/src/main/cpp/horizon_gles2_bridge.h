@@ -14,6 +14,7 @@ typedef struct PavoGles2Handle PavoGles2Handle;
 
 PavoGles2Handle* pavo_gles2_create();
 void pavo_gles2_destroy(PavoGles2Handle* handle);
+void pavo_gles2_abandon(PavoGles2Handle* handle);
 
 int pavo_gles2_initialize(
     PavoGles2Handle* handle,
