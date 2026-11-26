@@ -29,6 +29,8 @@ static_assert(offsetof(Gles2TerrainVertex, light) == 42);
 static_assert(offsetof(Gles2TerrainVertex, opaque_layer) == 44);
 static_assert(sizeof(Gles2TerrainVertex) == 48);
 
+// Every GL-facing method, including destruction/release, must run on the
+// thread that owns the current EGL context. Destroy this object before EGL teardown.
 class Gles2TerrainRenderer {
 public:
     Gles2TerrainRenderer() = default;
