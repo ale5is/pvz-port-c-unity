@@ -140,6 +140,65 @@ impl AtlasGrid {
         }
         Ok(atlas)
     }
+
+    /// Replace one sprite's pixels in an existing packed atlas, including its
+    /// duplicated one-texel filtering gutter. The caller can upload only this
+    /// cell with glTexSubImage2D instead of rebuilding the complete atlas.
+    pub fn update_layer_rgba(
+        &self,
+        atlas: &mut [u8],
+        layer: u32,
+        pixels: &[u8],
+    ) -> Result<(), &'static str> {
+        if layer >= self.texture_layers {
+            return Err("animated terrain sprite layer is outside the atlas");
+        }
+        let row_bytes = (self.sprite_size as usize)
+            .checked_mul(4)
+            .ok_or("animated sprite row size overflow")?;
+        let layer_bytes = row_bytes
+            .checked_mul(self.sprite_size as usize)
+            .ok_or("animated sprite byte size overflow")?;
+        if pixels.len() != layer_bytes {
+            return Err("animated sprite pixel data must contain exactly one RGBA layer");
+        }
+        let expected_atlas_bytes = (self.width as usize)
+            .checked_mul(self.height as usize)
+            .and_then(|size| size.checked_mul(4))
+            .ok_or("terrain atlas allocation size overflow")?;
+        if atlas.len() != expected_atlas_bytes {
+            return Err("packed terrain atlas buffer has an unexpected byte length");
+        }
+
+        let cell_x = (layer % self.columns)
+            .checked_mul(self.cell_size)
+            .ok_or("animated sprite atlas X offset overflow")?;
+        let cell_y = (layer / self.columns)
+            .checked_mul(self.cell_size)
+            .ok_or("animated sprite atlas Y offset overflow")?;
+        for row in 0..self.sprite_size {
+            let source_start = row as usize * row_bytes;
+            let destination_start = (((cell_y + Self::GUTTER + row) * self.width
+                + cell_x + Self::GUTTER) * 4) as usize;
+            let destination_end = destination_start + row_bytes;
+            atlas[destination_start - 4..destination_start]
+                .copy_from_slice(&pixels[source_start..source_start + 4]);
+            atlas[destination_start..destination_end]
+                .copy_from_slice(&pixels[source_start..source_start + row_bytes]);
+            atlas[destination_end..destination_end + 4]
+                .copy_from_slice(&pixels[source_start + row_bytes - 4..source_start + row_bytes]);
+        }
+
+        let cell_row_bytes = self.cell_size as usize * 4;
+        let first_inner = (((cell_y + Self::GUTTER) * self.width + cell_x) * 4) as usize;
+        let top = ((cell_y * self.width + cell_x) * 4) as usize;
+        let last_inner = (((cell_y + Self::GUTTER + self.sprite_size - 1) * self.width
+            + cell_x) * 4) as usize;
+        let bottom = (((cell_y + self.cell_size - 1) * self.width + cell_x) * 4) as usize;
+        atlas.copy_within(first_inner..first_inner + cell_row_bytes, top);
+        atlas.copy_within(last_inner..last_inner + cell_row_bytes, bottom);
+        Ok(())
+    }
 }
 
 /// GLES2-compatible vertex: float attributes plus normalized byte colour/light.
@@ -975,6 +1034,32 @@ mod tests {
         assert_eq!(pixel(3, 3), &[40, 0, 0, 255]);
         assert_eq!(atlas.tile(0).unwrap().0, [1.0 / 4.0, 1.0 / 4.0]);
         assert_eq!(atlas.tile(0).unwrap().1, [2.0 / 4.0, 2.0 / 4.0]);
+    }
+
+    #[test]
+    fn updates_one_animated_atlas_layer_and_all_filtering_gutters() {
+        let atlas = AtlasGrid::new(2, 2, 8).unwrap();
+        let initial = [1u8; 32];
+        let mut packed = atlas.pack_rgba(&initial).unwrap();
+        let animated = [
+            10, 0, 0, 255, 20, 0, 0, 255,
+            30, 0, 0, 255, 40, 0, 0, 255,
+        ];
+        atlas.update_layer_rgba(&mut packed, 1, &animated).unwrap();
+        let pixel = |x: usize, y: usize| {
+            &packed[(y * atlas.width as usize + x) * 4..][..4]
+        };
+        let cell_x = atlas.cell_size as usize;
+        assert_eq!(pixel(cell_x, 0), &[10, 0, 0, 255]);
+        assert_eq!(pixel(cell_x + 1, 1), &[10, 0, 0, 255]);
+        assert_eq!(pixel(cell_x + 2, 1), &[20, 0, 0, 255]);
+        assert_eq!(pixel(cell_x + 3, 1), &[20, 0, 0, 255]);
+        assert_eq!(pixel(cell_x, 2), &[30, 0, 0, 255]);
+        assert_eq!(pixel(cell_x + 3, 3), &[40, 0, 0, 255]);
+        assert_eq!(pixel(1, 1), &[1, 1, 1, 1]);
+        assert!(atlas.update_layer_rgba(&mut packed, 2, &animated).is_err());
+        assert!(atlas.update_layer_rgba(&mut packed, 1, &animated[..15]).is_err());
+        assert!(atlas.update_layer_rgba(&mut packed[..packed.len() - 1], 1, &animated).is_err());
     }
 
     #[test]
