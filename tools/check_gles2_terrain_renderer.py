@@ -545,6 +545,19 @@ for item in [
         raise SystemExit(f"FAIL: renderer must reject non-finite frame parameters: missing {item}")
 print("PASS: GLES2 terrain draw rejects NaN and infinity in matrices, camera, fog and distance")
 
+lightmap_start = source.index("bool Gles2TerrainRenderer::update_lightmap(")
+lightmap_end = source.index("void Gles2TerrainRenderer::draw_buffer_range(", lightmap_start)
+lightmap_body = source[lightmap_start:lightmap_end]
+if lightmap_body.find("clear_gl_errors();") > lightmap_body.find("glTexSubImage2D("):
+    raise SystemExit("FAIL: lightmap update must clear stale GL errors before uploading")
+if "glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 16, 16" not in lightmap_body:
+    raise SystemExit("FAIL: lightmap update no longer uploads the full 16x16 texture")
+if "glEnable(static_cast<GLenum>(0xdead));" not in native_host:
+    raise SystemExit("FAIL: native smoke test must seed a stale GL error before a valid lightmap update")
+if "renderer.update_lightmap(lightmap.data(), lightmap.size())" not in native_host:
+    raise SystemExit("FAIL: native smoke test must verify a valid lightmap update after stale GL error")
+print("PASS: lightmap upload clears stale GL errors and native smoke test exercises recovery")
+
 for item in [
     "self.geometry.solid.capacity()",
     "self.geometry.translucent.capacity()",
