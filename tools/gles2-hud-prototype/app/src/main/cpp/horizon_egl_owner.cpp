@@ -119,6 +119,10 @@ extern "C" int pavo_egl_make_current(PavoEglOwner* owner) {
     return 1;
 }
 
+extern "C" std::uint64_t pavo_egl_context_generation(const PavoEglOwner* owner) {
+    return owner ? owner->context_generation : 0;
+}
+
 extern "C" int pavo_egl_suspend(PavoEglOwner* owner) {
     if (!on_owner_thread(owner) || owner->display == EGL_NO_DISPLAY) return 0;
     eglMakeCurrent(owner->display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
