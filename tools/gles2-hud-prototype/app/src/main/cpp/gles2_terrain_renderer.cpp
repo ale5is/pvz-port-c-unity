@@ -589,7 +589,15 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
         float origin[3];
     };
     std::vector<VisibleSection> visible;
-    visible.reserve(sections_.size());
+    try {
+        visible.reserve(sections_.size());
+    } catch (const std::bad_alloc&) {
+        std::snprintf(error_, sizeof(error_), "Not enough memory to build the visible GLES2 section list");
+        return;
+    } catch (const std::length_error&) {
+        std::snprintf(error_, sizeof(error_), "Visible GLES2 section list exceeds the vector allocation limit");
+        return;
+    }
     constexpr float kSectionCullRadius = 13.85640646f;
     const float max_cull_distance = max_distance > 0.0f ? max_distance + kSectionCullRadius : 0.0f;
     const float max_distance_squared = max_cull_distance * max_cull_distance;
@@ -647,6 +655,7 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);
+    error_[0] = '\0';
 }
 
 void Gles2TerrainRenderer::draw_buffer_range(GLuint program, const UniformLocations& uniforms,
