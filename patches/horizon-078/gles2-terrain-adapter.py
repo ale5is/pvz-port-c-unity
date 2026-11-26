@@ -554,7 +554,11 @@ pub fn sort_translucent_back_to_front(
         }
         quads.push((index, distance_squared));
     }
-    quads.sort_by(|left, right| right.1.total_cmp(&left.1));
+    // Avoid the stable sort's hidden scratch allocation on the 1 GiB target.
+    // The original quad index preserves stable ordering for equal distances.
+    quads.sort_unstable_by(|left, right| {
+        right.1.total_cmp(&left.1).then_with(|| left.0.cmp(&right.0))
+    });
     let mut sorted = Vec::new();
     sorted.try_reserve_exact(vertices.len())
         .map_err(|_| "not enough memory to reorder translucent terrain quads")?;
@@ -702,6 +706,23 @@ mod tests {
         sort_translucent_back_to_front(&mut vertices, [100.0, 0.0, 0.0], [100.0, 0.0, 0.0]).unwrap();
         assert!(vertices[..6].iter().all(|v| v.position[2] == 8.0));
         assert!(vertices[6..].iter().all(|v| v.position[2] == 2.0));
+    }
+
+    #[test]
+    fn translucent_sort_keeps_original_order_for_equal_distances() {
+        let make_quad = |x: f32| {
+            let vertex = Gles2TerrainVertex {
+                position: [x, 0.0, 0.0], uv: [0.0; 2], atlas_origin: [0.0; 2],
+                atlas_scale: [1.0; 2], color: [255; 4], emission: 0,
+                material_flags: 0, light: [0; 2], opaque_layer: 0.0,
+            };
+            [vertex; 6]
+        };
+        let mut vertices = make_quad(-1.0).into_iter()
+            .chain(make_quad(1.0)).collect::<Vec<_>>();
+        sort_translucent_back_to_front(&mut vertices, [0.0; 3], [0.0; 3]).unwrap();
+        assert!(vertices[..6].iter().all(|vertex| vertex.position[0] == -1.0));
+        assert!(vertices[6..].iter().all(|vertex| vertex.position[0] == 1.0));
     }
 
     #[test]
