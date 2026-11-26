@@ -108,7 +108,10 @@ impl AtlasGrid {
             .checked_mul(self.height as usize)
             .and_then(|size| size.checked_mul(4))
             .ok_or("terrain atlas allocation size overflow")?;
-        let mut atlas = vec![0u8; atlas_bytes];
+        let mut atlas = Vec::new();
+        atlas.try_reserve_exact(atlas_bytes)
+            .map_err(|_| "not enough memory to allocate the packed GLES2 terrain atlas")?;
+        atlas.resize(atlas_bytes, 0);
         for layer in 0..self.texture_layers {
             let tile_x = layer % self.columns;
             let tile_y = layer / self.columns;
