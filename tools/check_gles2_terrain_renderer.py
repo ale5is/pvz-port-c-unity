@@ -203,7 +203,6 @@ required_adapter_header = [
     "bool convert_horizon_terrain_vertices(",
     "bool upload_horizon_section(",
     "bool upload_horizon_section_with_ranges(",
-    "first_count_pairs, range_count, true",
 ]
 required_adapter_source = [
     "layer_major_rgba",
