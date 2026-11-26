@@ -6,6 +6,9 @@ on:
       - port/android-5-low-end
     paths:
       - 'tools/android5_patch.py'
+      - 'patches/horizon-078/gles2-native-build.py'
+      - 'tools/check_android5_native_gles2_link.py'
+      - 'tools/gles2-hud-prototype/app/src/main/cpp/horizon_gles2_bridge.*'
       - 'tools/check_android5_renderer_boundary.py'
       - 'patches/horizon-078/gles2-hud-adapter.py'
       - 'patches/horizon-078/renderer-hud-boundary.py'
@@ -111,6 +114,12 @@ jobs:
 
       - name: Apply limited Android 5 diagnostic patch
         run: python3 tools/android5_patch.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Link reusable GLES2 backend into Horizon Android cdylib
+        run: python3 patches/horizon-078/gles2-native-build.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Verify Android GLES2 native library linkage
+        run: python3 tools/check_android5_native_gles2_link.py "$RUNNER_TEMP/horizon-078"
 
       - name: Install Horizon HUD GLES2 CPU adapter
         run: python3 patches/horizon-078/gles2-hud-adapter.py "$RUNNER_TEMP/horizon-078"
