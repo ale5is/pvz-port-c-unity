@@ -357,13 +357,38 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
     }
     const auto existing = sections_.find(section_key);
     constexpr std::size_t kMaximumResidentSections = 512;
+    constexpr std::size_t kMaximumResidentBytes = 32u * 1024u * 1024u;
     if (existing == sections_.end() && sections_.size() >= kMaximumResidentSections) {
         std::snprintf(error_, sizeof(error_), "GLES2 resident section limit (%zu) reached",
                       kMaximumResidentSections);
         return false;
     }
+    const std::size_t vertex_size = sizeof(Gles2TerrainVertex);
+    if (solid_count > std::numeric_limits<std::size_t>::max() / vertex_size ||
+        translucent_count > std::numeric_limits<std::size_t>::max() / vertex_size) {
+        std::snprintf(error_, sizeof(error_), "Section VBO byte count overflow");
+        return false;
+    }
+    const std::size_t solid_bytes = solid_count * vertex_size;
+    const std::size_t translucent_bytes = translucent_count * vertex_size;
+    if (translucent_bytes > std::numeric_limits<std::size_t>::max() - solid_bytes) {
+        std::snprintf(error_, sizeof(error_), "Combined section VBO byte count overflow");
+        return false;
+    }
+    const std::size_t replacement_bytes = solid_bytes + translucent_bytes;
+    const std::size_t previous_bytes = existing == sections_.end() ? 0 : existing->second.byte_size;
+    const std::size_t retained_bytes = resident_bytes_ - previous_bytes;
+    if (retained_bytes > kMaximumResidentBytes ||
+        replacement_bytes > kMaximumResidentBytes - retained_bytes) {
+        std::snprintf(error_, sizeof(error_),
+                      "GLES2 resident VBO budget exceeded: requested %zu bytes, available %zu",
+                      replacement_bytes, retained_bytes > kMaximumResidentBytes
+                          ? 0 : kMaximumResidentBytes - retained_bytes);
+        return false;
+    }
 
     SectionBuffers replacement;
+    replacement.byte_size = replacement_bytes;
     if (!upload_buffer(&replacement.solid_vbo, &replacement.solid_count, solid, solid_count) ||
         !upload_buffer(&replacement.translucent_vbo, &replacement.translucent_count,
                        translucent, translucent_count)) {
@@ -376,8 +401,10 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
         if (existing->second.solid_vbo) glDeleteBuffers(1, &existing->second.solid_vbo);
         if (existing->second.translucent_vbo) glDeleteBuffers(1, &existing->second.translucent_vbo);
         existing->second = replacement;
+        resident_bytes_ = retained_bytes + replacement_bytes;
     } else {
         sections_.emplace(section_key, replacement);
+        resident_bytes_ += replacement_bytes;
     }
     error_[0] = '\0';
     return true;
@@ -390,6 +417,7 @@ void Gles2TerrainRenderer::remove_section(const std::int32_t key[3]) {
     if (it == sections_.end()) return;
     if (it->second.solid_vbo) glDeleteBuffers(1, &it->second.solid_vbo);
     if (it->second.translucent_vbo) glDeleteBuffers(1, &it->second.translucent_vbo);
+    resident_bytes_ -= it->second.byte_size;
     sections_.erase(it);
 }
 
@@ -398,6 +426,7 @@ void Gles2TerrainRenderer::remove_column(std::int32_t section_x, std::int32_t se
         if (it->first[0] == section_x && it->first[2] == section_z) {
             if (it->second.solid_vbo) glDeleteBuffers(1, &it->second.solid_vbo);
             if (it->second.translucent_vbo) glDeleteBuffers(1, &it->second.translucent_vbo);
+            resident_bytes_ -= it->second.byte_size;
             it = sections_.erase(it);
         } else {
             ++it;
@@ -411,6 +440,7 @@ void Gles2TerrainRenderer::clear_sections() {
         if (entry.second.translucent_vbo) glDeleteBuffers(1, &entry.second.translucent_vbo);
     }
     sections_.clear();
+    resident_bytes_ = 0;
 }
 
 void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_position[3],
