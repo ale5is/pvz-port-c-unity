@@ -422,6 +422,17 @@ impl Runtime {
         self.egl.resize()
     }
 
+    pub(crate) fn upload_horizon_section(
+        &mut self, key: [i32; 3],
+        mesh: &horizon_client::mesher::SectionMesh,
+        eye_in_section: [f32; 3],
+    ) -> Result<(), String> {
+        let solid = super::gles2_native::copy_section_vertices(&mesh.solid)?;
+        let translucent = super::gles2_native::copy_section_vertices(&mesh.translucent)?;
+        let ranges = super::gles2_native::visible_solid_ranges(&mesh.sides, eye_in_section)?;
+        self.upload_section(key, &solid, &translucent, &ranges)
+    }
+
     pub(crate) fn upload_section(
         &mut self, key: [i32; 3],
         solid: &[super::gles2_native::HorizonTerrainVertex],
