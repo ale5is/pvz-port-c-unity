@@ -410,6 +410,43 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
     return true;
 }
 
+bool Gles2TerrainRenderer::set_section_solid_ranges(
+    const std::int32_t key[3], const std::uint32_t* first_count_pairs,
+    std::size_t range_count) {
+    if (!key || (range_count && !first_count_pairs)) {
+        std::snprintf(error_, sizeof(error_), "Section key and solid range data are required");
+        return false;
+    }
+    const std::array<std::int32_t, 3> section_key{{key[0], key[1], key[2]}};
+    const auto it = sections_.find(section_key);
+    if (it == sections_.end()) {
+        std::snprintf(error_, sizeof(error_), "Cannot set solid ranges for a nonresident section");
+        return false;
+    }
+    std::vector<std::pair<GLint, GLsizei>> ranges;
+    ranges.reserve(range_count);
+    std::uint64_t previous_end = 0;
+    for (std::size_t i = 0; i < range_count; ++i) {
+        const std::uint64_t first = first_count_pairs[i * 2];
+        const std::uint64_t count = first_count_pairs[i * 2 + 1];
+        const std::uint64_t end = first + count;
+        if (count == 0 || first % 3 != 0 || count % 3 != 0 ||
+            end > static_cast<std::uint64_t>(it->second.solid_count) ||
+            end < first || (i != 0 && first < previous_end) ||
+            first > static_cast<std::uint64_t>(std::numeric_limits<GLint>::max()) ||
+            count > static_cast<std::uint64_t>(std::numeric_limits<GLsizei>::max())) {
+            std::snprintf(error_, sizeof(error_), "Solid side range %zu is invalid or overlaps", i);
+            return false;
+        }
+        ranges.emplace_back(static_cast<GLint>(first), static_cast<GLsizei>(count));
+        previous_end = end;
+    }
+    it->second.solid_ranges = std::move(ranges);
+    it->second.has_solid_ranges = true;
+    error_[0] = '\0';
+    return true;
+}
+
 void Gles2TerrainRenderer::remove_section(const std::int32_t key[3]) {
     if (!key) return;
     const std::array<std::int32_t, 3> section_key{{key[0], key[1], key[2]}};
@@ -479,9 +516,17 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
     for (const auto& section : visible) {
-        draw_buffer(solid_program_, solid_uniforms_, section.buffers->solid_vbo,
-                    section.buffers->solid_count, mvp, section.origin,
-                    camera_position, fog_color, fog_range);
+        if (section.buffers->has_solid_ranges) {
+            for (const auto& range : section.buffers->solid_ranges) {
+                draw_buffer_range(solid_program_, solid_uniforms_, section.buffers->solid_vbo,
+                                  range.first, range.second, mvp, section.origin,
+                                  camera_position, fog_color, fog_range);
+            }
+        } else {
+            draw_buffer_range(solid_program_, solid_uniforms_, section.buffers->solid_vbo,
+                              0, section.buffers->solid_count, mvp, section.origin,
+                              camera_position, fog_color, fog_range);
+        }
     }
 
     std::sort(visible.begin(), visible.end(),
@@ -492,9 +537,10 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
     for (const auto& section : visible) {
-        draw_buffer(translucent_program_, translucent_uniforms_,
-                    section.buffers->translucent_vbo, section.buffers->translucent_count,
-                    mvp, section.origin, camera_position, fog_color, fog_range);
+        draw_buffer_range(translucent_program_, translucent_uniforms_,
+                          section.buffers->translucent_vbo, 0,
+                          section.buffers->translucent_count, mvp, section.origin,
+                          camera_position, fog_color, fog_range);
     }
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
@@ -505,8 +551,8 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
     glUseProgram(0);
 }
 
-void Gles2TerrainRenderer::draw_buffer(GLuint program, const UniformLocations& uniforms,
-                                       GLuint buffer, GLsizei count, const float* mvp,
+void Gles2TerrainRenderer::draw_buffer_range(GLuint program, const UniformLocations& uniforms,
+                                             GLuint buffer, GLint first, GLsizei count, const float* mvp,
                                        const float section_origin[3], const float camera_position[3],
                                        const float fog_color[4], const float fog_range[2]) {
     if (!program || !buffer || count <= 0) return;
@@ -552,7 +598,7 @@ void Gles2TerrainRenderer::draw_buffer(GLuint program, const UniformLocations& u
                           reinterpret_cast<const void*>(offsetof(Gles2TerrainVertex, opaque_layer)));
     glVertexAttribPointer(7, 2, GL_UNSIGNED_BYTE, GL_TRUE, stride,
                           reinterpret_cast<const void*>(offsetof(Gles2TerrainVertex, emission)));
-    glDrawArrays(GL_TRIANGLES, 0, count);
+    glDrawArrays(GL_TRIANGLES, first, count);
     for (GLuint index = 0; index <= 7; ++index) glDisableVertexAttribArray(index);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
@@ -566,13 +612,13 @@ void Gles2TerrainRenderer::draw(const float* mvp, const float section_origin[3],
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
-    draw_buffer(solid_program_, solid_uniforms_, solid_vbo_, solid_count_, mvp,
-                section_origin, camera_position, fog_color, fog_range);
+    draw_buffer_range(solid_program_, solid_uniforms_, solid_vbo_, 0, solid_count_, mvp,
+                      section_origin, camera_position, fog_color, fog_range);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
-    draw_buffer(translucent_program_, translucent_uniforms_, translucent_vbo_,
-                translucent_count_, mvp, section_origin, camera_position, fog_color, fog_range);
+    draw_buffer_range(translucent_program_, translucent_uniforms_, translucent_vbo_, 0,
+                      translucent_count_, mvp, section_origin, camera_position, fog_color, fog_range);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
     glActiveTexture(GL_TEXTURE1);
