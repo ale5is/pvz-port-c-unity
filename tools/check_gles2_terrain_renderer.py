@@ -243,6 +243,20 @@ if missing:
     raise SystemExit(1)
 print("PASS: 48-byte Rust/C++ terrain vertex ABI")
 print("PASS: 24-byte Horizon input converts into the 48-byte GLES2 vertex ABI")
+atlas_start = adapter_source.index("bool build_gles2_terrain_atlas(")
+atlas_end = adapter_source.index("\nbool convert_horizon_terrain_vertices(", atlas_start)
+atlas_body = adapter_source[atlas_start:atlas_end]
+for item in [
+    "built.pixels.assign(atlas_bytes, 0)",
+    "catch (const std::bad_alloc&)",
+    "catch (const std::length_error&)",
+    "Not enough memory to allocate the GLES2 terrain atlas",
+    "GLES2 terrain atlas exceeds the vector allocation limit",
+    "*atlas = std::move(built)",
+]:
+    if item not in atlas_body:
+        raise SystemExit(f"FAIL: Horizon atlas allocation contract missing {item}")
+
 conversion_start = adapter_source.index("bool convert_horizon_terrain_vertices(")
 conversion_end = adapter_source.index("\n}  // namespace pavo", conversion_start)
 conversion_body = adapter_source[conversion_start:conversion_end]
@@ -256,7 +270,7 @@ for item in [
     "catch (const std::bad_alloc&)",
     "catch (const std::length_error&)",
     "Not enough memory to expand the Horizon terrain mesh",
-    "Not enough memory to allocate the GLES2 terrain atlas",
+    "Expanded Horizon terrain mesh exceeds the vector allocation limit",
 ]:
     if item not in conversion_body:
         raise SystemExit(f"FAIL: Horizon CPU adapter conversion contract missing {item}")
