@@ -274,9 +274,21 @@ for item in [
 ]:
     if item not in conversion_body:
         raise SystemExit(f"FAIL: Horizon CPU adapter conversion contract missing {item}")
+quad_order = [
+    "converted.push_back(quad[0]);",
+    "converted.push_back(quad[1]);",
+    "converted.push_back(quad[2]);",
+    "converted.push_back(quad[2]);",
+    "converted.push_back(quad[3]);",
+    "converted.push_back(quad[0]);",
+]
+quad_positions = [conversion_body.find(item) for item in quad_order]
+if any(position < 0 for position in quad_positions) or quad_positions != sorted(quad_positions):
+    raise SystemExit("FAIL: Horizon quad expansion must preserve the exact (0,1,2,2,3,0) triangle winding")
 if "output->clear()" in conversion_body or "converted.reserve(vertex_count)" in conversion_body:
     raise SystemExit("FAIL: Horizon CPU adapter must preserve output atomically and avoid the oversized intermediate vertex buffer")
 print("PASS: Horizon CPU vertex conversion is overflow-checked, bounded, allocation-safe and atomic")
+print("PASS: Horizon quad expansion preserves exact (0,1,2,2,3,0) triangle winding")
 print("PASS: layer-major sprite pixels pack with duplicated filtering gutters")
 print("PASS: light, emission tier, fluid face, opaque flag and UV scale are decoded")
 print("PASS: eight GLES2 attributes, including packed emission/material bytes")
