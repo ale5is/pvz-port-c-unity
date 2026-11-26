@@ -205,3 +205,34 @@ The Rust adapter now defines `Gles2SectionQueue`, a FIFO queue for owned `Gles2S
 - Tests cover replacement order, over-budget rejection, atomic replacement failure, section/column unload, and accounting after pop/clear.
 
 The limit measures logical payload bytes (converted vertex lengths and owned metadata lengths), not allocator capacity, temporary conversion peaks, atlas/lightmap memory, or GPU allocations. It is therefore a bounded pending-upload budget, not a complete process-memory ceiling. The queue is CPU-only and owns no GL/EGL handles. It is not yet connected to Horizon's meshing completion path, game section unload events, or a renderer; the launcher still constructs wgpu. Passing its unit tests will validate queue semantics only, not terrain presentation or playability.
+
+## Live game-loop integration seam (pinned upstream audit)
+
+The pinned source was traced beyond the CPU adapter to identify where real meshes and Android window ownership enter the game. This is the integration boundary; the queue is not wired into it yet.
+
+### Section mesh production and current upload ownership
+
+- `horizon-client/src/game.rs` owns `pending_uploads: Vec<((i32, i32, i32), SectionMesh)>`. Completed meshes arrive in the frame's `uploads` collection.
+- The existing game loop already coalesces pending meshes by section key: fresh meshes replace older pending meshes, and entries for chunks no longer loaded are dropped. It sorts pending work by distance and applies `UploadBudget` before calling `renderer.upload(key, &mesh)`.
+- On Android client sessions, `mobile_uploads` forces this budgeted path. After uploads, `renderer.remove_columns(unloaded...)` handles renderer-side chunk-column eviction.
+- The non-budgeted desktop fast path also calls `renderer.upload` directly. It must remain unchanged for desktop.
+- `horizon-client-render/src/gfx.rs` owns the concrete `Renderer`; `upload` updates occlusion visibility, block-entity and light metadata, LOD state, GPU arena allocations and resident section tables before drawing. It is not a narrow terrain-only interface.
+
+This means the upstream game already has a CPU-side scheduling/coalescing queue. A GLES2 integration should not blindly add a second unbounded `Vec<SectionMesh>`. The adapter payload queue is useful only after conversion and needs to replace or deliberately sit behind the Android pending-upload stage, with a single documented memory budget and correct return/free ownership for rejected or consumed meshes.
+
+### Android window and EGL lifecycle
+
+- `Game` implements winit `ApplicationHandler`. Android `suspended()` marks the surface lost and calls `renderer.suspend_surface()`.
+- Android `resumed()` reuses the existing renderer, resizes it, and calls `renderer.recreate_surface()`; initial window creation happens later through `ActiveEventLoop::create_window`.
+- The normal startup helpers `loading_renderer()` and `build_renderer()` both construct the same concrete wgpu `Renderer`; the game field and its callers are typed to that renderer.
+- The current renderer owns a wgpu surface/device/queue, dozens of pipelines and GPU resources, HUD, entity, sky, post-processing and other passes. Replacing it with a terrain-only GLES2 class would leave the rest of the game without a renderer. Keeping wgpu for the HUD while creating an unrelated EGL context on the same native window also cannot be assumed to work: surface ownership, buffer swaps, synchronization and context lifetime must be explicitly designed.
+
+### Required integration sequence
+
+1. Introduce a deliberate Android backend boundary at the game/renderer ownership level, without changing desktop's concrete wgpu path. Keep loading/menu/HUD responsibilities explicit rather than pretending the terrain adapter implements them.
+2. Define a renderer lifecycle contract for create, resize, suspend, resume/recreate and shutdown on the winit event thread. EGL display, context and window surface must be created and destroyed on a controlled owner thread with the Android native window valid.
+3. Route Android completed `SectionMesh` values through `convert_section()`, preserving the original key and metadata. Transfer owned payloads to the render owner; return/release rejected payloads and remove queued sections on unload. Keep the existing upload budget semantics and avoid double-accounting or holding both original and converted meshes longer than necessary.
+4. Implement actual GLES2 terrain resource upload and draw from the converted payload, including atlas/lightmap, solid side buckets, camera-relative transforms, visibility, material/fluid/emission rules, animated atlas cells and section eviction. The current synthetic NativeActivity renderer is not this implementation.
+5. Only after terrain can be drawn from live Horizon sections, add a real-world integration smoke test and build an integration APK. A playable APK additionally requires the remaining visible game passes and lifecycle/input path; CPU tests and a native demo do not establish playability.
+
+No upstream game-loop or renderer source has been changed by this audit. The PC renderer and `main` remain outside this Android-only port.
