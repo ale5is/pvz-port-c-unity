@@ -120,73 +120,87 @@ bool convert_horizon_terrain_vertices(const HorizonTerrainVertex* source,
                                       std::string* error) {
     if (!output || (vertex_count != 0 && !source) || (vertex_count % 4) != 0 ||
         atlas.width <= 0 || atlas.height <= 0 || atlas.columns <= 0 ||
-        atlas.sprite_size <= 0 || atlas.cell_size != atlas.sprite_size + 2 ||
+        atlas.sprite_size <= 0 ||
+        atlas.sprite_size > std::numeric_limits<int>::max() - 2 ||
+        atlas.cell_size != atlas.sprite_size + 2 ||
         atlas.layer_count == 0 ||
         atlas.width % atlas.cell_size != 0 || atlas.height % atlas.cell_size != 0 ||
         atlas.columns > atlas.width / atlas.cell_size ||
-        atlas.layer_count > static_cast<std::size_t>(atlas.columns) *
-                            static_cast<std::size_t>(atlas.height / atlas.cell_size) ||
-        !std::isfinite(uv_steps) || uv_steps <= 0.0f ||
-        vertex_count / 4 > output->max_size() / 6) {
+        !std::isfinite(uv_steps) || uv_steps <= 0.0f) {
         set_error(error, "Invalid Horizon quad mesh, atlas, or UV scale");
         return false;
     }
 
-    output->clear();
+    const std::size_t atlas_columns = static_cast<std::size_t>(atlas.columns);
+    const std::size_t atlas_rows = static_cast<std::size_t>(atlas.height / atlas.cell_size);
+    if (atlas_rows == 0 ||
+        atlas_columns > std::numeric_limits<std::size_t>::max() / atlas_rows ||
+        atlas.layer_count > atlas_columns * atlas_rows) {
+        set_error(error, "Terrain atlas layer capacity is invalid");
+        return false;
+    }
+
+    const std::size_t quad_count = vertex_count / 4;
     std::vector<Gles2TerrainVertex> converted;
-    converted.reserve(vertex_count);
+    if (quad_count > converted.max_size() / 6 ||
+        quad_count > output->max_size() / 6) {
+        set_error(error, "Expanded Horizon terrain mesh exceeds vector capacity");
+        return false;
+    }
+    converted.reserve(quad_count * 6);
+
     const float atlas_width = static_cast<float>(atlas.width);
     const float atlas_height = static_cast<float>(atlas.height);
     const float sprite_size = static_cast<float>(atlas.sprite_size);
 
-    for (std::size_t i = 0; i < vertex_count; ++i) {
-        const HorizonTerrainVertex& input = source[i];
-        const std::uint16_t sprite_layer = input.layer & 0x7fffu;
-        if (static_cast<std::size_t>(sprite_layer) >= atlas.layer_count) {
-            set_error(error, "Terrain vertex references a sprite layer absent from the atlas");
-            return false;
+    for (std::size_t quad_index = 0; quad_index < quad_count; ++quad_index) {
+        Gles2TerrainVertex quad[4]{};
+        for (std::size_t corner = 0; corner < 4; ++corner) {
+            const HorizonTerrainVertex& input = source[quad_index * 4 + corner];
+            const std::uint16_t sprite_layer = input.layer & 0x7fffu;
+            if (static_cast<std::size_t>(sprite_layer) >= atlas.layer_count) {
+                set_error(error, "Terrain vertex references a sprite layer absent from the atlas");
+                return false;
+            }
+
+            Gles2TerrainVertex& vertex = quad[corner];
+            std::copy(input.position, input.position + 3, vertex.position);
+            vertex.uv[0] = static_cast<float>(input.uv[0]) / uv_steps;
+            vertex.uv[1] = static_cast<float>(input.uv[1]) / uv_steps;
+
+            const std::size_t layer = sprite_layer;
+            const std::size_t x = (layer % atlas_columns) *
+                                  static_cast<std::size_t>(atlas.cell_size) + 1;
+            const std::size_t y = (layer / atlas_columns) *
+                                  static_cast<std::size_t>(atlas.cell_size) + 1;
+            vertex.atlas_origin[0] = static_cast<float>(x) / atlas_width;
+            vertex.atlas_origin[1] = static_cast<float>(y) / atlas_height;
+            vertex.atlas_scale[0] = sprite_size / atlas_width;
+            vertex.atlas_scale[1] = sprite_size / atlas_height;
+
+            const std::uint32_t color = input.color;
+            const std::uint8_t alpha_flags = static_cast<std::uint8_t>(color >> 24);
+            vertex.color[0] = static_cast<std::uint8_t>(color);
+            vertex.color[1] = static_cast<std::uint8_t>(color >> 8);
+            vertex.color[2] = static_cast<std::uint8_t>(color >> 16);
+            vertex.color[3] = alpha_flags;
+
+            vertex.emission = static_cast<std::uint8_t>(15 - (alpha_flags & 0x0f));
+            vertex.material_flags = alpha_flags >> 4;
+            vertex.light[0] = static_cast<std::uint8_t>(input.light);
+            vertex.light[1] = static_cast<std::uint8_t>(input.light >> 8);
+            vertex.opaque_layer = (input.layer & 0x8000u) != 0 ? 1.0f : 0.0f;
         }
 
-        Gles2TerrainVertex vertex{};
-        std::copy(input.position, input.position + 3, vertex.position);
-        vertex.uv[0] = static_cast<float>(input.uv[0]) / uv_steps;
-        vertex.uv[1] = static_cast<float>(input.uv[1]) / uv_steps;
-
-        const std::size_t layer = sprite_layer;
-        const std::size_t x = (layer % static_cast<std::size_t>(atlas.columns)) *
-                              static_cast<std::size_t>(atlas.cell_size) + 1;
-        const std::size_t y = (layer / static_cast<std::size_t>(atlas.columns)) *
-                              static_cast<std::size_t>(atlas.cell_size) + 1;
-        vertex.atlas_origin[0] = static_cast<float>(x) / atlas_width;
-        vertex.atlas_origin[1] = static_cast<float>(y) / atlas_height;
-        vertex.atlas_scale[0] = sprite_size / atlas_width;
-        vertex.atlas_scale[1] = sprite_size / atlas_height;
-
-        const std::uint32_t color = input.color;
-        const std::uint8_t alpha_flags = static_cast<std::uint8_t>(color >> 24);
-        vertex.color[0] = static_cast<std::uint8_t>(color);
-        vertex.color[1] = static_cast<std::uint8_t>(color >> 8);
-        vertex.color[2] = static_cast<std::uint8_t>(color >> 16);
-        vertex.color[3] = alpha_flags;
-
-        vertex.emission = static_cast<std::uint8_t>(15 - (alpha_flags & 0x0f));
-        vertex.material_flags = alpha_flags >> 4;
-        vertex.light[0] = static_cast<std::uint8_t>(input.light);
-        vertex.light[1] = static_cast<std::uint8_t>(input.light >> 8);
-        vertex.opaque_layer = (input.layer & 0x8000u) != 0 ? 1.0f : 0.0f;
-        converted.push_back(vertex);
+        converted.push_back(quad[0]);
+        converted.push_back(quad[1]);
+        converted.push_back(quad[2]);
+        converted.push_back(quad[2]);
+        converted.push_back(quad[3]);
+        converted.push_back(quad[0]);
     }
 
-    output->reserve((vertex_count / 4) * 6);
-    for (std::size_t i = 0; i < converted.size(); i += 4) {
-        output->push_back(converted[i]);
-        output->push_back(converted[i + 1]);
-        output->push_back(converted[i + 2]);
-        output->push_back(converted[i + 2]);
-        output->push_back(converted[i + 3]);
-        output->push_back(converted[i]);
-    }
-
+    output->swap(converted);
     if (error) error->clear();
     return true;
 }
