@@ -463,23 +463,36 @@ impl Gles2SectionQueue {
 /// Return visible solid draw ranges in GLES2 triangle-vertex units.
 /// Horizon's Sides reports (first, count) in four-vertex quad units;
 /// the converted buffer stores six vertices per quad.
-pub fn visible_solid_triangle_ranges(sides: &Sides, eye: [f32; 3]) -> Vec<(u32, u32)> {
+pub fn visible_solid_triangle_ranges(
+    sides: &Sides,
+    eye: [f32; 3],
+) -> Result<Vec<(u32, u32)>, &'static str> {
     let mut ranges = Vec::new();
+    ranges.try_reserve(sides.quads() as usize)
+        .map_err(|_| "not enough memory to allocate visible Horizon solid ranges")?;
     sides.visible(eye, |first_quad, quad_count| {
         ranges.push((first_quad * 6, quad_count * 6));
     });
-    ranges
+    Ok(ranges)
 }
 
 /// Pack visible triangle ranges as [first, count, first, count, ...] for the
 /// native GLES2 upload boundary. Values are in expanded GL_TRIANGLES vertices.
-pub fn visible_solid_triangle_ranges_packed(sides: &Sides, eye: [f32; 3]) -> Vec<u32> {
+pub fn visible_solid_triangle_ranges_packed(
+    sides: &Sides,
+    eye: [f32; 3],
+) -> Result<Vec<u32>, &'static str> {
+    let capacity = (sides.quads() as usize)
+        .checked_mul(2)
+        .ok_or("visible Horizon solid range capacity overflow")?;
     let mut packed = Vec::new();
+    packed.try_reserve(capacity)
+        .map_err(|_| "not enough memory to pack visible Horizon solid ranges")?;
     sides.visible(eye, |first_quad, quad_count| {
         packed.push(first_quad * 6);
         packed.push(quad_count * 6);
     });
-    packed
+    Ok(packed)
 }
 
 /// Sort the expanded six-vertex triangles for each Horizon translucent quad.
@@ -497,7 +510,10 @@ pub fn sort_translucent_back_to_front(
     if section_origin.iter().chain(camera_position.iter()).any(|value| !value.is_finite()) {
         return Err("translucent sort positions must be finite");
     }
-    let mut quads = Vec::with_capacity(vertices.len() / 6);
+    let quad_count = vertices.len() / 6;
+    let mut quads = Vec::new();
+    quads.try_reserve_exact(quad_count)
+        .map_err(|_| "not enough memory to allocate translucent terrain sort keys")?;
     for (index, quad) in vertices.chunks_exact(6).enumerate() {
         let mut distance_squared = 0.0f32;
         for axis in 0..3 {
@@ -511,11 +527,13 @@ pub fn sort_translucent_back_to_front(
         quads.push((index, distance_squared));
     }
     quads.sort_by(|left, right| right.1.total_cmp(&left.1));
-    let original = vertices.clone();
-    for (destination, (source, _)) in quads.into_iter().enumerate() {
-        vertices[destination * 6..destination * 6 + 6]
-            .copy_from_slice(&original[source * 6..source * 6 + 6]);
+    let mut sorted = Vec::new();
+    sorted.try_reserve_exact(vertices.len())
+        .map_err(|_| "not enough memory to reorder translucent terrain quads")?;
+    for (source, _) in quads {
+        sorted.extend_from_slice(&vertices[source * 6..source * 6 + 6]);
     }
+    vertices.swap_with_slice(&mut sorted);
     Ok(())
 }
 
@@ -527,7 +545,7 @@ mod tests {
 
     #[test]
     fn packed_solid_ranges_match_native_triangle_vertex_units() {
-        let packed = visible_solid_triangle_ranges_packed(&Sides::unsorted(3), [0.0; 3]);
+        let packed = visible_solid_triangle_ranges_packed(&Sides::unsorted(3), [0.0; 3]).unwrap();
         assert_eq!(packed, vec![0, 18]);
     }
 
