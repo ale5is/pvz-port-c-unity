@@ -69,8 +69,6 @@ fn main() {
         .file(native.join("gles2_terrain_renderer.cpp"))
         .file(native.join("horizon_terrain_adapter.cpp"))
         .file(native.join("horizon_gles2_bridge.cpp"))
-        .flag_if_supported("-fno-exceptions")
-        .flag_if_supported("-fno-rtti")
         .compile("pavo_horizon_gles2");
 
     println!("cargo:rustc-link-lib=EGL");
