@@ -308,3 +308,13 @@ The native terrain renderer now binds its EGL owner thread on the first `initial
 An operation issued before initialization or from a different thread is rejected before its first GL call. Boolean operations return `false`; void operations leave the GL resources untouched and record a diagnostic in `last_error()`. Reinitialization is permitted only on the original owner thread. The renderer does not silently migrate its context ownership.
 
 This is a defensive guard, not a replacement for lifecycle coordination: the owner must still make the EGL context current before calling the API, call `release()` before EGL teardown, and destroy the renderer on its owner thread. A wrong-thread destructor cannot safely delete GL objects; callers must obey the destruction contract. The static GLES2 checker now verifies that each public GL entry point contains its owner-thread guard. Android NDK CI is the compile check for the C++ implementation; neither check demonstrates integration with Horizon's live game loop.
+
+## Native backend bridge now installed (not yet selected by Game)
+
+The repository now carries a reusable C ABI in `tools/gles2-hud-prototype/app/src/main/cpp/horizon_gles2_bridge.{h,cpp}`. It accepts Horizon's real packed section vertices, solid face ranges, atlas layers, section removals and frame draw parameters. The API owns the native `Gles2TerrainRenderer` object but deliberately does not create an EGL context itself.
+
+A separate `horizon_egl_owner.{h,cpp}` owns one Android native-window reference, EGLDisplay, ES2 EGLConfig, EGLSurface and EGLContext. It enforces the creating thread for make-current, resize, clear, swap and teardown. The Rust runtime wrapper composes the two owners and declares the GL renderer before the EGL owner so the GL objects are destroyed while the context is still alive.
+
+The Android patch script copies these native sources into `crates/horizon-android/gles2-native`, adds a `cc` build dependency and `build.rs`, links EGL/GLESv2/android/log, and installs the Rust FFI and winit Android native-window wrapper. The API is therefore part of the Android cdylib build rather than a separately compiled demo-only shared library.
+
+**Remaining integration boundary:** `Game` and `Loading` still store `Option<gfx::Renderer>`, and their render/upload paths still invoke wgpu. The new `gles2_egl::Runtime` is not yet constructed by the launcher, transferred into `Game`, or called from `renderer.upload` / `renderer.render`. EGL surface detach/re-attach and context-loss recovery are also not yet wired to Android lifecycle callbacks. This commit series must not be described as a connected game renderer until those call sites are replaced and the Android cdylib build passes.
