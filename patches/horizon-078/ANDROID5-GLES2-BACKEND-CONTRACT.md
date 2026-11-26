@@ -32,6 +32,18 @@ A GLES2 backend must therefore cover both loading and world rendering, and must 
 
 The C++ `Gles2TerrainRenderer` accepts already-converted vertices, atlas pixels and lightmap pixels. Its current Activity supplies synthetic test textures and geometry. It does not consume Horizon's section meshes, atlas/animation data, camera matrices, fog state, world lighting or game lifecycle. Its API is a prototype boundary, not a completed adapter.
 
+## Implemented CPU upload-queue generation guard
+
+The Rust-side Gles2SectionQueue now carries a monotonically increasing window/context generation in addition to its existing byte and entry budgets:
+
+- advance_generation(next) accepts only a strictly newer generation, clears all pending payloads from the previous window lifetime, and updates the active generation.
+- enqueue_for_generation(generation, payload) rejects stale or future-generation work without mutating the queue and returns ownership of the rejected payload to the producer.
+- Existing coalescing-by-section-key, replacement accounting, maximum pending section count, and reserved-capacity byte accounting remain in force.
+- Regression tests cover stale producer rejection, queue invalidation on generation advance, monotonicity, active-generation acceptance, and byte accounting after invalidation.
+
+This closes one CPU-side lifecycle hazard: a delayed meshing result cannot be admitted to a queue after the owner has moved to a newer native-window generation, provided the future bridge tags every enqueue with the generation captured when the work was scheduled.
+
+This is **not yet wired into Horizon's live Game upload path or an EGL owner**. The caller must still capture the active generation when scheduling conversion and pass it to enqueue_for_generation; no live window-generation source or native bridge currently exists. The guard is therefore implemented and unit-testable, but stale native-window work is not yet prevented in the running game.
 ## Required ownership model
 
 Do not put fake wgpu handles behind a GLES2 implementation. Do not move EGL objects, GL names, or context-bound resources through the existing wgpu `Renderer` fields.
