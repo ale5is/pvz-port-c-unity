@@ -19,7 +19,7 @@ method = """    /// Wait for outstanding GPU work without exposing the wgpu devi
         let _ = self.device.poll(wgpu::PollType::wait_indefinitely());
     }
 
-method = """    /// Install the GUI atlas state without exposing the backend device or HUD renderer.
+    /// Install the GUI atlas state without exposing the backend device or HUD renderer.
     pub fn configure_hud(&mut self, atlas: &crate::hud::HudAtlas) {
         self.hud.sprite_animations = atlas
             .sprite_animations
