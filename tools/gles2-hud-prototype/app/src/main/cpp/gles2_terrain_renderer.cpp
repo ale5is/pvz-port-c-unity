@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <thread>
 #include <vector>
 
 namespace pavo {
@@ -197,6 +198,29 @@ GLuint link_program(const char* fragment, char* error, std::size_t error_size) {
 
 Gles2TerrainRenderer::~Gles2TerrainRenderer() { release(); }
 
+bool Gles2TerrainRenderer::bind_or_check_owner_thread(const char* operation) {
+    const std::thread::id current = std::this_thread::get_id();
+    if (!owner_thread_set_) {
+        owner_thread_ = current;
+        owner_thread_set_ = true;
+        return true;
+    }
+    if (owner_thread_ == current) return true;
+    std::snprintf(error_, sizeof(error_),
+                  "%s must run on the EGL context owner thread", operation ? operation : "GLES2 operation");
+    return false;
+}
+
+bool Gles2TerrainRenderer::check_owner_thread(const char* operation) {
+    if (!owner_thread_set_) {
+        std::snprintf(error_, sizeof(error_),
+                      "%s requires initialize() on the EGL context owner thread",
+                      operation ? operation : "GLES2 operation");
+        return false;
+    }
+    return bind_or_check_owner_thread(operation);
+}
+
 bool Gles2TerrainRenderer::create_programs() {
     solid_program_ = link_program(kSolidFragmentShader, error_, sizeof(error_));
     if (!solid_program_) return false;
@@ -269,6 +293,7 @@ bool Gles2TerrainRenderer::upload_texture(GLuint* texture, const std::uint8_t* p
 bool Gles2TerrainRenderer::initialize(const std::uint8_t* atlas_rgba, int atlas_width,
                                       int atlas_height, const std::uint8_t* lightmap_rgba,
                                       int lightmap_width, int lightmap_height, int sprite_size) {
+    if (!bind_or_check_owner_thread("initialize")) return false;
     release();
     std::size_t atlas_bytes = 0;
     std::size_t lightmap_bytes = 0;
@@ -333,10 +358,12 @@ bool Gles2TerrainRenderer::upload_buffer(GLuint* buffer, GLsizei* vertex_count,
 }
 
 bool Gles2TerrainRenderer::upload_solid(const Gles2TerrainVertex* vertices, std::size_t count) {
+    if (!check_owner_thread("upload_solid")) return false;
     return upload_buffer(&solid_vbo_, &solid_count_, vertices, count);
 }
 
 bool Gles2TerrainRenderer::upload_translucent(const Gles2TerrainVertex* vertices, std::size_t count) {
+    if (!check_owner_thread("upload_translucent")) return false;
     return upload_buffer(&translucent_vbo_, &translucent_count_, vertices, count);
 }
 
@@ -345,6 +372,7 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
                                           std::size_t solid_count,
                                           const Gles2TerrainVertex* translucent,
                                           std::size_t translucent_count) {
+    if (!check_owner_thread("upload_section")) return false;
     if (!key) {
         std::snprintf(error_, sizeof(error_), "Section key is required");
         return false;
@@ -413,6 +441,7 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
 bool Gles2TerrainRenderer::set_section_solid_ranges(
     const std::int32_t key[3], const std::uint32_t* first_count_pairs,
     std::size_t range_count) {
+    if (!check_owner_thread("set_section_solid_ranges")) return false;
     if (!key || (range_count && !first_count_pairs)) {
         std::snprintf(error_, sizeof(error_), "Section key and solid range data are required");
         return false;
@@ -452,6 +481,7 @@ bool Gles2TerrainRenderer::set_section_solid_ranges(
 }
 
 void Gles2TerrainRenderer::remove_section(const std::int32_t key[3]) {
+    if (!check_owner_thread("remove_section")) return;
     if (!key) return;
     const std::array<std::int32_t, 3> section_key{{key[0], key[1], key[2]}};
     const auto it = sections_.find(section_key);
@@ -463,6 +493,7 @@ void Gles2TerrainRenderer::remove_section(const std::int32_t key[3]) {
 }
 
 void Gles2TerrainRenderer::remove_column(std::int32_t section_x, std::int32_t section_z) {
+    if (!check_owner_thread("remove_column")) return;
     for (auto it = sections_.begin(); it != sections_.end();) {
         if (it->first[0] == section_x && it->first[2] == section_z) {
             if (it->second.solid_vbo) glDeleteBuffers(1, &it->second.solid_vbo);
@@ -476,6 +507,7 @@ void Gles2TerrainRenderer::remove_column(std::int32_t section_x, std::int32_t se
 }
 
 void Gles2TerrainRenderer::clear_sections() {
+    if (!check_owner_thread("clear_sections")) return;
     for (auto& entry : sections_) {
         if (entry.second.solid_vbo) glDeleteBuffers(1, &entry.second.solid_vbo);
         if (entry.second.translucent_vbo) glDeleteBuffers(1, &entry.second.translucent_vbo);
@@ -487,6 +519,7 @@ void Gles2TerrainRenderer::clear_sections() {
 void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_position[3],
                                          const float fog_color[4], const float fog_range[2],
                                          float max_distance) {
+    if (!check_owner_thread("draw_sections")) return;
     if (!solid_program_ || !translucent_program_ || !mvp || !camera_position ||
         !fog_color || !fog_range) return;
     struct VisibleSection {
@@ -610,6 +643,7 @@ void Gles2TerrainRenderer::draw_buffer_range(GLuint program, const UniformLocati
 void Gles2TerrainRenderer::draw(const float* mvp, const float section_origin[3],
                                 const float camera_position[3], const float fog_color[4],
                                 const float fog_range[2]) {
+    if (!check_owner_thread("draw")) return;
     if (!solid_program_ || !translucent_program_ || !mvp || !section_origin ||
         !camera_position || !fog_color || !fog_range) return;
     glEnable(GL_DEPTH_TEST);
@@ -633,6 +667,8 @@ void Gles2TerrainRenderer::draw(const float* mvp, const float section_origin[3],
 }
 
 void Gles2TerrainRenderer::release() {
+    if (!owner_thread_set_) return;
+    if (!check_owner_thread("release")) return;
     clear_sections();
     glActiveTexture(GL_TEXTURE0);
     if (solid_vbo_) glDeleteBuffers(1, &solid_vbo_);
