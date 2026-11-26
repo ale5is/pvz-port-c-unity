@@ -49,7 +49,8 @@ for old, new in (
 frame_source = (
     "//! Backend-neutral CPU data submitted by Horizon's game loop for one rendered frame.\n"
     "//! This module deliberately contains no wgpu handles, surfaces, queues or pipelines.\n"
-    "use glam::{DVec3, Mat4};\n\n"
+    "use glam::{DVec3, Mat4};\n"
+    "use crate::mesher::Vertex;\n\n"
     + definitions
 )
 if "wgpu::" in frame_source:
