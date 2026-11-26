@@ -414,7 +414,7 @@ bool Gles2TerrainRenderer::update_atlas_layer(std::uint32_t layer,
         std::snprintf(error_, sizeof(error_), "Animated terrain atlas sub-image upload failed: 0x%x", error);
         return false;
     }
-    error_[0] = '\\0';
+    error_[0] = '\0';
     return true;
 }
 
