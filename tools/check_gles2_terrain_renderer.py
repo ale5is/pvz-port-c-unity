@@ -43,8 +43,14 @@ required_source = [
     "v_material.x * 119.0",
 ]
 required_atlas_contract = [
-    "if (sprite_size <= 0 || atlas_width <= 0 || atlas_height <= 0)",
-    "Atlas dimensions and sprite size must be positive",
+    "if (sprite_size <= 0 || sprite_size > atlas_width || sprite_size > atlas_height",
+    "Invalid atlas/lightmap pixels, dimensions, or sprite size",
+    "rgba_byte_size(atlas_width, atlas_height, &atlas_bytes)",
+    "rgba_byte_size(lightmap_width, lightmap_height, &lightmap_bytes)",
+    "GLsizeiptr",
+    "glPixelStorei(GL_UNPACK_ALIGNMENT, 4)",
+    "GL_LINEAR",
+    "GL_FRAGMENT_PRECISION_HIGH",
 ]
 if "atlas_width % sprite_size" in source or "atlas_height % sprite_size" in source:
     raise SystemExit("FAIL: renderer: gutter-packed atlas dimensions must not be required to divide by sprite size")
@@ -55,6 +61,14 @@ for item in required_atlas_contract:
         raise SystemExit(f"FAIL: renderer atlas contract missing {item}")
 print("PASS: gutter-packed 18px cells are accepted for 16px source sprites")
 
+if source.count("#ifdef GL_FRAGMENT_PRECISION_HIGH") != 2:
+    raise SystemExit("FAIL: renderer: both fragment shaders need GLES2 fragment highp fallback")
+if "numeric_limits<GLsizeiptr>::max()" not in source:
+    raise SystemExit("FAIL: renderer: VBO byte count must fit GLsizeiptr on 32-bit ARM")
+if "glPixelStorei(GL_UNPACK_ALIGNMENT, 4)" not in source:
+    raise SystemExit("FAIL: renderer: texture upload must restore global unpack alignment")
+if "GL_NEAREST" in source and "upload_texture(&atlas_texture_" in source:
+    raise SystemExit("FAIL: renderer: guttered terrain atlas must use linear filtering")
 required_adapter_header = [
     "sizeof(HorizonTerrainVertex) == 24",
     "bool build_gles2_terrain_atlas(",
