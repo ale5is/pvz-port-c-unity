@@ -26,6 +26,7 @@ required_header = [
     "UniformLocations solid_uniforms_",
     "UniformLocations translucent_uniforms_",
     "bool upload_section(",
+    "bool update_atlas_layer(std::uint32_t layer",
     "bool use_solid_ranges = false",
     "bool set_section_solid_ranges(",
     "bool has_solid_ranges = false;",
@@ -99,6 +100,7 @@ required_source = [
     "requires initialize() on the EGL context owner thread",
     "if (!check_owner_thread(\"upload_solid\")) return false;",
     "if (!check_owner_thread(\"upload_translucent\")) return false;",
+    "if (!check_owner_thread(\"update_atlas_layer\")) return false;",
     "if (!check_owner_thread(\"upload_section\")) return false;",
     "if (!check_owner_thread(\"set_section_solid_ranges\")) return false;",
     "if (!check_owner_thread(\"remove_section\")) return;",
@@ -121,6 +123,23 @@ required_atlas_contract = [
 ]
 if "atlas_width % sprite_size" in source or "atlas_height % sprite_size" in source:
     raise SystemExit("FAIL: renderer: gutter-packed atlas dimensions must not be required to divide by sprite size")
+atlas_update_start = source.index("bool Gles2TerrainRenderer::update_atlas_layer(")
+atlas_update_end = source.index("\nbool Gles2TerrainRenderer::upload_buffer(", atlas_update_start)
+atlas_update_body = source[atlas_update_start:atlas_update_end]
+for item in [
+    'if (!check_owner_thread("update_atlas_layer")) return false;',
+    "byte_count != expected_bytes",
+    "layer >= cell_count",
+    "padded_cell.resize",
+    "glTexSubImage2D(GL_TEXTURE_2D",
+    "GL_UNPACK_ALIGNMENT, 1",
+    "GL_UNPACK_ALIGNMENT, 4",
+]:
+    if item not in atlas_update_body:
+        raise SystemExit(f"FAIL: animated atlas update contract missing {item}")
+if "glTexImage2D" in atlas_update_body:
+    raise SystemExit("FAIL: animated atlas updates must replace one cell, not reallocate the full texture")
+print("PASS: animated sprite updates upload one guttered atlas cell without reallocating the texture")
 if (16 + 2) % 16 == 0:
     raise SystemExit("FAIL: regression fixture must exercise a non-divisible gutter-packed atlas cell")
 for item in required_atlas_contract:
