@@ -195,14 +195,14 @@ The Rust adapter's `convert_section()` creates an owned payload from a real `Sec
 
 ## Bounded CPU section queue
 
-The Rust adapter now defines `Gles2SectionQueue`, a FIFO queue for owned `Gles2SectionPayload` values. Its byte limit is supplied at construction and is enforced using each payload's checked `byte_len()` before accepting an update.
+The Rust adapter now defines `Gles2SectionQueue`, a FIFO queue for owned `Gles2SectionPayload` values. Its byte limit is supplied at construction and is enforced using each payload's checked `byte_len()` before accepting an update. A separate `MAX_PENDING_SECTIONS = 512` cap limits distinct queued keys, including empty-geometry sections, so a stream of tiny updates cannot grow the queue's entry count without bound.
 
 - A pending update for an already queued section key is coalesced: the older payload is replaced and the newest payload moves to the back of the queue.
-- A payload larger than the entire budget, an accounting overflow, or an update that would exceed the budget is rejected. Rejection returns ownership of the incoming payload and leaves the existing queue unchanged, including when an oversized update targets a key already pending.
+- A payload larger than the entire byte budget, an accounting overflow, an update that would exceed the byte budget, or a new key after the 512-entry cap is reached is rejected. Rejection returns ownership of the incoming payload and leaves the existing queue unchanged, including when an oversized update targets a key already pending. Replacing an existing key remains allowed at the entry cap.
 - `pop_front()` transfers the next payload to the consumer and decrements accounting.
 - `remove_section()` removes one exact section key; `remove_columns()` removes every queued vertical section for the requested horizontal (x, z) chunk columns.
 - `clear()` releases all pending payloads and resets byte accounting.
-- Tests cover replacement order, over-budget rejection, atomic replacement failure, section/column unload, and accounting after pop/clear.
+- Tests cover replacement order, over-budget rejection, atomic replacement failure, the 512-key cap and replacement at capacity, section/column unload, and accounting after pop/clear.
 
 The limit measures the complete inline `Gles2SectionPayload` size plus the reserved capacities of its converted vertex and owned metadata vectors. It therefore includes spare capacity retained by those payload vectors, but excludes allocator bookkeeping, spare capacity in the queue's own `VecDeque`, temporary conversion peaks before enqueue, atlas/lightmap memory, and GPU allocations. It is a bounded pending-payload budget, not a complete process-memory ceiling. The queue is CPU-only and owns no GL/EGL handles. It is not yet connected to Horizon's meshing completion path, game section unload events, or a renderer; the launcher still constructs wgpu. Passing its unit tests will validate queue semantics only, not terrain presentation or playability.
 
