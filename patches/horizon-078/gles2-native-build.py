@@ -50,6 +50,7 @@ fn main() {
     if target != "android" {
         return;
     }
+    println!("cargo:rustc-link-arg=-Wl,--build-id=sha1");
 
     let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("manifest directory"));
     let native = root.join("gles2-native");
@@ -82,9 +83,21 @@ fn main() {
     println!("cargo:rustc-link-lib=log");
 }
 '''
-if build_rs.exists() and build_rs.read_text(encoding="utf-8") != build_source:
-    raise SystemExit("Existing horizon-android/build.rs differs; refusing to overwrite")
-if not build_rs.exists():
+upstream_build = '''fn main() {
+    // Android tombstones can match a native frame to the exact private symbols.
+    // This affects the final ELF only, not code generation or release optimization.
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("android") {
+        println!("cargo:rustc-link-arg=-Wl,--build-id=sha1");
+    }
+}
+'''
+if build_rs.exists():
+    existing_build = build_rs.read_text(encoding="utf-8")
+    if existing_build == upstream_build or existing_build == build_source:
+        build_rs.write_text(build_source, encoding="utf-8")
+    else:
+        raise SystemExit("Existing horizon-android/build.rs differs from pinned upstream; refusing to overwrite")
+else:
     build_rs.write_text(build_source, encoding="utf-8")
 
 rust_module = root / "crates/horizon-android/gles2_native.rs"
