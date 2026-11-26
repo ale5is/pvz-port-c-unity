@@ -68,6 +68,8 @@ required_source = [
     "kMaximumResidentSections = 512",
     "kMaximumResidentBytes = 32u * 1024u * 1024u",
     "replacement_bytes > kMaximumResidentBytes - retained_bytes",
+    "Incoming solid side range",
+    "replacement.has_solid_ranges = use_solid_ranges",
     "resident_bytes_ = retained_bytes + replacement_bytes",
     "resident_bytes_ -= it->second.byte_size",
     "resident_bytes_ = 0",
@@ -222,8 +224,9 @@ required_adapter_source = [
     "converted_translucent.data(), converted_translucent.size()",
     "renderer->upload_section(key,",
     "renderer->last_error()",
-    "renderer->set_section_solid_ranges(key, first_count_pairs, range_count)",
+    "first_count_pairs, range_count, true",
     "if (range_count != 0 && !first_count_pairs)",
+    "renderer->upload_section(key,",
 ]
 required_host = [
     '#include "gles2_terrain_renderer.h"',
