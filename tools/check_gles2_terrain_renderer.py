@@ -16,6 +16,12 @@ required_header = [
     "struct UniformLocations",
     "UniformLocations solid_uniforms_",
     "UniformLocations translucent_uniforms_",
+    "bool upload_section(",
+    "void remove_section(",
+    "void remove_column(",
+    "void draw_sections(",
+    "std::map<std::array<std::int32_t, 3>, SectionBuffers> sections_",
+    "section_count() const",
     "offsetof(Gles2TerrainVertex, position) == 0",
     "offsetof(Gles2TerrainVertex, uv) == 12",
     "offsetof(Gles2TerrainVertex, atlas_origin) == 20",
@@ -51,6 +57,15 @@ required_source = [
     "glDepthMask(GL_FALSE)",
     "glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)",
     "v_material.x * 119.0",
+    "kMaximumResidentSections = 512",
+    "sections_.emplace(section_key, replacement)",
+    "existing->second = replacement",
+    "void Gles2TerrainRenderer::remove_section",
+    "void Gles2TerrainRenderer::remove_column",
+    "void Gles2TerrainRenderer::draw_sections",
+    "std::sort(visible.begin()",
+    "distance_squared > max_distance_squared",
+    "clear_sections();",
 ]
 required_atlas_contract = [
     "if (sprite_size <= 0 || sprite_size > atlas_width || sprite_size > atlas_height",
@@ -155,6 +170,8 @@ print("PASS: layer-major sprite pixels pack with duplicated filtering gutters")
 print("PASS: light, emission tier, fluid face, opaque flag and UV scale are decoded")
 print("PASS: eight GLES2 attributes, including packed emission/material bytes")
 print("PASS: atlas/lightmap sampling and VBO draw path")
+print("PASS: keyed multi-section residency, atomic replacement and bounded 512-section cache")
+print("PASS: column/section eviction, distance culling and back-to-front translucent sections")
 print("PASS: opaque depth pass and translucent blend/depth-mask pass")
 print("PASS: Android NativeActivity executes the GLES2 terrain renderer")
 print("PASS: surface callbacks reject stale windows and restart a finished render thread")
