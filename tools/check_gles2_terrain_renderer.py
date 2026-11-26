@@ -291,6 +291,26 @@ if "return a.distance_squared > b.distance_squared;" not in sections_body:
 if "return a.key < b.key;" not in sections_body:
     raise SystemExit("FAIL: renderer: equal-distance translucent sections must use deterministic section-key ordering")
 print("PASS: opaque pass precedes deterministic far-to-near translucent section blending and restores depth state")
+
+# The terrain pass is embedded in a future multi-pass renderer. It must leave
+# predictable GLES state for HUD, entities and other passes that follow it.
+cleanup_markers = [
+    "glDepthMask(GL_TRUE);",
+    "glDisable(GL_BLEND);",
+    "glActiveTexture(GL_TEXTURE1);",
+    "glBindTexture(GL_TEXTURE_2D, 0);",
+    "glActiveTexture(GL_TEXTURE0);",
+    "glBindTexture(GL_TEXTURE_2D, 0);",
+    "glUseProgram(0);",
+]
+cleanup_positions = [sections_body.find(marker, translucent_loop) for marker in cleanup_markers]
+if any(position < 0 for position in cleanup_positions):
+    raise SystemExit("FAIL: terrain pass must restore depth, blend, texture-unit and program state")
+if cleanup_positions != sorted(cleanup_positions):
+    raise SystemExit("FAIL: terrain pass GL state cleanup must run in deterministic order")
+if sections_body.find("const GLenum draw_error = glGetError();", cleanup_positions[-1]) < 0:
+    raise SystemExit("FAIL: terrain pass must check GL errors after restoring shared state")
+print("PASS: terrain pass restores shared GLES2 state before subsequent renderer passes")
 print("PASS: EGL context ownership is bound once and enforced for every public GL operation")
 
 required_adapter_header = [
