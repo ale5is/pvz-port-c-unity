@@ -8,8 +8,22 @@ from pathlib import Path
 if len(sys.argv) != 2:
     raise SystemExit("usage: check_android5_renderer_ownership.py <horizon-source-root>")
 
-game = Path(sys.argv[1]) / "crates/horizon-client/src/game.rs"
+root = Path(sys.argv[1])
+game = root / "crates/horizon-client/src/game.rs"
+launcher = root / "crates/horizon-client/src/android/launcher.rs"
 source = game.read_text(encoding="utf-8")
+launcher_source = launcher.read_text(encoding="utf-8")
+
+# The launcher creates the loading renderer before Game exists. Audit this
+# independent owner too, so a Game-only check cannot miss a second surface.
+launcher_field = re.findall(r"(?m)^\\s*renderer:\\s*Option<Renderer>,\\s*$", launcher_source)
+loading_factory = re.findall(r"game::loading_renderer\\s*\\(", launcher_source)
+if len(launcher_field) != 1 or len(loading_factory) != 1:
+    raise SystemExit(
+        "Unexpected launcher renderer boundary: "
+        f"Renderer fields={len(launcher_field)}, "
+        f"loading_renderer factory calls={len(loading_factory)}"
+    )
 
 pattern = re.compile(
     r"\b(renderer|previous|r)\."
@@ -32,7 +46,8 @@ if found != expected:
     raise SystemExit(f"Unexpected game-side renderer ownership boundary: {details}")
 
 print(
-    "Renderer ownership audit passed: Game no longer reads or mutates wgpu "
-    "device, queue, surface, configuration, adapter, HUD, timing, or screenshot "
-    "storage directly; only the documented background-context handoff remains."
+    "Renderer ownership audit passed: Game has only the documented "
+    "background-context handoff; Android Launcher still has exactly one "
+    "concrete Renderer field and one loading_renderer factory call. "
+    "Both paths remain an explicit paired migration requirement."
 )
