@@ -161,3 +161,6 @@ This establishes a concrete conversion contract from Horizon's existing section 
 ### Existing GL shader path is not the ES2 implementation
 
 The pinned `gfx/terrain_source.rs` is a legacy GLSL/WGSL lowering path for wgpu's GL backend. It retains texture-array sampling and other features that are not available in core GLES 2.0. It is useful as a source of rendering semantics, but it cannot be reused as an ES2 shader by changing only the version directive. The ES2 renderer needs its own shader and explicit 2D atlas sampling.
+
+
+The pinned `sprites.rs` confirms the pixel layout precisely: `Sprites::finish()` resamples every sprite frame to one common square edge length (`RenderAssets.sprite_size`) and appends each layer's RGBA bytes consecutively to `RenderAssets.pixels`. Thus the CPU buffer is layer-major, with exactly `sprite_size * sprite_size * 4` bytes per layer. The ES2 atlas builder can copy layer `n` from byte range `n * layer_bytes .. (n + 1) * layer_bytes`; it must not assume the source buffer is already a single 2D atlas. Animated sprite frames are maintained separately in `RenderAssets.animations` and will need matching atlas-cell updates when animation support is integrated.
