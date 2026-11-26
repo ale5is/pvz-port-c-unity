@@ -284,7 +284,7 @@ pub fn sort_translucent_back_to_front(
     if section_origin.iter().chain(camera_position.iter()).any(|value| !value.is_finite()) {
         return Err("translucent sort positions must be finite");
     }
-    let mut quads = Vec::with_capacity(vertices.len() / 4);
+    let mut quads = Vec::with_capacity(vertices.len() / 6);
     for (index, quad) in vertices.chunks_exact(6).enumerate() {
         let mut distance_squared = 0.0f32;
         for axis in 0..3 {
@@ -469,6 +469,27 @@ mod tests {
         assert_eq!(pixel(1, 5), &[3, 3, 3, 255]);
         assert_eq!(pixel(0, 7), &[3, 3, 3, 255]);
         assert!(atlas.pack_rgba(&pixels[..pixels.len() - 1]).is_err());
+    }
+
+    #[test]
+    fn duplicates_each_sprite_edge_into_its_filtering_gutter() {
+        let atlas = AtlasGrid::new(2, 1, 8).unwrap();
+        let pixels = [
+            10, 0, 0, 255, 20, 0, 0, 255,
+            30, 0, 0, 255, 40, 0, 0, 255,
+        ];
+        let packed = atlas.pack_rgba(&pixels).unwrap();
+        let pixel = |x: usize, y: usize| &packed[(y * atlas.width as usize + x) * 4..][..4];
+        assert_eq!(pixel(0, 0), &[10, 0, 0, 255]);
+        assert_eq!(pixel(1, 0), &[10, 0, 0, 255]);
+        assert_eq!(pixel(2, 0), &[20, 0, 0, 255]);
+        assert_eq!(pixel(3, 0), &[20, 0, 0, 255]);
+        assert_eq!(pixel(0, 3), &[30, 0, 0, 255]);
+        assert_eq!(pixel(1, 3), &[30, 0, 0, 255]);
+        assert_eq!(pixel(2, 3), &[40, 0, 0, 255]);
+        assert_eq!(pixel(3, 3), &[40, 0, 0, 255]);
+        assert_eq!(atlas.tile(0).unwrap().0, [1.0 / 4.0, 1.0 / 4.0]);
+        assert_eq!(atlas.tile(0).unwrap().1, [2.0 / 4.0, 2.0 / 4.0]);
     }
 
     #[test]
