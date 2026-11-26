@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <utility>
+#include <vector>
 
 namespace pavo {
 
@@ -48,6 +50,9 @@ public:
     bool upload_section(const std::int32_t key[3],
                         const Gles2TerrainVertex* solid, std::size_t solid_count,
                         const Gles2TerrainVertex* translucent, std::size_t translucent_count);
+    bool set_section_solid_ranges(const std::int32_t key[3],
+                                  const std::uint32_t* first_count_pairs,
+                                  std::size_t range_count);
     void remove_section(const std::int32_t key[3]);
     void remove_column(std::int32_t section_x, std::int32_t section_z);
     void clear_sections();
@@ -69,6 +74,8 @@ private:
         GLsizei solid_count = 0;
         GLsizei translucent_count = 0;
         std::size_t byte_size = 0;
+        bool has_solid_ranges = false;
+        std::vector<std::pair<GLint, GLsizei>> solid_ranges;
     };
 
     struct UniformLocations {
@@ -89,8 +96,8 @@ private:
                         int width, int height, GLint filter);
     bool upload_buffer(GLuint* buffer, GLsizei* vertex_count,
                         const Gles2TerrainVertex* vertices, std::size_t count);
-    void draw_buffer(GLuint program, const UniformLocations& uniforms,
-                     GLuint buffer, GLsizei count, const float* mvp,
+    void draw_buffer_range(GLuint program, const UniformLocations& uniforms,
+                     GLuint buffer, GLint first, GLsizei count, const float* mvp,
                      const float section_origin[3],
                      const float camera_position[3], const float fog_color[4],
                      const float fog_range[2]);
