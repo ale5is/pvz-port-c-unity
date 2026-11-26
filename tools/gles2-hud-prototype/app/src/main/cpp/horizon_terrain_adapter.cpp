@@ -173,5 +173,6 @@ bool convert_horizon_terrain_vertices(const HorizonTerrainVertex* source,
 
     if (error) error->clear();
     return true;
+}
 
 }  // namespace pavo
