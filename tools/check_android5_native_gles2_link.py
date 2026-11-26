@@ -63,7 +63,13 @@ for marker in ("pub(crate) struct Runtime", "pavo_egl_create", "pavo_egl_swap", 
 
 runtime_resume = egl_text.split("pub(crate) fn resume", 1)[1].split("pub(crate) fn is_initialized", 1)[0]
 resume_order = ("let generation = self.egl.resume(window)?;", "let context_changed = generation != self.context_generation;", "if context_changed {", "self.renderer = super::gles2_native::Backend::new()?;", "self.context_generation = generation;", "self.initialized = false;", "if self.initialized {" , "return Ok(context_changed);", "let restore = (|| -> Result<(), String> {", "if let Err(error) = restore {", "return Err(error);", "self.initialized = true;")
-for marker in ("cached_assets: Option<CachedAssets>", "cached_sections: std::collections::HashMap", "animated_layers: std::collections::HashMap", "sprite_pixels: Arc<[u8]>", "solid: Arc<[super::gles2_native::HorizonTerrainVertex]>", "sprite_pixels: Arc::from(cached_sprites)", "solid: Arc::from(cached_solid)", "translucent: Arc::from(cached_translucent)", "ranges: Arc::from(cached_ranges)", "self.cached_sections.retain", "for (key, section) in &self.cached_sections", "for (layer, pixels) in &assets.animated_layers", "assets.lightmap = replacement", "assets.animated_layers.insert(layer, replacement)", "self.initialized = true;"):
+if "self.renderer.upload_section(key, &solid, &translucent, &ranges)?;" not in egl_text or "self.cached_sections.insert(key, CachedSection { solid, translucent, ranges });" not in egl_text:
+    raise SystemExit("FAIL: terrain staging allocations are not moved into the recovery cache after successful upload")
+if "cached_solid.extend_from_slice(solid)" in egl_text or "cached_translucent.extend_from_slice(translucent)" in egl_text:
+    raise SystemExit("FAIL: terrain recovery cache duplicates staging buffers")
+print("PASS: terrain staging buffers move into recovery cache without duplicate allocations")
+
+for marker in ("cached_assets: Option<CachedAssets>", "cached_sections: std::collections::HashMap", "animated_layers: std::collections::HashMap", "sprite_pixels: Arc<[u8]>", "solid: Vec<super::gles2_native::HorizonTerrainVertex>", "translucent: Vec<super::gles2_native::HorizonTerrainVertex>", "ranges: Vec<u32>", "sprite_pixels: Arc::from(cached_sprites)",  "self.cached_sections.retain", "for (key, section) in &self.cached_sections", "for (layer, pixels) in &assets.animated_layers", "assets.lightmap = replacement", "assets.animated_layers.insert(layer, replacement)", "self.initialized = true;"):
     if marker not in egl_text:
         raise SystemExit(f"FAIL: GLES2 context recovery does not retain/replay CPU data: {marker}")
     print(f"PASS: context recovery cache {marker}")
