@@ -122,6 +122,32 @@ upload_end = source.index("bool Gles2TerrainRenderer::initialize(", upload_start
 upload_body = source[upload_start:upload_end]
 if upload_body.find("glActiveTexture(GL_TEXTURE0);") < 0 or upload_body.find("glActiveTexture(GL_TEXTURE0);") > upload_body.find("glGenTextures(1, texture);"):
     raise SystemExit("FAIL: renderer: texture uploads must begin from a known active texture unit")
+range_start = source.index("bool Gles2TerrainRenderer::set_section_solid_ranges(")
+range_end = source.index("void Gles2TerrainRenderer::remove_section(", range_start)
+range_body = source[range_start:range_end]
+required_range_contract = [
+    "if (!key || (range_count && !first_count_pairs))",
+    "sections_.find(section_key)",
+    "if (it == sections_.end())",
+    "range_count > static_cast<std::size_t>(it->second.solid_count) / 3",
+    "ranges.reserve(range_count)",
+    "first % 3 != 0",
+    "count % 3 != 0",
+    "end > static_cast<std::uint64_t>(it->second.solid_count)",
+    "end < first",
+    "first < previous_end",
+    "std::numeric_limits<GLint>::max()",
+    "std::numeric_limits<GLsizei>::max()",
+    "it->second.solid_ranges = std::move(ranges)",
+    "it->second.has_solid_ranges = true",
+]
+for item in required_range_contract:
+    if item not in range_body:
+        raise SystemExit(f"FAIL: renderer solid-range contract missing {item}")
+if range_body.index("it->second.solid_ranges = std::move(ranges)") < range_body.index("for (std::size_t i = 0; i < range_count; ++i)"):
+    raise SystemExit("FAIL: renderer: solid ranges must be committed only after all entries validate")
+print("PASS: solid ranges reject invalid, out-of-bounds, unaligned and overlapping ranges atomically")
+
 required_adapter_header = [
     "sizeof(HorizonTerrainVertex) == 24",
     "bool build_gles2_terrain_atlas(",
