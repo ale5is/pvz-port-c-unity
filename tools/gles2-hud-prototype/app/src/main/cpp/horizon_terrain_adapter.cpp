@@ -248,7 +248,8 @@ bool upload_horizon_section(Gles2TerrainRenderer* renderer,
 
     if (!renderer->upload_section(key,
                                   converted_solid.data(), converted_solid.size(),
-                                  converted_translucent.data(), converted_translucent.size())) {
+                                  converted_translucent.data(), converted_translucent.size(),
+                                  nullptr, 0, false)) {
         set_error(error, renderer->last_error());
         return false;
     }
@@ -267,11 +268,22 @@ bool upload_horizon_section_with_ranges(
         set_error(error, "Horizon solid side ranges require a first/count array");
         return false;
     }
-    if (!upload_horizon_section(renderer, key, solid, solid_count,
-                                translucent, translucent_count, atlas, uv_steps, error)) {
+    if (!renderer || !key) {
+        set_error(error, "Horizon section upload requires a renderer and section key");
         return false;
     }
-    if (!renderer->set_section_solid_ranges(key, first_count_pairs, range_count)) {
+    std::vector<Gles2TerrainVertex> converted_solid;
+    std::vector<Gles2TerrainVertex> converted_translucent;
+    if (!convert_horizon_terrain_vertices(solid, solid_count, atlas, uv_steps,
+                                          &converted_solid, error) ||
+        !convert_horizon_terrain_vertices(translucent, translucent_count, atlas, uv_steps,
+                                          &converted_translucent, error)) {
+        return false;
+    }
+    if (!renderer->upload_section(key,
+                                  converted_solid.data(), converted_solid.size(),
+                                  converted_translucent.data(), converted_translucent.size(),
+                                  first_count_pairs, range_count, true)) {
         set_error(error, renderer->last_error());
         return false;
     }
