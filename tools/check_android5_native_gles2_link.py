@@ -81,6 +81,8 @@ rust_native_text = (root / "crates/horizon-android/gles2_native.rs").read_text(e
 draw_ffi = rust_native_text.split("fn pavo_gles2_draw_sections", 1)[1].split(");", 1)[0]
 if "-> i32" not in draw_ffi:
     raise SystemExit("FAIL: Rust GLES2 FFI does not receive native draw status")
+if "if ok == 1 { Ok(()) } else { Err(self.native_error()) }" not in rust_native_text:
+    raise SystemExit("FAIL: Rust terrain draw wrapper discards native draw errors")
 print("PASS: terrain draw status crosses C++ and Rust FFI")
 
 for marker in ("pavo_egl_context_generation", "pavo_egl_suspend", "pavo_egl_resume"):
