@@ -734,10 +734,10 @@ mod tests {
     #[test]
     fn converts_horizon_visible_quad_ranges_to_triangle_vertex_ranges() {
         let sides = Sides::unsorted(3);
-        let ranges = visible_solid_triangle_ranges(&sides, [0.0, 0.0, 0.0]);
+        let ranges = visible_solid_triangle_ranges(&sides, [0.0, 0.0, 0.0]).unwrap();
         assert_eq!(ranges, vec![(0, 18)]);
         let sides = Sides::default();
-        assert!(visible_solid_triangle_ranges(&sides, [0.0; 3]).is_empty());
+        assert!(visible_solid_triangle_ranges(&sides, [0.0; 3]).unwrap().is_empty());
     }
 
     #[test]
@@ -751,7 +751,7 @@ mod tests {
         };
         let converted = convert_mesh(&mesh, &atlas).unwrap();
         assert_eq!(converted.sides, Sides::unsorted(2));
-        assert_eq!(visible_solid_triangle_ranges(&converted.sides, [0.0; 3]), vec![(0, 12)]);
+        assert_eq!(visible_solid_triangle_ranges(&converted.sides, [0.0; 3]).unwrap(), vec![(0, 12)]);
     }
 
     #[test]
