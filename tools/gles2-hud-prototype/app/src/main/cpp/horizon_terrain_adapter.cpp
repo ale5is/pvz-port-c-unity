@@ -50,12 +50,13 @@ bool build_gles2_terrain_atlas(const std::uint8_t* layer_major_rgba,
         return false;
     }
 
-    const std::size_t max_columns = static_cast<std::size_t>(max_texture_size / sprite_size);
-    if (max_columns == 0) {
-        set_error(error, "A sprite layer exceeds GL_MAX_TEXTURE_SIZE");
+    constexpr std::size_t gutter = 1;
+    const std::size_t cell = side + gutter * 2;
+    if (cell > static_cast<std::size_t>(max_texture_size)) {
+        set_error(error, "Sprite plus filtering gutter exceeds GL_MAX_TEXTURE_SIZE");
         return false;
     }
-
+    const std::size_t max_columns = static_cast<std::size_t>(max_texture_size) / cell;
     const std::size_t ideal_columns =
         static_cast<std::size_t>(std::ceil(std::sqrt(static_cast<double>(layer_count))));
     const std::size_t columns = std::min(max_columns, std::max<std::size_t>(1, ideal_columns));
@@ -63,10 +64,12 @@ bool build_gles2_terrain_atlas(const std::uint8_t* layer_major_rgba,
     std::size_t width = 0;
     std::size_t height = 0;
     std::size_t atlas_bytes = 0;
-    if (!checked_product(columns, side, &width) ||
-        !checked_product(rows, side, &height) ||
+    if (!checked_product(columns, cell, &width) ||
+        !checked_product(rows, cell, &height) ||
         width > static_cast<std::size_t>(max_texture_size) ||
         height > static_cast<std::size_t>(max_texture_size) ||
+        width > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
+        height > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
         !checked_product(width, height, &atlas_bytes) ||
         !checked_product(atlas_bytes, 4, &atlas_bytes)) {
         set_error(error, "All sprite layers do not fit in one GLES2 atlas texture");
@@ -79,17 +82,29 @@ bool build_gles2_terrain_atlas(const std::uint8_t* layer_major_rgba,
     built.height = static_cast<int>(height);
     built.columns = static_cast<int>(columns);
     built.sprite_size = sprite_size;
+    built.cell_size = static_cast<int>(cell);
     built.layer_count = layer_count;
 
     for (std::size_t layer = 0; layer < layer_count; ++layer) {
-        const std::size_t x = (layer % columns) * side;
-        const std::size_t y = (layer / columns) * side;
+        const std::size_t cell_x = (layer % columns) * cell;
+        const std::size_t cell_y = (layer / columns) * cell;
         for (std::size_t row = 0; row < side; ++row) {
             const std::size_t source_offset = layer * layer_bytes + row * side * 4;
-            const std::size_t target_offset = ((y + row) * width + x) * 4;
+            const std::size_t target_offset = ((cell_y + gutter + row) * width + cell_x + gutter) * 4;
+            std::memcpy(built.pixels.data() + target_offset - 4,
+                        layer_major_rgba + source_offset, 4);
             std::memcpy(built.pixels.data() + target_offset,
                         layer_major_rgba + source_offset, side * 4);
+            std::memcpy(built.pixels.data() + target_offset + side * 4,
+                        layer_major_rgba + source_offset + (side - 1) * 4, 4);
         }
+        const std::size_t row_bytes = cell * 4;
+        const std::size_t first_inner = ((cell_y + gutter) * width + cell_x) * 4;
+        const std::size_t top = (cell_y * width + cell_x) * 4;
+        const std::size_t last_inner = ((cell_y + gutter + side - 1) * width + cell_x) * 4;
+        const std::size_t bottom = ((cell_y + cell - 1) * width + cell_x) * 4;
+        std::memcpy(built.pixels.data() + top, built.pixels.data() + first_inner, row_bytes);
+        std::memcpy(built.pixels.data() + bottom, built.pixels.data() + last_inner, row_bytes);
     }
 
     *atlas = std::move(built);
@@ -105,11 +120,12 @@ bool convert_horizon_terrain_vertices(const HorizonTerrainVertex* source,
                                       std::string* error) {
     if (!output || (vertex_count != 0 && !source) || (vertex_count % 4) != 0 ||
         atlas.width <= 0 || atlas.height <= 0 || atlas.columns <= 0 ||
-        atlas.sprite_size <= 0 || atlas.layer_count == 0 ||
-        atlas.width % atlas.sprite_size != 0 || atlas.height % atlas.sprite_size != 0 ||
-        atlas.columns > atlas.width / atlas.sprite_size ||
+        atlas.sprite_size <= 0 || atlas.cell_size != atlas.sprite_size + 2 ||
+        atlas.layer_count == 0 ||
+        atlas.width % atlas.cell_size != 0 || atlas.height % atlas.cell_size != 0 ||
+        atlas.columns > atlas.width / atlas.cell_size ||
         atlas.layer_count > static_cast<std::size_t>(atlas.columns) *
-                            static_cast<std::size_t>(atlas.height / atlas.sprite_size) ||
+                            static_cast<std::size_t>(atlas.height / atlas.cell_size) ||
         !std::isfinite(uv_steps) || uv_steps <= 0.0f ||
         vertex_count / 4 > output->max_size() / 6) {
         set_error(error, "Invalid Horizon quad mesh, atlas, or UV scale");
@@ -138,9 +154,9 @@ bool convert_horizon_terrain_vertices(const HorizonTerrainVertex* source,
 
         const std::size_t layer = sprite_layer;
         const std::size_t x = (layer % static_cast<std::size_t>(atlas.columns)) *
-                              static_cast<std::size_t>(atlas.sprite_size);
+                              static_cast<std::size_t>(atlas.cell_size) + 1;
         const std::size_t y = (layer / static_cast<std::size_t>(atlas.columns)) *
-                              static_cast<std::size_t>(atlas.sprite_size);
+                              static_cast<std::size_t>(atlas.cell_size) + 1;
         vertex.atlas_origin[0] = static_cast<float>(x) / atlas_width;
         vertex.atlas_origin[1] = static_cast<float>(y) / atlas_height;
         vertex.atlas_scale[0] = sprite_size / atlas_width;
