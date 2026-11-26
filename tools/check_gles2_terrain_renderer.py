@@ -435,3 +435,17 @@ for item in [
     if item not in source:
         raise SystemExit(f"FAIL: renderer must reject non-finite frame parameters: missing {item}")
 print("PASS: GLES2 terrain draw rejects NaN and infinity in matrices, camera, fog and distance")
+
+for item in [
+    "self.geometry.solid.capacity()",
+    "self.geometry.translucent.capacity()",
+    "self.block_entities.capacity()",
+    "self.lights.capacity()",
+    "self.sprite_layers.capacity()",
+    "payload_budget_counts_reserved_capacity_not_only_live_vertices",
+]:
+    if item not in terrain_source:
+        raise SystemExit(f"FAIL: GLES2 queue budget must account for reserved CPU payload memory: missing {item}")
+if "payload logical bytes, not allocator capacity" in terrain_source:
+    raise SystemExit("FAIL: GLES2 queue documentation must not claim capacity is excluded from its budget")
+print("PASS: bounded GLES2 CPU queue budgets reserved vector capacity, not just live payload lengths")
