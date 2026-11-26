@@ -500,28 +500,39 @@ impl Runtime {
     /// replace the invalid GL backend and require the caller to upload assets again.
     pub(crate) fn resume(&mut self, window: &Window) -> Result<bool, String> {
         let generation = self.egl.resume(window)?;
-        if generation == self.context_generation {
-            return Ok(false);
+        let context_changed = generation != self.context_generation;
+        if context_changed {
+            self.renderer = super::gles2_native::Backend::new()?;
+            self.context_generation = generation;
+            self.initialized = false;
         }
-        self.renderer = super::gles2_native::Backend::new()?;
-        self.context_generation = generation;
-        self.initialized = false;
+        if self.initialized {
+            return Ok(context_changed);
+        }
         if let Some(assets) = self.cached_assets.as_ref() {
-            self.renderer.initialize(
-                &assets.sprite_pixels, assets.layers, assets.sprite_size,
-                &assets.lightmap, assets.lightmap_width, assets.lightmap_height, assets.uv_steps,
-            )?;
-            for (layer, pixels) in &assets.animated_layers {
-                self.renderer.update_atlas_layer(*layer, pixels)?;
-            }
-            for (key, section) in &self.cached_sections {
-                self.renderer.upload_section(
-                    *key, &section.solid, &section.translucent, &section.ranges,
+            let restore = (|| -> Result<(), String> {
+                self.renderer.initialize(
+                    &assets.sprite_pixels, assets.layers, assets.sprite_size,
+                    &assets.lightmap, assets.lightmap_width, assets.lightmap_height, assets.uv_steps,
                 )?;
+                for (layer, pixels) in &assets.animated_layers {
+                    self.renderer.update_atlas_layer(*layer, pixels)?;
+                }
+                for (key, section) in &self.cached_sections {
+                    self.renderer.upload_section(
+                        *key, &section.solid, &section.translucent, &section.ranges,
+                    )?;
+                }
+                Ok(())
+            })();
+            if let Err(error) = restore {
+                self.renderer = super::gles2_native::Backend::new()
+                    .map_err(|reset| format!("{error}; additionally failed to reset GLES2 backend: {reset}"))?;
+                return Err(error);
             }
             self.initialized = true;
         }
-        Ok(true)
+        Ok(context_changed)
     }
 
     pub(crate) fn is_initialized(&self) -> bool {
