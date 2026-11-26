@@ -441,6 +441,7 @@ struct CachedAssets {
     lightmap_width: i32,
     lightmap_height: i32,
     uv_steps: f32,
+    animated_layers: std::collections::HashMap<u32, Vec<u8>>,
 }
 
 pub(crate) struct Runtime {
@@ -474,6 +475,7 @@ impl Runtime {
         self.cached_assets = Some(CachedAssets {
             sprite_pixels: sprite_pixels.to_vec(), layers, sprite_size,
             lightmap: lightmap.to_vec(), lightmap_width, lightmap_height, uv_steps,
+            animated_layers: std::collections::HashMap::new(),
         });
         self.initialized = true;
         Ok(())
@@ -503,6 +505,9 @@ impl Runtime {
                 self.renderer.upload_section(
                     *key, &section.solid, &section.translucent, &section.ranges,
                 )?;
+            }
+            for (layer, pixels) in &assets.animated_layers {
+                self.renderer.update_atlas_layer(*layer, pixels)?;
             }
             self.initialized = true;
         }
@@ -576,13 +581,22 @@ impl Runtime {
     pub(crate) fn update_lightmap(&mut self, rgba: &[u8]) -> Result<(), String> {
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.egl.make_current()?;
-        self.renderer.update_lightmap(rgba)
+        self.renderer.update_lightmap(rgba)?;
+        if let Some(assets) = self.cached_assets.as_mut() {
+            assets.lightmap.clear();
+            assets.lightmap.extend_from_slice(rgba);
+        }
+        Ok(())
     }
 
     pub(crate) fn update_atlas_layer(&mut self, layer: u32, rgba: &[u8]) -> Result<(), String> {
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.egl.make_current()?;
-        self.renderer.update_atlas_layer(layer, rgba)
+        self.renderer.update_atlas_layer(layer, rgba)?;
+        if let Some(assets) = self.cached_assets.as_mut() {
+            assets.animated_layers.insert(layer, rgba.to_vec());
+        }
+        Ok(())
     }
 }
 '''
