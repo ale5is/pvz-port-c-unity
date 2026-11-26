@@ -323,6 +323,9 @@ use winit::window::Window;
 unsafe extern "C" {
     fn pavo_egl_create(native_window: *mut c_void) -> *mut c_void;
     fn pavo_egl_make_current(owner: *mut c_void) -> i32;
+    fn pavo_egl_context_generation(owner: *const c_void) -> u64;
+    fn pavo_egl_suspend(owner: *mut c_void) -> i32;
+    fn pavo_egl_resume(owner: *mut c_void, native_window: *mut c_void) -> i32;
     fn pavo_egl_resize(owner: *mut c_void, width: *mut i32, height: *mut i32) -> i32;
     fn pavo_egl_begin_frame(owner: *mut c_void, r: f32, g: f32, b: f32, a: f32) -> i32;
     fn pavo_egl_swap(owner: *mut c_void) -> i32;
@@ -360,6 +363,27 @@ impl EglOwner {
             return "EGL owner failed without an error message".to_owned();
         }
         unsafe { CStr::from_ptr(pointer) }.to_string_lossy().into_owned()
+    }
+
+    fn generation(&self) -> Result<u64, String> {
+        let handle = self.check_thread()?;
+        Ok(unsafe { pavo_egl_context_generation(handle) })
+    }
+
+    fn suspend(&self) -> Result<(), String> {
+        let handle = self.check_thread()?;
+        if unsafe { pavo_egl_suspend(handle) } == 1 { Ok(()) } else { Err(self.error()) }
+    }
+
+    fn resume(&self, window: &Window) -> Result<u64, String> {
+        let raw = window.window_handle().map_err(|error| error.to_string())?;
+        let native_window = match raw.as_raw() {
+            RawWindowHandle::AndroidNdk(handle) => handle.a_native_window.as_ptr(),
+            _ => return Err("GLES2 EGL resume requires an Android native window".to_owned()),
+        };
+        let handle = self.check_thread()?;
+        if unsafe { pavo_egl_resume(handle, native_window) } != 1 { return Err(self.error()); }
+        self.generation()
     }
 
     fn make_current(&self) -> Result<(), String> {
@@ -404,6 +428,8 @@ impl Drop for EglOwner {
 pub(crate) struct Runtime {
     renderer: super::gles2_native::Backend,
     egl: EglOwner,
+    context_generation: u64,
+    initialized: bool,
 }
 
 impl Runtime {
@@ -411,7 +437,8 @@ impl Runtime {
         let egl = EglOwner::new(window)?;
         egl.make_current()?;
         let renderer = super::gles2_native::Backend::new()?;
-        Ok(Self { renderer, egl })
+        let context_generation = egl.generation()?;
+        Ok(Self { renderer, egl, context_generation, initialized: false })
     }
 
     pub(crate) fn initialize(
@@ -420,7 +447,31 @@ impl Runtime {
     ) -> Result<(), String> {
         self.egl.make_current()?;
         self.renderer.initialize(sprite_pixels, layers, sprite_size,
-            lightmap, lightmap_width, lightmap_height, uv_steps)
+            lightmap, lightmap_width, lightmap_height, uv_steps)?;
+        self.initialized = true;
+        Ok(())
+    }
+
+    /// Release only the native window surface; retain the context and GPU objects when possible.
+    pub(crate) fn suspend(&self) -> Result<(), String> {
+        self.egl.suspend()
+    }
+
+    /// Reattach to the resumed Android window. If EGL had to recreate its context,
+    /// replace the invalid GL backend and require the caller to upload assets again.
+    pub(crate) fn resume(&mut self, window: &Window) -> Result<bool, String> {
+        let generation = self.egl.resume(window)?;
+        if generation == self.context_generation {
+            return Ok(false);
+        }
+        self.renderer = super::gles2_native::Backend::new()?;
+        self.context_generation = generation;
+        self.initialized = false;
+        Ok(true)
+    }
+
+    pub(crate) fn is_initialized(&self) -> bool {
+        self.initialized
     }
 
     pub(crate) fn begin_frame(&mut self, clear: [f32; 4]) -> Result<[u32; 2], String> {
@@ -445,6 +496,7 @@ impl Runtime {
         translucent: &[super::gles2_native::HorizonTerrainVertex],
         ranges: &[u32],
     ) -> Result<(), String> {
+        if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.egl.make_current()?;
         self.renderer.upload_section(key, solid, translucent, ranges)
     }
@@ -458,6 +510,7 @@ impl Runtime {
         &mut self, mvp: &[f32; 16], camera: &[f32; 3],
         fog_color: &[f32; 4], fog_range: &[f32; 2], max_distance: f32,
     ) -> Result<(), String> {
+        if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.egl.make_current()?;
         self.renderer.draw_sections(mvp, camera, fog_color, fog_range, max_distance)
     }
@@ -467,11 +520,13 @@ impl Runtime {
     }
 
     pub(crate) fn update_lightmap(&mut self, rgba: &[u8]) -> Result<(), String> {
+        if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.egl.make_current()?;
         self.renderer.update_lightmap(rgba)
     }
 
     pub(crate) fn update_atlas_layer(&mut self, layer: u32, rgba: &[u8]) -> Result<(), String> {
+        if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.egl.make_current()?;
         self.renderer.update_atlas_layer(layer, rgba)
     }
