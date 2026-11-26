@@ -93,7 +93,10 @@ release_start = source.index("void Gles2TerrainRenderer::release()")
 release_body = source[release_start:]
 if release_body.find("glActiveTexture(GL_TEXTURE1)") > release_body.rfind("glActiveTexture(GL_TEXTURE0)"):
     raise SystemExit("FAIL: renderer: release must clear both texture units and restore unit zero")
-if "glActiveTexture(GL_TEXTURE0);\\n    glGenTextures(1, texture);" not in source:
+upload_start = source.index("bool Gles2TerrainRenderer::upload_texture(")
+upload_end = source.index("bool Gles2TerrainRenderer::initialize(", upload_start)
+upload_body = source[upload_start:upload_end]
+if upload_body.find("glActiveTexture(GL_TEXTURE0);") < 0 or upload_body.find("glActiveTexture(GL_TEXTURE0);") > upload_body.find("glGenTextures(1, texture);"):
     raise SystemExit("FAIL: renderer: texture uploads must begin from a known active texture unit")
 required_adapter_header = [
     "sizeof(HorizonTerrainVertex) == 24",
