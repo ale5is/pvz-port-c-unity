@@ -779,6 +779,27 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
     error_[0] = '\0';
 }
 
+bool Gles2TerrainRenderer::update_lightmap(const std::uint8_t* rgba, std::size_t byte_count) {
+    if (!check_owner_thread("update_lightmap")) return false;
+    if (!lightmap_texture_ || !rgba || byte_count != 16u * 16u * 4u) {
+        std::snprintf(error_, sizeof(error_), "Lightmap update requires exactly 16x16 RGBA pixels");
+        return false;
+    }
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, lightmap_texture_);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 16, 16, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glActiveTexture(GL_TEXTURE0);
+    const GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::snprintf(error_, sizeof(error_), "Lightmap texture update failed (GL 0x%x)", error);
+        return false;
+    }
+    error_[0] = '\\0';
+    return true;
+}
+
 void Gles2TerrainRenderer::draw_buffer_range(GLuint program, const UniformLocations& uniforms,
                                              GLuint buffer, GLint first, GLsizei count, const float* mvp,
                                        const float section_origin[3], const float camera_position[3],
