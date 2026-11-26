@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <new>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 
@@ -457,7 +459,15 @@ bool Gles2TerrainRenderer::set_section_solid_ranges(
         return false;
     }
     std::vector<std::pair<GLint, GLsizei>> ranges;
-    ranges.reserve(range_count);
+    try {
+        ranges.reserve(range_count);
+    } catch (const std::bad_alloc&) {
+        std::snprintf(error_, sizeof(error_), "Not enough memory to allocate solid side ranges");
+        return false;
+    } catch (const std::length_error&) {
+        std::snprintf(error_, sizeof(error_), "Solid side range count exceeds the vector allocation limit");
+        return false;
+    }
     std::uint64_t previous_end = 0;
     for (std::size_t i = 0; i < range_count; ++i) {
         const std::uint64_t first = first_count_pairs[i * 2];
