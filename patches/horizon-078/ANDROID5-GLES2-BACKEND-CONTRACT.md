@@ -168,14 +168,15 @@ The pinned `sprites.rs` confirms the pixel layout precisely: `Sprites::finish()`
 
 ## First CPU adapter implementation
 
-The native prototype now contains a CPU-only conversion layer, compiled into its Android CMake target:
+Two CPU adapter layers now exist, with deliberately different roles:
 
-- `HorizonTerrainVertex` declares the exact 24-byte input layout and checks every field offset at compile time.
-- `build_gles2_terrain_atlas()` copies the layer-major RGBA source into a deterministic 2D grid. It checks multiplication overflow, the 15-bit sprite-index limit and `GL_MAX_TEXTURE_SIZE`; it fails explicitly if every layer cannot fit in the one atlas instead of silently dropping layers.
-- `convert_horizon_terrain_vertices()` expands positions, decodes fixed-point UVs using an explicit scale argument (32768 for ordinary section meshes; 32 for tiled distant-terrain UVs), maps sprite indices to atlas rectangles, unpacks RGBA bytes, splits sky/block light, and preserves the opaque-layer flag.
-- The alpha metadata is decoded using the pinned Horizon logic: `tier = 15 - (alpha & 0x0f)`; fluid-face metadata is detected from the upper nibble. The emission attribute is kept as the tier byte, and the ES2 fragment shader converts its normalized value using the same `tier * 7 / 15` scale used by `gfx/native_material.rs`.
-- Mesh input is rejected unless its vertex count is a triangle list. Invalid sprite references clear the partially converted output and return an error.
+- The workflow patch `gles2-terrain-adapter.py` installs `crates/horizon-client-render/src/gles2_terrain.rs` into the pinned Horizon checkout. This is the Rust-side adapter that works directly with Horizon's `SectionMesh`, `TerrainVertex` and `Sprites` types. It builds an `AtlasGrid`, packs layer-major RGBA pixels, decodes vertex metadata, expands Horizon's four-vertex quads into six-vertex GLES2 triangles, retains solid side buckets, and provides per-section translucent back-to-front sorting. Its unit tests are run by the Android 5 workflow.
+- The standalone NativeActivity prototype now also contains `horizon_terrain_adapter.{h,cpp}`, compiled into its Android CMake target. It declares the exact 24-byte Horizon input layout, packs the same layer-major atlas layout, and converts raw vertex records into the prototype's 48-byte GLES2 ABI. This is an isolated native-side counterpart; the real Rust adapter is the authoritative conversion for Horizon-owned mesh types.
+
+Both implementations check texture fit and sprite indices rather than silently truncating layers. The C++ converter takes the UV scale explicitly (32768 for ordinary section meshes; 32 for tiled distant-terrain UVs). The Rust adapter exposes the same distinction through its UV-step conversion function.
+
+The alpha metadata follows the pinned Horizon logic: `tier = 15 - (alpha & 0x0f)`; the upper nibble carries fluid-face metadata. The emission attribute remains the tier byte, and the ES2 fragment shader converts its normalized value using the same `tier * 7 / 15` scale used by `gfx/native_material.rs`.
 
 ### Explicit limitations
 
-This is not yet the game integration. The Rust `SectionMesh` and `RenderAssets` are not passed to this C++ adapter; the NativeActivity still feeds synthetic test geometry. The adapter currently builds one atlas and returns an error if the full layer set exceeds it. Animation-frame updates, lightmap generation/upload from Horizon, side-bucket culling, camera-sorted translucent meshes, section upload/eviction, and the winit launcher/lifecycle bridge remain unimplemented. The static workflow checks and Android NDK compilation validate the code boundary, not pixel correctness or playability on the Philips TV.
+Neither CPU adapter is connected to the live renderer yet. The Rust module is installed and unit-tested in the patched Horizon source, but `loading_renderer()` and `build_renderer()` still create the existing wgpu renderer; the NativeActivity still feeds synthetic test geometry. The current atlas builder uses one 2D texture and returns an error if the complete layer set cannot fit. Animated-frame atlas updates, actual Horizon lightmap generation/upload, global translucent ordering across sections, section upload/eviction, and the winit launcher/EGL lifecycle bridge remain integration work. Static checks, Rust unit tests and Android NDK compilation validate CPU conversion and build contracts, not pixel correctness or playability on the Philips TV.
