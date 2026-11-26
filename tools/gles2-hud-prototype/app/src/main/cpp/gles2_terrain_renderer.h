@@ -48,6 +48,7 @@ public:
     bool upload_section(const std::int32_t key[3],
                         const Gles2TerrainVertex* solid, std::size_t solid_count,
                         const Gles2TerrainVertex* translucent, std::size_t translucent_count);
+    void remove_section(const std::int32_t key[3]);
     void remove_column(std::int32_t section_x, std::int32_t section_z);
     void clear_sections();
     std::size_t section_count() const { return sections_.size(); }
