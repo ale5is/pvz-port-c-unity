@@ -12,6 +12,9 @@ cmake = (root / "CMakeLists.txt").read_text(encoding="utf-8")
 native_host = (root / "native_hud.cpp").read_text(encoding="utf-8")
 
 required_header = [
+    "struct UniformLocations",
+    "UniformLocations solid_uniforms_",
+    "UniformLocations translucent_uniforms_",
     "offsetof(Gles2TerrainVertex, position) == 0",
     "offsetof(Gles2TerrainVertex, uv) == 12",
     "offsetof(Gles2TerrainVertex, atlas_origin) == 20",
@@ -31,6 +34,12 @@ required_source = [
     "offsetof(Gles2TerrainVertex, color)",
     "offsetof(Gles2TerrainVertex, light)",
     "offsetof(Gles2TerrainVertex, emission)",
+    "glBufferData(GL_ARRAY_BUFFER",
+    "void Gles2TerrainRenderer::cache_uniforms",
+    "uniforms.mvp = glGetUniformLocation(program, \\"u_mvp\\")",
+    "draw_buffer(solid_program_, solid_uniforms_",
+    "draw_buffer(translucent_program_, translucent_uniforms_",
+    "glActiveTexture(GL_TEXTURE1)",
     "glBufferData(GL_ARRAY_BUFFER",
     "(count % 3) != 0",
     "Terrain vertex count must be a triangle list",
@@ -71,6 +80,14 @@ if "upload_texture(&atlas_texture_, atlas_rgba, atlas_width, atlas_height, GL_LI
     raise SystemExit("FAIL: renderer: guttered terrain atlas must use linear filtering")
 if "rgba_byte_size" not in source or "max_size / (w * 4)" not in source:
     raise SystemExit("FAIL: renderer: RGBA texture allocation must use overflow-safe byte arithmetic")
+draw_start = source.index("void Gles2TerrainRenderer::draw_buffer")
+draw_end = source.index("void Gles2TerrainRenderer::draw(", draw_start)
+if "glGetUniformLocation" in source[draw_start:draw_end]:
+    raise SystemExit("FAIL: renderer: uniform locations must not be queried in the per-frame draw path")
+if source.count("glGetUniformLocation(") != 9:
+    raise SystemExit("FAIL: renderer: expected one cached lookup per shader uniform")
+if "solid_uniforms_ = {};" not in source or "translucent_uniforms_ = {};" not in source:
+    raise SystemExit("FAIL: renderer: cached uniform locations must reset on release")
 required_adapter_header = [
     "sizeof(HorizonTerrainVertex) == 24",
     "bool build_gles2_terrain_atlas(",
