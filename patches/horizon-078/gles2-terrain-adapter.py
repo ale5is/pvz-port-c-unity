@@ -26,8 +26,8 @@ adapter_source = r'''//! CPU conversion of Horizon section meshes to a GLES2 ver
 //! and Horizon's exact tile_uv formula in its GLSL ES 1.00 fragment shader
 //! (uv - max(ceil(uv) - 1, 0)).
 use crate::mesher::{SectionMesh, Sides, TerrainVertex};
-use crate::sprites::SpriteAnimation;
-use std::collections::VecDeque;
+use crate::sprites::{FrameBlend, SpriteAnimation};
+use std::collections::{HashMap, VecDeque};
 
 /// Horizon stores the opaque-layer marker in the high bit; the remaining bits are
 /// the sprite-array layer, as used by the terrain material shader.
@@ -83,6 +83,71 @@ pub fn animated_sprite_update(
         layer: animation.layer,
         pixels,
     })
+}
+
+/// Tracks Horizon's animation clock and emits only atlas layers whose displayed
+/// frame/blend changed. The caller uploads each returned layer on the GLES2
+/// context owner thread, then keeps this tracker for the next frame.
+#[derive(Default)]
+pub struct Gles2SpriteAnimationTracker {
+    last_blends: HashMap<u32, FrameBlend>,
+    pending_blends: Vec<(u32, FrameBlend)>,
+}
+
+impl Gles2SpriteAnimationTracker {
+    /// Collect the changed animation layers for one Horizon tick.
+    ///
+    /// The output vector is caller-owned and should be retained between frames
+    /// to reuse its allocation. State is committed only after every changed
+    /// layer has been converted successfully; on error, output is empty and
+    /// the same tick can safely be retried.
+    pub fn collect_updates(
+        &mut self,
+        animations: &[SpriteAnimation],
+        tick: u64,
+        output: &mut Vec<AnimatedSpriteUpdate>,
+    ) -> Result<(), &'static str> {
+        output.clear();
+        self.pending_blends.clear();
+        self.pending_blends.try_reserve(animations.len())
+            .map_err(|_| "not enough memory to track GLES2 sprite animation frames")?;
+        output.try_reserve(animations.len())
+            .map_err(|_| "not enough memory to collect GLES2 sprite animation updates")?;
+        self.last_blends.try_reserve(animations.len())
+            .map_err(|_| "not enough memory to retain GLES2 sprite animation state")?;
+
+        for animation in animations {
+            let blend = animation.blend(tick);
+            self.pending_blends.push((animation.layer, blend));
+            if self.last_blends.get(&animation.layer) != Some(&blend) {
+                match animated_sprite_update(animation, tick) {
+                    Ok(update) => output.push(update),
+                    Err(error) => {
+                        output.clear();
+                        self.pending_blends.clear();
+                        return Err(error);
+                    }
+                }
+            }
+        }
+
+        self.last_blends.clear();
+        for (layer, blend) in self.pending_blends.drain(..) {
+            self.last_blends.insert(layer, blend);
+        }
+        Ok(())
+    }
+
+    /// Force the next collection to resend every animation layer, for example
+    /// after EGL context loss or atlas recreation.
+    pub fn reset(&mut self) {
+        self.last_blends.clear();
+        self.pending_blends.clear();
+    }
+
+    pub fn tracked_layers(&self) -> usize {
+        self.last_blends.len()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -697,6 +762,23 @@ mod tests {
     use super::*;
     use crate::mesher::TerrainVertex;
 
+
+    #[test]
+    fn animation_tracker_change_detection_uses_complete_frame_blend() {
+        let first = FrameBlend { frame: 0, next: 1, millis: 0 };
+        assert_eq!(Some(&first), Some(&first));
+        assert_ne!(first, FrameBlend { millis: 1, ..first });
+        assert_ne!(first, FrameBlend { frame: 1, next: 0, millis: 0 });
+    }
+
+    #[test]
+    fn animation_tracker_reset_contract_is_explicit() {
+        let mut tracker = Gles2SpriteAnimationTracker::default();
+        tracker.last_blends.insert(7, FrameBlend { frame: 0, next: 0, millis: 0 });
+        assert_eq!(tracker.tracked_layers(), 1);
+        tracker.reset();
+        assert_eq!(tracker.tracked_layers(), 0);
+    }
 
     #[test]
     fn packed_solid_ranges_match_native_triangle_vertex_units() {
