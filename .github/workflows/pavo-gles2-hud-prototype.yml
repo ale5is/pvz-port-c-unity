@@ -9,6 +9,12 @@ on:
       - 'tools/check_gles2_terrain_renderer.py'
       - '.github/workflows/pavo-gles2-hud-prototype.yml'
   workflow_dispatch:
+    inputs:
+      build_prototype_apk:
+        description: Build the isolated GLES2 prototype APK (not the playable game)
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -33,8 +39,9 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Install Android SDK
+      - name: Install Android SDK, NDK and CMake
         run: |
+          set -euo pipefail
           sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           if [[ ! -x "$sdkmanager" ]]; then
             sdkmanager=$(find "$ANDROID_HOME/cmdline-tools" -type f -path '*/bin/sdkmanager' | sort -V | tail -n 1)
@@ -45,7 +52,19 @@ jobs:
       - name: Verify native GLES2 terrain renderer contract
         run: python3 tools/check_gles2_terrain_renderer.py tools/gles2-hud-prototype/app/src/main/cpp
 
-      - name: Build API-22 GLES2 HUD prototype
+      - name: Configure native GLES2 library for Android 5 ARMv7
+        run: |
+          set -euo pipefail
+          cmake -S tools/gles2-hud-prototype/app/src/main/cpp \
+            -B "$RUNNER_TEMP/pavo-gles2-native-build" \
+            -DCMAKE_TOOLCHAIN_FILE="$ANDROID_HOME/ndk/28.2.13676358/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=armeabi-v7a \
+            -DANDROID_PLATFORM=android-22 \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build "$RUNNER_TEMP/pavo-gles2-native-build" --parallel 2
+
+      - name: Build API-22 GLES2 HUD prototype APK
+        if: github.event_name == 'workflow_dispatch' && inputs.build_prototype_apk
         working-directory: tools/gles2-hud-prototype
         run: |
           set -euo pipefail
@@ -62,6 +81,7 @@ jobs:
           sha256sum "$GITHUB_WORKSPACE/dist/Pavo-GLES2-HUD-Surface-Prototype-API22.apk" > "$GITHUB_WORKSPACE/dist/SHA256SUMS.txt"
 
       - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch' && inputs.build_prototype_apk
         with:
           name: pavo-gles2-hud-surface-prototype-api22
           path: dist/
