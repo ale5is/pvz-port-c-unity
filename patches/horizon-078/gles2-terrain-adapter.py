@@ -88,6 +88,11 @@ pub fn animated_sprite_update(
 /// Tracks Horizon's animation clock and emits only atlas layers whose displayed
 /// frame/blend changed. The caller uploads each returned layer on the GLES2
 /// context owner thread, then keeps this tracker for the next frame.
+/// Return whether the displayed animation blend differs from the last uploaded blend.
+pub fn animation_blend_changed(last: Option<&FrameBlend>, current: &FrameBlend) -> bool {
+    last != Some(current)
+}
+
 #[derive(Default)]
 pub struct Gles2SpriteAnimationTracker {
     last_blends: HashMap<u32, FrameBlend>,
@@ -119,7 +124,7 @@ impl Gles2SpriteAnimationTracker {
         for animation in animations {
             let blend = animation.blend(tick);
             self.pending_blends.push((animation.layer, blend));
-            if self.last_blends.get(&animation.layer) != Some(&blend) {
+            if animation_blend_changed(self.last_blends.get(&animation.layer), &blend) {
                 match animated_sprite_update(animation, tick) {
                     Ok(update) => output.push(update),
                     Err(error) => {
@@ -764,11 +769,22 @@ mod tests {
 
 
     #[test]
-    fn animation_tracker_change_detection_uses_complete_frame_blend() {
+    fn animation_blend_change_detection_covers_first_upload_and_all_fields() {
         let first = FrameBlend { frame: 0, next: 1, millis: 0 };
-        assert_eq!(Some(&first), Some(&first));
-        assert_ne!(first, FrameBlend { millis: 1, ..first });
-        assert_ne!(first, FrameBlend { frame: 1, next: 0, millis: 0 });
+        assert!(animation_blend_changed(None, &first), "first frame must be uploaded");
+        assert!(!animation_blend_changed(Some(&first), &first), "unchanged blend must not be uploaded");
+        assert!(animation_blend_changed(
+            Some(&first),
+            &FrameBlend { millis: 1, ..first }
+        ), "interpolation progress must trigger an upload");
+        assert!(animation_blend_changed(
+            Some(&first),
+            &FrameBlend { frame: 1, next: 0, millis: 0 }
+        ), "frame indices must trigger an upload");
+        assert!(animation_blend_changed(
+            Some(&first),
+            &FrameBlend { next: 2, ..first }
+        ), "next frame index must trigger an upload");
     }
 
     #[test]
