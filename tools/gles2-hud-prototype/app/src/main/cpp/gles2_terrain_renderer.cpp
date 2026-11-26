@@ -605,6 +605,7 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
         float distance_squared;
         const SectionBuffers* buffers;
         float origin[3];
+        std::array<std::int32_t, 3> key;
     };
     std::vector<VisibleSection> visible;
     try {
@@ -632,7 +633,7 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
         const float distance_squared = dx * dx + dy * dy + dz * dz;
         if (max_distance_squared > 0.0f &&
             distance_squared > max_distance_squared) continue;
-        visible.push_back({distance_squared, &entry.second, {origin[0], origin[1], origin[2]}});
+        visible.push_back({distance_squared, &entry.second, {origin[0], origin[1], origin[2]}, entry.first});
     }
 
     glEnable(GL_DEPTH_TEST);
@@ -655,7 +656,10 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
 
     std::sort(visible.begin(), visible.end(),
               [](const VisibleSection& a, const VisibleSection& b) {
-                  return a.distance_squared > b.distance_squared;
+                  if (a.distance_squared != b.distance_squared) {
+                      return a.distance_squared > b.distance_squared;
+                  }
+                  return a.key < b.key;
               });
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
