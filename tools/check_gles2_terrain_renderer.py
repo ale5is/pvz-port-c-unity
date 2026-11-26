@@ -396,3 +396,20 @@ print("PASS: Android NativeActivity executes the GLES2 terrain renderer")
 print("PASS: surface callbacks reject stale windows and restart a finished render thread")
 print("PASS: EGL window setup and dimensions are checked before rendering")
 print("PASS: terrain uploads reject incomplete triangle lists and restore GL bindings")
+
+terrain_patch = Path("patches/horizon-078/gles2-terrain-adapter.py")
+if not terrain_patch.is_file():
+    raise SystemExit("FAIL: Horizon GLES2 terrain adapter patch is missing")
+terrain_source = terrain_patch.read_text(encoding="utf-8")
+sort_start = terrain_source.index("pub fn sort_translucent_back_to_front(")
+sort_end = terrain_source.index("#[cfg(test)]", sort_start)
+sort_body = terrain_source[sort_start:sort_end]
+if "quads.sort_unstable_by(" not in sort_body:
+    raise SystemExit("FAIL: translucent quad sorting must avoid the stable sort's hidden scratch allocation")
+if "left.0.cmp(&right.0)" not in sort_body:
+    raise SystemExit("FAIL: translucent sorting must preserve deterministic source order for equal distances")
+if "quads.sort_by(" in sort_body:
+    raise SystemExit("FAIL: translucent sorting regressed to allocation-prone stable sorting")
+if "fn translucent_sort_keeps_original_order_for_equal_distances()" not in terrain_source:
+    raise SystemExit("FAIL: translucent equal-distance ordering regression test is missing")
+print("PASS: translucent sorting is allocation-conscious and deterministic for equal-distance quads")
