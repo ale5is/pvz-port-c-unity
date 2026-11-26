@@ -26,6 +26,7 @@ adapter_source = r'''//! CPU conversion of Horizon section meshes to a GLES2 ver
 //! and Horizon's exact tile_uv formula in its GLSL ES 1.00 fragment shader
 //! (uv - max(ceil(uv) - 1, 0)).
 use crate::mesher::{SectionMesh, Sides, TerrainVertex};
+use std::collections::VecDeque;
 
 /// Horizon stores the opaque-layer marker in the high bit; the remaining bits are
 /// the sprite-array layer, as used by the terrain material shader.
@@ -327,6 +328,102 @@ pub fn convert_section(
     })
 }
 
+/// A byte-bounded FIFO of owned section updates waiting for the GLES2 owner.
+///
+/// Enqueue coalesces pending updates by section key: the newest payload replaces
+/// the older one and moves to the back of the queue. The budget accounts for
+/// payload logical bytes, not allocator capacity or GPU memory.
+pub struct Gles2SectionQueue {
+    pending: VecDeque<Gles2SectionPayload>,
+    max_bytes: usize,
+    queued_bytes: usize,
+}
+
+impl Gles2SectionQueue {
+    pub fn new(max_bytes: usize) -> Self {
+        Self { pending: VecDeque::new(), max_bytes, queued_bytes: 0 }
+    }
+
+    pub fn len(&self) -> usize { self.pending.len() }
+    pub fn is_empty(&self) -> bool { self.pending.is_empty() }
+    pub fn queued_bytes(&self) -> usize { self.queued_bytes }
+    pub fn max_bytes(&self) -> usize { self.max_bytes }
+
+    /// Queue a payload, returning the replaced payload on success.
+    /// On rejection, returns the incoming payload and leaves the queue unchanged.
+    pub fn enqueue(
+        &mut self,
+        payload: Gles2SectionPayload,
+    ) -> Result<Option<Gles2SectionPayload>, Gles2SectionPayload> {
+        let incoming_bytes = match payload.byte_len() {
+            Ok(bytes) if bytes <= self.max_bytes => bytes,
+            _ => return Err(payload),
+        };
+        let existing = self.pending.iter().position(|item| item.key == payload.key);
+        let old_bytes = match existing {
+            Some(index) => match self.pending[index].byte_len() {
+                Ok(bytes) => bytes,
+                Err(_) => return Err(payload),
+            },
+            None => 0,
+        };
+        let base_bytes = match self.queued_bytes.checked_sub(old_bytes) {
+            Some(bytes) => bytes,
+            None => return Err(payload),
+        };
+        let next_bytes = match base_bytes.checked_add(incoming_bytes) {
+            Some(bytes) if bytes <= self.max_bytes => bytes,
+            _ => return Err(payload),
+        };
+
+        let replaced = existing.and_then(|index| self.pending.remove(index));
+        self.queued_bytes = next_bytes;
+        self.pending.push_back(payload);
+        Ok(replaced)
+    }
+
+    pub fn pop_front(&mut self) -> Option<Gles2SectionPayload> {
+        let payload = self.pending.pop_front()?;
+        let bytes = payload.byte_len().expect("queued payload byte count was validated");
+        self.queued_bytes = self.queued_bytes.checked_sub(bytes)
+            .expect("queued byte accounting must not underflow");
+        Some(payload)
+    }
+
+    pub fn remove_section(&mut self, key: (i32, i32, i32)) -> Option<Gles2SectionPayload> {
+        let index = self.pending.iter().position(|item| item.key == key)?;
+        let payload = self.pending.remove(index)?;
+        let bytes = payload.byte_len().expect("queued payload byte count was validated");
+        self.queued_bytes = self.queued_bytes.checked_sub(bytes)
+            .expect("queued byte accounting must not underflow");
+        Some(payload)
+    }
+
+    /// Remove all pending sections in a horizontal chunk column (x, z).
+    pub fn remove_columns(&mut self, columns: &[(i32, i32)]) -> usize {
+        let mut removed = 0usize;
+        let mut retained_bytes = 0usize;
+        self.pending.retain(|payload| {
+            if columns.iter().any(|&(x, z)| payload.key.0 == x && payload.key.2 == z) {
+                removed += 1;
+                false
+            } else {
+                retained_bytes = retained_bytes.checked_add(
+                    payload.byte_len().expect("queued payload byte count was validated")
+                ).expect("retained queue bytes cannot exceed the previous budget");
+                true
+            }
+        });
+        self.queued_bytes = retained_bytes;
+        removed
+    }
+
+    pub fn clear(&mut self) {
+        self.pending.clear();
+        self.queued_bytes = 0;
+    }
+}
+
 /// Return visible solid draw ranges in GLES2 triangle-vertex units.
 /// Horizon's Sides reports (first, count) in four-vertex quad units;
 /// the converted buffer stores six vertices per quad.
@@ -380,6 +477,94 @@ mod tests {
     use super::*;
     use crate::mesher::TerrainVertex;
 
+
+    fn test_payload(key: (i32, i32, i32), vertex_count: usize) -> Gles2SectionPayload {
+        Gles2SectionPayload {
+            key,
+            geometry: Gles2TerrainMesh {
+                solid: vec![Gles2TerrainVertex {
+                    position: [0.0; 3], uv: [0.0; 2], atlas_origin: [0.0; 2],
+                    atlas_scale: [1.0; 2], color: [255; 4], emission: 0,
+                    material_flags: 0, light: [0; 2], opaque_layer: 0.0,
+                }; vertex_count],
+                ..Default::default()
+            },
+            visibility: 0,
+            block_entities: Vec::new(),
+            lights: Vec::new(),
+            sprite_layers: Vec::new(),
+            bounds: None,
+            keep: false,
+        }
+    }
+
+    #[test]
+    fn queue_replaces_pending_section_and_moves_latest_update_to_back() {
+        let first = test_payload((1, 2, 3), 1);
+        let second = test_payload((4, 5, 6), 1);
+        let replacement = test_payload((1, 2, 3), 2);
+        let mut queue = Gles2SectionQueue::new(4096);
+        assert!(queue.enqueue(first).unwrap().is_none());
+        assert!(queue.enqueue(second).unwrap().is_none());
+        let replaced = queue.enqueue(replacement).unwrap().unwrap();
+        assert_eq!(replaced.key, (1, 2, 3));
+        assert_eq!(queue.len(), 2);
+        assert_eq!(queue.pop_front().unwrap().key, (4, 5, 6));
+        assert_eq!(queue.pop_front().unwrap().key, (1, 2, 3));
+        assert!(queue.is_empty());
+        assert_eq!(queue.queued_bytes(), 0);
+    }
+
+    #[test]
+    fn queue_rejects_over_budget_payload_without_dropping_existing_update() {
+        let existing = test_payload((1, 2, 3), 1);
+        let bytes = existing.byte_len().unwrap();
+        let mut queue = Gles2SectionQueue::new(bytes);
+        queue.enqueue(existing).unwrap();
+        let rejected = queue.enqueue(test_payload((4, 5, 6), 1)).unwrap_err();
+        assert_eq!(rejected.key, (4, 5, 6));
+        assert_eq!(queue.len(), 1);
+        assert_eq!(queue.queued_bytes(), bytes);
+        assert_eq!(queue.pop_front().unwrap().key, (1, 2, 3));
+    }
+
+    #[test]
+    fn queue_replacement_budget_is_atomic_when_new_payload_is_too_large() {
+        let existing = test_payload((1, 2, 3), 1);
+        let bytes = existing.byte_len().unwrap();
+        let mut queue = Gles2SectionQueue::new(bytes);
+        queue.enqueue(existing).unwrap();
+        let rejected = queue.enqueue(test_payload((1, 2, 3), 2)).unwrap_err();
+        assert_eq!(rejected.key, (1, 2, 3));
+        assert_eq!(queue.len(), 1);
+        assert_eq!(queue.queued_bytes(), bytes);
+        assert_eq!(queue.pop_front().unwrap().geometry.solid.len(), 1);
+    }
+
+    #[test]
+    fn queue_removes_unloaded_sections_and_horizontal_columns() {
+        let mut queue = Gles2SectionQueue::new(8192);
+        queue.enqueue(test_payload((1, 0, 2), 1)).unwrap();
+        queue.enqueue(test_payload((1, 1, 2), 1)).unwrap();
+        queue.enqueue(test_payload((3, 0, 4), 1)).unwrap();
+        assert!(queue.remove_section((3, 0, 4)).is_some());
+        assert_eq!(queue.remove_columns(&[(1, 2)]), 2);
+        assert!(queue.is_empty());
+        assert_eq!(queue.queued_bytes(), 0);
+    }
+
+    #[test]
+    fn queue_accounts_bytes_after_pop_remove_and_clear() {
+        let mut queue = Gles2SectionQueue::new(8192);
+        queue.enqueue(test_payload((1, 0, 1), 1)).unwrap();
+        queue.enqueue(test_payload((2, 0, 2), 2)).unwrap();
+        assert!(queue.queued_bytes() > 0);
+        queue.pop_front().unwrap();
+        assert!(queue.queued_bytes() > 0);
+        queue.clear();
+        assert_eq!(queue.len(), 0);
+        assert_eq!(queue.queued_bytes(), 0);
+    }
 
     #[test]
     fn sorts_translucent_quad_triangle_groups_back_to_front_using_world_positions() {
