@@ -373,11 +373,47 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
                                           const Gles2TerrainVertex* solid,
                                           std::size_t solid_count,
                                           const Gles2TerrainVertex* translucent,
-                                          std::size_t translucent_count) {
+                                          std::size_t translucent_count,
+                                          const std::uint32_t* first_count_pairs,
+                                          std::size_t range_count,
+                                          bool use_solid_ranges) {
     if (!check_owner_thread("upload_section")) return false;
-    if (!key) {
-        std::snprintf(error_, sizeof(error_), "Section key is required");
+    if (!key || (range_count != 0 && !first_count_pairs) ||
+        (!use_solid_ranges && range_count != 0)) {
+        std::snprintf(error_, sizeof(error_), "Section key and optional solid range data are required");
         return false;
+    }
+    std::vector<std::pair<GLint, GLsizei>> solid_ranges;
+    if (use_solid_ranges) {
+        if (solid_count % 3 != 0 || range_count > solid_count / 3) {
+            std::snprintf(error_, sizeof(error_), "Solid side range count exceeds the incoming triangle list");
+            return false;
+        }
+        try {
+            solid_ranges.reserve(range_count);
+        } catch (const std::bad_alloc&) {
+            std::snprintf(error_, sizeof(error_), "Not enough memory to allocate solid side ranges");
+            return false;
+        } catch (const std::length_error&) {
+            std::snprintf(error_, sizeof(error_), "Solid side range count exceeds the vector allocation limit");
+            return false;
+        }
+        std::uint64_t previous_end = 0;
+        for (std::size_t i = 0; i < range_count; ++i) {
+            const std::uint64_t first = first_count_pairs[i * 2];
+            const std::uint64_t count = first_count_pairs[i * 2 + 1];
+            const std::uint64_t end = first + count;
+            if (count == 0 || first % 3 != 0 || count % 3 != 0 ||
+                end > static_cast<std::uint64_t>(solid_count) || end < first ||
+                (i != 0 && first < previous_end) ||
+                first > static_cast<std::uint64_t>(std::numeric_limits<GLint>::max()) ||
+                count > static_cast<std::uint64_t>(std::numeric_limits<GLsizei>::max())) {
+                std::snprintf(error_, sizeof(error_), "Incoming solid side range %zu is invalid or overlaps", i);
+                return false;
+            }
+            solid_ranges.emplace_back(static_cast<GLint>(first), static_cast<GLsizei>(count));
+            previous_end = end;
+        }
     }
     const std::array<std::int32_t, 3> section_key{{key[0], key[1], key[2]}};
     if (solid_count == 0 && translucent_count == 0) {
@@ -419,6 +455,8 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
 
     SectionBuffers replacement;
     replacement.byte_size = replacement_bytes;
+    replacement.has_solid_ranges = use_solid_ranges;
+    replacement.solid_ranges = std::move(solid_ranges);
     if (!upload_buffer(&replacement.solid_vbo, &replacement.solid_count, solid, solid_count) ||
         !upload_buffer(&replacement.translucent_vbo, &replacement.translucent_count,
                        translucent, translucent_count)) {
