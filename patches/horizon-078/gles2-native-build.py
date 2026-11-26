@@ -248,9 +248,9 @@ if not rust_module.exists():
 
 android_main = root / "crates/horizon-client/src/android_main.rs"
 main_text = android_main.read_text(encoding="utf-8")
-module_decl = "mod gles2_native;\\n"
+module_decl = "mod gles2_native;\n"
 if module_decl not in main_text:
-    anchor_main = "mod game;\\n"
+    anchor_main = "mod game;\n"
     if main_text.count(anchor_main) != 1:
         raise SystemExit("Could not uniquely locate Android game module declaration")
     android_main.write_text(main_text.replace(anchor_main, anchor_main + module_decl), encoding="utf-8")
