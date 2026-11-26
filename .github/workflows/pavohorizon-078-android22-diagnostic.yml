@@ -11,6 +11,7 @@ on:
       - 'patches/horizon-078/renderer-hud-boundary.py'
       - 'tools/check_android5_renderer_ownership.py'
       - 'tools/check_android5_game_loop.py'
+      - 'tools/check_android5_backend_selection.py'
       - 'patches/horizon-078/gles2-terrain-adapter.py'
       - 'patches/horizon-078/gles2-terrain.vert'
       - 'patches/horizon-078/gles2-terrain-solid.frag'
@@ -94,6 +95,9 @@ jobs:
 
       - name: Verify Horizon game-loop upload and Android lifecycle contract
         run: python3 tools/check_android5_game_loop.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Verify wgpu GL is not mistaken for the native GLES2 backend
+        run: python3 tools/check_android5_backend_selection.py "$RUNNER_TEMP/horizon-078"
 
       - name: Apply limited Android 5 diagnostic patch
         run: python3 tools/android5_patch.py "$RUNNER_TEMP/horizon-078"
