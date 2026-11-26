@@ -12,7 +12,10 @@ game = Path(sys.argv[1]) / "crates/horizon-client/src/game.rs"
 source = game.read_text(encoding="utf-8")
 
 pattern = re.compile(
-    r"\b(renderer|previous|r)\.(device|queue|surface|spare_surface|instance|adapter|background_context)\b"
+    r"\b(renderer|previous|r)\."
+    r"(device|queue|surface|spare_surface|instance|adapter|background_context|"
+    r"config|screenshot_result|screenshot|drawn_sections|last_wait|last_encode|"
+    r"gpu_times|info|hud)\b"
 )
 found = collections.Counter(f"{owner}.{member}" for owner, member in pattern.findall(source))
 expected = collections.Counter(
@@ -29,7 +32,7 @@ if found != expected:
     raise SystemExit(f"Unexpected game-side renderer ownership boundary: {details}")
 
 print(
-    "Renderer ownership audit passed: Game no longer reaches into wgpu device "
-    "ownership for synchronization; only the documented background-context "
-    "handoff remains."
+    "Renderer ownership audit passed: Game no longer reads or mutates wgpu "
+    "device, queue, surface, configuration, adapter, HUD, timing, or screenshot "
+    "storage directly; only the documented background-context handoff remains."
 )
