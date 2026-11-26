@@ -62,7 +62,7 @@ for marker in ("pub(crate) struct Runtime", "pavo_egl_create", "pavo_egl_swap", 
     print(f"PASS: Rust EGL {marker}")
 
 runtime_resume = egl_text.split("pub(crate) fn resume", 1)[1].split("pub(crate) fn is_initialized", 1)[0]
-resume_order = ("let generation = self.egl.resume(window)?;", "let context_changed = generation != self.context_generation;", "if context_changed {", "self.renderer = super::gles2_native::Backend::new()?;", "self.context_generation = generation;", "self.initialized = false;", "if self.initialized { return Ok(context_changed); }", "let restore = (|| -> Result<(), String> {", "if let Err(error) = restore {", "return Err(error);", "self.initialized = true;")
+resume_order = ("let generation = self.egl.resume(window)?;", "let context_changed = generation != self.context_generation;", "if context_changed {", "self.renderer = super::gles2_native::Backend::new()?;", "self.context_generation = generation;", "self.initialized = false;", "if self.initialized {" , "return Ok(context_changed);", "let restore = (|| -> Result<(), String> {", "if let Err(error) = restore {", "return Err(error);", "self.initialized = true;")
 for marker in ("cached_assets: Option<CachedAssets>", "cached_sections: std::collections::HashMap", "animated_layers: std::collections::HashMap", "sprite_pixels: Arc<[u8]>", "solid: Arc<[super::gles2_native::HorizonTerrainVertex]>", "sprite_pixels: Arc::from(cached_sprites)", "solid: Arc::from(cached_solid)", "translucent: Arc::from(cached_translucent)", "ranges: Arc::from(cached_ranges)", "self.cached_sections.retain", "for (key, section) in &self.cached_sections", "for (layer, pixels) in &assets.animated_layers", "assets.lightmap = replacement", "assets.animated_layers.insert(layer, replacement)", "self.initialized = true;"):
     if marker not in egl_text:
         raise SystemExit(f"FAIL: GLES2 context recovery does not retain/replay CPU data: {marker}")
@@ -115,8 +115,8 @@ if not android_main.is_file():
     raise SystemExit("FAIL: missing Android cdylib module root")
 android_main_text = android_main.read_text(encoding="utf-8")
 for declaration in (
-    '#[path = "../../horizon-android/gles2_native.rs"]\\npub(crate) mod gles2_native;',
-    '#[path = "android/gles2_egl.rs"]\\npub(crate) mod gles2_egl;',
+    '#[path = "../../horizon-android/gles2_native.rs"]\npub(crate) mod gles2_native;',
+    '#[path = "android/gles2_egl.rs"]\npub(crate) mod gles2_egl;',
 ):
     if android_main_text.count(declaration) != 1:
         raise SystemExit(f"FAIL: Android cdylib must compile exactly one module declaration: {declaration!r}")
