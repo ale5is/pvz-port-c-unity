@@ -216,9 +216,8 @@ bool Gles2TerrainRenderer::initialize(const std::uint8_t* atlas_rgba, int atlas_
                                       int atlas_height, const std::uint8_t* lightmap_rgba,
                                       int lightmap_width, int lightmap_height, int sprite_size) {
     release();
-    if (sprite_size <= 0 || atlas_width <= 0 || atlas_height <= 0 ||
-        atlas_width % sprite_size != 0 || atlas_height % sprite_size != 0) {
-        std::snprintf(error_, sizeof(error_), "Atlas dimensions must be positive multiples of sprite size");
+    if (sprite_size <= 0 || atlas_width <= 0 || atlas_height <= 0) {
+        std::snprintf(error_, sizeof(error_), "Atlas dimensions and sprite size must be positive");
         return false;
     }
     atlas_width_ = atlas_width;
