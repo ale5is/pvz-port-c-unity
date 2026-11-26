@@ -272,8 +272,9 @@ for item in [
 ]:
     if item not in upload_buffer_body:
         raise SystemExit(f"FAIL: renderer standalone VBO replacement missing {item}")
+old_buffer_delete = upload_buffer_body.rindex("if (*buffer) glDeleteBuffers(1, buffer);")
 if not (upload_buffer_body.index("glBufferData(GL_ARRAY_BUFFER") <
-        upload_buffer_body.index("if (*buffer) glDeleteBuffers(1, buffer);") <
+        old_buffer_delete <
         upload_buffer_body.index("*buffer = replacement_buffer;")):
     raise SystemExit("FAIL: renderer standalone VBO must retain the previous buffer until replacement upload succeeds")
 if source.count("attribute ") != 8:
