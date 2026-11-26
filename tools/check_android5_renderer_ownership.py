@@ -17,9 +17,7 @@ pattern = re.compile(
 found = collections.Counter(f"{owner}.{member}" for owner, member in pattern.findall(source))
 expected = collections.Counter(
     {
-        "previous.device": 1,
         "previous.background_context": 1,
-        "r.device": 1,
     }
 )
 
@@ -31,6 +29,7 @@ if found != expected:
     raise SystemExit(f"Unexpected game-side renderer ownership boundary: {details}")
 
 print(
-    "Renderer ownership audit passed: only the three documented device-wait/"
-    "background-context handoff references remain."
+    "Renderer ownership audit passed: Game no longer reaches into wgpu device "
+    "ownership for synchronization; only the documented background-context "
+    "handoff remains."
 )
