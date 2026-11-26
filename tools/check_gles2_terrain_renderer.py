@@ -282,9 +282,14 @@ quad_order = [
     "converted.push_back(quad[3]);",
     "converted.push_back(quad[0]);",
 ]
-quad_positions = [conversion_body.find(item) for item in quad_order]
-if any(position < 0 for position in quad_positions) or quad_positions != sorted(quad_positions):
-    raise SystemExit("FAIL: Horizon quad expansion must preserve the exact (0,1,2,2,3,0) triangle winding")
+quad_positions = []
+search_from = 0
+for item in quad_order:
+    position = conversion_body.find(item, search_from)
+    if position < 0:
+        raise SystemExit("FAIL: Horizon quad expansion must preserve the exact (0,1,2,2,3,0) triangle winding")
+    quad_positions.append(position)
+    search_from = position + len(item)
 if "output->clear()" in conversion_body or "converted.reserve(vertex_count)" in conversion_body:
     raise SystemExit("FAIL: Horizon CPU adapter must preserve output atomically and avoid the oversized intermediate vertex buffer")
 print("PASS: Horizon CPU vertex conversion is overflow-checked, bounded, allocation-safe and atomic")
