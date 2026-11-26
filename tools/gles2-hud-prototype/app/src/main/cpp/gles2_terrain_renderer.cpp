@@ -325,6 +325,93 @@ bool Gles2TerrainRenderer::initialize(const std::uint8_t* atlas_rgba, int atlas_
     return true;
 }
 
+bool Gles2TerrainRenderer::update_atlas_layer(std::uint32_t layer,
+                                               const std::uint8_t* rgba,
+                                               std::size_t byte_count) {
+    if (!check_owner_thread("update_atlas_layer")) return false;
+    if (!atlas_texture_ || !rgba || sprite_size_ <= 0 || atlas_width_ <= 0 ||
+        atlas_height_ <= 0) {
+        std::snprintf(error_, sizeof(error_), "Atlas layer update requires an initialized atlas and RGBA pixels");
+        return false;
+    }
+
+    const std::size_t sprite = static_cast<std::size_t>(sprite_size_);
+    if (sprite > std::numeric_limits<std::size_t>::max() / 4 ||
+        sprite > std::numeric_limits<std::size_t>::max() / (sprite * 4)) {
+        std::snprintf(error_, sizeof(error_), "Animated terrain sprite byte size overflow");
+        return false;
+    }
+    const std::size_t row_bytes = sprite * 4;
+    const std::size_t expected_bytes = row_bytes * sprite;
+    if (byte_count != expected_bytes) {
+        std::snprintf(error_, sizeof(error_), "Animated terrain layer must contain exactly one RGBA sprite");
+        return false;
+    }
+
+    const std::uint32_t cell_size = static_cast<std::uint32_t>(sprite_size_) + 2u;
+    if (cell_size < static_cast<std::uint32_t>(sprite_size_) ||
+        atlas_width_ % static_cast<int>(cell_size) != 0 ||
+        atlas_height_ % static_cast<int>(cell_size) != 0) {
+        std::snprintf(error_, sizeof(error_), "Packed terrain atlas dimensions do not match guttered sprite cells");
+        return false;
+    }
+    const std::uint32_t columns = static_cast<std::uint32_t>(atlas_width_) / cell_size;
+    const std::uint32_t rows = static_cast<std::uint32_t>(atlas_height_) / cell_size;
+    const std::uint64_t cell_count = static_cast<std::uint64_t>(columns) * rows;
+    if (columns == 0 || rows == 0 || layer >= cell_count) {
+        std::snprintf(error_, sizeof(error_), "Animated terrain sprite layer is outside the packed atlas");
+        return false;
+    }
+
+    const std::size_t padded_row_bytes = static_cast<std::size_t>(cell_size) * 4;
+    if (cell_size > std::numeric_limits<std::size_t>::max() / padded_row_bytes) {
+        std::snprintf(error_, sizeof(error_), "Animated terrain padded cell byte size overflow");
+        return false;
+    }
+    std::vector<std::uint8_t> padded_cell;
+    try {
+        padded_cell.resize(padded_row_bytes * static_cast<std::size_t>(cell_size));
+    } catch (const std::bad_alloc&) {
+        std::snprintf(error_, sizeof(error_), "Not enough memory to stage animated terrain atlas cell");
+        return false;
+    } catch (const std::length_error&) {
+        std::snprintf(error_, sizeof(error_), "Animated terrain atlas cell exceeds vector limits");
+        return false;
+    }
+
+    for (std::size_t row = 0; row < sprite; ++row) {
+        const std::uint8_t* source = rgba + row * row_bytes;
+        std::uint8_t* destination = padded_cell.data() + (row + 1) * padded_row_bytes;
+        std::memcpy(destination, source, 4);
+        std::memcpy(destination + 4, source, row_bytes);
+        std::memcpy(destination + 4 + row_bytes, source + row_bytes - 4, 4);
+    }
+    std::memcpy(padded_cell.data(), padded_cell.data() + padded_row_bytes,
+                padded_row_bytes);
+    std::memcpy(padded_cell.data() + (static_cast<std::size_t>(cell_size) - 1) * padded_row_bytes,
+                padded_cell.data() + (static_cast<std::size_t>(cell_size) - 2) * padded_row_bytes,
+                padded_row_bytes);
+
+    const GLint x = static_cast<GLint>((layer % columns) * cell_size);
+    const GLint y = static_cast<GLint>((layer / columns) * cell_size);
+    clear_gl_errors();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, atlas_texture_);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, static_cast<GLsizei>(cell_size),
+                    static_cast<GLsizei>(cell_size), GL_RGBA, GL_UNSIGNED_BYTE,
+                    padded_cell.data());
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    const GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::snprintf(error_, sizeof(error_), "Animated terrain atlas sub-image upload failed: 0x%x", error);
+        return false;
+    }
+    error_[0] = '\\0';
+    return true;
+}
+
 bool Gles2TerrainRenderer::upload_buffer(GLuint* buffer, GLsizei* vertex_count,
                                          const Gles2TerrainVertex* vertices, std::size_t count) {
     if (!buffer || !vertex_count || (count && !vertices) || (count % 3) != 0 ||
