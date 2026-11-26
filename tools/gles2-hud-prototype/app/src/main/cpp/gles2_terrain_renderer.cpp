@@ -350,6 +350,8 @@ bool Gles2TerrainRenderer::update_atlas_layer(std::uint32_t layer,
 
     const std::uint32_t cell_size = static_cast<std::uint32_t>(sprite_size_) + 2u;
     if (cell_size < static_cast<std::uint32_t>(sprite_size_) ||
+        cell_size > static_cast<std::uint32_t>(atlas_width_) ||
+        cell_size > static_cast<std::uint32_t>(atlas_height_) ||
         atlas_width_ % static_cast<int>(cell_size) != 0 ||
         atlas_height_ % static_cast<int>(cell_size) != 0) {
         std::snprintf(error_, sizeof(error_), "Packed terrain atlas dimensions do not match guttered sprite cells");
@@ -363,8 +365,12 @@ bool Gles2TerrainRenderer::update_atlas_layer(std::uint32_t layer,
         return false;
     }
 
+    if (static_cast<std::size_t>(cell_size) > std::numeric_limits<std::size_t>::max() / 4) {
+        std::snprintf(error_, sizeof(error_), "Animated terrain padded row byte size overflow");
+        return false;
+    }
     const std::size_t padded_row_bytes = static_cast<std::size_t>(cell_size) * 4;
-    if (cell_size > std::numeric_limits<std::size_t>::max() / padded_row_bytes) {
+    if (static_cast<std::size_t>(cell_size) > std::numeric_limits<std::size_t>::max() / padded_row_bytes) {
         std::snprintf(error_, sizeof(error_), "Animated terrain padded cell byte size overflow");
         return false;
     }
