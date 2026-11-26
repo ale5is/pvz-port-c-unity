@@ -67,8 +67,10 @@ if "numeric_limits<GLsizeiptr>::max()" not in source:
     raise SystemExit("FAIL: renderer: VBO byte count must fit GLsizeiptr on 32-bit ARM")
 if "glPixelStorei(GL_UNPACK_ALIGNMENT, 4)" not in source:
     raise SystemExit("FAIL: renderer: texture upload must restore global unpack alignment")
-if "GL_NEAREST" in source and "upload_texture(&atlas_texture_" in source:
+if "upload_texture(&atlas_texture_, atlas_rgba, atlas_width, atlas_height, GL_LINEAR)" not in source:
     raise SystemExit("FAIL: renderer: guttered terrain atlas must use linear filtering")
+if "rgba_byte_size" not in source or "max_size / (w * 4)" not in source:
+    raise SystemExit("FAIL: renderer: RGBA texture allocation must use overflow-safe byte arithmetic")
 required_adapter_header = [
     "sizeof(HorizonTerrainVertex) == 24",
     "bool build_gles2_terrain_atlas(",
