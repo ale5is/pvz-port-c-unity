@@ -57,6 +57,10 @@ required_adapter_source = [
     "15 - (alpha_flags & 0x0f)",
     "alpha_flags >> 4",
     "input.layer & 0x7fffu",
+    "constexpr std::size_t gutter = 1",
+    "built.cell_size = static_cast<int>(cell)",
+    "atlas.cell_size != atlas.sprite_size + 2",
+    "static_cast<std::size_t>(atlas.cell_size) + 1",
     "input.light >> 8",
     "vertex.opaque_layer",
     "static_cast<float>(input.uv[0]) / uv_steps",
@@ -91,7 +95,7 @@ if missing:
     raise SystemExit(1)
 print("PASS: 48-byte Rust/C++ terrain vertex ABI")
 print("PASS: 24-byte Horizon input converts into the 48-byte GLES2 vertex ABI")
-print("PASS: layer-major sprite pixels pack without truncating layers")
+print("PASS: layer-major sprite pixels pack with duplicated filtering gutters")
 print("PASS: light, emission tier, fluid face, opaque flag and UV scale are decoded")
 print("PASS: eight GLES2 attributes, including packed emission/material bytes")
 print("PASS: atlas/lightmap sampling and VBO draw path")
