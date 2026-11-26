@@ -257,4 +257,174 @@ if module_decl not in main_text:
     if main_text.count(anchor_main) != 1:
         raise SystemExit("Could not uniquely locate Android game module declaration")
     android_main.write_text(main_text.replace(anchor_main, anchor_main + module_decl), encoding="utf-8")
+
+egl_module = root / "crates/horizon-client/src/android/gles2_egl.rs"
+egl_source = r'''use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+use std::ffi::{CStr, c_char, c_void};
+use std::ptr::NonNull;
+use std::thread::{self, ThreadId};
+use winit::window::Window;
+
+unsafe extern "C" {
+    fn pavo_egl_create(native_window: *mut c_void) -> *mut c_void;
+    fn pavo_egl_make_current(owner: *mut c_void) -> i32;
+    fn pavo_egl_resize(owner: *mut c_void, width: *mut i32, height: *mut i32) -> i32;
+    fn pavo_egl_begin_frame(owner: *mut c_void, r: f32, g: f32, b: f32, a: f32) -> i32;
+    fn pavo_egl_swap(owner: *mut c_void) -> i32;
+    fn pavo_egl_destroy(owner: *mut c_void);
+    fn pavo_egl_last_error(owner: *const c_void) -> *const c_char;
+}
+
+struct EglOwner {
+    handle: NonNull<c_void>,
+    owner: ThreadId,
+}
+
+impl EglOwner {
+    fn new(window: &Window) -> Result<Self, String> {
+        let raw = window.window_handle().map_err(|error| error.to_string())?;
+        let native_window = match raw.as_raw() {
+            RawWindowHandle::AndroidNdk(handle) => handle.a_native_window.as_ptr(),
+            _ => return Err("GLES2 EGL owner requires an Android native window".to_owned()),
+        };
+        let handle = NonNull::new(unsafe { pavo_egl_create(native_window) })
+            .ok_or_else(|| "Could not create an EGL ES2 context and window surface".to_owned())?;
+        Ok(Self { handle, owner: thread::current().id() })
+    }
+
+    fn check_thread(&self) -> Result<*mut c_void, String> {
+        if self.owner != thread::current().id() {
+            return Err("EGL operation attempted outside the Android render thread".to_owned());
+        }
+        Ok(self.handle.as_ptr())
+    }
+
+    fn error(&self) -> String {
+        let pointer = unsafe { pavo_egl_last_error(self.handle.as_ptr()) };
+        if pointer.is_null() {
+            return "EGL owner failed without an error message".to_owned();
+        }
+        unsafe { CStr::from_ptr(pointer) }.to_string_lossy().into_owned()
+    }
+
+    fn make_current(&self) -> Result<(), String> {
+        let handle = self.check_thread()?;
+        if unsafe { pavo_egl_make_current(handle) } == 1 { Ok(()) } else { Err(self.error()) }
+    }
+
+    fn begin_frame(&self, clear: [f32; 4]) -> Result<(), String> {
+        let handle = self.check_thread()?;
+        let ok = unsafe { pavo_egl_begin_frame(handle, clear[0], clear[1], clear[2], clear[3]) };
+        if ok == 1 { Ok(()) } else { Err(self.error()) }
+    }
+
+    fn resize(&self) -> Result<[u32; 2], String> {
+        let handle = self.check_thread()?;
+        let mut width = 0;
+        let mut height = 0;
+        let ok = unsafe { pavo_egl_resize(handle, &mut width, &mut height) };
+        if ok != 1 { return Err(self.error()); }
+        Ok([width as u32, height as u32])
+    }
+
+    fn present(&self) -> Result<(), String> {
+        let handle = self.check_thread()?;
+        if unsafe { pavo_egl_swap(handle) } == 1 { Ok(()) } else { Err(self.error()) }
+    }
+}
+
+impl Drop for EglOwner {
+    fn drop(&mut self) {
+        if self.owner != thread::current().id() {
+            log::error!("Refusing to destroy EGL owner outside its render thread");
+            return;
+        }
+        unsafe { pavo_egl_destroy(self.handle.as_ptr()) };
+    }
+}
+
+/// Owns one EGL context and one GLES2 renderer. Field order is intentional:
+/// Rust drops the GL renderer first, while its EGL context is still current,
+/// and only then destroys the EGL surface/context/display.
+pub(crate) struct Runtime {
+    renderer: super::gles2_native::Backend,
+    egl: EglOwner,
+}
+
+impl Runtime {
+    pub(crate) fn new(window: &Window) -> Result<Self, String> {
+        let egl = EglOwner::new(window)?;
+        egl.make_current()?;
+        let renderer = super::gles2_native::Backend::new()?;
+        Ok(Self { renderer, egl })
+    }
+
+    pub(crate) fn initialize(
+        &mut self, sprite_pixels: &[u8], layers: usize, sprite_size: i32,
+        lightmap: &[u8], lightmap_width: i32, lightmap_height: i32, uv_steps: f32,
+    ) -> Result<(), String> {
+        self.egl.make_current()?;
+        self.renderer.initialize(sprite_pixels, layers, sprite_size,
+            lightmap, lightmap_width, lightmap_height, uv_steps)
+    }
+
+    pub(crate) fn begin_frame(&mut self, clear: [f32; 4]) -> Result<[u32; 2], String> {
+        self.egl.begin_frame(clear)?;
+        self.egl.resize()
+    }
+
+    pub(crate) fn upload_section(
+        &mut self, key: [i32; 3],
+        solid: &[super::gles2_native::HorizonTerrainVertex],
+        translucent: &[super::gles2_native::HorizonTerrainVertex],
+        ranges: &[u32],
+    ) -> Result<(), String> {
+        self.egl.make_current()?;
+        self.renderer.upload_section(key, solid, translucent, ranges)
+    }
+
+    pub(crate) fn remove_column(&mut self, x: i32, z: i32) -> Result<(), String> {
+        self.egl.make_current()?;
+        self.renderer.remove_column(x, z)
+    }
+
+    pub(crate) fn draw_sections(
+        &mut self, mvp: &[f32; 16], camera: &[f32; 3],
+        fog_color: &[f32; 4], fog_range: &[f32; 2], max_distance: f32,
+    ) -> Result<(), String> {
+        self.egl.make_current()?;
+        self.renderer.draw_sections(mvp, camera, fog_color, fog_range, max_distance)
+    }
+
+    pub(crate) fn present(&mut self) -> Result<(), String> {
+        self.egl.present()
+    }
+
+    pub(crate) fn update_atlas_layer(&mut self, layer: u32, rgba: &[u8]) -> Result<(), String> {
+        self.egl.make_current()?;
+        self.renderer.update_atlas_layer(layer, rgba)
+    }
+}
+'''
+if egl_module.exists() and egl_module.read_text(encoding="utf-8") != egl_source:
+    raise SystemExit("Existing android/gles2_egl.rs differs; refusing to overwrite")
+if not egl_module.exists():
+    egl_module.write_text(egl_source, encoding="utf-8")
+
+render_lib = root / "crates/horizon-client/src/android_main.rs"
+render_text = render_lib.read_text(encoding="utf-8")
+egl_decl = '#[path = "android/gles2_egl.rs"]\\nmod gles2_egl;\\n'
+if egl_decl not in render_text:
+    anchor_decl = "mod gles2_native;\\n"
+    if render_text.count(anchor_decl) != 1:
+        raise SystemExit("Could not uniquely locate gles2_native module declaration")
+    render_lib.write_text(render_text.replace(anchor_decl, anchor_decl + egl_decl), encoding="utf-8")
+
+android_cargo = root / "crates/horizon-android/Cargo.toml"
+android_cargo_text = android_cargo.read_text(encoding="utf-8")
+if 'raw-window-handle = "0.6"' not in android_cargo_text:
+    marker = 'winit = { version = "0.30.13", features = ["android-native-activity"] }\\n'
+    if android_cargo_text.count(marker) != 1:
+        raise SystemExit("Could not uniquely locate winit dependency for raw-window-handle")
+    android_cargo.write_text(android_cargo_text.replace(marker, marker + 'raw-window-handle = "0.6"\\n'), encoding="utf-8")
 print("Installed reusable GLES2 native sources and Android ARMv7 C++ build integration.")
