@@ -889,6 +889,26 @@ void Gles2TerrainRenderer::draw(const float* mvp, const float section_origin[3],
     glUseProgram(0);
 }
 
+void Gles2TerrainRenderer::abandon_context() noexcept {
+    solid_vbo_ = 0;
+    translucent_vbo_ = 0;
+    atlas_texture_ = 0;
+    lightmap_texture_ = 0;
+    solid_program_ = 0;
+    translucent_program_ = 0;
+    solid_uniforms_ = {};
+    translucent_uniforms_ = {};
+    solid_count_ = 0;
+    translucent_count_ = 0;
+    sections_.clear();
+    resident_bytes_ = 0;
+    atlas_width_ = 0;
+    atlas_height_ = 0;
+    sprite_size_ = 0;
+    owner_thread_set_ = false;
+    error_[0] = '\0';
+}
+
 void Gles2TerrainRenderer::release() {
     if (!owner_thread_set_) return;
     if (!check_owner_thread("release")) return;
