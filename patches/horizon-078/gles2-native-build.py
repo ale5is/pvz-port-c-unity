@@ -133,7 +133,7 @@ pub(crate) fn copy_section_vertices(
         .map_err(|_| "Not enough memory to stage Horizon terrain vertices".to_owned())?;
     output.extend(source.iter().map(|vertex| HorizonTerrainVertex {
         position: vertex.pos,
-        uv: vertex.uv,
+        uv: vertex.uv(),
         layer: vertex.layer,
         light: vertex.light,
         color: vertex.color,
