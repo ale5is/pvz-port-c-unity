@@ -49,18 +49,34 @@ public:
     const char* last_error() const { return error_; }
 
 private:
+    struct UniformLocations {
+        GLint mvp = -1;
+        GLint section_origin = -1;
+        GLint camera_position = -1;
+        GLint fog_color = -1;
+        GLint fog_range = -1;
+        GLint atlas_size = -1;
+        GLint sprite_size = -1;
+        GLint terrain_atlas = -1;
+        GLint lightmap = -1;
+    };
+
     bool create_programs();
+    void cache_uniforms(GLuint program, UniformLocations* uniforms);
     bool upload_texture(GLuint* texture, const std::uint8_t* pixels,
                         int width, int height, GLint filter);
     bool upload_buffer(GLuint* buffer, GLsizei* vertex_count,
                         const Gles2TerrainVertex* vertices, std::size_t count);
-    void draw_buffer(GLuint program, GLuint buffer, GLsizei count,
-                     const float* mvp, const float section_origin[3],
+    void draw_buffer(GLuint program, const UniformLocations& uniforms,
+                     GLuint buffer, GLsizei count, const float* mvp,
+                     const float section_origin[3],
                      const float camera_position[3], const float fog_color[4],
                      const float fog_range[2]);
 
     GLuint solid_program_ = 0;
     GLuint translucent_program_ = 0;
+    UniformLocations solid_uniforms_;
+    UniformLocations translucent_uniforms_;
     GLuint atlas_texture_ = 0;
     GLuint lightmap_texture_ = 0;
     GLuint solid_vbo_ = 0;
