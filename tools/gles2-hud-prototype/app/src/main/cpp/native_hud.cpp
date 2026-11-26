@@ -22,6 +22,8 @@ struct Engine {
     std::atomic<bool> stop{false};
     std::atomic<bool> paused{true};
     std::atomic<bool> rendering{false};
+    std::atomic<int> surface_width{0};
+    std::atomic<int> surface_height{0};
 };
 
 static std::array<pavo::Gles2TerrainVertex, 24> create_terrain_vertices() {
@@ -217,6 +219,20 @@ static void render_loop(Engine* engine, ANativeWindow* window) {
     unsigned long long frames = 0;
 
     while (!engine->stop.load()) {
+        const int requested_width = engine->surface_width.load();
+        const int requested_height = engine->surface_height.load();
+        if (requested_width > 0 && requested_height > 0 &&
+            (requested_width != width || requested_height != height)) {
+            EGLint resized_width = 0;
+            EGLint resized_height = 0;
+            if (eglQuerySurface(display, surface, EGL_WIDTH, &resized_width) == EGL_TRUE &&
+                eglQuerySurface(display, surface, EGL_HEIGHT, &resized_height) == EGL_TRUE &&
+                resized_width > 0 && resized_height > 0) {
+                width = resized_width;
+                height = resized_height;
+                LOGI("EGL surface resized to %dx%d", width, height);
+            }
+        }
         glViewport(0, 0, width, height);
         glClearColor(0.055f, 0.075f, 0.11f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -274,9 +290,20 @@ static void on_window_created(ANativeActivity* activity, ANativeWindow* window) 
     if (engine->window) ANativeWindow_release(engine->window);
     ANativeWindow_acquire(window);
     engine->window = window;
-    LOGI("Native window created: %dx%d", ANativeWindow_getWidth(window),
-         ANativeWindow_getHeight(window));
+    engine->surface_width.store(ANativeWindow_getWidth(window));
+    engine->surface_height.store(ANativeWindow_getHeight(window));
+    LOGI("Native window created: %dx%d", engine->surface_width.load(),
+         engine->surface_height.load());
     start_renderer(engine);
+}
+
+static void on_window_resized(ANativeActivity* activity, ANativeWindow* window) {
+    auto* engine = static_cast<Engine*>(activity->instance);
+    if (!engine || engine->window != window) return;
+    engine->surface_width.store(ANativeWindow_getWidth(window));
+    engine->surface_height.store(ANativeWindow_getHeight(window));
+    LOGI("Native window resized: %dx%d", engine->surface_width.load(),
+         engine->surface_height.load());
 }
 
 static void on_window_destroyed(ANativeActivity* activity, ANativeWindow* window) {
@@ -286,6 +313,8 @@ static void on_window_destroyed(ANativeActivity* activity, ANativeWindow* window
     if (engine->window) {
         ANativeWindow_release(engine->window);
         engine->window = nullptr;
+        engine->surface_width.store(0);
+        engine->surface_height.store(0);
     }
     LOGI("Native window destroyed; EGL thread stopped and joined");
 }
@@ -325,6 +354,7 @@ extern "C" void ANativeActivity_onCreate(ANativeActivity* activity, void*, size_
     activity->instance = engine;
     activity->callbacks->onNativeWindowCreated = on_window_created;
     activity->callbacks->onNativeWindowDestroyed = on_window_destroyed;
+    activity->callbacks->onNativeWindowResized = on_window_resized;
     activity->callbacks->onPause = on_pause;
     activity->callbacks->onResume = on_resume;
     activity->callbacks->onDestroy = on_destroy;
