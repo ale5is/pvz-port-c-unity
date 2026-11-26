@@ -101,3 +101,26 @@ if "bool context_recreated = owner->context == EGL_NO_CONTEXT;" not in egl_cpp:
 print("PASS: EGL context-loss generation increment and failed-recreate retry")
 
 print("Native GLES2 library is linked; EGL surface resume and context-generation recovery are exposed. Game call-site integration remains separate.")
+
+
+android_main = root / "crates/horizon-client/src/android_main.rs"
+if not android_main.is_file():
+    raise SystemExit("FAIL: missing Android cdylib module root")
+android_main_text = android_main.read_text(encoding="utf-8")
+for declaration in (
+    '#[path = "../../horizon-android/gles2_native.rs"]\\npub(crate) mod gles2_native;',
+    '#[path = "android/gles2_egl.rs"]\\npub(crate) mod gles2_egl;',
+):
+    if android_main_text.count(declaration) != 1:
+        raise SystemExit(f"FAIL: Android cdylib must compile exactly one module declaration: {declaration!r}")
+    print(f"PASS: Android cdylib module declaration {declaration.splitlines()[-1]}")
+
+android_manifest = (root / "crates/horizon-android/Cargo.toml").read_text(encoding="utf-8")
+if 'raw-window-handle = "0.6"' not in android_manifest:
+    raise SystemExit("FAIL: Android crate is missing the raw-window-handle API used by EGL ownership")
+print("PASS: raw-window-handle dependency for AndroidNdk surface extraction")
+
+egl_source = (root / "crates/horizon-client/src/android/gles2_egl.rs").read_text(encoding="utf-8")
+if "pub(crate) struct Runtime" not in egl_source or "pub(crate) fn new(window: &Window)" not in egl_source:
+    raise SystemExit("FAIL: Android EGL runtime is not compiled from its expected module source")
+print("PASS: EGL runtime source is present and reachable from the Android cdylib root")
