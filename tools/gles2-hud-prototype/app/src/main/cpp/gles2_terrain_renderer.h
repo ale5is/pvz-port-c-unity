@@ -50,7 +50,9 @@ public:
     bool upload_translucent(const Gles2TerrainVertex* vertices, std::size_t count);
     bool upload_section(const std::int32_t key[3],
                         const Gles2TerrainVertex* solid, std::size_t solid_count,
-                        const Gles2TerrainVertex* translucent, std::size_t translucent_count);
+                        const Gles2TerrainVertex* translucent, std::size_t translucent_count,
+                        const std::uint32_t* first_count_pairs = nullptr,
+                        std::size_t range_count = 0, bool use_solid_ranges = false);
     bool set_section_solid_ranges(const std::int32_t key[3],
                                   const std::uint32_t* first_count_pairs,
                                   std::size_t range_count);
