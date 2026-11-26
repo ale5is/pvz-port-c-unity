@@ -63,7 +63,7 @@ for marker in ("pub(crate) struct Runtime", "pavo_egl_create", "pavo_egl_swap", 
 
 runtime_resume = egl_text.split("pub(crate) fn resume", 1)[1].split("pub(crate) fn is_initialized", 1)[0]
 resume_order = ("let generation = self.egl.resume(window)?;", "if generation == self.context_generation", "self.renderer = super::gles2_native::Backend::new()?;", "self.context_generation = generation;", "self.initialized = false;")
-for marker in ("cached_assets: Option<CachedAssets>", "cached_sections: std::collections::HashMap", "sprite_pixels: sprite_pixels.to_vec()", "solid: solid.to_vec()", "self.cached_sections.retain", "for (key, section) in &self.cached_sections", "self.initialized = true;"):
+for marker in ("cached_assets: Option<CachedAssets>", "cached_sections: std::collections::HashMap", "animated_layers: std::collections::HashMap", "sprite_pixels: sprite_pixels.to_vec()", "solid: solid.to_vec()", "self.cached_sections.retain", "for (key, section) in &self.cached_sections", "for (layer, pixels) in &assets.animated_layers", "assets.lightmap.extend_from_slice(rgba)", "assets.animated_layers.insert(layer, rgba.to_vec())", "self.initialized = true;"):
     if marker not in egl_text:
         raise SystemExit(f"FAIL: GLES2 context recovery does not retain/replay CPU data: {marker}")
     print(f"PASS: context recovery cache {marker}")
