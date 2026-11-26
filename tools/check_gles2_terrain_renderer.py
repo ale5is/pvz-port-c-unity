@@ -74,9 +74,9 @@ required_source = [
     "resident_bytes_ = retained_bytes + replacement_bytes",
     "resident_bytes_ -= it->second.byte_size",
     "resident_bytes_ = 0",
-    "sections_.emplace(section_key, replacement)",
+    "sections_.try_emplace(section_key)",
     "existing->second = std::move(replacement)",
-    "sections_.emplace(section_key, std::move(replacement))",
+    "sections_.try_emplace(section_key)",
     "Not enough memory to register the resident GLES2 section",
     "Resident GLES2 section table exceeds its allocation limit",
     "void Gles2TerrainRenderer::remove_section",
@@ -204,7 +204,6 @@ required_adapter_header = [
     "bool convert_horizon_terrain_vertices(",
     "bool upload_horizon_section(",
     "bool upload_horizon_section_with_ranges(",
-    "first_count_pairs, range_count, true",
 ]
 required_adapter_source = [
     "layer_major_rgba",
