@@ -157,6 +157,7 @@ extern "C" int pavo_egl_resume(PavoEglOwner* owner, void* native_window) {
             if (owner->context != EGL_NO_CONTEXT) eglDestroyContext(owner->display, owner->context);
             const EGLint context_attributes[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
             owner->context = eglCreateContext(owner->display, owner->config, EGL_NO_CONTEXT, context_attributes);
+            if (owner->context != EGL_NO_CONTEXT) ++owner->context_generation;
             if (owner->context == EGL_NO_CONTEXT ||
                 eglMakeCurrent(owner->display, owner->surface, owner->surface, owner->context) != EGL_TRUE) {
                 fail(owner, "recreate GLES2 context");
