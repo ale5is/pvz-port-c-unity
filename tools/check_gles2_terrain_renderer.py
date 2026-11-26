@@ -12,6 +12,7 @@ cmake = (root / "CMakeLists.txt").read_text(encoding="utf-8")
 native_host = (root / "native_hud.cpp").read_text(encoding="utf-8")
 
 required_header = [
+    "bool upload_horizon_section(",
     "thread that owns the current EGL context",
     "std::thread::id owner_thread_",
     "bool owner_thread_set_ = false;",
