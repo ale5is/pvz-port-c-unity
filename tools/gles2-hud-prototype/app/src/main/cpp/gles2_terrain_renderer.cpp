@@ -796,7 +796,7 @@ bool Gles2TerrainRenderer::update_lightmap(const std::uint8_t* rgba, std::size_t
         std::snprintf(error_, sizeof(error_), "Lightmap texture update failed (GL 0x%x)", error);
         return false;
     }
-    error_[0] = '\\0';
+    error_[0] = '\0';
     return true;
 }
 
