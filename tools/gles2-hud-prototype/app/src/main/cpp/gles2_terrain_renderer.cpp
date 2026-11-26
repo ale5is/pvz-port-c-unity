@@ -451,13 +451,17 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
     }
     const std::size_t replacement_bytes = solid_bytes + translucent_bytes;
     const std::size_t previous_bytes = existing == sections_.end() ? 0 : existing->second.byte_size;
+    if (previous_bytes > resident_bytes_) {
+        std::snprintf(error_, sizeof(error_), "GLES2 resident VBO accounting is inconsistent");
+        return false;
+    }
     const std::size_t retained_bytes = resident_bytes_ - previous_bytes;
-    if (retained_bytes > kMaximumResidentBytes ||
-        replacement_bytes > kMaximumResidentBytes - retained_bytes) {
+    if (resident_bytes_ > kMaximumResidentBytes ||
+        replacement_bytes > kMaximumResidentBytes - resident_bytes_) {
         std::snprintf(error_, sizeof(error_),
-                      "GLES2 resident VBO budget exceeded: requested %zu bytes, available %zu",
-                      replacement_bytes, retained_bytes > kMaximumResidentBytes
-                          ? 0 : kMaximumResidentBytes - retained_bytes);
+                      "GLES2 temporary plus resident VBO budget exceeded: requested %zu bytes, available %zu",
+                      replacement_bytes, resident_bytes_ > kMaximumResidentBytes
+                          ? 0 : kMaximumResidentBytes - resident_bytes_);
         return false;
     }
 
