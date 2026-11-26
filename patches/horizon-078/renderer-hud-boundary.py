@@ -14,6 +14,11 @@ gfx_source = gfx.read_text(encoding="utf-8")
 game_source = game.read_text(encoding="utf-8")
 graphics_source = graphics.read_text(encoding="utf-8")
 
+method = """    /// Wait for outstanding GPU work without exposing the wgpu device to Game.
+    pub fn wait_idle(&self) {
+        let _ = self.device.poll(wgpu::PollType::wait_indefinitely());
+    }
+
 method = """    /// Install the GUI atlas state without exposing the backend device or HUD renderer.
     pub fn configure_hud(&mut self, atlas: &crate::hud::HudAtlas) {
         self.hud.sprite_animations = atlas
@@ -189,6 +194,22 @@ game_source = game_source.replace(
 
 if "renderer.drawn_sections" in game_source or "renderer.screenshot" in game_source:
     raise SystemExit("Game still accesses renderer screenshot or drawn-section storage directly")
+
+if game_source.count("previous.device.poll(wgpu::PollType::wait_indefinitely())") != 1:
+    raise SystemExit("Expected one renderer replacement wait")
+if game_source.count("r.device.poll(wgpu::PollType::wait_indefinitely())") != 1:
+    raise SystemExit("Expected one background renderer wait")
+game_source = game_source.replace(
+    "previous.device.poll(wgpu::PollType::wait_indefinitely())",
+    "previous.wait_idle()",
+)
+game_source = game_source.replace(
+    "r.device.poll(wgpu::PollType::wait_indefinitely())",
+    "r.wait_idle()",
+)
+if "previous.device" in game_source or "r.device" in game_source:
+    raise SystemExit("Game still accesses wgpu device ownership directly")
+
 
 if game_source.count("renderer.last_wait") != 2:
     raise SystemExit(f"Expected 2 renderer wait-duration reads, found {game_source.count('renderer.last_wait')}")
