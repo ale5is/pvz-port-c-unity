@@ -1,6 +1,7 @@
 #include "gles2_terrain_renderer.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <limits>
@@ -590,6 +591,16 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
     if (!check_owner_thread("draw_sections")) return;
     if (!solid_program_ || !translucent_program_ || !mvp || !camera_position ||
         !fog_color || !fog_range) return;
+    const auto finite_values = [](const float* values, std::size_t count) {
+        return std::all_of(values, values + count,
+                           [](float value) { return std::isfinite(value); });
+    };
+    if (!finite_values(mvp, 16) || !finite_values(camera_position, 3) ||
+        !finite_values(fog_color, 4) || !finite_values(fog_range, 2) ||
+        !std::isfinite(max_distance)) {
+        std::snprintf(error_, sizeof(error_), "Terrain draw parameters must contain only finite values");
+        return;
+    }
     struct VisibleSection {
         float distance_squared;
         const SectionBuffers* buffers;
