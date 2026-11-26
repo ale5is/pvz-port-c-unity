@@ -184,13 +184,20 @@ pub fn convert_vertex_with_uv_step(
     if !uv_step.is_finite() || uv_step <= 0.0 {
         return Err("terrain UV step must be finite and positive");
     }
+    if vertex.pos.iter().any(|value| !value.is_finite()) {
+        return Err("Horizon terrain position must contain only finite values");
+    }
+    let uv = vertex.uv.map(|value| f32::from(value) * uv_step);
+    if uv.iter().any(|value| !value.is_finite()) {
+        return Err("converted Horizon terrain UV must contain only finite values");
+    }
     let (atlas_origin, atlas_scale, opaque) = atlas.tile(vertex.layer)?;
     let packed_color = vertex.color.to_le_bytes();
     let emission = 15 - (packed_color[3] & 0x0f);
     let material_flags = packed_color[3] >> 4;
     Ok(Gles2TerrainVertex {
         position: vertex.pos,
-        uv: vertex.uv.map(|value| f32::from(value) * uv_step),
+        uv,
         atlas_origin,
         atlas_scale,
         color: packed_color,
@@ -758,6 +765,20 @@ mod tests {
         };
         assert!(sort_translucent_back_to_front(&mut vec![vertex; 5], [0.0; 3], [0.0; 3]).is_err());
         assert!(sort_translucent_back_to_front(&mut Vec::new(), [f32::NAN, 0.0, 0.0], [0.0; 3]).is_err());
+    }
+
+    #[test]
+    fn rejects_non_finite_horizon_positions_and_overflowed_uvs() {
+        let atlas = AtlasGrid::new(16, 1, 4096).unwrap();
+        let invalid_position = TerrainVertex::new(
+            [f32::NAN, 0.0, 0.0], [0.0, 0.0], 0, u32::MAX, 0,
+        );
+        assert!(convert_vertex(&invalid_position, &atlas).is_err());
+
+        let overflowing_uv = TerrainVertex::new(
+            [0.0; 3], [1.0, 0.0], 0, u32::MAX, 0,
+        );
+        assert!(convert_vertex_with_uv_step(&overflowing_uv, &atlas, f32::MAX).is_err());
     }
 
     #[test]
