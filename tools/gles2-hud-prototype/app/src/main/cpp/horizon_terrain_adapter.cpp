@@ -4,6 +4,8 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <new>
+#include <stdexcept>
 #include <utility>
 
 namespace pavo {
@@ -77,7 +79,15 @@ bool build_gles2_terrain_atlas(const std::uint8_t* layer_major_rgba,
     }
 
     Gles2TerrainAtlas built;
-    built.pixels.assign(atlas_bytes, 0);
+    try {
+        built.pixels.assign(atlas_bytes, 0);
+    } catch (const std::bad_alloc&) {
+        set_error(error, "Not enough memory to allocate the GLES2 terrain atlas");
+        return false;
+    } catch (const std::length_error&) {
+        set_error(error, "GLES2 terrain atlas exceeds the vector allocation limit");
+        return false;
+    }
     built.width = static_cast<int>(width);
     built.height = static_cast<int>(height);
     built.columns = static_cast<int>(columns);
@@ -147,7 +157,15 @@ bool convert_horizon_terrain_vertices(const HorizonTerrainVertex* source,
         set_error(error, "Expanded Horizon terrain mesh exceeds vector capacity");
         return false;
     }
-    converted.reserve(quad_count * 6);
+    try {
+        converted.reserve(quad_count * 6);
+    } catch (const std::bad_alloc&) {
+        set_error(error, "Not enough memory to expand the Horizon terrain mesh");
+        return false;
+    } catch (const std::length_error&) {
+        set_error(error, "Expanded Horizon terrain mesh exceeds the vector allocation limit");
+        return false;
+    }
 
     const float atlas_width = static_cast<float>(atlas.width);
     const float atlas_height = static_cast<float>(atlas.height);
