@@ -39,7 +39,7 @@ def extract(source: str, start: str, end: str, label: str) -> tuple[str, str]:
 pack_draw, entity_span = extract(
     pack_draw,
     "#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]\npub struct EntitySpan {",
-    "\n/// HzDraw size:",
+    "\n/// " + chr(96) + "HzDraw" + chr(96) + "'s size:",
     "EntitySpan",
 )
 lightning, lightning_inputs = extract(
@@ -50,7 +50,7 @@ lightning, lightning_inputs = extract(
 )
 pack_uniforms, pack_inputs = extract(
     pack_uniforms,
-    "/// What the game passes for the pack's uniforms, beyond what Frame carries.\n#[derive(Clone, Copy, Debug, Default)]\npub struct PackInputs {",
+    "/// What the game passes for the pack's uniforms, beyond what " + chr(96) + "Frame" + chr(96) + " carries.\n#[derive(Clone, Copy, Debug, Default)]\npub struct PackInputs {",
     "\n/// One uniform's value:",
     "PackInputs",
 )
