@@ -94,10 +94,10 @@ wgpu = { version = "30.0.1", default-features = false, features = ["vulkan", "gl
 client = replace_once(
     client,
     """[target.'cfg(target_os = "macos")'.dependencies]
-# Splitscreen: the window filling a monitor goes over its menu bar""",
+# Splitscreen: a window filling a monitor goes over its menu bar""",
     """[target.'cfg(target_os = "macos")'.dependencies]
 wgpu = { version = "30.0.1", default-features = false, features = ["metal"] }
-# Splitscreen: the window filling a monitor goes over its menu bar""",
+# Splitscreen: a window filling a monitor goes over its menu bar""",
     "client existing macOS dependency section",
 )
 client_manifest.write_text(client, encoding="utf-8")
