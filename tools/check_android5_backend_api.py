@@ -40,7 +40,7 @@ if '"crates/horizon-render-api"' not in workspace:
     raise SystemExit("FAIL: horizon-render-api is not a workspace member")
 if 'horizon-render-api = { path = "../horizon-render-api" }' not in render_deps:
     raise SystemExit("FAIL: horizon-client-render does not depend on the backend API")
-if "impl horizon_render_api::RenderBackend<Frame> for Renderer" not in gfx_source:
+if "impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> for Renderer" not in gfx_source:
     raise SystemExit("FAIL: existing wgpu Renderer does not implement the shared API")
 adapter = gfx_source[gfx_source.index("impl horizon_render_api::RenderBackend"):]
 for method in ("render_frame", "resize", "suspend_surface", "recreate_surface", "release_surface", "backend_info"):
