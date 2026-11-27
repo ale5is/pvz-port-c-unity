@@ -56,19 +56,13 @@ if 'is_gles: false' not in a:
         1,
     )
 
-old_metrics = """            pending_gpu_time_samples: self.gpu_times.len(),
-            integrated_gpu: self.info.device_type == wgpu::DeviceType::IntegratedGpu
-                && !self.info.name.starts_with("Apple"),
-        }"""
-new_metrics = """            pending_gpu_time_samples: self.gpu_times.len(),
-            integrated_gpu: self.info.device_type == wgpu::DeviceType::IntegratedGpu
-                && !self.info.name.starts_with("Apple"),
-            last_encode_ns: self.last_encode.as_nanos().min(u128::from(u64::MAX)) as u64,
-        }"""
 if "last_encode_ns: self.last_encode.as_nanos()" not in g:
-    if g.count(old_metrics) != 1:
+    pattern = r"(pending_gpu_time_samples:\s*self\.gpu_times\.len\(\),\s*integrated_gpu:\s*self\.info\.device_type\s*==\s*wgpu::DeviceType::IntegratedGpu\s*&&\s*!self\.info\.name\.starts_with\(\"Apple\"\),\s*)}"
+    def add_metrics(match):
+        return match.group(1) + "last_encode_ns: self.last_encode.as_nanos().min(u128::from(u64::MAX)) as u64,\n        }"
+    g, count = re.subn(pattern, add_metrics, g, count=1)
+    if count != 1:
         raise SystemExit("Could not update RendererMetrics adapter")
-    g = g.replace(old_metrics, new_metrics, 1)
 
 old_info = """            backend_name: format!("{:?}", self.info.backend),
             integrated_gpu: self.info.device_type == wgpu::DeviceType::IntegratedGpu
