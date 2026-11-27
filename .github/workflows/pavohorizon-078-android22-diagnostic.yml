@@ -20,6 +20,7 @@ on:
       - 'patches/horizon-078/renderer-frame-inputs.py'
       - 'patches/horizon-078/renderer-types-crate.py'
       - 'patches/horizon-078/renderer-backend-api.py'
+      - 'patches/horizon-078/renderer-metrics-api.py'
       - 'tools/check_android5_backend_api.py'
       - 'tools/check_android5_render_types_crate.py'
       - 'tools/check_android5_frame_contract.py'
