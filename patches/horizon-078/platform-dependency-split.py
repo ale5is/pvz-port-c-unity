@@ -18,12 +18,12 @@ client_manifest = root / "crates/horizon-client/Cargo.toml"
 android_manifest = root / "crates/horizon-android/Cargo.toml"
 
 naga_replacements = (
-    (render_manifest, 'naga = { version = "30.0.1", features = ["wgsl-in", "glsl-in", "hlsl-out"] }\\n',
-     'naga = { version = "30.0.1", features = ["wgsl-in", "glsl-in"] }\\n', "renderer HLSL compiler output"),
-    (client_manifest, 'naga = { version = "30.0.1", features = ["wgsl-in", "hlsl-out"] }\\n',
-     'naga = { version = "30.0.1", features = ["wgsl-in"] }\\n', "client HLSL compiler output"),
-    (android_manifest, 'naga = { version = "30.0.1", features = ["wgsl-in", "hlsl-out"] }\\n',
-     'naga = { version = "30.0.1", features = ["wgsl-in"] }\\n', "Android HLSL compiler output"),
+    (render_manifest, 'naga = { version = "30.0.1", features = ["wgsl-in", "glsl-in", "hlsl-out"] }\n',
+     'naga = { version = "30.0.1", features = ["wgsl-in", "glsl-in"] }\n', "renderer HLSL compiler output"),
+    (client_manifest, 'naga = { version = "30.0.1", features = ["wgsl-in", "hlsl-out"] }\n',
+     'naga = { version = "30.0.1", features = ["wgsl-in"] }\n', "client HLSL compiler output"),
+    (android_manifest, 'naga = { version = "30.0.1", features = ["wgsl-in", "hlsl-out"] }\n',
+     'naga = { version = "30.0.1", features = ["wgsl-in"] }\n', "Android HLSL compiler output"),
 )
 
 def read(path: Path) -> str:
@@ -81,17 +81,17 @@ client = replace_once(
 )
 client = replace_once(
     client,
-    '[target.\\'cfg(target_os = "android")\\'.dependencies]\\nrustix = { version = "1", default-features = false, features = ["std", "fs"] }\\n',
-    '[target.\\'cfg(target_os = "android")\\'.dependencies]\\nrustix = { version = "1", default-features = false, features = ["std", "fs"] }\\n'
-    'wgpu = { version = "30.0.1", default-features = false, features = ["gles"] }\\n',
+    '[target.\\'cfg(target_os = "android")\\'.dependencies]\nrustix = { version = "1", default-features = false, features = ["std", "fs"] }\n',
+    '[target.\\'cfg(target_os = "android")\\'.dependencies]\nrustix = { version = "1", default-features = false, features = ["std", "fs"] }\n'
+    'wgpu = { version = "30.0.1", default-features = false, features = ["gles"] }\n',
     "client Android target dependency section",
 )
 client = replace_once(
     client,
-    '[target.\\'cfg(not(target_os = "macos"))\\'.dependencies]\\n# OpenGL (WGL on Windows, EGL on Linux), the last fallback, for GPUs with no Vulkan or\\n# DirectX 12 driver (\`graphicsApi\\`, graphics.rs).\\nwgpu = { version = "30.0.1", default-features = false, features = ["gles"] }\\n',
-    '[target.\\'cfg(target_os = "linux")\\'.dependencies]\\n# Vulkan and GLES remain available to the Linux desktop client.\\n'
-    'wgpu = { version = "30.0.1", default-features = false, features = ["vulkan", "gles"] }\\n\\n'
-    '[target.\\'cfg(target_os = "macos")\\'.dependencies]\\nwgpu = { version = "30.0.1", default-features = false, features = ["metal"] }\\n',
+    '[target.\\'cfg(not(target_os = "macos"))\\'.dependencies]\n# OpenGL (WGL on Windows, EGL on Linux), the last fallback, for GPUs with no Vulkan or\n# DirectX 12 driver (\`graphicsApi\\`, graphics.rs).\nwgpu = { version = "30.0.1", default-features = false, features = ["gles"] }\n',
+    '[target.\\'cfg(target_os = "linux")\\'.dependencies]\n# Vulkan and GLES remain available to the Linux desktop client.\n'
+    'wgpu = { version = "30.0.1", default-features = false, features = ["vulkan", "gles"] }\n\n'
+    '[target.\\'cfg(target_os = "macos")\\'.dependencies]\nwgpu = { version = "30.0.1", default-features = false, features = ["metal"] }\n',
     "client non-Android GLES dependency",
 )
 client_manifest.write_text(client, encoding="utf-8")

@@ -34,7 +34,7 @@ for label, source in (("renderer", render), ("client", client)):
     print(f"PASS: {label} Android backend feature isolation")
 
 for label, source in (("renderer", render), ("client", client), ("Android cdylib", android)):
-    normal_dependencies = source.split("\\n[dev-dependencies]", 1)[0]
+    normal_dependencies = source.split("\n[dev-dependencies]", 1)[0]
     if '"hlsl-out"' in normal_dependencies:
         raise SystemExit(f"FAIL: {label} normal dependencies still enable HLSL-only shader output")
     print(f"PASS: {label} excludes HLSL-only compiler output from normal builds")
