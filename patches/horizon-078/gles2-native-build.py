@@ -569,7 +569,8 @@ impl Runtime {
     }
 
     /// Release only the native window surface; retain the context and GPU objects when possible.
-    pub(crate) fn suspend(&mut self) -> Result<(), String> {
+    pub(crate) fn suspend(&mut self, generation: WindowGeneration) -> Result<(), String> {
+        self.ensure_window_generation(generation)?;
         if !self.surface_attached {
             return Ok(());
         }
@@ -580,7 +581,8 @@ impl Runtime {
 
     /// Reattach to the resumed Android window. If EGL had to recreate its context,
     /// replace the invalid GL backend and require the caller to upload assets again.
-    pub(crate) fn resume(&mut self, window: &Window) -> Result<bool, String> {
+    pub(crate) fn resume(&mut self, generation: WindowGeneration, window: &Window) -> Result<bool, String> {
+        self.ensure_window_generation(generation)?;
         if self.surface_attached {
             return Ok(false);
         }
