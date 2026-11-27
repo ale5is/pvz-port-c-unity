@@ -335,3 +335,38 @@ Workflow run [#277](https://github.com/ale5is/pvz-port-c-unity/actions/runs/4586
 
 The workflow's manual-only steps were skipped, not passed: Mojang manifest preparation, official game-resource preparation, diagnostic APK build, and artifact upload. The Rust build emitted dead-code warnings for the EGL owner/runtime entry points, confirming that these APIs are linked but not yet called by the launcher/game. This run does not establish an APK, a GLES2 frame, or gameplay on hardware.
 
+## Verified application transition trace (follow-up audit)
+
+The concrete Android application path has an additional constraint beyond the initial renderer inventory:
+
+1. `Launcher::open()` creates the winit `Window`, calls `game::loading_renderer(...)`, and stores `Option<Renderer>`. This is the installer/launcher renderer, not the later world renderer.
+2. In the pinned game application, `Loading::resumed()` creates the loading renderer through `loading_renderer(...)`. `Loading::set_ui()` may update that renderer in place or create it again if it does not exist.
+3. Once pack resources are ready, `Loading::start_renderer_job()` takes `previous.background_context()`, waits for the previous wgpu device, and on Android GL may call `previous.suspend_surface()`. It then starts a named background thread which calls `Renderer::new_with_context(..., Some(context), ...)`. This is an intentional wgpu resource/context handoff, not an EGL/GLES2 handoff.
+4. The loading-to-game transition transfers the completed concrete `Renderer`, the same `Window`, and GUI resources into `Game`; it does not call a backend-neutral renderer factory.
+5. Android pause/resume is handled by both `Loading` and `Game`: the former suspends/recreates its wgpu surface (except while its GL renderer job is active), and the latter calls `Renderer::suspend_surface()` / `recreate_surface()`.
+
+### Consequences for the GLES2 integration
+
+- The existing GLES2 `Runtime::new(&Window)` creates an EGL window surface immediately. It must not be called while either the launcher or loading wgpu renderer still owns a presentation surface for that native window.
+- The current background renderer worker is not a valid place to create/use `Runtime`: the EGL owner and GLES2 backend explicitly bind themselves to the creating thread, while winit window lifecycle callbacks and presentation remain on the application event thread.
+- Reusing `background_context()` for GLES2 is invalid. It is a wgpu-specific resource-sharing object and cannot carry an EGL context or GLES2 objects.
+- Keeping the launcher on wgpu and using GLES2 only for the world is a possible staged migration, but requires a serialized handoff: stop submissions, wait for wgpu work, release the wgpu surface and all references that prevent safe window-surface transfer, create EGL on the event thread, then initialize GLES2 from owned CPU assets. On return to the launcher, destroy/abandon GLES2 before recreating the wgpu surface.
+- The current `Game.renderer: Option<Renderer>` and `Loading.renderer: Option<Renderer>` types prevent that split backend arrangement. Their methods, resource replacement, timing/diagnostics, screenshot and section-streaming call sites still need an explicit backend-neutral interface or a staged Android-specific game path.
+
+### Required state machine before enabling GLES2
+
+The Android event-thread owner must enforce the following states and reject out-of-order transitions:
+
+| State | Allowed presentation owner | Required action |
+|---|---|---|
+| Launcher | wgpu launcher renderer | Normal launcher frames; no EGL surface |
+| Preparing world | wgpu loading renderer, then no surface during handoff | Stop new frames, wait idle, suspend/release wgpu surface |
+| World GLES2 | GLES2 Runtime only | Create EGL, initialize retained CPU assets, render and present on event thread |
+| Android suspended | none | Suspend EGL and release the native window reference before it becomes invalid |
+| World resumed | GLES2 Runtime only | Reattach EGL; if context generation changed, rebuild GPU objects from retained CPU assets |
+| Returning to launcher | no owner during transfer | Stop GLES2, destroy EGL surface/context, then recreate wgpu launcher surface |
+
+A transition must not report success until the old owner has relinquished its surface and the new owner has successfully attached. Failure during acquisition must leave a defined no-surface state and must not silently reactivate the other renderer.
+
+This audit is based on the pinned upstream source at `68a2c4dd1b9a9e511ad3758a79ab772b6f9e5b29`. It refines the integration design; it does not claim that the application has been migrated or that the target TV has been tested.
+
