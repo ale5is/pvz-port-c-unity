@@ -49,6 +49,18 @@ if "pub backend_name: String" not in a:
 elif "pub is_gles: bool" not in a:
     a = a.replace("    pub integrated_gpu: bool,\n    pub suspended: bool,", "    pub integrated_gpu: bool,\n    pub is_gles: bool,\n    pub suspended: bool,", 1)
 
+test_old = """            name: "OpenGL ES 2.0".to_owned(),
+            suspended: false,"""
+test_new = """            name: "OpenGL ES 2.0".to_owned(),
+            backend_name: "EGL/GLES2".to_owned(),
+            integrated_gpu: true,
+            is_gles: true,
+            suspended: false,"""
+if 'backend_name: "EGL/GLES2"' not in a:
+    if a.count(test_old) != 1:
+        raise SystemExit("BackendInfo test fixture changed")
+    a = a.replace(test_old, test_new, 1)
+
 if 'is_gles: false' not in a:
     a = a.replace(
         '            integrated_gpu: true,\n            suspended: false,',
