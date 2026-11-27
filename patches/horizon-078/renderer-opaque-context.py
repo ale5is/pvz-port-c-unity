@@ -148,7 +148,7 @@ trait_impl_start = gfx_text.find("impl<'frame> horizon_render_api::RenderBackend
 if trait_impl_start < 0:
     raise SystemExit("Could not locate the wgpu RenderBackend implementation")
 trait_impl = gfx_text[trait_impl_start:]
-trait_method = "    fn replacement_context(\\n        &self,\\n    ) -> std::result::Result<horizon_render_api::BackendContext, horizon_render_api::RenderBackendError> {"
+trait_method = "    fn replacement_context(\n        &self,\n    ) -> std::result::Result<horizon_render_api::BackendContext, horizon_render_api::RenderBackendError> {"
 if trait_method not in trait_impl:
     if trait_impl.count(impl_anchor) != 1:
         raise SystemExit("Could not uniquely locate RenderBackend::backend_info for context adapter")

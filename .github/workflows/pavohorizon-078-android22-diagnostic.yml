@@ -34,6 +34,7 @@ on:
       - 'patches/horizon-078/renderer-capabilities-api.py'
       - 'patches/horizon-078/renderer-feature-api.py'
       - 'patches/horizon-078/renderer-visible-block-entities.py'
+      - 'patches/horizon-078/renderer-opaque-context.py'
       - 'tools/check_android5_renderer_features.py'
       - 'tools/check_android5_renderer_visible_block_entities.py'
       - 'patches/horizon-078/renderer-opaque-context.py'
