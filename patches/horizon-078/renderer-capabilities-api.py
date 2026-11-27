@@ -81,6 +81,26 @@ if "is_gles: self.info.backend" not in g:
         raise SystemExit("Could not update BackendInfo adapter")
     g = g.replace(old_info, new_info, 1)
 
+if "pub fn backend_info(&self)" not in g:
+    marker = "    /// Request a screenshot without exposing the renderer's internal slot."
+    backend_method = """    /// Return stable adapter identity without exposing wgpu's AdapterInfo type.
+    pub fn backend_info(&self) -> horizon_render_api::BackendInfo {
+        horizon_render_api::BackendInfo {
+            kind: horizon_render_api::BackendKind::Wgpu,
+            name: self.info.name.clone(),
+            backend_name: format!("{:?}", self.info.backend),
+            integrated_gpu: self.info.device_type == wgpu::DeviceType::IntegratedGpu
+                && !self.info.name.starts_with("Apple"),
+            is_gles: self.info.backend == wgpu::Backend::Gl,
+            suspended: self.suspended,
+        }
+    }
+
+"""
+    if g.count(marker) != 1:
+        raise SystemExit("Could not locate backend info insertion point")
+    g = g.replace(marker, backend_method + marker, 1)
+
 if "pub fn gpu_time_samples(&self)" not in g:
     marker = "    /// Request a screenshot without exposing the renderer's internal slot."
     methods = """    /// Read timing samples through a backend-neutral slice.
