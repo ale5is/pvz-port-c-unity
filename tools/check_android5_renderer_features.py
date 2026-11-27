@@ -34,6 +34,23 @@ for marker in wgpu_methods:
     if gfx.count(marker) != 1:
         raise SystemExit(f"FAIL: wgpu adapter missing or duplicated: {marker}")
 
+trait_impl_anchor = "impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> for Renderer {"
+trait_start = gfx.find(trait_impl_anchor)
+if trait_start < 0:
+    raise SystemExit("FAIL: exact wgpu RenderBackend implementation not found")
+next_impl = gfx.find("\\nimpl ", trait_start + len(trait_impl_anchor))
+trait_body = gfx[trait_start:next_impl if next_impl >= 0 else len(gfx)]
+for marker in (
+    "fn native_shadow(&self) -> bool {",
+    "fn wants_water_plane(&self) -> bool {",
+    "fn display_changed(&mut self) -> bool {",
+    "fn invalidate_menu_blur(&mut self) {",
+    "fn has_cached_menu_blur(&self, radius: f32) -> bool {",
+    "fn set_gpu_timing(&mut self, enabled: bool) {",
+):
+    if trait_body.count(marker) != 1:
+        raise SystemExit(f"FAIL: wgpu RenderBackend implementation lacks or duplicates {marker}")
+
 game_calls = (
     "RenderBackend::native_shadow(r)",
     "RenderBackend::wants_water_plane(r)",

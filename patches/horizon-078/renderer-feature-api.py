@@ -66,14 +66,21 @@ impl_methods = """    fn native_shadow(&self) -> bool {
     }
 
 """
-if "fn native_shadow(&self) -> bool {" not in g:
-    if g.count(impl_anchor) != 1:
-        raise SystemExit("Could not uniquely locate wgpu RenderBackend implementation")
-    g = g.replace(impl_anchor, impl_methods + impl_anchor, 1)
+trait_impl_anchor = "impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> for Renderer {"
+trait_start = g.find(trait_impl_anchor)
+if trait_start < 0:
+    raise SystemExit("Could not locate exact wgpu RenderBackend implementation")
+next_impl = g.find("\\nimpl ", trait_start + len(trait_impl_anchor))
+trait_end = next_impl if next_impl >= 0 else len(g)
+trait_body = g[trait_start:trait_end]
+if "fn native_shadow(&self) -> bool {" not in trait_body:
+    if trait_body.count(impl_anchor) != 1:
+        raise SystemExit("Could not uniquely locate backend_info inside wgpu RenderBackend implementation")
+    g = g[:trait_start] + trait_body.replace(impl_anchor, impl_methods + impl_anchor, 1) + g[trait_end:]
 else:
     for marker in ("fn wants_water_plane(&self) -> bool {", "fn display_changed(&mut self) -> bool {", "fn invalidate_menu_blur(&mut self) {", "fn has_cached_menu_blur(&self, radius: f32) -> bool {", "fn set_gpu_timing(&mut self, enabled: bool) {"):
-        if marker not in g:
-            raise SystemExit(f"Existing wgpu feature adapter is incomplete: {marker}")
+        if marker not in trait_body:
+            raise SystemExit(f"Existing wgpu feature adapter is incomplete inside RenderBackend: {marker}")
 
 replacements = (
     ("r.native_shadow()", "horizon_render_api::RenderBackend::native_shadow(r)"),
