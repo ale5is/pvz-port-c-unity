@@ -34,3 +34,10 @@ The independent `horizon-render-api` crate now defines `WindowGeneration` and `W
 The CI checks validate the extracted CPU-only frame source, the new wgpu-free render-types crate and its vertex/screen/HUD layout tests, native GLES2 terrain/HUD adapters, EGL lifecycle code and ARMv7 library linkage. They do not establish a complete GLES2 frame renderer, a playable APK or a successful run on the Philips MT5861 TV.
 
 `tools/check_android5_render_crate_boundary.py` intentionally reports the remaining crate-level wgpu dependency as a blocker while passing the current source-level checks. This prevents the extracted file from being described as a fully independent renderer contract.
+
+
+## Renderer status extraction
+
+The next migration step adds `RendererMetrics` to `horizon-render-api`. The wgpu adapter now reports drawable dimensions, suspended state, rendered-section count, pending-screenshot state, last GPU/display wait in nanoseconds, and the count of unread GPU timing samples through a backend-neutral value type. The Game call sites use this snapshot for window sizing, automatic world-icon screenshot gating, upload budgeting, and Android pause checks. Screenshot requests are sent through a method rather than writing the renderer's private request slot directly.
+
+This is deliberately not presented as full backend polymorphism: the Game still has a concrete `Renderer` owner, GPU adapter information and timing-vector draining still need extraction, and loading/world asset handoff still uses wgpu-owned resources. The snapshot is a narrow seam that can be implemented by GLES2 without inventing fake wgpu fields.

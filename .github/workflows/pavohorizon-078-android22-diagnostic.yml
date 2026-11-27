@@ -172,6 +172,9 @@ jobs:
         working-directory: ${{ runner.temp }}/horizon-078
         run: cargo test -p horizon-render-api
 
+      - name: Move renderer status behind backend-neutral metrics
+        run: python3 patches/horizon-078/renderer-metrics-api.py "$RUNNER_TEMP/horizon-078"
+
       - name: Audit the crate-level renderer backend boundary
         run: python3 tools/check_android5_render_crate_boundary.py "$RUNNER_TEMP/horizon-078"
 
