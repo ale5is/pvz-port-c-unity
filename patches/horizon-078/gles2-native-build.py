@@ -42,7 +42,7 @@ if render_api_dep not in cargo_text:
     cargo_text = cargo_text.replace(dependency_anchor, dependency_anchor + render_api_dep)
 build_dep = '[build-dependencies]\ncc = "1.2"\n'
 if "[build-dependencies]" not in cargo_text:
-    cargo.write_text(cargo_text.rstrip() + "\n\n" + build_dep, encoding="utf-8")
+    cargo_text = cargo_text.rstrip() + "\n\n" + build_dep
 elif 'cc = "1.2"' not in cargo_text:
     raise SystemExit("horizon-android already has build-dependencies without the expected cc pin")
 cargo.write_text(cargo_text.rstrip() + "\n", encoding="utf-8")
@@ -543,7 +543,7 @@ impl Runtime {
     }
 
     pub(crate) fn initialize(
-        &mut self, sprite_pixels: &[u8], layers: usize, sprite_size: i32,
+        &mut self, generation: WindowGeneration, sprite_pixels: &[u8], layers: usize, sprite_size: i32,
         lightmap: &[u8], lightmap_width: i32, lightmap_height: i32, uv_steps: f32,
     ) -> Result<(), String> {
         self.ensure_window_generation(generation)?;
@@ -562,7 +562,7 @@ impl Runtime {
             animated_layers: std::collections::HashMap::new(),
         };
         self.egl.make_current()?;
-        self.renderer.initialize(sprite_pixels, layers, sprite_size,
+        self.renderer.initialize(generation, sprite_pixels, layers, sprite_size,
             lightmap, lightmap_width, lightmap_height, uv_steps)?;
         self.cached_assets = Some(cached_assets);
         self.initialized = true;
@@ -603,7 +603,7 @@ impl Runtime {
         if let Some(assets) = self.cached_assets.as_ref() {
             let restore = (|| -> Result<(), String> {
                 self.renderer.initialize(
-                    &assets.sprite_pixels, assets.layers, assets.sprite_size,
+                    self.window_generation.active(), &assets.sprite_pixels, assets.layers, assets.sprite_size,
                     &assets.lightmap, assets.lightmap_width, assets.lightmap_height, assets.uv_steps,
                 )?;
                 for (layer, pixels) in &assets.animated_layers {
