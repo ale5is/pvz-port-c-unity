@@ -231,6 +231,17 @@ impl Backend {
         lightmap: &[u8], lightmap_width: i32, lightmap_height: i32, uv_steps: f32,
     ) -> Result<(), String> {
         let handle = self.check_owner()?;
+        if layers == 0 || sprite_size <= 0 {
+            return Err("Sprite atlas requires at least one layer and a positive sprite size".to_owned());
+        }
+        let expected_sprite_bytes = layers
+            .checked_mul(sprite_size as usize)
+            .and_then(|edge| edge.checked_mul(sprite_size as usize))
+            .and_then(|pixels| pixels.checked_mul(4))
+            .ok_or_else(|| "Sprite atlas dimensions overflow".to_owned())?;
+        if sprite_pixels.len() != expected_sprite_bytes {
+            return Err("Sprite atlas must contain exactly layers × size × size × 4 RGBA bytes".to_owned());
+        }
         let expected = (lightmap_width as usize)
             .checked_mul(lightmap_height as usize)
             .and_then(|pixels| pixels.checked_mul(4))
