@@ -6,6 +6,8 @@ on:
       - port/android-5-low-end
     paths:
       - 'tools/android5_patch.py'
+      - 'patches/horizon-078/platform-dependency-split.py'
+      - 'tools/check_android5_platform_dependencies.py'
       - 'patches/horizon-078/gles2-native-build.py'
       - 'tools/check_android5_native_gles2_link.py'
       - 'tools/gles2-hud-prototype/app/src/main/cpp/horizon_gles2_bridge.*'
@@ -124,6 +126,11 @@ jobs:
 
       - name: Apply limited Android 5 diagnostic patch
         run: python3 tools/android5_patch.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Split GPU dependencies by target platform
+        run: |
+          python3 patches/horizon-078/platform-dependency-split.py "$RUNNER_TEMP/horizon-078"
+          python3 tools/check_android5_platform_dependencies.py "$RUNNER_TEMP/horizon-078"
 
       - name: Link reusable GLES2 backend into Horizon Android cdylib
         run: python3 patches/horizon-078/gles2-native-build.py "$RUNNER_TEMP/horizon-078"
