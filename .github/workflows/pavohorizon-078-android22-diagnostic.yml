@@ -22,8 +22,6 @@ on:
       - 'patches/horizon-078/renderer-backend-api.py'
       - 'patches/horizon-078/renderer-metrics-api.py'
       - 'patches/horizon-078/renderer-capabilities-api.py'
-      - 'patches/horizon-078/renderer-hud-owner.py'
-      - 'tools/check_android5_renderer_hud_owner.py'
       - 'tools/check_android5_renderer_capabilities.py'
       - 'tools/check_android5_backend_api.py'
       - 'tools/check_android5_render_types_crate.py'
@@ -189,10 +187,6 @@ jobs:
         working-directory: ${{ runner.temp }}/horizon-078
         run: cargo test -p horizon-render-api
 
-      - name: Move HUD atlas GPU setup behind renderer ownership
-        run: |
-          python3 patches/horizon-078/renderer-hud-owner.py "$RUNNER_TEMP/horizon-078"
-          python3 tools/check_android5_renderer_hud_owner.py "$RUNNER_TEMP/horizon-078"
 
       - name: Audit the crate-level renderer backend boundary
         run: python3 tools/check_android5_render_crate_boundary.py "$RUNNER_TEMP/horizon-078"
