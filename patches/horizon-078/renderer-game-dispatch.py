@@ -17,9 +17,9 @@ for marker in ("pub trait RenderBackend<Frame>", "fn render_frame(", "fn resize(
         raise SystemExit(f"Backend render contract is incomplete: {marker}")
 
 normal = "renderer.render(&frame)"
-normal_new = "horizon_render_api::RenderBackend::render_frame(renderer, &frame)"
+normal_new = "horizon_render_api::RenderBackend::render_frame(renderer, &frame).map_err(|error| Box::new(error) as Box<dyn std::error::Error>)"
 loading = "return renderer.render(&loading_frame(&hud));"
-loading_new = "return horizon_render_api::RenderBackend::render_frame(renderer, &loading_frame(&hud));"
+loading_new = "return horizon_render_api::RenderBackend::render_frame(renderer, &loading_frame(&hud)).map_err(|error| Box::new(error) as Box<dyn std::error::Error>);"
 normal_count = game_text.count(normal)
 loading_count = game_text.count(loading)
 if normal_count not in (0, 2) or loading_count not in (0, 5):
