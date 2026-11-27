@@ -491,8 +491,8 @@ bool Gles2TerrainRenderer::upload_buffer(GLuint* buffer, GLsizei* vertex_count,
         glBindBuffer(GL_ARRAY_BUFFER, replacement_buffer);
         glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(count * sizeof(Gles2TerrainVertex)),
                      vertices, GL_STATIC_DRAW);
-        error = glGetError();
     }
+    error = glGetError();
     if (error != GL_NO_ERROR) {
         std::snprintf(error_, sizeof(error_), "Terrain VBO upload failed: 0x%x", error);
         glDeleteBuffers(1, &replacement_buffer);
