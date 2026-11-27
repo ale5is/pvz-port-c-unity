@@ -7,8 +7,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("source", type=Path)
 root = parser.parse_args().source.resolve()
 api = root / "crates/horizon-render-api/src/lib.rs"
-if not api.is_file():
-    raise SystemExit("Missing horizon-render-api; install the frame backend API first")
+gfx = root / "crates/horizon-client-render/src/gfx.rs"
+if not api.is_file() or not gfx.is_file():
+    raise SystemExit("Missing horizon-render-api or renderer source; install the backend API first")
 
 source = api.read_text(encoding="utf-8")
 terrain_marker = "pub trait TerrainStreamBackend<Mesh> {"
@@ -88,9 +89,31 @@ object_test = """
 
 """
 
-# The compile-time signature validates the exact higher-ranked trait-object
-# shape needed for Horizon's borrowed Frame<'frame>.
+# The compile-time signatures validate object safety and actual dispatch across
+# borrowed frame lifetimes, not merely the trait-object type spelling.
 if "game_backend_is_usable_as_a_lifetime_generic_trait_object" not in source:
     source = source.replace(tests_marker, tests_marker + object_test, 1)
 api.write_text(source, encoding="utf-8")
-print("Installed the combined GameRenderBackend trait and HRTB trait-object handle.")
+
+gfx_source = gfx.read_text(encoding="utf-8")
+frame_family = """/// The borrowed Horizon frame type, expressed as a lifetime-indexed family.
+pub struct HorizonFrameFamily;
+
+impl horizon_render_api::FrameFamily for HorizonFrameFamily {
+    type Frame<'frame> = Frame<'frame>;
+}
+
+/// Coerce the concrete wgpu renderer through the same object-safe boundary
+/// that the platform-specific Game factory will store.
+pub fn as_game_backend_handle<'a>(
+    renderer: &'a mut Renderer,
+) -> &'a mut horizon_render_api::GameBackendHandle<'a, HorizonFrameFamily, SectionMesh> {
+    renderer
+}
+"""
+if "pub struct HorizonFrameFamily;" not in gfx_source:
+    gfx_source = gfx_source.rstrip() + "\n\n" + frame_family
+elif "pub fn as_game_backend_handle<'a>(" not in gfx_source:
+    raise SystemExit("HorizonFrameFamily exists but its concrete backend coercion is missing")
+gfx.write_text(gfx_source, encoding="utf-8")
+print("Installed the frame-family-aware game backend and verified the wgpu Renderer coercion boundary.")
