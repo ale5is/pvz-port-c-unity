@@ -97,15 +97,17 @@ pub fn animation_blend_changed(last: Option<&FrameBlend>, current: &FrameBlend) 
 pub struct Gles2SpriteAnimationTracker {
     last_blends: HashMap<u32, FrameBlend>,
     pending_blends: Vec<(u32, FrameBlend)>,
+    pending_commit: bool,
 }
 
 impl Gles2SpriteAnimationTracker {
-    /// Collect the changed animation layers for one Horizon tick.
+    /// Collect changed layers for one Horizon tick without acknowledging them.
     ///
-    /// The output vector is caller-owned and should be retained between frames
-    /// to reuse its allocation. State is committed only after every changed
-    /// layer has been converted successfully; on error, output is empty and
-    /// the same tick can safely be retried.
+    /// The caller must upload every returned layer on the EGL owner thread and
+    /// call commit_updates() only after all uploads succeed. If any upload
+    /// fails, call abort_updates(); the next collection will resend every
+    /// unacknowledged layer. This prevents a transient EGL/GL error from
+    /// permanently suppressing an animation update.
     pub fn collect_updates(
         &mut self,
         animations: &[SpriteAnimation],
@@ -113,6 +115,9 @@ impl Gles2SpriteAnimationTracker {
         output: &mut Vec<AnimatedSpriteUpdate>,
     ) -> Result<(), &'static str> {
         output.clear();
+        if self.pending_commit {
+            return Err("previous GLES2 animation updates must be committed or aborted first");
+        }
         self.pending_blends.clear();
         self.pending_blends.try_reserve(animations.len())
             .map_err(|_| "not enough memory to track GLES2 sprite animation frames")?;
@@ -135,19 +140,33 @@ impl Gles2SpriteAnimationTracker {
                 }
             }
         }
+        self.pending_commit = true;
+        Ok(())
+    }
 
+    /// Acknowledge the batch only after every GLES2 atlas upload has succeeded.
+    pub fn commit_updates(&mut self) {
+        if !self.pending_commit {
+            return;
+        }
         self.last_blends.clear();
         for (layer, blend) in self.pending_blends.drain(..) {
             self.last_blends.insert(layer, blend);
         }
-        Ok(())
+        self.pending_commit = false;
+    }
+
+    /// Keep the previous acknowledged state so failed uploads are retried.
+    pub fn abort_updates(&mut self) {
+        self.pending_blends.clear();
+        self.pending_commit = false;
     }
 
     /// Force the next collection to resend every animation layer, for example
     /// after EGL context loss or atlas recreation.
     pub fn reset(&mut self) {
         self.last_blends.clear();
-        self.pending_blends.clear();
+        self.abort_updates();
     }
 
     pub fn tracked_layers(&self) -> usize {
@@ -864,12 +883,45 @@ mod tests {
     }
 
     #[test]
+    fn animation_tracker_commits_only_after_successful_upload_acknowledgement() {
+        let mut tracker = Gles2SpriteAnimationTracker::default();
+        let blend = FrameBlend { frame: 2, next: 3, millis: 125 };
+        tracker.pending_blends.push((7, blend));
+        tracker.pending_commit = true;
+
+        assert_eq!(tracker.tracked_layers(), 0);
+        tracker.commit_updates();
+        assert_eq!(tracker.tracked_layers(), 1);
+        assert_eq!(tracker.last_blends.get(&7), Some(&blend));
+        assert!(!tracker.pending_commit);
+    }
+
+    #[test]
+    fn animation_tracker_abort_preserves_old_state_for_retry() {
+        let mut tracker = Gles2SpriteAnimationTracker::default();
+        let old = FrameBlend { frame: 0, next: 1, millis: 0 };
+        let failed = FrameBlend { frame: 1, next: 2, millis: 250 };
+        tracker.last_blends.insert(7, old);
+        tracker.pending_blends.push((7, failed));
+        tracker.pending_commit = true;
+
+        tracker.abort_updates();
+        assert_eq!(tracker.last_blends.get(&7), Some(&old));
+        assert!(tracker.pending_blends.is_empty());
+        assert!(!tracker.pending_commit);
+    }
+
+    #[test]
     fn animation_tracker_reset_contract_is_explicit() {
         let mut tracker = Gles2SpriteAnimationTracker::default();
         tracker.last_blends.insert(7, FrameBlend { frame: 0, next: 0, millis: 0 });
+        tracker.pending_blends.push((8, FrameBlend { frame: 1, next: 1, millis: 0 }));
+        tracker.pending_commit = true;
         assert_eq!(tracker.tracked_layers(), 1);
         tracker.reset();
         assert_eq!(tracker.tracked_layers(), 0);
+        assert!(tracker.pending_blends.is_empty());
+        assert!(!tracker.pending_commit);
     }
 
     #[test]
