@@ -275,7 +275,7 @@ else:
     hud, hud_blend = extract_hud_block(
         hud,
         "/// How a run of HUD vertices blends and tests depth.\n#[derive(Clone, Copy, PartialEq, Eq, Debug)]\npub enum Blend {",
-        "\n/// What a Blend::EndPortal fill samples:",
+        "\n/// What a `Blend::EndPortal` fill samples:",
         "HUD blend modes",
     )
     hud, hud_portal = extract_hud_block(
