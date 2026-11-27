@@ -244,6 +244,7 @@ jobs:
       - name: Move camera frustum and AABB culling behind the backend contract
         run: |
           python3 patches/horizon-078/renderer-frustum-api.py "$RUNNER_TEMP/horizon-078"
+          python3 patches/horizon-078/renderer-frustum-followup.py "$RUNNER_TEMP/horizon-078"
           python3 tools/check_android5_renderer_frustum.py "$RUNNER_TEMP/horizon-078"
 
       - name: Install opaque renderer replacement context

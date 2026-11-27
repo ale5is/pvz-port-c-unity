@@ -26,6 +26,13 @@ if "v.intersects((o - glam::Vec3::ONE).to_array(), (o + glam::Vec3::splat(2.0)).
     raise SystemExit("FAIL: Game's block-entity AABB margin changed")
 if "pub struct Frustum" in gfx or "horizon_client::gfx::Frustum" in game:
     raise SystemExit("FAIL: concrete renderer still owns the shared Frustum type")
+resident = (root / "crates/horizon-client-render/src/gfx/resident.rs").read_text(encoding="utf-8")
+if "Frustum {" in gfx or "Frustum {" in resident:
+    raise SystemExit("FAIL: renderer or resident tests still construct local Frustum literals")
+if "Frustum::intersects(self, min.to_array(), max.to_array())" not in gfx:
+    raise SystemExit("FAIL: culling adapter does not convert coordinates at the neutral boundary")
+if "frustum.contains(min.to_array(), (top + Vec3::splat(16.0)).to_array())" not in resident:
+    raise SystemExit("FAIL: resident containment test does not use neutral coordinate arrays")
 for forbidden in ("wgpu::", "winit::", "glam::", "EGLDisplay", "EGLContext", "GLuint"):
     if forbidden in api:
         raise SystemExit(f"FAIL: RenderBackend leaks implementation dependency: {forbidden}")
