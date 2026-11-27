@@ -36,7 +36,7 @@ if normal in game_text or loading in game_text:
     raise SystemExit("Game still submits a frame through the concrete renderer API")
 game.write_text(game_text, encoding="utf-8")
 none_old = 'None => Err("renderer".into()),'
-none_new = 'None => Err(horizon_render_api::RenderBackendError::new("renderer")),'
+none_new = 'None => Err(Box::new(horizon_render_api::RenderBackendError::new("renderer")) as Box<dyn std::error::Error>),'
 if game_text.count(none_old) != 1:
     raise SystemExit(f"Expected one missing-renderer error branch, got {game_text.count(none_old)}")
 game_text = game_text.replace(none_old, none_new)
