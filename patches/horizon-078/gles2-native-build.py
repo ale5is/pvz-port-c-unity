@@ -233,7 +233,7 @@ impl Backend {
     }
 
     pub(crate) fn initialize(
-        &mut self, sprite_pixels: &[u8], layers: usize, sprite_size: i32,
+        &mut self, generation: WindowGeneration, sprite_pixels: &[u8], layers: usize, sprite_size: i32,
         lightmap: &[u8], lightmap_width: i32, lightmap_height: i32, uv_steps: f32,
     ) -> Result<(), String> {
         let handle = self.check_owner()?;
@@ -545,6 +545,7 @@ impl Runtime {
         &mut self, sprite_pixels: &[u8], layers: usize, sprite_size: i32,
         lightmap: &[u8], lightmap_width: i32, lightmap_height: i32, uv_steps: f32,
     ) -> Result<(), String> {
+        self.ensure_window_generation(generation)?;
         self.ensure_surface_attached()?;
         let mut cached_sprites = Vec::new();
         cached_sprites.try_reserve_exact(sprite_pixels.len())

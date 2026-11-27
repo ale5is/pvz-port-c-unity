@@ -141,7 +141,7 @@ require(
 )
 runtime_start = generator_text.index("pub(crate) struct Runtime")
 runtime_source = generator_text[runtime_start:]
-for method in ("begin_frame", "upload_horizon_section", "upload_section", "remove_column", "clear_sections", "draw_sections", "present", "update_lightmap", "update_atlas_layer"):
+for method in ("initialize", "begin_frame", "upload_horizon_section", "upload_section", "remove_column", "clear_sections", "draw_sections", "present", "update_lightmap", "update_atlas_layer"):
     start = runtime_source.find(f"pub(crate) fn {method}(")
     if start < 0:
         raise SystemExit(f"FAIL: missing generation-aware Runtime::{method}")
@@ -150,6 +150,13 @@ for method in ("begin_frame", "upload_horizon_section", "upload_section", "remov
     if "self.ensure_window_generation(generation)?;" not in first_statement:
         raise SystemExit(f"FAIL: Runtime::{method} must reject stale window work before touching EGL/GL")
     print(f"PASS: Runtime::{method} rejects stale window generations")
+require(
+    generator_text,
+    "Generated terrain adapter forwards the same window generation after CPU staging",
+    (
+        "self.upload_section(generation, key, solid, translucent, ranges)",
+    ),
+)
 require(
     generator_text,
     "Generated Runtime rejects GL work while the Android window surface is detached",
