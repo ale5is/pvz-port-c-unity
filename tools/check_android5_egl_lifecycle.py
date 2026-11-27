@@ -139,8 +139,26 @@ require(
         "GLES2 assets must be initialized before presenting a frame",
     ),
 )
-if generator_text.count("self.ensure_surface_attached()?;") != 9:
-    raise SystemExit("FAIL: every EGL make-current, frame-begin and present path must guard surface attachment")
+if generator_text.count("self.ensure_surface_attached()?;") != 10:
+    raise SystemExit("FAIL: every EGL make-current, frame-begin, present and CPU staging path must guard surface attachment")
+
+runtime_start = generator_text.index("pub(crate) struct Runtime")
+runtime = generator_text[runtime_start:]
+for method, signature in (
+    ("initialize", "    pub(crate) fn initialize("),
+    ("upload_horizon_section", "    pub(crate) fn upload_horizon_section("),
+    ("upload_section", "    pub(crate) fn upload_section("),
+    ("update_lightmap", "    pub(crate) fn update_lightmap("),
+    ("update_atlas_layer", "    pub(crate) fn update_atlas_layer("),
+):
+    start = runtime.find(signature)
+    if start < 0:
+        raise SystemExit(f"FAIL: missing Runtime::{method}")
+    body = runtime.find("{", start)
+    first_statement = runtime[body + 1:body + 100]
+    if "self.ensure_surface_attached()?;" not in first_statement:
+        raise SystemExit(f"FAIL: Runtime::{method} must reject a detached EGL surface before CPU staging allocations")
+    print(f"PASS: Runtime::{method} guards before CPU staging allocations")
 
 require(
     generator_text,

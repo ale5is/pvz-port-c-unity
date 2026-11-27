@@ -508,6 +508,7 @@ impl Runtime {
         &mut self, sprite_pixels: &[u8], layers: usize, sprite_size: i32,
         lightmap: &[u8], lightmap_width: i32, lightmap_height: i32, uv_steps: f32,
     ) -> Result<(), String> {
+        self.ensure_surface_attached()?;
         let mut cached_sprites = Vec::new();
         cached_sprites.try_reserve_exact(sprite_pixels.len())
             .map_err(|_| "Not enough memory to retain GLES2 atlas for context recovery".to_owned())?;
@@ -521,7 +522,6 @@ impl Runtime {
             lightmap: Arc::from(cached_lightmap), lightmap_width, lightmap_height, uv_steps,
             animated_layers: std::collections::HashMap::new(),
         };
-        self.ensure_surface_attached()?;
         self.egl.make_current()?;
         self.renderer.initialize(sprite_pixels, layers, sprite_size,
             lightmap, lightmap_width, lightmap_height, uv_steps)?;
@@ -602,6 +602,7 @@ impl Runtime {
         mesh: &horizon_client::mesher::SectionMesh,
         eye_in_section: [f32; 3],
     ) -> Result<(), String> {
+        self.ensure_surface_attached()?;
         let solid = super::gles2_native::copy_section_vertices(&mesh.solid)?;
         let translucent = super::gles2_native::copy_section_vertices(&mesh.translucent)?;
         let ranges = super::gles2_native::visible_solid_ranges(&mesh.sides, eye_in_section)?;
@@ -617,8 +618,8 @@ impl Runtime {
         translucent: Vec<super::gles2_native::HorizonTerrainVertex>,
         ranges: Vec<u32>,
     ) -> Result<(), String> {
-        if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.ensure_surface_attached()?;
+        if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.egl.make_current()?;
         self.renderer.upload_section(key, &solid, &translucent, &ranges)?;
         self.cached_sections.insert(key, CachedSection { solid, translucent, ranges });
@@ -662,13 +663,13 @@ impl Runtime {
     }
 
     pub(crate) fn update_lightmap(&mut self, rgba: &[u8]) -> Result<(), String> {
+        self.ensure_surface_attached()?;
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         let mut replacement = Vec::new();
         replacement.try_reserve_exact(rgba.len())
             .map_err(|_| "Not enough memory to retain updated GLES2 lightmap".to_owned())?;
         replacement.extend_from_slice(rgba);
         let replacement = Arc::from(replacement);
-        self.ensure_surface_attached()?;
         self.egl.make_current()?;
         self.renderer.update_lightmap(rgba)?;
         if let Some(assets) = self.cached_assets.as_mut() {
@@ -678,13 +679,13 @@ impl Runtime {
     }
 
     pub(crate) fn update_atlas_layer(&mut self, layer: u32, rgba: &[u8]) -> Result<(), String> {
+        self.ensure_surface_attached()?;
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         let mut replacement = Vec::new();
         replacement.try_reserve_exact(rgba.len())
             .map_err(|_| "Not enough memory to retain animated GLES2 atlas layer".to_owned())?;
         replacement.extend_from_slice(rgba);
         let replacement = Arc::from(replacement);
-        self.ensure_surface_attached()?;
         self.egl.make_current()?;
         self.renderer.update_atlas_layer(layer, rgba)?;
         if let Some(assets) = self.cached_assets.as_mut() {
