@@ -12,14 +12,16 @@ g = gfx.read_text(encoding="utf-8")
 m = game.read_text(encoding="utf-8")
 method = """impl Renderer {
     /// Configure atlas animations and text shader without exposing GPU handles.
-    pub fn configure_hud_atlas(&mut self, atlas: &crate::hud::HudAtlas) {
+    pub fn configure_hud_atlas(&mut self, atlas: &crate::hud::HudAtlas, install_text_shader: bool) {
         self.hud.sprite_animations = atlas
             .sprite_animations
             .iter()
             .map(|(rect, animation)| (*rect, animation.clone(), (usize::MAX, 0, 0)))
             .collect();
-        self.hud
-            .set_text_shader(&self.device, atlas.text_shader.as_deref());
+        if install_text_shader {
+            self.hud
+                .set_text_shader(&self.device, atlas.text_shader.as_deref());
+        }
     }
 }
 
@@ -38,7 +40,7 @@ old_build = """    renderer.hud.sprite_animations = atlas
         .hud
         .set_text_shader(&renderer.device, atlas.text_shader.as_deref());"""
 if old_build in m:
-    m = m.replace(old_build, "    renderer.configure_hud_atlas(atlas);", 1)
+    m = m.replace(old_build, "    renderer.configure_hud_atlas(atlas, true);", 1)
 elif "renderer.configure_hud_atlas(atlas);" not in m:
     raise SystemExit("build_renderer HUD setup not found")
 old_loading = """        renderer.hud.sprite_animations = atlas
@@ -47,7 +49,7 @@ old_loading = """        renderer.hud.sprite_animations = atlas
             .map(|(rect, animation)| (*rect, animation.clone(), (usize::MAX, 0, 0)))
             .collect();"""
 if old_loading in m:
-    m = m.replace(old_loading, "        renderer.configure_hud_atlas(atlas);", 1)
+    m = m.replace(old_loading, "        renderer.configure_hud_atlas(atlas, false);", 1)
 elif "renderer.configure_hud_atlas(atlas);" not in m:
     raise SystemExit("loading_renderer HUD setup not found")
 old_finish = """            renderer.hud.sprite_animations = gui
@@ -60,7 +62,7 @@ old_finish = """            renderer.hud.sprite_animations = gui
                 .hud
                 .set_text_shader(&renderer.device, gui.atlas.text_shader.as_deref());"""
 if m.count(old_finish):
-    m = m.replace(old_finish, "            renderer.configure_hud_atlas(&gui.atlas);")
+    m = m.replace(old_finish, "            renderer.configure_hud_atlas(&gui.atlas, true);")
 elif m.count("renderer.configure_hud_atlas(&gui.atlas);") < 2:
     raise SystemExit("Both finish() HUD handoff branches were not found")
 if "renderer.device" in m or "renderer.hud" in m:
