@@ -26,7 +26,7 @@ for marker in ("pub fn metrics(&self)","pub fn backend_info(&self)","pub fn lod_
 for marker in ("renderer.lod_distance_capped(distance)","renderer.lod_distance_capped(far_distance)",
                "r.adapter_name()","r.backend_name()","previous.is_gl_backend()",
                "previous.is_vulkan_backend()","r.is_gl_backend()","r.take_latest_gpu_time()",
-               "r.take_gpu_times()","r.last_wait_duration()","r.last_encode_duration()"):
+               "r.take_gpu_times()","RenderBackend::metrics(r).last_wait_ns","RenderBackend::metrics(r).last_encode_ns"):
     if marker not in game:
         raise SystemExit(f"FAIL: Game boundary missing {marker}")
 pattern=re.compile(r"\b(?:renderer|previous|r)\.(?:device|queue|surface|spare_surface|instance|adapter|config|"
