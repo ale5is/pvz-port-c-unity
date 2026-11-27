@@ -147,6 +147,9 @@ jobs:
           python3 patches/horizon-078/renderer-frame-inputs.py "$RUNNER_TEMP/horizon-078"
           python3 tools/check_android5_frame_contract.py "$RUNNER_TEMP/horizon-078"
 
+      - name: Audit the crate-level renderer backend boundary
+        run: python3 tools/check_android5_render_crate_boundary.py "$RUNNER_TEMP/horizon-078"
+
       - name: Audit remaining renderer GPU ownership references
         run: python3 tools/check_android5_renderer_ownership.py "$RUNNER_TEMP/horizon-078"
 
