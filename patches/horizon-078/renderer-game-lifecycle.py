@@ -40,10 +40,5 @@ for label, path in files.items():
     for stale in ("renderer.suspend_surface();", "renderer.recreate_surface()", "renderer.resize(", "renderer.release_surface();", "r.resize(", "r.suspend_surface();"):
         if stale in source:
             raise SystemExit(f"{label} retains concrete lifecycle call: {stale}")
-    if label == "Game":
-        old_error = "self.error = Some(error);"
-        if source.count(old_error) != 2:
-            raise SystemExit(f"Expected 2 renderer lifecycle errors in Game, got {source.count(old_error)}")
-        source = source.replace(old_error, "self.error = Some(Box::new(error));")
     path.write_text(source, encoding="utf-8")
     print(f"Migrated {changed} lifecycle call sites in {label}.")
