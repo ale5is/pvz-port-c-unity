@@ -61,7 +61,7 @@ impl std::error::Error for RenderBackendError {}
 
 /// Monotonic identity for one native-window lifetime. A detach/reattach must
 /// advance this value so delayed CPU work cannot target a replacement surface.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WindowGeneration(u64);
 
 impl WindowGeneration {
