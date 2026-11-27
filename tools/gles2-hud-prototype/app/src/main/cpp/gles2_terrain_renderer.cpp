@@ -17,6 +17,31 @@ void clear_gl_errors() {
     while (glGetError() != GL_NO_ERROR) {}
 }
 
+class TextureUploadState {
+public:
+    explicit TextureUploadState(GLenum texture_unit) : texture_unit_(texture_unit) {
+        glGetIntegerv(GL_ACTIVE_TEXTURE, &previous_active_texture_);
+        glGetIntegerv(GL_UNPACK_ALIGNMENT, &previous_unpack_alignment_);
+        glActiveTexture(texture_unit_);
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_texture_binding_);
+    }
+
+    ~TextureUploadState() {
+        glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previous_texture_binding_));
+        glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment_);
+        glActiveTexture(static_cast<GLenum>(previous_active_texture_));
+    }
+
+    TextureUploadState(const TextureUploadState&) = delete;
+    TextureUploadState& operator=(const TextureUploadState&) = delete;
+
+private:
+    GLenum texture_unit_;
+    GLint previous_active_texture_ = GL_TEXTURE0;
+    GLint previous_texture_binding_ = 0;
+    GLint previous_unpack_alignment_ = 4;
+};
+
 bool rgba_byte_size(int width, int height, std::size_t* bytes) {
     if (!bytes || width <= 0 || height <= 0) return false;
     const std::size_t w = static_cast<std::size_t>(width);
@@ -401,15 +426,16 @@ bool Gles2TerrainRenderer::update_atlas_layer(std::uint32_t layer,
     const GLint x = static_cast<GLint>((layer % columns) * cell_size);
     const GLint y = static_cast<GLint>((layer / columns) * cell_size);
     clear_gl_errors();
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, atlas_texture_);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, static_cast<GLsizei>(cell_size),
-                    static_cast<GLsizei>(cell_size), GL_RGBA, GL_UNSIGNED_BYTE,
-                    padded_cell.data());
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    const GLenum error = glGetError();
+    GLenum error = GL_NO_ERROR;
+    {
+        TextureUploadState upload_state(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, atlas_texture_);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, static_cast<GLsizei>(cell_size),
+                        static_cast<GLsizei>(cell_size), GL_RGBA, GL_UNSIGNED_BYTE,
+                        padded_cell.data());
+    }
+    error = glGetError();
     if (error != GL_NO_ERROR) {
         std::snprintf(error_, sizeof(error_), "Animated terrain atlas sub-image upload failed: 0x%x", error);
         return false;
@@ -796,13 +822,14 @@ bool Gles2TerrainRenderer::update_lightmap(const std::uint8_t* rgba, std::size_t
         return false;
     }
     clear_gl_errors();
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, lightmap_texture_);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 16, 16, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glActiveTexture(GL_TEXTURE0);
-    const GLenum error = glGetError();
+    GLenum error = GL_NO_ERROR;
+    {
+        TextureUploadState upload_state(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, lightmap_texture_);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 16, 16, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+    }
+    error = glGetError();
     if (error != GL_NO_ERROR) {
         std::snprintf(error_, sizeof(error_), "Lightmap texture update failed (GL 0x%x)", error);
         return false;
