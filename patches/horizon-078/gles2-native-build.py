@@ -45,6 +45,7 @@ if "[build-dependencies]" not in cargo_text:
     cargo.write_text(cargo_text.rstrip() + "\n\n" + build_dep, encoding="utf-8")
 elif 'cc = "1.2"' not in cargo_text:
     raise SystemExit("horizon-android already has build-dependencies without the expected cc pin")
+cargo.write_text(cargo_text.rstrip() + "\n", encoding="utf-8")
 
 build_rs = root / "crates/horizon-android/build.rs"
 build_source = r'''use std::env;
