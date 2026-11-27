@@ -151,7 +151,8 @@ mod tests {
 
         assert!(WindowGeneration::new(0).is_none());
         let mut clock = WindowGenerationClock::default();
-        assert!(!clock.advance(clock.active()));
+        let current = clock.active();
+        assert!(!clock.advance(current));
         assert!(!clock.advance(WindowGeneration::INITIAL));
         assert_eq!(clock.active(), WindowGeneration::INITIAL);
     }
