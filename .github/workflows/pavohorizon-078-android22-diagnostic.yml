@@ -16,6 +16,8 @@ on:
       - 'tools/check_android5_event_thread_renderer.py'
       - 'patches/horizon-078/renderer-frame-contract.py'
       - 'patches/horizon-078/renderer-frame-inputs.py'
+      - 'patches/horizon-078/renderer-types-crate.py'
+      - 'tools/check_android5_render_types_crate.py'
       - 'tools/check_android5_frame_contract.py'
       - 'tools/check_android5_renderer_ownership.py'
       - 'tools/check_android5_game_loop.py'
@@ -147,6 +149,11 @@ jobs:
           python3 patches/horizon-078/renderer-frame-inputs.py "$RUNNER_TEMP/horizon-078"
           python3 tools/check_android5_frame_contract.py "$RUNNER_TEMP/horizon-078"
 
+      - name: Extract GPU-independent vertex formats
+        run: |
+          python3 patches/horizon-078/renderer-types-crate.py "$RUNNER_TEMP/horizon-078"
+          python3 tools/check_android5_render_types_crate.py "$RUNNER_TEMP/horizon-078"
+
       - name: Audit the crate-level renderer backend boundary
         run: python3 tools/check_android5_render_crate_boundary.py "$RUNNER_TEMP/horizon-078"
 
@@ -171,6 +178,10 @@ jobs:
           rustup target add "$RUST_TARGET"
           rustc --version
           cargo --version
+
+      - name: Test independent render data crate
+        working-directory: ${{ runner.temp }}/horizon-078
+        run: cargo test -p horizon-render-types
 
       - name: Test Horizon mobile atlas fitting
         working-directory: ${{ runner.temp }}/horizon-078
