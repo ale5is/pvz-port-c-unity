@@ -131,17 +131,17 @@ if "pub fn lod_distance_capped_for_backend" not in gr:
     gr = gr.replace(old_helper, new_helper, 1)
 
 m = re.sub(
-    r"horizon_client::graphics::lod_distance_capped\\(distance,\\s*&renderer\\.info\\)",
+    r"horizon_client::graphics::lod_distance_capped\(distance,\s*&renderer\.info\)",
     "horizon_client::graphics::lod_distance_capped_for_backend(distance, renderer.metrics().integrated_gpu)",
     m,
 )
 m = re.sub(
-    r"horizon_client::graphics::lod_distance_capped\\(far_distance,\\s*&renderer\\.info\\)",
+    r"horizon_client::graphics::lod_distance_capped\(far_distance,\s*&renderer\.info\)",
     "horizon_client::graphics::lod_distance_capped_for_backend(far_distance, renderer.metrics().integrated_gpu)",
     m,
 )
 m = re.sub(
-    r"\\.record\\(frame_ms, cpu, renderer\\.gpu_times\\.last\\(\\)\\.copied\\(\\)\\);\\s*renderer\\.gpu_times\\.clear\\(\\);",
+    r"\.record\(frame_ms, cpu, renderer\.gpu_times\.last\(\)\.copied\(\)\);\s*renderer\.gpu_times\.clear\(\);",
     ".record(frame_ms, cpu, renderer.take_gpu_time_ms());",
     m,
 )
