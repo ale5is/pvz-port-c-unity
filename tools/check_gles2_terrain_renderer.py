@@ -98,6 +98,9 @@ required_source = [
     "offsetof(Gles2TerrainVertex, light)",
     "offsetof(Gles2TerrainVertex, emission)",
     "glBufferData(GL_ARRAY_BUFFER",
+    "class ArrayBufferUploadState",
+    "glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &previous_array_buffer_binding_)",
+    "glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(previous_array_buffer_binding_))",
     "void Gles2TerrainRenderer::cache_uniforms",
     'uniforms->mvp = glGetUniformLocation(program, "u_mvp")',
     "draw_buffer_range(solid_program_, solid_uniforms_",
@@ -384,6 +387,7 @@ upload_buffer_start = source.index("bool Gles2TerrainRenderer::upload_buffer(")
 upload_buffer_end = source.index("\nbool Gles2TerrainRenderer::upload_solid(", upload_buffer_start)
 upload_buffer_body = source[upload_buffer_start:upload_buffer_end]
 for item in [
+    "ArrayBufferUploadState upload_state;",
     "GLuint replacement_buffer = 0;",
     "glGenBuffers(1, &replacement_buffer);",
     "glBufferData(GL_ARRAY_BUFFER",
@@ -402,7 +406,10 @@ old_buffer_delete = upload_buffer_body.rindex("if (*buffer) glDeleteBuffers(1, b
 error_check = upload_buffer_body.index("const GLenum error = glGetError();")
 error_branch = upload_buffer_body.index("if (error != GL_NO_ERROR)")
 temporary_delete = upload_buffer_body.index("glDeleteBuffers(1, &replacement_buffer);")
-if not (upload_buffer_body.index("glBufferData(GL_ARRAY_BUFFER") <
+if "glBindBuffer(GL_ARRAY_BUFFER, 0);" in upload_buffer_body:
+    raise SystemExit("FAIL: renderer VBO upload must restore the caller's array-buffer binding")
+if not (upload_buffer_body.index("ArrayBufferUploadState upload_state;") <
+        upload_buffer_body.index("glBufferData(GL_ARRAY_BUFFER") <
         error_check < error_branch < temporary_delete < old_buffer_delete <
         upload_buffer_body.index("*buffer = replacement_buffer;")):
     raise SystemExit("FAIL: renderer standalone VBO must retain the previous buffer until replacement upload succeeds")
