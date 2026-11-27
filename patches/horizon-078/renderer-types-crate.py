@@ -198,7 +198,7 @@ else:
     screen, screen_vertex = extract_screen_block(
         screen,
         "/// One clip-space vertex of a screen quad.\n#[repr(C)]\n#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]\npub struct ScreenVertex {",
-        "\n/// Linear filtering, else nearest.",
+        "\n/// Linear filtering (`TextureMetadataSection.blur`), else nearest.",
         "screen vertex",
     )
     screen, screen_quad = extract_screen_block(
@@ -209,6 +209,7 @@ else:
     )
     screen_blend = screen_blend.replace("pub enum Blend {", "pub enum ScreenBlend {")
     screen_quad = screen_quad.replace("pub blend: Blend,", "pub blend: ScreenBlend,")
+    screen_quad = screen_quad.replace("/// How the sprite is sampled: [`SAMPLE_BLUR`] and [`SAMPLE_CLAMP`].", "/// How the sprite is sampled: the sample blur and clamp flags.")
     if "pub enum ScreenBlend" not in screen_blend or "pub struct ScreenVertex" not in screen_vertex:
         raise SystemExit("Failed to rename/extract screen-effect CPU types")
     if "pub blend: ScreenBlend" not in screen_quad:
