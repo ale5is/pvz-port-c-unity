@@ -225,6 +225,9 @@ impl Backend {
         if thread::current().id() != self.owner {
             return Err("GLES2 backend called outside its EGL owner thread".to_owned());
         }
+        if self.abandoned {
+            return Err("GLES2 backend handle was abandoned after context loss".to_owned());
+        }
         Ok(self.handle.as_ptr())
     }
 
