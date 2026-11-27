@@ -158,10 +158,26 @@ m = re.sub(
 )
 m = re.sub(r"&r\.info\.name", "r.backend_info().name", m)
 m = re.sub(r"r\.info\.backend\s*==\s*wgpu::Backend::Gl", "r.backend_info().is_gles", m)
-m = re.sub(r"r\.gpu_times\.last\(\)\.copied\(\)", "r.gpu_time_samples().last().copied()", m)
-m = re.sub(r"r\.gpu_times\.last\(\)", "r.gpu_time_samples().last()", m)
-m = re.sub(r"&r\.gpu_times\b", "r.gpu_time_samples()", m)
-m = re.sub(r"r\.gpu_times\.clear\(\)", "r.clear_gpu_time_samples()", m)
+m = re.sub(
+    r"\b(r|renderer)\.gpu_times\.last\(\)\.copied\(\)",
+    r"\1.gpu_time_samples().last().copied()",
+    m,
+)
+m = re.sub(
+    r"\b(r|renderer)\.gpu_times\.last\(\)",
+    r"\1.gpu_time_samples().last()",
+    m,
+)
+m = re.sub(
+    r"&\b(r|renderer)\.gpu_times\b",
+    r"\1.gpu_time_samples()",
+    m,
+)
+m = re.sub(
+    r"\b(r|renderer)\.gpu_times\.clear\(\)",
+    r"\1.clear_gpu_time_samples()",
+    m,
+)
 m = re.sub(
     r"\b(r|renderer)\.last_wait\b",
     r"std::time::Duration::from_nanos(\1.metrics().last_wait_ns)",
