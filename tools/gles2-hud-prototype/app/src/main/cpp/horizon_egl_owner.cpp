@@ -135,20 +135,49 @@ extern "C" PavoEglOwner* pavo_egl_create(void* native_window) {
     }
 }
 
+namespace {
+bool recreate_context(PavoEglOwner* owner) {
+    if (!owner || owner->display == EGL_NO_DISPLAY || owner->surface == EGL_NO_SURFACE) return false;
+    const EGLint attributes[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
+    owner->context = eglCreateContext(owner->display, owner->config, EGL_NO_CONTEXT, attributes);
+    if (owner->context == EGL_NO_CONTEXT) {
+        fail(owner, "eglCreateContext after context loss");
+        return false;
+    }
+    if (eglMakeCurrent(owner->display, owner->surface, owner->surface, owner->context) != EGL_TRUE) {
+        fail(owner, "eglMakeCurrent after context loss");
+        eglDestroyContext(owner->display, owner->context);
+        owner->context = EGL_NO_CONTEXT;
+        return false;
+    }
+    ++owner->context_generation;
+    EGLint width = 0, height = 0;
+    if (eglQuerySurface(owner->display, owner->surface, EGL_WIDTH, &width) == EGL_TRUE &&
+        eglQuerySurface(owner->display, owner->surface, EGL_HEIGHT, &height) == EGL_TRUE &&
+        width > 0 && height > 0) {
+        glViewport(0, 0, width, height);
+    }
+    owner->error.clear();
+    return true;
+}
+}
+
 extern "C" int pavo_egl_make_current(PavoEglOwner* owner) {
     if (!on_owner_thread(owner) || owner->display == EGL_NO_DISPLAY ||
-        owner->surface == EGL_NO_SURFACE || owner->context == EGL_NO_CONTEXT) return 0;
-    if (eglMakeCurrent(owner->display, owner->surface, owner->surface, owner->context) != EGL_TRUE) {
-        const EGLint error = eglGetError();
-        if (error == EGL_CONTEXT_LOST) {
-            invalidate_lost_context(owner);
-            owner->error = "eglMakeCurrent failed (EGL_CONTEXT_LOST); context invalidated for resume recovery";
-        } else {
-            set_error(owner, "eglMakeCurrent", error);
-        }
+        owner->surface == EGL_NO_SURFACE) return 0;
+    if (owner->context == EGL_NO_CONTEXT) {
+        return recreate_context(owner) ? 1 : 0;
+    }
+    if (eglMakeCurrent(owner->display, owner->surface, owner->surface, owner->context) == EGL_TRUE) {
+        return 1;
+    }
+    const EGLint error = eglGetError();
+    if (error != EGL_CONTEXT_LOST) {
+        set_error(owner, "eglMakeCurrent", error);
         return 0;
     }
-    return 1;
+    invalidate_lost_context(owner);
+    return recreate_context(owner) ? 1 : 0;
 }
 
 extern "C" std::uint64_t pavo_egl_context_generation(const PavoEglOwner* owner) {

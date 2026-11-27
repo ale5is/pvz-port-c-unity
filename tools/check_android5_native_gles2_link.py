@@ -125,6 +125,12 @@ for marker in ("pavo_egl_context_generation", "pavo_egl_suspend", "pavo_egl_resu
     print(f"PASS: native EGL lifecycle {marker}")
 if "++owner->context_generation" not in egl_cpp:
     raise SystemExit("FAIL: EGL context generation is not advanced after context recreation")
+if "bool recreate_context(PavoEglOwner* owner)" not in egl_cpp or "return recreate_context(owner) ? 1 : 0;" not in egl_cpp:
+    raise SystemExit("FAIL: EGL_CONTEXT_LOST cannot recover while the Android surface remains attached")
+if "fn ensure_context_current(&mut self) -> Result<(), String>" not in egl_text:
+    raise SystemExit("FAIL: Rust runtime does not detect and rebuild resources after in-place EGL context recovery")
+if "self.renderer.abandon();" not in egl_text or "self.context_generation = generation;" not in egl_text:
+    raise SystemExit("FAIL: stale GLES2 objects are not abandoned when EGL context generation changes")
 if "bool context_recreated = owner->context == EGL_NO_CONTEXT;" not in egl_cpp:
     raise SystemExit("FAIL: EGL resume cannot recover from a prior failed context recreation")
 print("PASS: EGL context-loss generation increment and failed-recreate retry")

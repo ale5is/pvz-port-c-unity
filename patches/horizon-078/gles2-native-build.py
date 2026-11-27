@@ -443,9 +443,13 @@ impl EglOwner {
         self.generation()
     }
 
-    fn make_current(&self) -> Result<(), String> {
+    fn make_current(&self) -> Result<u64, String> {
         let handle = self.check_thread()?;
-        if unsafe { pavo_egl_make_current(handle) } == 1 { Ok(()) } else { Err(self.error()) }
+        if unsafe { pavo_egl_make_current(handle) } == 1 {
+            Ok(unsafe { pavo_egl_context_generation(handle) })
+        } else {
+            Err(self.error())
+        }
     }
 
     fn begin_frame(&self, clear: [f32; 4]) -> Result<(), String> {
@@ -560,6 +564,42 @@ impl Runtime {
         Ok(())
     }
 
+    /// Rebuild every GLES object if EGL reports that the driver lost its context
+    /// while the native window remained attached.
+    fn ensure_context_current(&mut self) -> Result<(), String> {
+        let generation = self.ensure_context_current()?;
+        if generation == self.context_generation {
+            return Ok(());
+        }
+        self.renderer.abandon();
+        self.renderer = super::gles2_native::Backend::new()?;
+        self.context_generation = generation;
+        self.initialized = false;
+        if let Some(assets) = self.cached_assets.as_ref() {
+            let restore = (|| -> Result<(), String> {
+                self.renderer.initialize(
+                    self.window_generation.active(), &assets.sprite_pixels, assets.layers, assets.sprite_size,
+                    &assets.lightmap, assets.lightmap_width, assets.lightmap_height, assets.uv_steps,
+                )?;
+                for (layer, pixels) in &assets.animated_layers {
+                    self.renderer.update_atlas_layer(*layer, pixels)?;
+                }
+                for (key, section) in &self.cached_sections {
+                    self.renderer.upload_section(*key, &section.solid, &section.translucent, &section.ranges)?;
+                }
+                Ok(())
+            })();
+            if let Err(error) = restore {
+                self.renderer.abandon();
+                self.renderer = super::gles2_native::Backend::new()
+                    .map_err(|reset| format!("{error}; additionally failed to reset GLES2 backend: {reset}"))?;
+                return Err(error);
+            }
+            self.initialized = true;
+        }
+        Ok(())
+    }
+
     pub(crate) fn initialize(
         &mut self, generation: WindowGeneration, sprite_pixels: &[u8], layers: usize, sprite_size: i32,
         lightmap: &[u8], lightmap_width: i32, lightmap_height: i32, uv_steps: f32,
@@ -579,7 +619,7 @@ impl Runtime {
             lightmap: Arc::from(cached_lightmap), lightmap_width, lightmap_height, uv_steps,
             animated_layers: std::collections::HashMap::new(),
         };
-        self.egl.make_current()?;
+        self.ensure_context_current()?;
         self.renderer.initialize(generation, sprite_pixels, layers, sprite_size,
             lightmap, lightmap_width, lightmap_height, uv_steps)?;
         self.cached_assets = Some(cached_assets);
@@ -683,7 +723,7 @@ impl Runtime {
         self.ensure_window_generation(generation)?;
         self.ensure_surface_attached()?;
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
-        self.egl.make_current()?;
+        self.ensure_context_current()?;
         self.renderer.upload_section(key, &solid, &translucent, &ranges)?;
         self.cached_sections.insert(key, CachedSection { solid, translucent, ranges });
         Ok(())
@@ -693,7 +733,7 @@ impl Runtime {
         self.ensure_window_generation(generation)?;
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.ensure_surface_attached()?;
-        self.egl.make_current()?;
+        self.ensure_context_current()?;
         self.renderer.remove_column(x, z)?;
         self.cached_sections.retain(|key, _| key[0] != x || key[2] != z);
         Ok(())
@@ -703,7 +743,7 @@ impl Runtime {
         self.ensure_window_generation(generation)?;
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.ensure_surface_attached()?;
-        self.egl.make_current()?;
+        self.ensure_context_current()?;
         self.renderer.clear_sections()?;
         self.cached_sections.clear();
         Ok(())
@@ -716,7 +756,7 @@ impl Runtime {
         self.ensure_window_generation(generation)?;
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.ensure_surface_attached()?;
-        self.egl.make_current()?;
+        self.ensure_context_current()?;
         self.renderer.draw_sections(mvp, camera, fog_color, fog_range, max_distance)
     }
 
@@ -738,7 +778,7 @@ impl Runtime {
             .map_err(|_| "Not enough memory to retain updated GLES2 lightmap".to_owned())?;
         replacement.extend_from_slice(rgba);
         let replacement = Arc::from(replacement);
-        self.egl.make_current()?;
+        self.ensure_context_current()?;
         self.renderer.update_lightmap(rgba)?;
         if let Some(assets) = self.cached_assets.as_mut() {
             assets.lightmap = replacement;
@@ -769,7 +809,8 @@ impl Drop for Runtime {
         // Backend::drop issues GL deletes. They are valid only while this EGL
         // context is current; after suspend or context loss, abandon the GL
         // names and let eglDestroyContext reclaim them instead.
-        if !self.surface_attached || self.egl.make_current().is_err() {
+        let current_generation = self.egl.make_current();
+        if !self.surface_attached || current_generation != Ok(self.context_generation) {
             self.renderer.abandon();
         }
     }
