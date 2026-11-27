@@ -30,7 +30,7 @@ trait_anchor = "impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> fo
 start = g.find(trait_anchor)
 if start < 0:
     raise SystemExit("Could not locate exact wgpu RenderBackend implementation")
-next_impl = g.find("\\nimpl ", start + len(trait_anchor))
+next_impl = g.find("\nimpl ", start + len(trait_anchor))
 end = next_impl if next_impl >= 0 else len(g)
 body = g[start:end]
 impl_anchor = "    fn backend_info(&self) -> horizon_render_api::BackendInfo {"
