@@ -34,6 +34,8 @@ on:
       - 'patches/horizon-078/renderer-capabilities-api.py'
       - 'patches/horizon-078/renderer-feature-api.py'
       - 'patches/horizon-078/renderer-visible-block-entities.py'
+      - 'patches/horizon-078/renderer-frustum-api.py'
+      - 'tools/check_android5_renderer_frustum.py'
       - 'patches/horizon-078/renderer-opaque-context.py'
       - 'tools/check_android5_renderer_features.py'
       - 'tools/check_android5_renderer_visible_block_entities.py'
@@ -238,6 +240,11 @@ jobs:
         run: |
           python3 patches/horizon-078/renderer-visible-block-entities.py "$RUNNER_TEMP/horizon-078"
           python3 tools/check_android5_renderer_visible_block_entities.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Move camera frustum and AABB culling behind the backend contract
+        run: |
+          python3 patches/horizon-078/renderer-frustum-api.py "$RUNNER_TEMP/horizon-078"
+          python3 tools/check_android5_renderer_frustum.py "$RUNNER_TEMP/horizon-078"
 
       - name: Install opaque renderer replacement context
         run: |
