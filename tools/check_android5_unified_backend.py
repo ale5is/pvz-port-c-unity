@@ -12,10 +12,13 @@ gfx = (root / "crates/horizon-client-render/src/gfx.rs").read_text(encoding="utf
 required_api = (
     "pub trait RenderBackend<Frame>",
     "pub trait TerrainStreamBackend<Mesh>",
-    "pub trait GameRenderBackend<Frame, Mesh>",
-    "RenderBackend<Frame> + TerrainStreamBackend<Mesh>",
-    "pub type GameBackendHandle<'a, Frame, Mesh>",
-    "dyn for<'frame> super::GameRenderBackend<BorrowedFrame<'frame>, Vec<u8>>",
+    "pub trait FrameFamily",
+    "type Frame<'frame>;",
+    "pub trait GameRenderBackend<Frames: FrameFamily, Mesh>",
+    "for<'frame> RenderBackend<Frames::Frame<'frame>> + TerrainStreamBackend<Mesh>",
+    "pub type GameBackendHandle<'a, Frames, Mesh>",
+    "game_backend_object_dispatches_borrowed_frames_and_terrain",
+    "super::TerrainStreamBackend::upload_section(backend, (0, 0, 0), mesh)",
 )
 missing = [item for item in required_api if item not in api]
 if missing:
