@@ -14,7 +14,8 @@ api=read("crates/horizon-render-api/src/lib.rs")
 gfx=read("crates/horizon-client-render/src/gfx.rs")
 game=read("crates/horizon-client/src/game.rs")
 for marker in ("pub struct RendererMetrics","pub integrated_gpu: bool","pub last_encode_ns: u64",
-               "pub struct BackendInfo","pub backend_name: String","pub is_gles: bool",\n               "fn sprite_layout_matches(&self, layers: u32) -> bool;"):
+               "pub struct BackendInfo","pub backend_name: String","pub is_gles: bool",
+               "fn sprite_layout_matches(&self, layers: u32) -> bool;"):
     if marker not in api:
         raise SystemExit(f"FAIL: neutral API missing {marker}")
 for marker in ("pub fn metrics(&self)","pub fn backend_info(&self)","pub fn lod_distance_capped(&self",
