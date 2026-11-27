@@ -41,3 +41,10 @@ The CI checks validate the extracted CPU-only frame source, the new wgpu-free re
 The next migration step adds `RendererMetrics` to `horizon-render-api`. The wgpu adapter now reports drawable dimensions, suspended state, rendered-section count, pending-screenshot state, last GPU/display wait in nanoseconds, and the count of unread GPU timing samples through a backend-neutral value type. The Game call sites use this snapshot for window sizing, automatic world-icon screenshot gating, upload budgeting, and Android pause checks. Screenshot requests are sent through a method rather than writing the renderer's private request slot directly.
 
 This is deliberately not presented as full backend polymorphism: the Game still has a concrete `Renderer` owner, GPU adapter information and timing-vector draining still need extraction, and loading/world asset handoff still uses wgpu-owned resources. The snapshot is a narrow seam that can be implemented by GLES2 without inventing fake wgpu fields.
+
+
+## Adapter capabilities and GPU timing extraction
+
+The Game no longer needs the concrete wgpu::AdapterInfo to apply its integrated-GPU LOD distance cap. The wgpu adapter now publishes a neutral integrated_gpu capability, and the graphics policy accepts that capability rather than a wgpu type. Adapter name and backend label are exposed through BackendInfo for diagnostics. GPU timing samples are consumed through take_gpu_time_ms(), which preserves the previous latest-sample-then-clear behavior without exposing the internal vector.
+
+This removes the Game's direct adapter-info and GPU-timing reads. It does not yet remove wgpu from the renderer implementation or the Game's resource-construction path.

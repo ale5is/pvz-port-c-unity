@@ -21,6 +21,8 @@ on:
       - 'patches/horizon-078/renderer-types-crate.py'
       - 'patches/horizon-078/renderer-backend-api.py'
       - 'patches/horizon-078/renderer-metrics-api.py'
+      - 'patches/horizon-078/renderer-capabilities-api.py'
+      - 'tools/check_android5_renderer_capabilities.py'
       - 'tools/check_android5_backend_api.py'
       - 'tools/check_android5_render_types_crate.py'
       - 'tools/check_android5_frame_contract.py'
@@ -175,6 +177,15 @@ jobs:
 
       - name: Move renderer status behind backend-neutral metrics
         run: python3 patches/horizon-078/renderer-metrics-api.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Move adapter capabilities and GPU timing behind backend-neutral APIs
+        run: |
+          python3 patches/horizon-078/renderer-capabilities-api.py "$RUNNER_TEMP/horizon-078"
+          python3 tools/check_android5_renderer_capabilities.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Test renderer backend API after capability extraction
+        working-directory: ${{ runner.temp }}/horizon-078
+        run: cargo test -p horizon-render-api
 
       - name: Audit the crate-level renderer backend boundary
         run: python3 tools/check_android5_render_crate_boundary.py "$RUNNER_TEMP/horizon-078"
