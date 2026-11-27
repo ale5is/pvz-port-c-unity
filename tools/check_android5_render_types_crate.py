@@ -14,8 +14,9 @@ workspace = (root / "Cargo.toml").read_text(encoding="utf-8")
 render_manifest = (root / "crates/horizon-client-render/Cargo.toml").read_text(encoding="utf-8")
 mesher = (root / "crates/horizon-client-render/src/mesher.rs").read_text(encoding="utf-8")
 environment = (root / "crates/horizon-client-render/src/environment.rs").read_text(encoding="utf-8")
+screen = (root / "crates/horizon-client-render/src/screen_effects.rs").read_text(encoding="utf-8")
 
-for declaration in ("pub struct Vertex", "pub struct TerrainVertex", "pub const CULL_BACK", "pub const UV_STEPS", "pub const TILED_UV_STEPS", "pub struct Sky"):
+for declaration in ("pub struct Vertex", "pub struct TerrainVertex", "pub const CULL_BACK", "pub const UV_STEPS", "pub const TILED_UV_STEPS", "pub struct Sky", "pub enum ScreenBlend", "pub struct ScreenVertex", "pub struct ScreenQuad"):
     if declaration not in source:
         raise SystemExit(f"FAIL: missing neutral render-data declaration: {declaration}")
 if "wgpu" in manifest or "wgpu::" in source or "winit" in manifest or "egl" in manifest.lower():
@@ -30,7 +31,13 @@ if "pub struct Vertex" in mesher or "pub struct TerrainVertex" in mesher:
     raise SystemExit("FAIL: duplicate vertex definitions remain in mesher.rs")
 if "pub use horizon_render_types::Sky;" not in environment or "pub struct Sky" in environment:
     raise SystemExit("FAIL: environment::Sky compatibility re-export is missing")
+if "pub use horizon_render_types::{ScreenBlend as Blend, ScreenQuad, ScreenVertex};" not in screen:
+    raise SystemExit("FAIL: screen-effect compatibility re-exports are missing")
+if any(item in screen for item in ("pub enum Blend", "pub struct ScreenVertex", "pub struct ScreenQuad")):
+    raise SystemExit("FAIL: duplicate screen-effect data definitions remain in screen_effects.rs")
+if "screen_vertex_layout_matches_the_upload_contract" not in source:
+    raise SystemExit("FAIL: ScreenVertex upload-layout regression test is missing")
 if "#![forbid(unsafe_code)]" not in source:
     raise SystemExit("FAIL: neutral render-data crate must forbid unsafe code")
-print("PASS: Vertex, TerrainVertex and Sky live in a standalone bytemuck-only crate.")
+print("PASS: Vertex, TerrainVertex, Sky, ScreenVertex and ScreenQuad live in a standalone bytemuck-only crate.")
 print("PASS: mesher and environment re-exports preserve Horizon's existing type paths.")

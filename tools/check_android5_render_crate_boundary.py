@@ -34,5 +34,5 @@ print("BLOCKER: horizon-client-render itself still depends on wgpu:")
 for dependency in wgpu_dependencies:
     print(f"  {dependency}")
 print("BLOCKER: frame.rs cannot yet be consumed as a standalone backend-neutral crate.")
-print("NEXT: extract Vertex, HudBatch, Sky, ScreenQuad and other referenced CPU types")
-print("      into a wgpu-free contract crate before introducing a production backend trait.")
+print("NEXT: extract HudBatch/HudVertex and post-chain request data, then move the")
+print("      remaining Frame inputs into neutral crates before defining a backend trait.")

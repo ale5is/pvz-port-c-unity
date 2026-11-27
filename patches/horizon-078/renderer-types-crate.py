@@ -171,4 +171,80 @@ else:
     crate_source.write_text(crate_text, encoding="utf-8")
     print("Extracted Sky frame data into horizon-render-types.")
 
+
+screen_path = render / "src/screen_effects.rs"
+screen = screen_path.read_text(encoding="utf-8")
+screen_reexport = "pub use horizon_render_types::{ScreenBlend as Blend, ScreenQuad, ScreenVertex};\n"
+if screen_reexport in screen:
+    if any(name not in crate_text for name in ("pub enum ScreenBlend", "pub struct ScreenVertex", "pub struct ScreenQuad")):
+        raise SystemExit("Screen-effect compatibility re-export exists but neutral data types are incomplete")
+    print("Screen-effect frame data is already in horizon-render-types.")
+else:
+    def extract_screen_block(source: str, start: str, end: str, label: str) -> tuple[str, str]:
+        if source.count(start) != 1 or source.count(end) != 1:
+            raise SystemExit(f"Could not uniquely locate {label} boundaries")
+        first = source.index(start)
+        last = source.index(end, first)
+        if last <= first:
+            raise SystemExit(f"Invalid {label} extraction range")
+        return source[:first] + source[last:], source[first:last]
+
+    screen, screen_blend = extract_screen_block(
+        screen,
+        "#[derive(Clone, Copy, Debug, PartialEq, Eq)]\npub enum Blend {",
+        "\n/// One clip-space vertex of a screen quad.",
+        "screen blend",
+    )
+    screen, screen_vertex = extract_screen_block(
+        screen,
+        "/// One clip-space vertex of a screen quad.\n#[repr(C)]\n#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]\npub struct ScreenVertex {",
+        "\n/// Linear filtering, else nearest.",
+        "screen vertex",
+    )
+    screen, screen_quad = extract_screen_block(
+        screen,
+        "#[derive(Clone, Debug)]\npub struct ScreenQuad {",
+        "\n/// What the camera sees this frame.",
+        "screen quad",
+    )
+    screen_blend = screen_blend.replace("pub enum Blend {", "pub enum ScreenBlend {")
+    screen_quad = screen_quad.replace("pub blend: Blend,", "pub blend: ScreenBlend,")
+    if "pub enum ScreenBlend" not in screen_blend or "pub struct ScreenVertex" not in screen_vertex:
+        raise SystemExit("Failed to rename/extract screen-effect CPU types")
+    if "pub blend: ScreenBlend" not in screen_quad:
+        raise SystemExit("ScreenQuad still refers to the renderer-local Blend enum")
+
+    screen_types = "\n\n".join((screen_blend.strip(), screen_vertex.strip(), screen_quad.strip()))
+    test_anchor = "#[cfg(test)]\nmod tests {"
+    if crate_text.count(test_anchor) != 1:
+        raise SystemExit("Could not locate neutral render-data tests")
+    crate_text = crate_text.replace(test_anchor, screen_types + "\n\n" + test_anchor)
+    test_import = "use super::{Sky, TerrainVertex, Vertex, UV_STEPS};"
+    if crate_text.count(test_import) != 1:
+        raise SystemExit("Could not uniquely locate neutral render-data test imports")
+    crate_text = crate_text.replace(
+        test_import,
+        "use super::{ScreenVertex, Sky, TerrainVertex, Vertex, UV_STEPS};",
+    )
+    layout_test = "    #[test]\n    fn vertex_layouts_match_the_upload_contract() {"
+    if crate_text.count(layout_test) != 1:
+        raise SystemExit("Could not locate neutral vertex layout test")
+    crate_text = crate_text.replace(
+        layout_test,
+        "    #[test]\n    fn screen_vertex_layout_matches_the_upload_contract() {\n"
+        "        assert_eq!(std::mem::size_of::<ScreenVertex>(), 48);\n"
+        "    }\n\n" + layout_test,
+    )
+
+    screen_import_anchor = "use std::collections::HashMap;\n"
+    if screen.count(screen_import_anchor) != 1:
+        raise SystemExit("Could not locate screen_effects.rs imports")
+    screen = screen.replace(
+        screen_import_anchor,
+        screen_import_anchor + screen_reexport,
+    )
+    screen_path.write_text(screen, encoding="utf-8")
+    crate_source.write_text(crate_text, encoding="utf-8")
+    print("Extracted ScreenVertex, ScreenQuad and screen blending data into horizon-render-types.")
+
 print("GPU-independent render data extraction completed.")
