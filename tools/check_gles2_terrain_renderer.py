@@ -162,7 +162,6 @@ required_atlas_contract = [
     "rgba_byte_size(atlas_width, atlas_height, &atlas_bytes)",
     "rgba_byte_size(lightmap_width, lightmap_height, &lightmap_bytes)",
     "GLsizeiptr",
-    "glPixelStorei(GL_UNPACK_ALIGNMENT, 4)",
     "GL_LINEAR",
     "GL_FRAGMENT_PRECISION_HIGH",
 ]
@@ -213,8 +212,6 @@ if source.count("#ifdef GL_FRAGMENT_PRECISION_HIGH") != 2:
     raise SystemExit("FAIL: renderer: both fragment shaders need GLES2 fragment highp fallback")
 if "numeric_limits<GLsizeiptr>::max()" not in source:
     raise SystemExit("FAIL: renderer: VBO byte count must fit GLsizeiptr on 32-bit ARM")
-if "glPixelStorei(GL_UNPACK_ALIGNMENT, 4)" not in source:
-    raise SystemExit("FAIL: renderer: texture upload must restore global unpack alignment")
 if "upload_texture(&atlas_texture_, atlas_rgba, atlas_width, atlas_height, GL_LINEAR)" not in source:
     raise SystemExit("FAIL: renderer: guttered terrain atlas must use linear filtering")
 if "rgba_byte_size" not in source or "max_size / (w * 4)" not in source:
@@ -234,8 +231,12 @@ if release_body.find("glActiveTexture(GL_TEXTURE1)") > release_body.rfind("glAct
 upload_start = source.index("bool Gles2TerrainRenderer::upload_texture(")
 upload_end = source.index("bool Gles2TerrainRenderer::initialize(", upload_start)
 upload_body = source[upload_start:upload_end]
-if upload_body.find("glActiveTexture(GL_TEXTURE0);") < 0 or upload_body.find("glActiveTexture(GL_TEXTURE0);") > upload_body.find("glGenTextures(1, texture);"):
-    raise SystemExit("FAIL: renderer: texture uploads must begin from a known active texture unit")
+if "TextureUploadState upload_state(GL_TEXTURE0);" not in upload_body:
+    raise SystemExit("FAIL: renderer: initial texture uploads must preserve the caller's GLES2 state")
+if "glActiveTexture(GL_TEXTURE0);" in upload_body or "glBindTexture(GL_TEXTURE_2D, 0);" in upload_body or "glPixelStorei(GL_UNPACK_ALIGNMENT, 4);" in upload_body:
+    raise SystemExit("FAIL: renderer: initial texture uploads must not reset shared GLES2 state to assumed defaults")
+if "glPixelStorei(GL_UNPACK_ALIGNMENT, 1);" not in upload_body:
+    raise SystemExit("FAIL: renderer: initial RGBA uploads must set byte-aligned unpacking while uploading")
 upload_section_start = source.index("bool Gles2TerrainRenderer::upload_section(")
 upload_section_end = source.index("bool Gles2TerrainRenderer::set_section_solid_ranges(", upload_section_start)
 upload_section_body = source[upload_section_start:upload_section_end]
