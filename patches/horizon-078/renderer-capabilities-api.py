@@ -138,6 +138,7 @@ required_game_calls=(
     "r.backend_name()",
     "previous.is_gl_backend()",
     "previous.is_vulkan_backend()",
+    "horizon_render_api::RenderBackend::sprite_layout_matches(previous, loaded.pack.render.texture_layers)",
     "r.is_gl_backend()",
     "RenderBackend::metrics(r).last_wait_ns",
     "RenderBackend::metrics(r).last_encode_ns",
@@ -162,4 +163,5 @@ for pattern in (
 
 api.write_text(a,encoding="utf-8")
 gfx.write_text(g,encoding="utf-8")
+game.write_text(m,encoding="utf-8")
 print("Added neutral adapter capability/identity fields; verified Game uses the pre-existing renderer boundary.")
