@@ -12,18 +12,16 @@ source = game.read_text(encoding="utf-8")
 anchor = """        if gl && (!self.menu.needs_world_renderer() || !self.menu.entry_presented) {
             return Ok(());
         }
-        previous.wait_idle();"""
+        let _ = previous.wait_idle();"""
 replacement = """        if gl && (!self.menu.needs_world_renderer() || !self.menu.entry_presented) {
             return Ok(());
         }
         if gl {
-            // The current wgpu-GL renderer remains the sole surface owner until
-            // Loading::finish releases its surface and builds the replacement.
-            // Never transfer its background context to a worker: native EGL/GLES
-            // must be created on this event thread after the old surface is released.
+            // Keep wgpu-GL as the only surface owner until finish releases it.
+            // Native EGL/GLES must be created on this event thread after release.
             return Ok(());
         }
-        previous.wait_idle();"""
+        let _ = previous.wait_idle();"""
 if source.count(anchor) == 0:
     raise SystemExit("Could not locate the post-HUD-boundary renderer handoff anchor")
 if source.count(anchor) != 1:
@@ -32,7 +30,9 @@ if replacement not in source:
     source = source.replace(anchor, replacement)
 if source.count(replacement) != 1:
     raise SystemExit("Android OpenGL event-thread guard was not installed exactly once")
-if source.index("if gl {", source.index("let gl = previous")) > source.index("previous.wait_idle();"):
+guard_at = source.index("if gl {", source.index("let gl = previous"))
+wait_at = source.index("let _ = previous.wait_idle();", source.index("let gl = previous"))
+if guard_at > wait_at:
     raise SystemExit("OpenGL guard must run before any background-context handoff")
 game.write_text(source, encoding="utf-8")
 print("Android OpenGL renderer replacement deferred to Loading::finish on the event thread.")

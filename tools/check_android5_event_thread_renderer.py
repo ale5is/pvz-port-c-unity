@@ -11,15 +11,16 @@ start = game.index("fn prepare_renderer(&mut self)")
 end = game.index("    fn resumed(", start)
 prepare = game[start:end]
 guard = """        if gl {
-            // The current wgpu-GL renderer remains the sole surface owner until
-            // Loading::finish releases its surface and builds the replacement.
-            // Never transfer its background context to a worker: native EGL/GLES
-            // must be created on this event thread after the old surface is released.
+            // Keep wgpu-GL as the only surface owner until finish releases it.
+            // Native EGL/GLES must be created on this event thread after release.
             return Ok(());
         }"""
 if prepare.count(guard) != 1:
     raise SystemExit("FAIL: expected exactly one Android OpenGL event-thread guard")
-if prepare.index(guard) > prepare.index("previous.wait_idle();"):
+wait_candidates = [p for p in (prepare.find("let _ = previous.wait_idle();"), prepare.find("previous.wait_idle();")) if p >= 0]
+if not wait_candidates:
+    raise SystemExit("FAIL: renderer wait call was not found")
+if prepare.index(guard) > min(wait_candidates):
     raise SystemExit("FAIL: OpenGL guard appears after the wgpu wait/context handoff")
 if "previous.background_context()" in prepare:
     raise SystemExit("FAIL: prepare_renderer still exports the wgpu background context")
