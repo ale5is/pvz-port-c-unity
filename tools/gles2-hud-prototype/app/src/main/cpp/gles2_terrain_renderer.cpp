@@ -292,7 +292,9 @@ bool Gles2TerrainRenderer::upload_texture(GLuint* texture, const std::uint8_t* p
                       width, height, max_size);
         return false;
     }
-    glActiveTexture(GL_TEXTURE0);
+    // Texture creation is part of the shared renderer: preserve the active
+    // unit, its previous binding, and unpack alignment for later HUD/world passes.
+    TextureUploadState upload_state(GL_TEXTURE0);
     glGenTextures(1, texture);
     if (!*texture) {
         std::snprintf(error_, sizeof(error_), "glGenTextures returned texture 0");
@@ -305,7 +307,6 @@ bool Gles2TerrainRenderer::upload_texture(GLuint* texture, const std::uint8_t* p
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
     const GLenum error = glGetError();
     if (error != GL_NO_ERROR) {
         std::snprintf(error_, sizeof(error_), "glTexImage2D failed: 0x%x", error);
@@ -313,7 +314,6 @@ bool Gles2TerrainRenderer::upload_texture(GLuint* texture, const std::uint8_t* p
         *texture = 0;
         return false;
     }
-    glBindTexture(GL_TEXTURE_2D, 0);
     (void)byte_size;
     return true;
 }
