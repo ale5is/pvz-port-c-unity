@@ -104,12 +104,16 @@ if not native.is_file():
 native_text = native.read_text(encoding="utf-8")
 require(
     native_text,
-    "Runtime frame failures invalidate lost EGL contexts for the next resume",
+    "Runtime frame failures detect EGL_CONTEXT_LOST and recover or invalidate the context",
     (
         "void invalidate_lost_context(PavoEglOwner* owner)",
-        "eglMakeCurrent failed (EGL_CONTEXT_LOST); context invalidated for resume recovery",
+        "bool recreate_context(PavoEglOwner* owner)",
+        "if (owner->context == EGL_NO_CONTEXT)",
+        "if (error != EGL_CONTEXT_LOST)",
+        "invalidate_lost_context(owner);",
         "eglSwapBuffers failed (EGL_CONTEXT_LOST); context invalidated for resume recovery",
         "owner->context = EGL_NO_CONTEXT;",
+        "++owner->context_generation;",
     ),
 )
 require_order(
