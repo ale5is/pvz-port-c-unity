@@ -17,13 +17,23 @@ for marker in (
 ):
     if marker not in api:
         raise SystemExit(f"FAIL: neutral API missing {marker}")
+trait_start = gfx.find("impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> for Renderer {")
+if trait_start < 0:
+    raise SystemExit("FAIL: wgpu RenderBackend implementation is missing")
+trait_impl = gfx[trait_start:]
 for marker in (
-    "BackendContext::new(",
+    "fn replacement_context(",
+    "horizon_render_api::BackendContext::new(",
+    "self.background_context()",
+):
+    if marker not in trait_impl:
+        raise SystemExit(f"FAIL: wgpu RenderBackend adapter missing {marker}")
+for marker in (
     "context.into_inner::<ReplacementContext>",
     "BackendKind::Wgpu",
 ):
     if marker not in gfx:
-        raise SystemExit(f"FAIL: wgpu adapter missing checked context operation {marker}")
+        raise SystemExit(f"FAIL: wgpu constructor missing checked context operation {marker}")
 if "previous.background_context()" in game:
     raise SystemExit("FAIL: Game still reaches into the concrete wgpu renderer")
 if "RenderBackend::<horizon_client::gfx::Frame<'_>>::replacement_context(previous)" not in game:

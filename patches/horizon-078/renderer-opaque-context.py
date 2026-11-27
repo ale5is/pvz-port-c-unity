@@ -144,8 +144,19 @@ replacement_impl = '''    fn replacement_context(
 '''
 if gfx_text.count(impl_anchor) != 1:
     raise SystemExit("Could not locate wgpu backend_info implementation")
-if "fn replacement_context(" not in gfx_text:
+trait_impl_start = gfx_text.find("impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> for Renderer {")
+if trait_impl_start < 0:
+    raise SystemExit("Could not locate the wgpu RenderBackend implementation")
+trait_impl = gfx_text[trait_impl_start:]
+trait_method = "    fn replacement_context(\\n        &self,\\n    ) -> std::result::Result<horizon_render_api::BackendContext, horizon_render_api::RenderBackendError> {"
+if trait_method not in trait_impl:
+    if trait_impl.count(impl_anchor) != 1:
+        raise SystemExit("Could not uniquely locate RenderBackend::backend_info for context adapter")
     gfx_text = gfx_text.replace(impl_anchor, replacement_impl + impl_anchor, 1)
+    trait_impl_start = gfx_text.find("impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> for Renderer {")
+    trait_impl = gfx_text[trait_impl_start:]
+if trait_method not in trait_impl:
+    raise SystemExit("Opaque replacement_context was not installed in the RenderBackend trait implementation")
 
 game_text = game.read_text(encoding="utf-8")
 old_game = "        let context = previous.background_context();"
