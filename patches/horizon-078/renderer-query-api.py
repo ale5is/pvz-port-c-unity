@@ -40,6 +40,19 @@ game_text, replaced = pattern.subn(
     r"horizon_render_api::RenderBackend::surface_size(\1)",
     game_text,
 )
+
+physical_size_pattern = re.compile(
+    r"winit::dpi::PhysicalSize::new\\(\\s*([A-Za-z_][A-Za-z0-9_]*)\\.config\\.width,\\s*"
+    r"\\1\\.config\\.height\\s*\\)"
+)
+game_text, physical_replaced = physical_size_pattern.subn(
+    lambda match: (
+        "winit::dpi::PhysicalSize::new("
+        f"horizon_render_api::RenderBackend::surface_size({match.group(1)})[0], "
+        f"horizon_render_api::RenderBackend::surface_size({match.group(1)})[1])"
+    ),
+    game_text,
+)
 if replaced < 10:
     raise SystemExit(f"Expected at least 10 Game surface-size reads, migrated {replaced}")
 if ".config.width" in game_text or ".config.height" in game_text:
