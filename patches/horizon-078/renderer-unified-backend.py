@@ -15,29 +15,35 @@ terrain_marker = "pub trait TerrainStreamBackend<Mesh> {"
 if source.count(terrain_marker) != 1:
     raise SystemExit("Expected exactly one TerrainStreamBackend declaration")
 
-composite = """/// Complete renderer boundary consumed by the streamed game loop.
+composite = """/// Describes a family of frame values whose lifetime is chosen by the caller.
+pub trait FrameFamily {
+    type Frame<'frame>;
+}
+
+/// Complete renderer boundary consumed by the streamed game loop.
 ///
-/// The two component traits remain separately testable, while this marker trait
-/// gives Game and Launcher one backend type that owns both frame submission and
-/// streamed terrain residency. The blanket implementation keeps backend
-/// implementations focused on the actual operations instead of boilerplate.
-pub trait GameRenderBackend<Frame, Mesh>:
-    RenderBackend<Frame> + TerrainStreamBackend<Mesh>
+/// The frame family keeps borrowed frame lifetimes generic while allowing one
+/// object-safe backend handle for every frame lifetime. The two component
+/// contracts remain separately testable.
+pub trait GameRenderBackend<Frames: FrameFamily, Mesh>:
+    for<'frame> RenderBackend<Frames::Frame<'frame>> + TerrainStreamBackend<Mesh>
 {
 }
 
-impl<T, Frame, Mesh> GameRenderBackend<Frame, Mesh> for T
+impl<T, Frames, Mesh> GameRenderBackend<Frames, Mesh> for T
 where
-    T: RenderBackend<Frame> + TerrainStreamBackend<Mesh>,
+    Frames: FrameFamily,
+    T: for<'frame> RenderBackend<Frames::Frame<'frame>> + TerrainStreamBackend<Mesh>,
 {
 }
 
-/// Object-safe handle for one concrete frame/mesh pairing.
-pub type GameBackendHandle<'a, Frame, Mesh> = dyn GameRenderBackend<Frame, Mesh> + 'a;
+/// Object-safe handle for one frame family and mesh pairing.
+pub type GameBackendHandle<'a, Frames, Mesh> = dyn GameRenderBackend<Frames, Mesh> + 'a;
 
 """
-if "pub trait GameRenderBackend<Frame, Mesh>" in source:
-    if source.count("pub type GameBackendHandle<'a, Frame, Mesh>") != 1:
+
+if "pub trait GameRenderBackend<Frames: FrameFamily, Mesh>" in source:
+    if source.count("pub type GameBackendHandle<'a, Frames, Mesh>") != 1:
         raise SystemExit("GameRenderBackend exists but its object-safe handle alias is missing")
     print("Unified game renderer contract is already installed.")
     raise SystemExit(0)
@@ -53,15 +59,35 @@ tests_marker = "#[cfg(test)]\nmod tests {"
 if source.count(tests_marker) != 1:
     raise SystemExit("Could not uniquely locate horizon-render-api tests")
 object_test = """
+    struct BorrowedFrame<'a>(&'a [u8]);
+
+    struct BorrowedFrameFamily;
+
+    impl super::FrameFamily for BorrowedFrameFamily {
+        type Frame<'frame> = BorrowedFrame<'frame>;
+    }
+
     #[allow(dead_code)]
     fn game_backend_is_usable_as_a_lifetime_generic_trait_object(
-        _backend: &dyn for<'frame> super::GameRenderBackend<BorrowedFrame<'frame>, Vec<u8>>,
+        _backend: &mut super::GameBackendHandle<'_, BorrowedFrameFamily, Vec<u8>>,
     ) {
     }
 
-    struct BorrowedFrame<'a>(&'a [u8]);
+    #[allow(dead_code)]
+    fn game_backend_object_dispatches_borrowed_frames_and_terrain(
+        backend: &mut super::GameBackendHandle<'_, BorrowedFrameFamily, Vec<u8>>,
+        frame: &BorrowedFrame<'_>,
+        mesh: &Vec<u8>,
+    ) {
+        let _ = super::RenderBackend::render_frame(backend, frame);
+        super::TerrainStreamBackend::upload_section(backend, (0, 0, 0), mesh);
+        super::TerrainStreamBackend::evict_columns(backend, &[]);
+        let _ = super::TerrainStreamBackend::section_lod_revision(backend);
+        super::TerrainStreamBackend::update_occlusion(backend, [0.0; 3], 1.0);
+    }
 
 """
+
 # The compile-time signature validates the exact higher-ranked trait-object
 # shape needed for Horizon's borrowed Frame<'frame>.
 if "game_backend_is_usable_as_a_lifetime_generic_trait_object" not in source:
