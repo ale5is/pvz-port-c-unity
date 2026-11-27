@@ -52,10 +52,10 @@ for marker in ('unsafe extern "C"', "pub(crate) struct Backend", "pavo_gles2_upl
         raise SystemExit(f"FAIL: Rust GLES2 FFI missing {marker}")
     print(f"PASS: Rust FFI {marker}")
 
-initialize_ffi = ffi_text.split("pub(crate) fn initialize", 1)[1].split("pub(crate) fn upload_section", 1)[0]
+initialize_ffi = ffi_text.split("pub(crate) fn initialize", 1)[1]
 for marker in (
     "if layers == 0 || sprite_size <= 0",
-    "layers.checked_mul(sprite_size as usize)",
+    ".checked_mul(sprite_size as usize)",
     ".and_then(|edge| edge.checked_mul(sprite_size as usize))",
     ".and_then(|pixels| pixels.checked_mul(4))",
     "if sprite_pixels.len() != expected_sprite_bytes",
