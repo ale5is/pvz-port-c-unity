@@ -795,7 +795,7 @@ impl Runtime {
             .map_err(|_| "Not enough memory to retain animated GLES2 atlas layer".to_owned())?;
         replacement.extend_from_slice(rgba);
         let replacement = Arc::from(replacement);
-        self.egl.make_current()?;
+        self.ensure_context_current()?;
         self.renderer.update_atlas_layer(layer, rgba)?;
         if let Some(assets) = self.cached_assets.as_mut() {
             assets.animated_layers.insert(layer, replacement);
