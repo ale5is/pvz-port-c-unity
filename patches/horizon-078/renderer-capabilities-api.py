@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Remove Game's remaining adapter-info and GPU-timing dependencies from wgpu."""
 import argparse
+import re
 from pathlib import Path
 
 parser = argparse.ArgumentParser()
@@ -129,17 +130,24 @@ if "pub fn lod_distance_capped_for_backend" not in gr:
         raise SystemExit("Could not locate LOD cap helper")
     gr = gr.replace(old_helper, new_helper, 1)
 
-m = m.replace(
-    "horizon_client::graphics::lod_distance_capped(distance, &renderer.info)",
+m = re.sub(
+    r"horizon_client::graphics::lod_distance_capped\\(distance,\\s*&renderer\\.info\\)",
     "horizon_client::graphics::lod_distance_capped_for_backend(distance, renderer.metrics().integrated_gpu)",
+    m,
 )
-m = m.replace(
-    "horizon_client::graphics::lod_distance_capped(far_distance, &renderer.info)",
+m = re.sub(
+    r"horizon_client::graphics::lod_distance_capped\\(far_distance,\\s*&renderer\\.info\\)",
     "horizon_client::graphics::lod_distance_capped_for_backend(far_distance, renderer.metrics().integrated_gpu)",
+    m,
+)
+m = re.sub(
+    r"\\.record\\(frame_ms, cpu, renderer\\.gpu_times\\.last\\(\\)\\.copied\\(\\)\\);\\s*renderer\\.gpu_times\\.clear\\(\\);",
+    ".record(frame_ms, cpu, renderer.take_gpu_time_ms());",
+    m,
 )
 m = m.replace(
-    ".record(frame_ms, cpu, renderer.gpu_times.last().copied());\n                renderer.gpu_times.clear();",
-    ".record(frame_ms, cpu, renderer.take_gpu_time_ms());",
+    "renderer.last_wait",
+    "std::time::Duration::from_nanos(renderer.metrics().last_wait_ns)",
 )
 m = m.replace(
     '"gpu":self.renderer.as_ref().map(|r| &r.info.name),',
@@ -149,7 +157,7 @@ m = m.replace(
     '"backend":self.renderer.as_ref().map(|r| format!("{:?}",r.info.backend))',
     '"backend":self.renderer.as_ref().map(|r| r.backend_info().backend_name)',
 )
-for marker in ("renderer.info", "renderer.gpu_times", "r.info.name", "r.info.backend"):
+for marker in ("renderer.info", "renderer.gpu_times", "renderer.last_wait", "r.info.name", "r.info.backend"):
     if marker in m:
         raise SystemExit(f"Game still accesses wgpu internals: {marker}")
 if "lod_distance_capped_for_backend" not in m or "take_gpu_time_ms()" not in m:
