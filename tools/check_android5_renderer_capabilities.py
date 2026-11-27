@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guard Game against direct wgpu adapter and timing internals."""
+import re
 import sys
 from pathlib import Path
 if len(sys.argv) != 2:
@@ -14,18 +14,25 @@ api = read("crates/horizon-render-api/src/lib.rs")
 gfx = read("crates/horizon-client-render/src/gfx.rs")
 game = read("crates/horizon-client/src/game.rs")
 graphics = read("crates/horizon-client-render/src/graphics.rs")
-for marker in ("pub struct RendererMetrics", "pub integrated_gpu: bool", "pub struct BackendInfo", "pub backend_name: String"):
+for marker in ("pub struct RendererMetrics", "pub integrated_gpu: bool", "pub last_encode_ns: u64",
+               "pub struct BackendInfo", "pub backend_name: String", "pub is_gles: bool"):
     if marker not in api:
         raise SystemExit(f"FAIL: neutral API missing {marker}")
-for marker in ("pub fn metrics(&self)", "pub fn backend_info(&self)", "pub fn take_gpu_time_ms(&mut self)"):
+for marker in ("pub fn metrics(&self)", "pub fn backend_info(&self)", "pub fn take_gpu_time_ms(&mut self)",
+               "pub fn gpu_time_samples(&self)", "pub fn clear_gpu_time_samples(&mut self)",
+               "pub fn take_screenshot_result(&mut self)", "pub fn wait_for_background_work(&self)"):
     if marker not in gfx:
         raise SystemExit(f"FAIL: wgpu adapter missing {marker}")
-for marker in ("lod_distance_capped_for_backend", "take_gpu_time_ms()", "backend_info().name", "backend_info().backend_name"):
+for marker in ("lod_distance_capped_for_backend", "gpu_time_samples()", "clear_gpu_time_samples()",
+               "take_screenshot_result()", "wait_for_background_work()", "backend_info().name",
+               "backend_info().is_gles", "last_encode_ns"):
     if marker not in game:
         raise SystemExit(f"FAIL: Game migration missing {marker}")
-for marker in ("renderer.info", "renderer.gpu_times", "r.info.name", "r.info.backend"):
-    if marker in game:
-        raise SystemExit(f"FAIL: Game still depends on wgpu internals: {marker}")
+for pattern in (r"\b(?:renderer|r)\.info\b", r"\b(?:renderer|r)\.gpu_times\b",
+                r"\b(?:renderer|r)\.last_wait\b", r"\b(?:renderer|r)\.last_encode\b",
+                r"\b(?:renderer|r)\.screenshot_result\b", r"\b(?:renderer|r)\.device\b"):
+    if re.search(pattern, game):
+        raise SystemExit(f"FAIL: Game still accesses wgpu internals: {pattern}")
 if "pub fn lod_distance_capped_for_backend" not in graphics:
     raise SystemExit("FAIL: backend-neutral LOD policy helper missing")
-print("PASS: Game adapter identity, integrated-GPU policy and GPU timing are backend-neutral.")
+print("PASS: Game adapter identity, LOD capabilities, frame timings, screenshot results and background waits are backend-neutral.")

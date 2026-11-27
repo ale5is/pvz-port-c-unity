@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Remove Game's remaining adapter-info and GPU-timing dependencies from wgpu."""
+"""Move adapter identity, timing and renderer-only operations behind neutral APIs."""
 import argparse
 import re
 from pathlib import Path
@@ -16,57 +16,102 @@ for path in (api, gfx, game, graphics):
         raise SystemExit(f"Missing expected source: {path}")
 a, g, m, gr = [p.read_text(encoding="utf-8") for p in (api, gfx, game, graphics)]
 
-old_metrics = """    pub pending_gpu_time_samples: usize,
-}"""
-new_metrics = """    pub pending_gpu_time_samples: usize,
-    pub integrated_gpu: bool,
-}"""
 if "pub integrated_gpu: bool" not in a:
-    if a.count(old_metrics) != 1:
+    old = """    pub pending_gpu_time_samples: usize,
+}"""
+    new = """    pub pending_gpu_time_samples: usize,
+    pub integrated_gpu: bool,
+    pub last_encode_ns: u64,
+}"""
+    if a.count(old) != 1:
         raise SystemExit("RendererMetrics shape changed")
-    a = a.replace(old_metrics, new_metrics, 1)
+    a = a.replace(old, new, 1)
+elif "pub last_encode_ns: u64" not in a:
+    a = a.replace("    pub integrated_gpu: bool,\n}", "    pub integrated_gpu: bool,\n    pub last_encode_ns: u64,\n}", 1)
 
-old_info = """pub struct BackendInfo {
+if "pub backend_name: String" not in a:
+    old = """pub struct BackendInfo {
     pub kind: BackendKind,
     pub name: String,
     pub suspended: bool,
 }"""
-new_info = """pub struct BackendInfo {
+    new = """pub struct BackendInfo {
     pub kind: BackendKind,
     pub name: String,
     pub backend_name: String,
     pub integrated_gpu: bool,
+    pub is_gles: bool,
     pub suspended: bool,
 }"""
-if "pub backend_name: String" not in a:
-    if a.count(old_info) != 1:
+    if a.count(old) != 1:
         raise SystemExit("BackendInfo shape changed")
-    a = a.replace(old_info, new_info, 1)
+    a = a.replace(old, new, 1)
+elif "pub is_gles: bool" not in a:
+    a = a.replace("    pub integrated_gpu: bool,\n    pub suspended: bool,", "    pub integrated_gpu: bool,\n    pub is_gles: bool,\n    pub suspended: bool,", 1)
 
-test_old = """            name: "OpenGL ES 2.0".to_owned(),
-            suspended: false,"""
-test_new = """            name: "OpenGL ES 2.0".to_owned(),
-            backend_name: "EGL/GLES2".to_owned(),
-            integrated_gpu: true,
-            suspended: false,"""
-if 'backend_name: "EGL/GLES2"' not in a:
-    if a.count(test_old) != 1:
-        raise SystemExit("BackendInfo test fixture changed")
-    a = a.replace(test_old, test_new, 1)
+if 'is_gles: false' not in a:
+    a = a.replace(
+        '            integrated_gpu: true,\n            suspended: false,',
+        '            integrated_gpu: true,\n            is_gles: true,\n            suspended: false,',
+        1,
+    )
 
-old_accessor = """            pending_gpu_time_samples: self.gpu_times.len(),
-        }
-    }
-
-    /// Request a screenshot without exposing the renderer's internal slot."""
-new_accessor = """            pending_gpu_time_samples: self.gpu_times.len(),
+old_metrics = """            pending_gpu_time_samples: self.gpu_times.len(),
             integrated_gpu: self.info.device_type == wgpu::DeviceType::IntegratedGpu
                 && !self.info.name.starts_with("Apple"),
-        }
+        }"""
+new_metrics = """            pending_gpu_time_samples: self.gpu_times.len(),
+            integrated_gpu: self.info.device_type == wgpu::DeviceType::IntegratedGpu
+                && !self.info.name.starts_with("Apple"),
+            last_encode_ns: self.last_encode.as_nanos().min(u128::from(u64::MAX)) as u64,
+        }"""
+if "last_encode_ns: self.last_encode.as_nanos()" not in g:
+    if g.count(old_metrics) != 1:
+        raise SystemExit("Could not update RendererMetrics adapter")
+    g = g.replace(old_metrics, new_metrics, 1)
+
+old_info = """            backend_name: format!("{:?}", self.info.backend),
+            integrated_gpu: self.info.device_type == wgpu::DeviceType::IntegratedGpu
+                && !self.info.name.starts_with("Apple"),
+            suspended: self.suspended,"""
+new_info = """            backend_name: format!("{:?}", self.info.backend),
+            integrated_gpu: self.info.device_type == wgpu::DeviceType::IntegratedGpu
+                && !self.info.name.starts_with("Apple"),
+            is_gles: self.info.backend == wgpu::Backend::Gl,
+            suspended: self.suspended,"""
+if "is_gles: self.info.backend" not in g:
+    if g.count(old_info) != 1:
+        raise SystemExit("Could not update BackendInfo adapter")
+    g = g.replace(old_info, new_info, 1)
+
+if "pub fn gpu_time_samples(&self)" not in g:
+    marker = "    /// Request a screenshot without exposing the renderer's internal slot."
+    methods = """    /// Read timing samples through a backend-neutral slice.
+    pub fn gpu_time_samples(&self) -> &[f32] {
+        &self.gpu_times
     }
 
-    /// Return stable adapter identity without exposing wgpu's AdapterInfo type.
-    pub fn backend_info(&self) -> horizon_render_api::BackendInfo {
+    /// Clear timing samples after all frame-stat consumers have read them.
+    pub fn clear_gpu_time_samples(&mut self) {
+        self.gpu_times.clear();
+    }
+
+    /// Take the completed screenshot result without exposing its storage slot.
+    pub fn take_screenshot_result(&mut self) -> Option<std::result::Result<[u32; 2], String>> {
+        self.screenshot_result.take()
+    }
+
+    /// Wait for background uploads before the renderer is handed to the frame thread.
+    pub fn wait_for_background_work(&self) {
+        let _ = self.device.poll(wgpu::PollType::wait_indefinitely());
+    }
+
+"""
+    if g.count(marker) != 1:
+        raise SystemExit("Could not locate renderer accessor insertion point")
+    g = g.replace(marker, methods + marker, 1)
+
+old_trait = """    fn backend_info(&self) -> horizon_render_api::BackendInfo {
         horizon_render_api::BackendInfo {
             kind: horizon_render_api::BackendKind::Wgpu,
             name: self.info.name.clone(),
@@ -75,35 +120,12 @@ new_accessor = """            pending_gpu_time_samples: self.gpu_times.len(),
                 && !self.info.name.starts_with("Apple"),
             suspended: self.suspended,
         }
-    }
-
-    /// Consume the latest GPU timing sample and clear older samples.
-    pub fn take_gpu_time_ms(&mut self) -> Option<f32> {
-        let latest = self.gpu_times.last().copied();
-        self.gpu_times.clear();
-        latest
-    }
-
-    /// Request a screenshot without exposing the renderer's internal slot."""
-if "pub fn take_gpu_time_ms(&mut self)" not in g:
-    if g.count(old_accessor) != 1:
-        raise SystemExit("RendererMetrics accessor changed")
-    g = g.replace(old_accessor, new_accessor, 1)
-
-old_trait = """    fn backend_info(&self) -> horizon_render_api::BackendInfo {
-        horizon_render_api::BackendInfo {
-            kind: horizon_render_api::BackendKind::Wgpu,
-            name: self.info.name.clone(),
-            suspended: self.suspended,
-        }
     }"""
 new_trait = """    fn backend_info(&self) -> horizon_render_api::BackendInfo {
         Renderer::backend_info(self)
     }"""
 if old_trait in g:
     g = g.replace(old_trait, new_trait, 1)
-elif "Renderer::backend_info(self)" not in g:
-    raise SystemExit("Could not locate wgpu backend_info implementation")
 
 old_helper = """pub fn lod_distance_capped(distance: u32, info: &wgpu::AdapterInfo) -> u32 {
     let distance = distance.min(crate::lod::MAX_CHUNKS);
@@ -113,10 +135,12 @@ old_helper = """pub fn lod_distance_capped(distance: u32, info: &wgpu::AdapterIn
         distance
     }
 }"""
-new_helper = old_helper + """
+if "pub fn lod_distance_capped_for_backend" not in gr:
+    if gr.count(old_helper) != 1:
+        raise SystemExit("Could not locate LOD cap helper")
+    gr = gr.replace(old_helper, old_helper + """
 
-/// Backend-neutral equivalent used by Game after adapter details have been
-/// reduced to a capability bit. GLES2 backends can report this without wgpu.
+/// Backend-neutral LOD policy for renderers that do not expose wgpu adapters.
 pub fn lod_distance_capped_for_backend(distance: u32, integrated_gpu: bool) -> u32 {
     let distance = distance.min(crate::lod::MAX_CHUNKS);
     if integrated_gpu {
@@ -124,45 +148,60 @@ pub fn lod_distance_capped_for_backend(distance: u32, integrated_gpu: bool) -> u
     } else {
         distance
     }
-}"""
-if "pub fn lod_distance_capped_for_backend" not in gr:
-    if gr.count(old_helper) != 1:
-        raise SystemExit("Could not locate LOD cap helper")
-    gr = gr.replace(old_helper, new_helper, 1)
+}
+""", 1)
 
 m = re.sub(
-    r"horizon_client::graphics::lod_distance_capped\(distance,\s*&renderer\.info\)",
-    "horizon_client::graphics::lod_distance_capped_for_backend(distance, renderer.metrics().integrated_gpu)",
+    r"horizon_client::graphics::lod_distance_capped\((distance|far_distance),\s*&renderer\.info\)",
+    lambda match: f"horizon_client::graphics::lod_distance_capped_for_backend({match.group(1)}, renderer.metrics().integrated_gpu)",
+    m,
+)
+m = re.sub(r"&r\.info\.name", "r.backend_info().name", m)
+m = re.sub(r"r\.info\.backend\s*==\s*wgpu::Backend::Gl", "r.backend_info().is_gles", m)
+m = re.sub(r"r\.gpu_times\.last\(\)\.copied\(\)", "r.gpu_time_samples().last().copied()", m)
+m = re.sub(r"r\.gpu_times\.last\(\)", "r.gpu_time_samples().last()", m)
+m = re.sub(r"&r\.gpu_times\b", "r.gpu_time_samples()", m)
+m = re.sub(r"r\.gpu_times\.clear\(\)", "r.clear_gpu_time_samples()", m)
+m = re.sub(
+    r"\b(r|renderer)\.last_wait\b",
+    r"std::time::Duration::from_nanos(\1.metrics().last_wait_ns)",
     m,
 )
 m = re.sub(
-    r"horizon_client::graphics::lod_distance_capped\(far_distance,\s*&renderer\.info\)",
-    "horizon_client::graphics::lod_distance_capped_for_backend(far_distance, renderer.metrics().integrated_gpu)",
-    m,
-)
-m = re.sub(
-    r"\.record\(frame_ms, cpu, renderer\.gpu_times\.last\(\)\.copied\(\)\);\s*renderer\.gpu_times\.clear\(\);",
-    ".record(frame_ms, cpu, renderer.take_gpu_time_ms());",
+    r"\br\.last_encode\b",
+    "std::time::Duration::from_nanos(r.metrics().last_encode_ns)",
     m,
 )
 m = m.replace(
-    "renderer.last_wait",
-    "std::time::Duration::from_nanos(renderer.metrics().last_wait_ns)",
+    ".and_then(|r| r.screenshot_result.take())",
+    ".and_then(|r| r.take_screenshot_result())",
 )
 m = m.replace(
-    '"gpu":self.renderer.as_ref().map(|r| &r.info.name),',
-    '"gpu":self.renderer.as_ref().map(|r| r.backend_info().name),',
+    "r.device.poll(wgpu::PollType::wait_indefinitely())",
+    "r.wait_for_background_work()",
 )
 m = m.replace(
-    '"backend":self.renderer.as_ref().map(|r| format!("{:?}",r.info.backend))',
-    '"backend":self.renderer.as_ref().map(|r| r.backend_info().backend_name)',
+    "self.renderer.as_ref().map(|r| &r.info.name)",
+    "self.renderer.as_ref().map(|r| r.backend_info().name)",
 )
-for marker in ("renderer.info", "renderer.gpu_times", "renderer.last_wait", "r.info.name", "r.info.backend"):
-    if marker in m:
-        raise SystemExit(f"Game still accesses wgpu internals: {marker}")
-if "lod_distance_capped_for_backend" not in m or "take_gpu_time_ms()" not in m:
-    raise SystemExit("Game capability/timing migration incomplete")
 
-for p, value in ((api, a), (gfx, g), (game, m), (graphics, gr)):
-    p.write_text(value, encoding="utf-8")
-print("Moved adapter identity, integrated-GPU policy and GPU timing behind backend-neutral APIs.")
+for pattern in (
+    r"\b(?:renderer|r)\.info\b",
+    r"\b(?:renderer|r)\.gpu_times\b",
+    r"\b(?:renderer|r)\.last_wait\b",
+    r"\b(?:renderer|r)\.last_encode\b",
+    r"\b(?:renderer|r)\.screenshot_result\b",
+    r"\b(?:renderer|r)\.device\b",
+):
+    if re.search(pattern, m):
+        raise SystemExit(f"Game still accesses wgpu renderer internals: {pattern}")
+if "lod_distance_capped_for_backend" not in m:
+    raise SystemExit("Game LOD policy migration incomplete")
+if "gpu_time_samples()" not in m or "clear_gpu_time_samples()" not in m:
+    raise SystemExit("Game GPU timing migration incomplete")
+if "take_screenshot_result()" not in m or "wait_for_background_work()" not in m:
+    raise SystemExit("Game renderer operation migration incomplete")
+
+for path, value in ((api, a), (gfx, g), (game, m), (graphics, gr)):
+    path.write_text(value, encoding="utf-8")
+print("Moved adapter identity, GPU capabilities, frame timings, screenshot results and background waits behind renderer APIs.")
