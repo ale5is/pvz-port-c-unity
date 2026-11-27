@@ -42,8 +42,8 @@ game_text, replaced = pattern.subn(
 )
 
 physical_size_pattern = re.compile(
-    r"winit::dpi::PhysicalSize::new\\(\\s*([A-Za-z_][A-Za-z0-9_]*)\\.config\\.width,\\s*"
-    r"\\1\\.config\\.height\\s*\\)"
+    r"winit::dpi::PhysicalSize::new\(\s*([A-Za-z_][A-Za-z0-9_]*)\.config\.width,\s*"
+    r"\1\.config\.height\s*\)"
 )
 game_text, physical_replaced = physical_size_pattern.subn(
     lambda match: (
