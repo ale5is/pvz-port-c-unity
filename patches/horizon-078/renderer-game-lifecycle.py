@@ -40,5 +40,22 @@ for label, path in files.items():
     for stale in ("renderer.suspend_surface();", "renderer.recreate_surface()", "renderer.resize(", "renderer.release_surface();", "r.resize(", "r.suspend_surface();"):
         if stale in source:
             raise SystemExit(f"{label} retains concrete lifecycle call: {stale}")
+    if label == "Game":
+        lifecycle_error = "self.error = Some(error);"
+        contexts = source.count("if let Err(error) = horizon_render_api::RenderBackend::recreate_surface(renderer) {")
+        if contexts != 2:
+            raise SystemExit(f"Expected 2 backend surface recreation branches, got {contexts}")
+        for marker in ("if let Err(error) = horizon_render_api::RenderBackend::recreate_surface(renderer) {",):
+            start = 0
+            while True:
+                start = source.find(marker, start)
+                if start < 0:
+                    break
+                end = source.find("}", start)
+                segment = source[start:end]
+                if lifecycle_error not in segment:
+                    raise SystemExit("Surface recreation error branch changed unexpectedly")
+                source = source[:start] + segment.replace(lifecycle_error, "self.error = Some(Box::new(error));") + source[end:]
+                start += len(segment)
     path.write_text(source, encoding="utf-8")
     print(f"Migrated {changed} lifecycle call sites in {label}.")

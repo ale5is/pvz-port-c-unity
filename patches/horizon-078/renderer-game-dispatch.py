@@ -35,4 +35,15 @@ elif game_text.count(loading_new) != 5:
 if normal in game_text or loading in game_text:
     raise SystemExit("Game still submits a frame through the concrete renderer API")
 game.write_text(game_text, encoding="utf-8")
-print("Migrated all 2 normal and 5 loading Game frame submissions through RenderBackend.")
+none_old = 'None => Err("renderer".into()),'
+none_new = 'None => Err(horizon_render_api::RenderBackendError::new("renderer")),'
+if game_text.count(none_old) != 1:
+    raise SystemExit(f"Expected one missing-renderer error branch, got {game_text.count(none_old)}")
+game_text = game_text.replace(none_old, none_new)
+result_old = "        result\\n    }\\n    /// The frame shows the title"
+result_new = "        result.map_err(|error| Box::new(error) as Box<dyn std::error::Error>)\\n    }\\n    /// The frame shows the title"
+if game_text.count(result_old) != 1:
+    raise SystemExit("Could not uniquely locate Game frame result return")
+game_text = game_text.replace(result_old, result_new)
+game.write_text(game_text, encoding="utf-8")
+print("Migrated all 2 normal and 5 loading Game frame submissions and normalized Game error types.")
