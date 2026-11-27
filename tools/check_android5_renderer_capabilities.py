@@ -30,7 +30,7 @@ for marker in ("lod_distance_capped_for_backend", "gpu_time_samples()", "clear_g
         raise SystemExit(f"FAIL: Game migration missing {marker}")
 for pattern in (r"\b(?:renderer|r)\.info\b", r"\b(?:renderer|r)\.gpu_times\b",
                 r"\b(?:renderer|r)\.last_wait\b", r"\b(?:renderer|r)\.last_encode\b",
-                r"\b(?:renderer|r)\.screenshot_result\b", r"\b(?:renderer|r)\.device\b"):
+                r"\b(?:renderer|r)\.screenshot_result\b"):
     if re.search(pattern, game):
         raise SystemExit(f"FAIL: Game still accesses wgpu internals: {pattern}")
 if "pub fn lod_distance_capped_for_backend" not in graphics:

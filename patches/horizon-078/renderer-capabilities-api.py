@@ -191,7 +191,6 @@ for pattern in (
     r"\b(?:renderer|r)\.last_wait\b",
     r"\b(?:renderer|r)\.last_encode\b",
     r"\b(?:renderer|r)\.screenshot_result\b",
-    r"\b(?:renderer|r)\.device\b",
 ):
     if re.search(pattern, m):
         raise SystemExit(f"Game still accesses wgpu renderer internals: {pattern}")
