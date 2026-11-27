@@ -12,6 +12,8 @@ on:
       - 'tools/check_android5_renderer_boundary.py'
       - 'patches/horizon-078/gles2-hud-adapter.py'
       - 'patches/horizon-078/renderer-hud-boundary.py'
+      - 'patches/horizon-078/renderer-gles2-event-thread.py'
+      - 'tools/check_android5_event_thread_renderer.py'
       - 'patches/horizon-078/renderer-frame-contract.py'
       - 'patches/horizon-078/renderer-frame-inputs.py'
       - 'tools/check_android5_frame_contract.py'
@@ -133,6 +135,9 @@ jobs:
 
       - name: Encapsulate renderer HUD backend setup
         run: python3 patches/horizon-078/renderer-hud-boundary.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Separate GLES CPU preparation from event-thread renderer creation
+        run: python3 patches/horizon-078/renderer-gles2-event-thread.py "$RUNNER_TEMP/horizon-078"
 
       - name: Separate the CPU frame contract from wgpu
         run: python3 patches/horizon-078/renderer-frame-contract.py "$RUNNER_TEMP/horizon-078"
