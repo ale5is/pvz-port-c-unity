@@ -186,6 +186,11 @@ jobs:
           python3 patches/horizon-078/renderer-terrain-api.py "$RUNNER_TEMP/horizon-078"
           python3 tools/check_android5_terrain_backend.py "$RUNNER_TEMP/horizon-078"
 
+      - name: Compose frame and terrain into one game backend
+        run: |
+          python3 patches/horizon-078/renderer-unified-backend.py "$RUNNER_TEMP/horizon-078"
+          python3 tools/check_android5_unified_backend.py "$RUNNER_TEMP/horizon-078"
+
       - name: Route Game frame submission through RenderBackend
         run: |
           python3 patches/horizon-078/renderer-game-dispatch.py "$RUNNER_TEMP/horizon-078"
