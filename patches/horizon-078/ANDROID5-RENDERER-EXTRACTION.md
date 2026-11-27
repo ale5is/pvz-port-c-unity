@@ -53,3 +53,8 @@ This removes the Game's direct adapter-info and GPU-timing reads. It does not ye
 ## HUD atlas ownership extraction
 
 The HUD sprite-animation metadata and optional text-shader installation are now configured through Renderer::configure_hud_atlas. This keeps the wgpu Device and HUD renderer private to the renderer implementation. The same operation is used for initial world construction, loading renderer setup, and both renderer replacement handoff paths. The Game no longer reads renderer.device or renderer.hud directly.
+
+
+## Existing Game-side renderer boundary reused
+
+The Android HUD-boundary patch already extracts the LOD cap, framebuffer size, HUD setup, screenshot result/request, wait durations, GPU timing drains, adapter labels, GL/Vulkan selection, suspension and renderer handoff behind renderer methods. The capability patch now builds on those methods instead of duplicating them. It adds integrated-GPU and backend identity fields to the neutral API and checks that Game no longer reads those wgpu-owned fields directly.

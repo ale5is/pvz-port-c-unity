@@ -2,37 +2,35 @@
 import re
 import sys
 from pathlib import Path
-if len(sys.argv) != 2:
+if len(sys.argv)!=2:
     raise SystemExit("usage: check_android5_renderer_capabilities.py <horizon-source-root>")
-root = Path(sys.argv[1]).resolve()
+root=Path(sys.argv[1]).resolve()
 def read(path):
-    p = root / path
+    p=root/path
     if not p.is_file():
         raise SystemExit(f"FAIL: missing {path}")
     return p.read_text(encoding="utf-8")
-api = read("crates/horizon-render-api/src/lib.rs")
-gfx = read("crates/horizon-client-render/src/gfx.rs")
-game = read("crates/horizon-client/src/game.rs")
-graphics = read("crates/horizon-client-render/src/graphics.rs")
-for marker in ("pub struct RendererMetrics", "pub integrated_gpu: bool", "pub last_encode_ns: u64",
-               "pub struct BackendInfo", "pub backend_name: String", "pub is_gles: bool"):
+api=read("crates/horizon-render-api/src/lib.rs")
+gfx=read("crates/horizon-client-render/src/gfx.rs")
+game=read("crates/horizon-client/src/game.rs")
+for marker in ("pub struct RendererMetrics","pub integrated_gpu: bool","pub last_encode_ns: u64",
+               "pub struct BackendInfo","pub backend_name: String","pub is_gles: bool"):
     if marker not in api:
         raise SystemExit(f"FAIL: neutral API missing {marker}")
-for marker in ("pub fn metrics(&self)", "pub fn backend_info(&self)",
-               "pub fn gpu_time_samples(&self)", "pub fn clear_gpu_time_samples(&mut self)",
-               "pub fn take_screenshot_result(&mut self)", "pub fn wait_for_background_work(&self)"):
+for marker in ("pub fn metrics(&self)","pub fn backend_info(&self)","pub fn lod_distance_capped(&self",
+               "pub fn take_latest_gpu_time(&mut self)","pub fn take_gpu_times(&mut self)",
+               "pub fn last_wait_duration(&self)","pub fn last_encode_duration(&self)",
+               "pub fn adapter_name(&self)","pub fn backend_name(&self)","pub fn is_gl_backend(&self)"):
     if marker not in gfx:
-        raise SystemExit(f"FAIL: wgpu adapter missing {marker}")
-for marker in ("lod_distance_capped_for_backend", "gpu_time_samples()", "clear_gpu_time_samples()",
-               "take_screenshot_result()", "wait_for_background_work()", "backend_info().name",
-               "backend_info().is_gles", "last_encode_ns"):
+        raise SystemExit(f"FAIL: renderer adapter missing {marker}")
+for marker in ("renderer.lod_distance_capped(distance)","renderer.lod_distance_capped(far_distance)",
+               "r.adapter_name()","r.backend_name()","previous.is_gl_backend()",
+               "previous.is_vulkan_backend()","r.is_gl_backend()","r.take_latest_gpu_time()",
+               "r.take_gpu_times()","r.last_wait_duration()","r.last_encode_duration()"):
     if marker not in game:
-        raise SystemExit(f"FAIL: Game migration missing {marker}")
-for pattern in (r"\b(?:renderer|r)\.info\b", r"\b(?:renderer|r)\.gpu_times\b",
-                r"\b(?:renderer|r)\.last_wait\b", r"\b(?:renderer|r)\.last_encode\b",
-                r"\b(?:renderer|r)\.screenshot_result\b"):
-    if re.search(pattern, game):
-        raise SystemExit(f"FAIL: Game still accesses wgpu internals: {pattern}")
-if "pub fn lod_distance_capped_for_backend" not in graphics:
-    raise SystemExit("FAIL: backend-neutral LOD policy helper missing")
-print("PASS: Game adapter identity, LOD capabilities, frame timings, screenshot results and background waits are backend-neutral.")
+        raise SystemExit(f"FAIL: Game boundary missing {marker}")
+pattern=re.compile(r"\b(?:renderer|previous|r)\.(?:device|queue|surface|spare_surface|instance|adapter|config|"
+                   r"screenshot_result|screenshot|drawn_sections|last_wait|last_encode|gpu_times|info|hud|suspended)\b")
+if pattern.search(game):
+    raise SystemExit("FAIL: Game still reads wgpu renderer internals")
+print("PASS: Game uses backend-neutral LOD, timing, screenshot, lifecycle and adapter accessors.")
