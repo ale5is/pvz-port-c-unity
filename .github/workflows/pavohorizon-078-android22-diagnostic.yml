@@ -194,6 +194,17 @@ jobs:
           python3 patches/horizon-078/renderer-game-lifecycle.py "$RUNNER_TEMP/horizon-078"
           python3 tools/check_android5_game_lifecycle_dispatch.py "$RUNNER_TEMP/horizon-078"
 
+      - name: Verify backend error conversion at Game boundary
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path("$RUNNER_TEMP/horizon-078/crates/horizon-client/src/game.rs").read_text()
+          conversion = "map_err(|error| Box::new(error) as Box<dyn std::error::Error>)"
+          assert source.count(conversion) == 7, source.count(conversion)
+          assert source.count("self.error = Some(Box::new(error));") == 2
+          print("PASS: all 7 frame errors and both surface recreation errors are boxed at the Game boundary.")
+          PY
+
       - name: Move Game debug timing behind RenderBackend
         run: |
           python3 patches/horizon-078/renderer-debug-timing.py "$RUNNER_TEMP/horizon-078"
