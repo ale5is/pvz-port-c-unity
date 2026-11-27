@@ -198,7 +198,8 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          source = Path("$RUNNER_TEMP/horizon-078/crates/horizon-client/src/game.rs").read_text()
+          import os
+          source = (Path(os.environ["RUNNER_TEMP"]) / "horizon-078/crates/horizon-client/src/game.rs").read_text()
           conversion = "map_err(|error| Box::new(error) as Box<dyn std::error::Error>)"
           assert source.count(conversion) == 7, source.count(conversion)
           assert source.count("self.error = Some(Box::new(error));") == 2
