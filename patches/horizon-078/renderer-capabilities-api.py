@@ -67,20 +67,6 @@ if "last_encode_ns: self.last_encode.as_nanos()" not in g:
     if count != 1:
         raise SystemExit("Could not update RendererMetrics adapter")
 
-old_info = """            backend_name: format!("{:?}", self.info.backend),
-            integrated_gpu: self.info.device_type == wgpu::DeviceType::IntegratedGpu
-                && !self.info.name.starts_with("Apple"),
-            suspended: self.suspended,"""
-new_info = """            backend_name: format!("{:?}", self.info.backend),
-            integrated_gpu: self.info.device_type == wgpu::DeviceType::IntegratedGpu
-                && !self.info.name.starts_with("Apple"),
-            is_gles: self.info.backend == wgpu::Backend::Gl,
-            suspended: self.suspended,"""
-if "is_gles: self.info.backend" not in g:
-    if g.count(old_info) != 1:
-        raise SystemExit("Could not update BackendInfo adapter")
-    g = g.replace(old_info, new_info, 1)
-
 if "pub fn backend_info(&self)" not in g:
     marker = "    /// Request a screenshot without exposing the renderer's internal slot."
     backend_method = """    /// Return stable adapter identity without exposing wgpu's AdapterInfo type.
@@ -132,9 +118,6 @@ old_trait = """    fn backend_info(&self) -> horizon_render_api::BackendInfo {
         horizon_render_api::BackendInfo {
             kind: horizon_render_api::BackendKind::Wgpu,
             name: self.info.name.clone(),
-            backend_name: format!("{:?}", self.info.backend),
-            integrated_gpu: self.info.device_type == wgpu::DeviceType::IntegratedGpu
-                && !self.info.name.starts_with("Apple"),
             suspended: self.suspended,
         }
     }"""
