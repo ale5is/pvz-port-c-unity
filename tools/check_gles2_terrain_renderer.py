@@ -84,6 +84,12 @@ required_header = [
     "sizeof(Gles2TerrainVertex) == 48",
 ]
 required_source = [
+    "class TextureUploadState",
+    "glGetIntegerv(GL_ACTIVE_TEXTURE, &previous_active_texture_)",
+    "glGetIntegerv(GL_UNPACK_ALIGNMENT, &previous_unpack_alignment_)",
+    "glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous_texture_binding_)",
+    "glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previous_texture_binding_))",
+    "glPixelStorei(GL_UNPACK_ALIGNMENT, previous_unpack_alignment_)",
     "#version 100",
     "glBindAttribLocation(program, 0, \"a_position\")",
     "glBindAttribLocation(program, 7, \"a_material\")",
@@ -165,6 +171,10 @@ if "atlas_width % sprite_size" in source or "atlas_height % sprite_size" in sour
 atlas_update_start = source.index("bool Gles2TerrainRenderer::update_atlas_layer(")
 atlas_update_end = source.index("\nbool Gles2TerrainRenderer::upload_buffer(", atlas_update_start)
 atlas_update_body = source[atlas_update_start:atlas_update_end]
+if "TextureUploadState upload_state(GL_TEXTURE0);" not in atlas_update_body:
+    raise SystemExit("FAIL: animated atlas upload must preserve prior GLES2 texture state")
+if "glBindTexture(GL_TEXTURE_2D, 0);" in atlas_update_body or "glPixelStorei(GL_UNPACK_ALIGNMENT, 4);" in atlas_update_body:
+    raise SystemExit("FAIL: animated atlas upload must not reset shared GL state to assumed defaults")
 for item in [
     'if (!check_owner_thread("update_atlas_layer")) return false;',
     "byte_count != expected_bytes",
@@ -612,6 +622,10 @@ if lightmap_body.find("clear_gl_errors();") > lightmap_body.find("glTexSubImage2
     raise SystemExit("FAIL: lightmap update must clear stale GL errors before uploading")
 if "glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 16, 16" not in lightmap_body:
     raise SystemExit("FAIL: lightmap update no longer uploads the full 16x16 texture")
+if "TextureUploadState upload_state(GL_TEXTURE1);" not in lightmap_body:
+    raise SystemExit("FAIL: lightmap upload must preserve prior GLES2 texture state")
+if "glBindTexture(GL_TEXTURE_2D, 0);" in lightmap_body or "glActiveTexture(GL_TEXTURE0);" in lightmap_body:
+    raise SystemExit("FAIL: lightmap upload must not reset shared GL state to assumed defaults")
 if "glEnable(static_cast<GLenum>(0xdead));" not in native_host:
     raise SystemExit("FAIL: native smoke test must seed a stale GL error before a valid lightmap update")
 if "renderer.update_lightmap(lightmap.data(), lightmap.size())" not in native_host:
