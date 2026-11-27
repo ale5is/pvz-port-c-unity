@@ -163,6 +163,14 @@ pub fn lod_distance_capped_for_backend(distance: u32, integrated_gpu: bool) -> u
 }
 """, 1)
 
+m = m.replace(
+    "lod_distance_capped(distance, &renderer.info)",
+    "lod_distance_capped_for_backend(distance, renderer.metrics().integrated_gpu)",
+)
+m = m.replace(
+    "lod_distance_capped(far_distance, &renderer.info)",
+    "lod_distance_capped_for_backend(far_distance, renderer.metrics().integrated_gpu)",
+)
 m = re.sub(
     r"horizon_client::graphics::lod_distance_capped\((distance|far_distance),\s*&renderer\.info\)",
     lambda match: f"horizon_client::graphics::lod_distance_capped_for_backend({match.group(1)}, renderer.metrics().integrated_gpu)",
