@@ -88,11 +88,17 @@ wgpu = { version = "30.0.1", default-features = false, features = ["gles"] }
     """[target.'cfg(target_os = "linux")'.dependencies]
 # Vulkan and GLES remain available to the Linux desktop client.
 wgpu = { version = "30.0.1", default-features = false, features = ["vulkan", "gles"] }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-wgpu = { version = "30.0.1", default-features = false, features = ["metal"] }
 """,
-    "client non-Android GLES dependency",
+    "client Linux GLES dependency",
+)
+client = replace_once(
+    client,
+    """[target.'cfg(target_os = "macos")'.dependencies]
+# Splitscreen: the window filling a monitor goes over its menu bar""",
+    """[target.'cfg(target_os = "macos")'.dependencies]
+wgpu = { version = "30.0.1", default-features = false, features = ["metal"] }
+# Splitscreen: the window filling a monitor goes over its menu bar""",
+    "client existing macOS dependency section",
 )
 client_manifest.write_text(client, encoding="utf-8")
 
