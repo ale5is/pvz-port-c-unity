@@ -12,8 +12,8 @@ m = game.read_text(encoding="utf-8")
 g = gfx.read_text(encoding="utf-8")
 if "renderer.device" in m or "renderer.hud" in m:
     raise SystemExit("FAIL: Game still accesses wgpu-owned HUD/device fields")
-if "pub fn configure_hud_atlas(" not in g:
-    raise SystemExit("FAIL: renderer HUD configuration boundary missing")
-if m.count("renderer.configure_hud_atlas(") < 4:
-    raise SystemExit("FAIL: not all HUD atlas construction/handoff paths migrated")
+has_atlas_api = "pub fn configure_hud_atlas(" in g and m.count("renderer.configure_hud_atlas(") >= 4
+has_shared_api = "pub fn configure_hud(&mut self, atlas: &crate::hud::HudAtlas)" in g and m.count("renderer.configure_hud(") >= 4
+if not (has_atlas_api or has_shared_api):
+    raise SystemExit("FAIL: renderer-owned HUD configuration is missing or incomplete")
 print("PASS: loading, world construction and replacement handoff use renderer-owned HUD configuration.")

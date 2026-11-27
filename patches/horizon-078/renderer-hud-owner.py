@@ -10,6 +10,16 @@ if not gfx.is_file() or not game.is_file():
     raise SystemExit("Missing renderer source")
 g = gfx.read_text(encoding="utf-8")
 m = game.read_text(encoding="utf-8")
+
+# renderer-hud-boundary.py may already have moved this exact ownership into
+# Renderer::configure_hud. Do not demand a second, duplicate wrapper.
+if "pub fn configure_hud(&mut self, atlas: &crate::hud::HudAtlas)" in g:
+    if "renderer.configure_hud(" not in m:
+        raise SystemExit("Existing configure_hud API is not used by Game")
+    if "renderer.device" in m or "renderer.hud" in m:
+        raise SystemExit("Game still accesses renderer HUD/device internals")
+    print("HUD atlas GPU setup is already owned by Renderer::configure_hud.")
+    raise SystemExit(0)
 method = """impl Renderer {
     /// Configure atlas animations and text shader without exposing GPU handles.
     pub fn configure_hud_atlas(&mut self, atlas: &crate::hud::HudAtlas, install_text_shader: bool) {
