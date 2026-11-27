@@ -360,7 +360,7 @@ else:
         "        let patch = HudPatch { x: 2, y: 3, width: 1, height: 1, rgba: vec![1, 2, 3, 4] };\n"
         "        let copy = patch.clone();\n"
         "        assert_eq!((copy.x, copy.y, copy.width, copy.height), (2, 3, 1, 1));\n"
-        "        assert_eq!(copy.rgba, [1, 2, 3, 4]);\n"
+        "        assert_eq!(copy.rgba.as_slice(), &[1, 2, 3, 4]);\n"
         "    }\n\n" + test_anchor,
     )
     font_path.write_text(font, encoding="utf-8")
