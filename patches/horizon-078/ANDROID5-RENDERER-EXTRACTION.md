@@ -14,6 +14,10 @@ The patch pipeline moves `Frame`, `BorderDraw`, `EntitySpan`, lightning input da
 
 The current `gfx::Renderer` owns the wgpu instance, adapter, surface, device, queue, configuration, pipelines, textures, buffers, shader-pack state, screenshots and GPU timing. Its `render(&Frame)` implementation executes the complete render graph. The Game and Android Launcher also share renderer construction and surface lifecycle; replacing only the Game field would leave the Launcher loading UI on the old owner.
 
+## Window-generation contract added to the backend API
+
+The independent `horizon-render-api` crate now defines `WindowGeneration` and `WindowGenerationClock`. Generation values are non-zero, start at 1, advance strictly monotonically, and allow callers to accept only work tagged for the active native-window lifetime. Unit tests cover stale/future rejection, zero rejection and rollback prevention. This is a reusable contract only: the Game upload queue and live EGL runtime are not yet wired to this clock, so it does not by itself prevent stale work in the running game.
+
 ## Required extraction sequence
 
 1. **Completed:** move `Vertex`, `TerrainVertex`, culling constants, UV format definitions, `Sky`, `ScreenVertex`, `ScreenQuad`, screen blend data, `HudVertex`, HUD blend modes and `EndPortalFill` into `horizon-render-types`; verify upload layouts and UV packing with unit tests.

@@ -59,6 +59,59 @@ impl fmt::Display for RenderBackendError {
 
 impl std::error::Error for RenderBackendError {}
 
+/// Monotonic identity for one native-window lifetime. A detach/reattach must
+/// advance this value so delayed CPU work cannot target a replacement surface.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct WindowGeneration(u64);
+
+impl WindowGeneration {
+    pub const INITIAL: Self = Self(1);
+
+    pub const fn new(value: u64) -> Option<Self> {
+        if value == 0 { None } else { Some(Self(value)) }
+    }
+
+    pub const fn get(self) -> u64 {
+        self.0
+    }
+
+    pub const fn is_current(self, active: Self) -> bool {
+        self.0 == active.0
+    }
+}
+
+/// Tracks the active native-window lifetime without allowing generation rollback.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WindowGenerationClock {
+    active: WindowGeneration,
+}
+
+impl Default for WindowGenerationClock {
+    fn default() -> Self {
+        Self { active: WindowGeneration::INITIAL }
+    }
+}
+
+impl WindowGenerationClock {
+    pub const fn active(&self) -> WindowGeneration {
+        self.active
+    }
+
+    /// Advance only to a strictly newer non-zero generation.
+    pub fn advance(&mut self, next: WindowGeneration) -> bool {
+        if next <= self.active {
+            return false;
+        }
+        self.active = next;
+        true
+    }
+
+    /// Accept work only when it was prepared for the currently attached window.
+    pub const fn accepts(&self, generation: WindowGeneration) -> bool {
+        generation.is_current(self.active)
+    }
+}
+
 /// Object-safe frame and window lifecycle contract.
 ///
 /// The frame type is a type parameter rather than a dependency: this crate can
@@ -75,6 +128,33 @@ pub trait RenderBackend<Frame> {
 #[cfg(test)]
 mod tests {
     use super::{BackendInfo, BackendKind, RenderBackendError};
+
+    #[test]
+    fn window_generation_rejects_stale_and_future_work() {
+        use super::{WindowGeneration, WindowGenerationClock};
+
+        let mut clock = WindowGenerationClock::default();
+        let first = clock.active();
+        assert_eq!(first.get(), 1);
+        assert!(clock.accepts(first));
+
+        let second = WindowGeneration::new(2).unwrap();
+        assert!(clock.advance(second));
+        assert!(!clock.accepts(first));
+        assert!(clock.accepts(second));
+        assert!(!clock.accepts(WindowGeneration::new(3).unwrap()));
+    }
+
+    #[test]
+    fn window_generation_cannot_roll_back_or_be_zero() {
+        use super::{WindowGeneration, WindowGenerationClock};
+
+        assert!(WindowGeneration::new(0).is_none());
+        let mut clock = WindowGenerationClock::default();
+        assert!(!clock.advance(clock.active()));
+        assert!(!clock.advance(WindowGeneration::INITIAL));
+        assert_eq!(clock.active(), WindowGeneration::INITIAL);
+    }
 
     #[test]
     fn backend_identity_is_explicit_and_gpu_handle_free() {

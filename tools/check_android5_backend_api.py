@@ -20,6 +20,10 @@ gfx_source = gfx.read_text(encoding="utf-8")
 required_api = (
     "pub enum BackendKind",
     "pub struct BackendInfo",
+    "pub struct WindowGeneration(u64)",
+    "pub struct WindowGenerationClock",
+    "pub fn advance(&mut self, next: WindowGeneration) -> bool",
+    "pub const fn accepts(&self, generation: WindowGeneration) -> bool",
     "pub struct RenderBackendError",
     "pub trait RenderBackend<Frame>",
     "fn render_frame(",
@@ -47,6 +51,9 @@ adapter = gfx_source[gfx_source.index(adapter_marker):]
 for method in ("render_frame", "resize", "suspend_surface", "recreate_surface", "release_surface", "backend_info"):
     if f"fn {method}(" not in adapter:
         raise SystemExit(f"FAIL: wgpu backend adapter is missing {method}")
+if "window_generation_rejects_stale_and_future_work" not in sources or "window_generation_cannot_roll_back_or_be_zero" not in sources:
+    raise SystemExit("FAIL: window-generation regression tests are missing")
 print("PASS: backend API is a standalone GPU/window-free crate.")
+print("PASS: window generations reject stale work and prevent rollback.")
 print("PASS: existing wgpu Renderer implements frame submission and surface lifecycle.")
 print("LIMITATION: Game and Launcher still use concrete Renderer call sites; backend-handle migration remains.")
