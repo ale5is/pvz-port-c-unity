@@ -47,7 +47,7 @@ rust_ffi = root / "crates/horizon-android/gles2_native.rs"
 if not rust_ffi.is_file():
     raise SystemExit("FAIL: missing Rust FFI owner")
 ffi_text = rust_ffi.read_text(encoding="utf-8")
-for marker in ('unsafe extern "C"', "pub(crate) struct Backend", "pavo_gles2_upload_section", "pavo_gles2_update_lightmap", "copy_section_vertices", "visible_solid_triangle_ranges_packed"):
+for marker in ('use horizon_render_api::WindowGeneration;', 'unsafe extern "C"', "pub(crate) struct Backend", "active_generation: Option<WindowGeneration>", "self.active_generation = Some(generation);", "Stale GLES2 initialization generation", "pavo_gles2_upload_section", "pavo_gles2_update_lightmap", "copy_section_vertices", "visible_solid_triangle_ranges_packed"):
     if marker not in ffi_text:
         raise SystemExit(f"FAIL: Rust GLES2 FFI missing {marker}")
     print(f"PASS: Rust FFI {marker}")

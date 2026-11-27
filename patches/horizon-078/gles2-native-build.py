@@ -109,8 +109,8 @@ else:
 
 rust_module = root / "crates/horizon-android/gles2_native.rs"
 rust_source = r'''use std::ffi::{CStr, c_char, c_void};
+use horizon_render_api::WindowGeneration;
 use std::marker::PhantomData;
-use std::sync::Arc;
 use std::ptr::NonNull;
 use std::thread::{self, ThreadId};
 
@@ -191,6 +191,7 @@ pub(crate) struct Backend {
     handle: NonNull<c_void>,
     owner: ThreadId,
     abandoned: bool,
+    active_generation: Option<WindowGeneration>,
     _not_send_or_sync: PhantomData<*mut ()>,
 }
 
@@ -202,6 +203,7 @@ impl Backend {
             handle,
             owner: thread::current().id(),
             abandoned: false,
+            active_generation: None,
             _not_send_or_sync: PhantomData,
         })
     }
@@ -215,6 +217,7 @@ impl Backend {
             return;
         }
         unsafe { pavo_gles2_abandon(self.handle.as_ptr()) };
+        self.active_generation = None;
         self.abandoned = true;
     }
 
@@ -238,6 +241,13 @@ impl Backend {
         lightmap: &[u8], lightmap_width: i32, lightmap_height: i32, uv_steps: f32,
     ) -> Result<(), String> {
         let handle = self.check_owner()?;
+        if self.active_generation.is_some_and(|active| generation < active) {
+            return Err(format!(
+                "Stale GLES2 initialization generation {} is older than active generation {}",
+                generation.get(),
+                self.active_generation.unwrap().get(),
+            ));
+        }
         if layers == 0 || sprite_size <= 0 {
             return Err("Sprite atlas requires at least one layer and a positive sprite size".to_owned());
         }
@@ -262,7 +272,12 @@ impl Backend {
                 sprite_size, lightmap.as_ptr(), lightmap_width, lightmap_height, uv_steps,
             )
         };
-        if ok == 1 { Ok(()) } else { Err(self.native_error()) }
+        if ok == 1 {
+            self.active_generation = Some(generation);
+            Ok(())
+        } else {
+            Err(self.native_error())
+        }
     }
 
     pub(crate) fn upload_section(
