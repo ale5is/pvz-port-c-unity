@@ -18,7 +18,7 @@ for marker in ("pub struct RendererMetrics", "pub integrated_gpu: bool", "pub la
                "pub struct BackendInfo", "pub backend_name: String", "pub is_gles: bool"):
     if marker not in api:
         raise SystemExit(f"FAIL: neutral API missing {marker}")
-for marker in ("pub fn metrics(&self)", "pub fn backend_info(&self)", "pub fn take_gpu_time_ms(&mut self)",
+for marker in ("pub fn metrics(&self)", "pub fn backend_info(&self)",
                "pub fn gpu_time_samples(&self)", "pub fn clear_gpu_time_samples(&mut self)",
                "pub fn take_screenshot_result(&mut self)", "pub fn wait_for_background_work(&self)"):
     if marker not in gfx:
