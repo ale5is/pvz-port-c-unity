@@ -145,6 +145,21 @@ require(
 )
 runtime_start = generator_text.index("pub(crate) struct Runtime")
 runtime_source = generator_text[runtime_start:]
+recovery_start = runtime_source.index("fn ensure_context_current(")
+recovery_end = runtime_source.index("\n    pub(crate) fn initialize(", recovery_start)
+recovery_source = runtime_source[recovery_start:recovery_end]
+require_order(
+    recovery_source,
+    "EGL generation is committed only after cached GPU resources restore successfully",
+    (
+        "self.renderer = super::gles2_native::Backend::new()?;",
+        "if let Some(assets) = self.cached_assets.as_ref()",
+        "if let Err(error) = restore",
+        "self.initialized = true;",
+        "self.context_generation = generation;",
+        "Ok(())",
+    ),
+)
 for method in ("initialize", "suspend", "resume", "begin_frame", "upload_horizon_section", "upload_section", "remove_column", "clear_sections", "draw_sections", "present", "update_lightmap", "update_atlas_layer"):
     start = runtime_source.find(f"pub(crate) fn {method}(")
     if start < 0:

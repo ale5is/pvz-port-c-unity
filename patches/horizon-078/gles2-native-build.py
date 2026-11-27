@@ -573,7 +573,6 @@ impl Runtime {
         }
         self.renderer.abandon();
         self.renderer = super::gles2_native::Backend::new()?;
-        self.context_generation = generation;
         self.initialized = false;
         if let Some(assets) = self.cached_assets.as_ref() {
             let restore = (|| -> Result<(), String> {
@@ -597,6 +596,9 @@ impl Runtime {
             }
             self.initialized = true;
         }
+        // Commit the new generation only after every cached GPU resource has
+        // been restored. On failure, the next frame must retry recovery.
+        self.context_generation = generation;
         Ok(())
     }
 
