@@ -17,6 +17,12 @@ a=api.read_text(encoding="utf-8")
 g=gfx.read_text(encoding="utf-8")
 m=game.read_text(encoding="utf-8")
 
+if "fn sprite_layout_matches(&self, layers: u32) -> bool;" not in a:
+    anchor = "    fn backend_info(&self) -> BackendInfo;"
+    if a.count(anchor) != 1:
+        raise SystemExit("Could not uniquely locate RenderBackend backend_info declaration")
+    a = a.replace(anchor, "    fn sprite_layout_matches(&self, layers: u32) -> bool;\\n" + anchor, 1)
+
 if "pub integrated_gpu: bool" not in a:
     old="""    pub pending_gpu_time_samples: usize,
 }"""
@@ -71,6 +77,16 @@ if "last_encode_ns: self.last_encode.as_nanos()" not in g:
     if count!=1:
         raise SystemExit("Could not extend RendererMetrics implementation")
 
+if "fn sprite_layout_matches(&self, layers: u32) -> bool {" not in g:
+    marker = "    fn backend_info(&self) -> horizon_render_api::BackendInfo {"
+    if g.count(marker) != 1:
+        raise SystemExit("Could not uniquely locate wgpu RenderBackend backend_info method")
+    g = g.replace(
+        marker,
+        "    fn sprite_layout_matches(&self, layers: u32) -> bool {\\n        Renderer::matches_sprite_layout(self, layers)\\n    }\\n\\n" + marker,
+        1,
+    )
+
 impl_marker="impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> for Renderer {"
 backend_method="""impl Renderer {
     /// Backend-neutral adapter identity and coarse capabilities for diagnostics.
@@ -107,6 +123,13 @@ if old_trait in g:
     g=g.replace(old_trait,new_trait,1)
 elif "Renderer::backend_info(self)" not in g:
     raise SystemExit("Could not delegate RenderBackend::backend_info")
+
+old_layout_call = "previous.matches_sprite_layout(loaded.pack.render.texture_layers)"
+new_layout_call = "horizon_render_api::RenderBackend::sprite_layout_matches(previous, loaded.pack.render.texture_layers)"
+if old_layout_call in m:
+    m = m.replace(old_layout_call, new_layout_call, 1)
+elif new_layout_call not in m:
+    raise SystemExit("Could not locate the loading renderer sprite-layout compatibility query")
 
 required_game_calls=(
     "renderer.lod_distance_capped(distance)",
