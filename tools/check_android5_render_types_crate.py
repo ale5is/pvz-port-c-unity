@@ -36,6 +36,13 @@ if "pub use horizon_render_types::{ScreenBlend as Blend, ScreenQuad, ScreenVerte
     raise SystemExit("FAIL: screen-effect compatibility re-exports are missing")
 if any(item in screen for item in ("pub enum Blend", "pub struct ScreenVertex", "pub struct ScreenQuad")):
     raise SystemExit("FAIL: duplicate screen-effect data definitions remain in screen_effects.rs")
+font = (root / "crates/horizon-client-render/src/font.rs").read_text(encoding="utf-8")
+if "pub struct HudPatch" not in source or "hud_patch_owns_exact_atlas_upload_bytes" not in source:
+    raise SystemExit("FAIL: CPU-only font atlas patch data or its ownership test is missing")
+if "pub use horizon_render_types::HudPatch as Patch;" not in font:
+    raise SystemExit("FAIL: font::Patch compatibility re-export is missing")
+if "pub struct Patch" in font:
+    raise SystemExit("FAIL: duplicate font Patch definition remains")
 if "hud_vertex_layout_matches_the_upload_contract" not in source:
     raise SystemExit("FAIL: HudVertex upload-layout regression test is missing")
 if "pub use horizon_render_types::{HudBlend as Blend, HudEndPortalFill as EndPortalFill, HudVertex};" not in hud:
@@ -46,5 +53,5 @@ if "screen_vertex_layout_matches_the_upload_contract" not in source:
     raise SystemExit("FAIL: ScreenVertex upload-layout regression test is missing")
 if "#![forbid(unsafe_code)]" not in source:
     raise SystemExit("FAIL: neutral render-data crate must forbid unsafe code")
-print("PASS: Vertex, TerrainVertex, Sky, ScreenVertex, ScreenQuad and HUD primitives live in a standalone bytemuck-only crate.")
+print("PASS: Vertex, TerrainVertex, Sky, ScreenVertex, ScreenQuad, HUD primitives and font atlas patches live in a standalone bytemuck-only crate.")
 print("PASS: mesher, environment, screen-effect and HUD re-exports preserve Horizon's existing type paths.")

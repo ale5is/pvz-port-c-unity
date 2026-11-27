@@ -317,4 +317,55 @@ else:
     print("Extracted HUD vertex, blend modes and End Portal fill data.")
 
 
+
+font_path = render / "src/font.rs"
+font = font_path.read_text(encoding="utf-8")
+font_reexport = "pub use horizon_render_types::HudPatch as Patch;\n"
+if font_reexport in font:
+    if "pub struct HudPatch" not in crate_text:
+        raise SystemExit("Font Patch re-export exists but neutral HudPatch is missing")
+    if "pub struct Patch" in font:
+        raise SystemExit("Duplicate renderer-local Patch remains in font.rs")
+else:
+    patch_start_marker = "/// Pixels to copy into the shared atlas before the next HUD draw.\n#[derive(Clone, Debug)]\npub struct Patch {"
+    patch_end_marker = "\n#[derive(Clone, Copy)]\nstruct HexGlyph {"
+    if font.count(patch_start_marker) != 1 or font.count(patch_end_marker) != 1:
+        raise SystemExit("Could not uniquely locate font Patch boundaries")
+    patch_start = font.index(patch_start_marker)
+    patch_end = font.index(patch_end_marker, patch_start)
+    if patch_end <= patch_start:
+        raise SystemExit("Invalid font Patch extraction range")
+    patch_type = font[patch_start:patch_end].replace("pub struct Patch {", "pub struct HudPatch {")
+    if any(field not in patch_type for field in ("pub x: u32", "pub y: u32", "pub width: u32", "pub height: u32", "pub rgba: Vec<u8>")):
+        raise SystemExit("Font Patch extraction lost one or more atlas upload fields")
+    font = font[:patch_start] + font[patch_end:]
+    use_pos = font.find("\nuse ")
+    if use_pos < 0:
+        raise SystemExit("Could not locate font.rs imports for Patch re-export")
+    font = font[:use_pos+1] + font_reexport + font[use_pos+1:]
+    test_anchor = "#[cfg(test)]\nmod tests {"
+    if crate_text.count(test_anchor) != 1:
+        raise SystemExit("Could not locate neutral render-data tests for HudPatch")
+    crate_text = crate_text.replace(test_anchor, patch_type.strip() + "\n\n" + test_anchor)
+    test_import = "use super::{HudVertex, ScreenVertex, Sky, TerrainVertex, Vertex, UV_STEPS};"
+    if crate_text.count(test_import) != 1:
+        raise SystemExit("Could not locate neutral render-data test imports for HudPatch")
+    crate_text = crate_text.replace(test_import, "use super::{HudPatch, HudVertex, ScreenVertex, Sky, TerrainVertex, Vertex, UV_STEPS};")
+    test_anchor = "    #[test]\n    fn hud_vertex_layout_matches_the_upload_contract() {"
+    if crate_text.count(test_anchor) != 1:
+        raise SystemExit("Could not locate HUD layout test for HudPatch regression coverage")
+    crate_text = crate_text.replace(
+        test_anchor,
+        "    #[test]\n    fn hud_patch_owns_exact_atlas_upload_bytes() {\n"
+        "        let patch = HudPatch { x: 2, y: 3, width: 1, height: 1, rgba: vec![1, 2, 3, 4] };\n"
+        "        let copy = patch.clone();\n"
+        "        assert_eq!((copy.x, copy.y, copy.width, copy.height), (2, 3, 1, 1));\n"
+        "        assert_eq!(copy.rgba, [1, 2, 3, 4]);\n"
+        "    }\n\n" + test_anchor,
+    )
+    font_path.write_text(font, encoding="utf-8")
+    crate_source.write_text(crate_text, encoding="utf-8")
+    print("Extracted CPU-only font atlas Patch data into horizon-render-types.")
+
+
 print("GPU-independent render data extraction completed.")
