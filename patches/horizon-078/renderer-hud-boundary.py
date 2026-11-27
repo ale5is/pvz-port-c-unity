@@ -386,6 +386,10 @@ if "fn backend_neutral_lod_cap_supports_low_bandwidth_gles2_devices" not in grap
 for old, new in (
     ("renderer.drawn_section_count()", "horizon_render_api::RenderBackend::metrics(renderer).drawn_sections"),
     ("renderer.has_pending_screenshot()", "horizon_render_api::RenderBackend::metrics(renderer).screenshot_pending"),
+    # Replace the longer identifier first: plain str.replace("r....") would
+    # also match the final character of "renderer...." and corrupt the code.
+    ("renderer.last_wait_duration()", "std::time::Duration::from_nanos(horizon_render_api::RenderBackend::metrics(renderer).last_wait_ns)"),
+    ("renderer.last_encode_duration()", "std::time::Duration::from_nanos(horizon_render_api::RenderBackend::metrics(renderer).last_encode_ns)"),
     ("r.last_wait_duration()", "std::time::Duration::from_nanos(horizon_render_api::RenderBackend::metrics(r).last_wait_ns)"),
     ("r.last_encode_duration()", "std::time::Duration::from_nanos(horizon_render_api::RenderBackend::metrics(r).last_encode_ns)"),
 ):
