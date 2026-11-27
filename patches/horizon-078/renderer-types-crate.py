@@ -248,4 +248,73 @@ else:
     crate_source.write_text(crate_text, encoding="utf-8")
     print("Extracted ScreenVertex, ScreenQuad and screen blending data into horizon-render-types.")
 
+
+
+hud_path = render / "src/hud.rs"
+hud = hud_path.read_text(encoding="utf-8")
+hud_reexport = "pub use horizon_render_types::{HudBlend as Blend, HudEndPortalFill as EndPortalFill, HudVertex};\n"
+if hud_reexport in hud:
+    if any(name not in crate_text for name in ("pub struct HudVertex", "pub enum HudBlend", "pub struct HudEndPortalFill")):
+        raise SystemExit("HUD re-export exists but neutral HUD data is incomplete")
+else:
+    def extract_hud_block(source: str, start_marker: str, end_marker: str, label: str) -> tuple[str, str]:
+        if source.count(start_marker) != 1 or source.count(end_marker) != 1:
+            raise SystemExit(f"Could not uniquely locate {label} boundaries")
+        start = source.index(start_marker)
+        end = source.index(end_marker, start)
+        if end <= start:
+            raise SystemExit(f"Invalid {label} extraction range")
+        return source[:start] + source[end:], source[start:end]
+
+    hud, hud_vertex = extract_hud_block(
+        hud,
+        "#[repr(C)]\n#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]\npub struct HudVertex {",
+        "\n/// Sutherland-Hodgman against one half plane",
+        "HUD vertex",
+    )
+    hud, hud_blend = extract_hud_block(
+        hud,
+        "/// How a run of HUD vertices blends and tests depth.\n#[derive(Clone, Copy, PartialEq, Eq, Debug)]\npub enum Blend {",
+        "\n/// What a Blend::EndPortal fill samples:",
+        "HUD blend modes",
+    )
+    hud, hud_portal = extract_hud_block(
+        hud,
+        "/// What a Blend::EndPortal fill samples: the atlas rects",
+        "\npub fn rgba(",
+        "HUD End Portal fill",
+    )
+    hud_blend = hud_blend.replace("pub enum Blend {", "pub enum HudBlend {")
+    hud_portal = hud_portal.replace("pub struct EndPortalFill {", "pub struct HudEndPortalFill {")
+    if any(token not in hud_vertex for token in ("pub struct HudVertex", "pub glint_uv", "pub text: u32")):
+        raise SystemExit("HUD vertex extraction lost required attributes")
+    if "pub enum HudBlend" not in hud_blend or "pub struct HudEndPortalFill" not in hud_portal:
+        raise SystemExit("HUD blend/portal extraction failed")
+    hud_types = "\n\n".join((hud_vertex.strip(), hud_blend.strip(), hud_portal.strip()))
+    test_anchor = "#[cfg(test)]\nmod tests {"
+    if crate_text.count(test_anchor) != 1:
+        raise SystemExit("Could not locate neutral render-data tests")
+    crate_text = crate_text.replace(test_anchor, hud_types + "\n\n" + test_anchor)
+    test_import = "use super::{ScreenVertex, Sky, TerrainVertex, Vertex, UV_STEPS};"
+    if crate_text.count(test_import) != 1:
+        raise SystemExit("Could not locate neutral render-data test imports")
+    crate_text = crate_text.replace(test_import, "use super::{HudVertex, ScreenVertex, Sky, TerrainVertex, Vertex, UV_STEPS};")
+    layout_anchor = "    #[test]\n    fn screen_vertex_layout_matches_the_upload_contract() {"
+    if crate_text.count(layout_anchor) != 1:
+        raise SystemExit("Could not locate screen vertex layout test")
+    crate_text = crate_text.replace(
+        layout_anchor,
+        "    #[test]\n    fn hud_vertex_layout_matches_the_upload_contract() {\n"
+        "        assert_eq!(std::mem::size_of::<HudVertex>(), 36);\n"
+        "    }\n\n" + layout_anchor,
+    )
+    import_anchor = "use wgpu::util::DeviceExt;\n"
+    if hud.count(import_anchor) != 1:
+        raise SystemExit("Could not locate HUD imports")
+    hud = hud.replace(import_anchor, import_anchor + hud_reexport)
+    hud_path.write_text(hud, encoding="utf-8")
+    crate_source.write_text(crate_text, encoding="utf-8")
+    print("Extracted HUD vertex, blend modes and End Portal fill data.")
+
+
 print("GPU-independent render data extraction completed.")

@@ -6,7 +6,7 @@ Upstream is pinned to `starling-client/starling` at `68a2c4dd1b9a9e511ad3758a79a
 
 ## What is already separated
 
-The patch pipeline moves `Frame`, `BorderDraw`, `EntitySpan`, lightning input data and `PackInputs` into `horizon-client-render/src/frame.rs`. It also extracts the shared `Vertex` and `TerrainVertex` GPU-upload layouts, their constants and UV conversion methods, the plain-value `Sky` frame data, and the screen-effect `ScreenVertex`/`ScreenQuad` batch contract into the independent `horizon-render-types` crate. That crate depends only on `bytemuck`; it has no wgpu, window, EGL or platform dependency. `horizon-client-render` re-exports the types through `mesher` to preserve existing call sites.
+The patch pipeline moves `Frame`, `BorderDraw`, `EntitySpan`, lightning input data and `PackInputs` into `horizon-client-render/src/frame.rs`. It also extracts the shared `Vertex` and `TerrainVertex` GPU-upload layouts, their constants and UV conversion methods, the plain-value `Sky` frame data, and the screen-effect `ScreenVertex`/`ScreenQuad` batch contract, and the HUD `HudVertex`, blend modes and `EndPortalFill` primitives into the independent `horizon-render-types` crate. That crate depends only on `bytemuck`; it has no wgpu, window, EGL or platform dependency. `horizon-client-render` re-exports the types through `mesher` to preserve existing call sites.
 
 ## Why a backend trait is not safe yet
 
@@ -16,8 +16,8 @@ The current `gfx::Renderer` owns the wgpu instance, adapter, surface, device, qu
 
 ## Required extraction sequence
 
-1. **Completed:** move `Vertex`, `TerrainVertex`, culling constants, UV format definitions, `Sky`, `ScreenVertex`, `ScreenQuad` and screen blend data into `horizon-render-types`; verify upload layouts and UV packing with unit tests.
-2. Move HUD batches/atlas descriptions, pack inputs and post-chain request data into neutral data crates.
+1. **Completed:** move `Vertex`, `TerrainVertex`, culling constants, UV format definitions, `Sky`, `ScreenVertex`, `ScreenQuad`, screen blend data, `HudVertex`, HUD blend modes and `EndPortalFill` into `horizon-render-types`; verify upload layouts and UV packing with unit tests.
+2. Move complete HUD batches/atlas descriptions (including font patches and inline profiles), pack inputs and post-chain request data into neutral data crates.
 3. Compile the complete frame-contract crates independently for Android ARMv7/API 22 and desktop.
 4. Define an object-safe backend boundary around frame submission, surface lifecycle, streaming uploads/removals, resize, screenshots and timing. Replace generic iterator parameters with slices or explicit owned batches where object safety requires it.
 5. Implement the wgpu backend against that boundary without changing desktop behavior.
@@ -27,6 +27,6 @@ The current `gfx::Renderer` owns the wgpu instance, adapter, surface, device, qu
 
 ## Current proof boundary
 
-The CI checks validate the extracted CPU-only frame source, the new wgpu-free render-types crate and its vertex/screen layout tests, native GLES2 terrain/HUD adapters, EGL lifecycle code and ARMv7 library linkage. They do not establish a complete GLES2 frame renderer, a playable APK or a successful run on the Philips MT5861 TV.
+The CI checks validate the extracted CPU-only frame source, the new wgpu-free render-types crate and its vertex/screen/HUD layout tests, native GLES2 terrain/HUD adapters, EGL lifecycle code and ARMv7 library linkage. They do not establish a complete GLES2 frame renderer, a playable APK or a successful run on the Philips MT5861 TV.
 
 `tools/check_android5_render_crate_boundary.py` intentionally reports the remaining crate-level wgpu dependency as a blocker while passing the current source-level checks. This prevents the extracted file from being described as a fully independent renderer contract.

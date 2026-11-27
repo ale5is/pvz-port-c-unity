@@ -15,8 +15,9 @@ render_manifest = (root / "crates/horizon-client-render/Cargo.toml").read_text(e
 mesher = (root / "crates/horizon-client-render/src/mesher.rs").read_text(encoding="utf-8")
 environment = (root / "crates/horizon-client-render/src/environment.rs").read_text(encoding="utf-8")
 screen = (root / "crates/horizon-client-render/src/screen_effects.rs").read_text(encoding="utf-8")
+hud = (root / "crates/horizon-client-render/src/hud.rs").read_text(encoding="utf-8")
 
-for declaration in ("pub struct Vertex", "pub struct TerrainVertex", "pub const CULL_BACK", "pub const UV_STEPS", "pub const TILED_UV_STEPS", "pub struct Sky", "pub enum ScreenBlend", "pub struct ScreenVertex", "pub struct ScreenQuad"):
+for declaration in ("pub struct Vertex", "pub struct TerrainVertex", "pub const CULL_BACK", "pub const UV_STEPS", "pub const TILED_UV_STEPS", "pub struct Sky", "pub enum ScreenBlend", "pub struct ScreenVertex", "pub struct ScreenQuad", "pub struct HudVertex", "pub enum HudBlend", "pub struct HudEndPortalFill"):
     if declaration not in source:
         raise SystemExit(f"FAIL: missing neutral render-data declaration: {declaration}")
 if "wgpu" in manifest or "wgpu::" in source or "winit" in manifest or "egl" in manifest.lower():
@@ -35,9 +36,15 @@ if "pub use horizon_render_types::{ScreenBlend as Blend, ScreenQuad, ScreenVerte
     raise SystemExit("FAIL: screen-effect compatibility re-exports are missing")
 if any(item in screen for item in ("pub enum Blend", "pub struct ScreenVertex", "pub struct ScreenQuad")):
     raise SystemExit("FAIL: duplicate screen-effect data definitions remain in screen_effects.rs")
+if "hud_vertex_layout_matches_the_upload_contract" not in source:
+    raise SystemExit("FAIL: HudVertex upload-layout regression test is missing")
+if "pub use horizon_render_types::{HudBlend as Blend, HudEndPortalFill as EndPortalFill, HudVertex};" not in hud:
+    raise SystemExit("FAIL: HUD compatibility re-exports are missing")
+if any(item in hud for item in ("pub struct HudVertex", "pub enum Blend", "pub struct EndPortalFill")):
+    raise SystemExit("FAIL: duplicate HUD data definitions remain in hud.rs")
 if "screen_vertex_layout_matches_the_upload_contract" not in source:
     raise SystemExit("FAIL: ScreenVertex upload-layout regression test is missing")
 if "#![forbid(unsafe_code)]" not in source:
     raise SystemExit("FAIL: neutral render-data crate must forbid unsafe code")
-print("PASS: Vertex, TerrainVertex, Sky, ScreenVertex and ScreenQuad live in a standalone bytemuck-only crate.")
-print("PASS: mesher and environment re-exports preserve Horizon's existing type paths.")
+print("PASS: Vertex, TerrainVertex, Sky, ScreenVertex, ScreenQuad and HUD primitives live in a standalone bytemuck-only crate.")
+print("PASS: mesher, environment, screen-effect and HUD re-exports preserve Horizon's existing type paths.")
