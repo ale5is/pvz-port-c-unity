@@ -150,13 +150,22 @@ for method in ("initialize", "suspend", "resume", "begin_frame", "upload_horizon
     if "self.ensure_window_generation(generation)?;" not in first_statement:
         raise SystemExit(f"FAIL: Runtime::{method} must reject stale window work before touching EGL/GL")
     print(f"PASS: Runtime::{method} rejects stale window generations")
+suspend_source = runtime_source[runtime_source.index("pub(crate) fn suspend("):]
 require_order(
-    runtime_source,
-    "Suspend and resume reject stale generations before changing EGL state",
+    suspend_source,
+    "Suspend rejects stale generations before detaching EGL",
     (
         "pub(crate) fn suspend(&mut self, generation: WindowGeneration)",
         "self.ensure_window_generation(generation)?;",
         "self.egl.suspend()?;",
+        "self.surface_attached = false;",
+    ),
+)
+resume_source = runtime_source[runtime_source.index("pub(crate) fn resume("):]
+require_order(
+    resume_source,
+    "Resume rejects stale generations and advances only after EGL reattachment",
+    (
         "pub(crate) fn resume(&mut self, generation: WindowGeneration, window: &Window)",
         "self.ensure_window_generation(generation)?;",
         "let generation = self.egl.resume(window)?;",
