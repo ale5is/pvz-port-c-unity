@@ -694,6 +694,7 @@ impl Runtime {
         if !self.initialized {
             return Err("GLES2 assets must be initialized before presenting a frame".to_owned());
         }
+        self.ensure_context_current()?;
         self.egl.begin_frame(clear)?;
         self.egl.resize()
     }
@@ -766,6 +767,7 @@ impl Runtime {
         if !self.initialized {
             return Err("GLES2 assets must be initialized before presenting a frame".to_owned());
         }
+        self.ensure_context_current()?;
         self.egl.present()
     }
 

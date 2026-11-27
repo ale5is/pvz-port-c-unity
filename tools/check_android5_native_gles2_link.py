@@ -129,6 +129,10 @@ if "bool recreate_context(PavoEglOwner* owner)" not in egl_cpp or "return recrea
     raise SystemExit("FAIL: EGL_CONTEXT_LOST cannot recover while the Android surface remains attached")
 if "fn ensure_context_current(&mut self) -> Result<(), String>" not in egl_text:
     raise SystemExit("FAIL: Rust runtime does not detect and rebuild resources after in-place EGL context recovery")
+if "self.ensure_context_current()?;\n        self.egl.begin_frame(clear)?;" not in egl_text:
+    raise SystemExit("FAIL: frame begin bypasses EGL context-generation recovery")
+if "self.ensure_context_current()?;\n        self.egl.present()" not in egl_text:
+    raise SystemExit("FAIL: frame presentation bypasses EGL context-generation recovery")
 if "self.renderer.abandon();" not in egl_text or "self.context_generation = generation;" not in egl_text:
     raise SystemExit("FAIL: stale GLES2 objects are not abandoned when EGL context generation changes")
 if "bool context_recreated = owner->context == EGL_NO_CONTEXT;" not in egl_cpp:
