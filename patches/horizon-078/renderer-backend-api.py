@@ -147,7 +147,7 @@ impl horizon_render_api::RenderBackend<Frame> for Renderer {
     fn render_frame(
         &mut self,
         frame: &Frame,
-    ) -> Result<bool, horizon_render_api::RenderBackendError> {
+    ) -> std::result::Result<bool, horizon_render_api::RenderBackendError> {
         self.render(frame)
             .map_err(|error| horizon_render_api::RenderBackendError::new(error.to_string()))
     }
@@ -163,7 +163,7 @@ impl horizon_render_api::RenderBackend<Frame> for Renderer {
 
     fn recreate_surface(
         &mut self,
-    ) -> Result<(), horizon_render_api::RenderBackendError> {
+    ) -> std::result::Result<(), horizon_render_api::RenderBackendError> {
         Renderer::recreate_surface(self)
             .map_err(|error| horizon_render_api::RenderBackendError::new(error.to_string()))
     }
