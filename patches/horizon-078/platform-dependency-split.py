@@ -17,6 +17,15 @@ render_manifest = root / "crates/horizon-client-render/Cargo.toml"
 client_manifest = root / "crates/horizon-client/Cargo.toml"
 android_manifest = root / "crates/horizon-android/Cargo.toml"
 
+naga_replacements = (
+    (render_manifest, 'naga = { version = "30.0.1", features = ["wgsl-in", "glsl-in", "hlsl-out"] }\\n',
+     'naga = { version = "30.0.1", features = ["wgsl-in", "glsl-in"] }\\n', "renderer HLSL compiler output"),
+    (client_manifest, 'naga = { version = "30.0.1", features = ["wgsl-in", "hlsl-out"] }\\n',
+     'naga = { version = "30.0.1", features = ["wgsl-in"] }\\n', "client HLSL compiler output"),
+    (android_manifest, 'naga = { version = "30.0.1", features = ["wgsl-in", "hlsl-out"] }\\n',
+     'naga = { version = "30.0.1", features = ["wgsl-in"] }\\n', "Android HLSL compiler output"),
+)
+
 def read(path: Path) -> str:
     if not path.is_file():
         raise SystemExit(f"Missing Cargo manifest: {path}")
@@ -95,4 +104,9 @@ android = replace_once(
     "Android-only wgpu dependency",
 )
 android_manifest.write_text(android, encoding="utf-8")
-print("Android now resolves wgpu GLES without Vulkan, Metal or Direct3D features.")
+
+for manifest_path, old, new, label in naga_replacements:
+    source = read(manifest_path)
+    source = replace_once(source, old, new, label)
+    manifest_path.write_text(source, encoding="utf-8")
+print("Android excludes desktop GPU backends and HLSL-only shader compiler output.")

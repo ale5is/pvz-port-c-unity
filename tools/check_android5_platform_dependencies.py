@@ -33,6 +33,12 @@ for label, source in (("renderer", render), ("client", client)):
         raise SystemExit(f"FAIL: {label} Android target must enable GLES only")
     print(f"PASS: {label} Android backend feature isolation")
 
+for label, source in (("renderer", render), ("client", client), ("Android cdylib", android)):
+    normal_dependencies = source.split("\\n[dev-dependencies]", 1)[0]
+    if '"hlsl-out"' in normal_dependencies:
+        raise SystemExit(f"FAIL: {label} normal dependencies still enable HLSL-only shader output")
+    print(f"PASS: {label} excludes HLSL-only compiler output from normal builds")
+
 android_base = android.split("\n[target.", 1)[0]
 if any(x in android_base for x in ('"vulkan"', '"metal"', '"dx12"')):
     raise SystemExit("FAIL: Android cdylib directly enables a desktop GPU backend")
