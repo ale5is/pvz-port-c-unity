@@ -27,6 +27,10 @@ if missing:
 required_wgpu = (
     "impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> for Renderer",
     "impl horizon_render_api::TerrainStreamBackend<SectionMesh> for Renderer",
+    "pub struct HorizonFrameFamily;",
+    "type Frame<'frame> = Frame<'frame>;",
+    "pub fn as_game_backend_handle<'a>(",
+    "horizon_render_api::GameBackendHandle<'a, HorizonFrameFamily, SectionMesh>",
 )
 missing = [item for item in required_wgpu if item not in gfx]
 if missing:
