@@ -21,7 +21,7 @@ if "fn sprite_layout_matches(&self, layers: u32) -> bool;" not in a:
     anchor = "    fn backend_info(&self) -> BackendInfo;"
     if a.count(anchor) != 1:
         raise SystemExit("Could not uniquely locate RenderBackend backend_info declaration")
-    a = a.replace(anchor, "    fn sprite_layout_matches(&self, layers: u32) -> bool;\\n" + anchor, 1)
+    a = a.replace(anchor, "    fn sprite_layout_matches(&self, layers: u32) -> bool;\n" + anchor, 1)
 
 if "pub integrated_gpu: bool" not in a:
     old="""    pub pending_gpu_time_samples: usize,
@@ -83,7 +83,7 @@ if "fn sprite_layout_matches(&self, layers: u32) -> bool {" not in g:
         raise SystemExit("Could not uniquely locate wgpu RenderBackend backend_info method")
     g = g.replace(
         marker,
-        "    fn sprite_layout_matches(&self, layers: u32) -> bool {\\n        Renderer::matches_sprite_layout(self, layers)\\n    }\\n\\n" + marker,
+        "    fn sprite_layout_matches(&self, layers: u32) -> bool {\n        Renderer::matches_sprite_layout(self, layers)\n    }\n\n" + marker,
         1,
     )
 
