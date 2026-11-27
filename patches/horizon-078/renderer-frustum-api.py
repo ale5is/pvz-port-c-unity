@@ -20,9 +20,9 @@ t = types.read_text(encoding="utf-8")
 tm = types_manifest.read_text(encoding="utf-8")
 am = api_manifest.read_text(encoding="utf-8")
 a = api.read_text(encoding="utf-8")
-api_dependency = 'horizon-render-types = { path = "../horizon-render-types" }\\n'
+api_dependency = 'horizon-render-types = { path = "../horizon-render-types" }\n'
 if api_dependency not in am:
-    dependency_anchor = "[dependencies]\\n"
+    dependency_anchor = "[dependencies]\n"
     if am.count(dependency_anchor) != 1:
         raise SystemExit("Could not uniquely add horizon-render-types to horizon-render-api")
     am = am.replace(dependency_anchor, dependency_anchor + api_dependency, 1)
