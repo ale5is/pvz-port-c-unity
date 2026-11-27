@@ -70,7 +70,7 @@ trait_impl_anchor = "impl<'frame> horizon_render_api::RenderBackend<Frame<'frame
 trait_start = g.find(trait_impl_anchor)
 if trait_start < 0:
     raise SystemExit("Could not locate exact wgpu RenderBackend implementation")
-next_impl = g.find("\\nimpl ", trait_start + len(trait_impl_anchor))
+next_impl = g.find("\nimpl ", trait_start + len(trait_impl_anchor))
 trait_end = next_impl if next_impl >= 0 else len(g)
 trait_body = g[trait_start:trait_end]
 if "fn native_shadow(&self) -> bool {" not in trait_body:
