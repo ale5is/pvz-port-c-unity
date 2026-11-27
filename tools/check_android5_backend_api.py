@@ -42,7 +42,8 @@ if 'horizon-render-api = { path = "../horizon-render-api" }' not in render_deps:
     raise SystemExit("FAIL: horizon-client-render does not depend on the backend API")
 if "impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> for Renderer" not in gfx_source:
     raise SystemExit("FAIL: existing wgpu Renderer does not implement the shared API")
-adapter = gfx_source[gfx_source.index("impl horizon_render_api::RenderBackend"):]
+adapter_marker = "impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> for Renderer"
+adapter = gfx_source[gfx_source.index(adapter_marker):]
 for method in ("render_frame", "resize", "suspend_surface", "recreate_surface", "release_surface", "backend_info"):
     if f"fn {method}(" not in adapter:
         raise SystemExit(f"FAIL: wgpu backend adapter is missing {method}")
