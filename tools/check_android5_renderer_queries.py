@@ -16,6 +16,7 @@ assert gfx.count("fn surface_size(&self) -> [u32; 2] {") == 1
 assert "[self.config.width, self.config.height]" in gfx
 assert ".config.width" not in game and ".config.height" not in game
 calls = game.count("RenderBackend::surface_size(")
-assert calls >= 10, f"Expected >=10 backend-neutral size reads, got {calls}"
+assert calls >= 20, f"Expected >=20 backend-neutral size reads, got {calls}"
+assert ".screen_size()" not in game
 assert not re.search(r"renderer\s*\.\s*config\.", game)
 print(f"Verified {calls} backend-neutral Game surface-size queries.")
