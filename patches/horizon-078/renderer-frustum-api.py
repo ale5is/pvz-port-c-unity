@@ -8,6 +8,7 @@ parser.add_argument("source", type=Path)
 root = parser.parse_args().source.resolve()
 types = root / "crates/horizon-render-types/src/lib.rs"
 types_manifest = root / "crates/horizon-render-types/Cargo.toml"
+api_manifest = root / "crates/horizon-render-api/Cargo.toml"
 api = root / "crates/horizon-render-api/src/lib.rs"
 gfx = root / "crates/horizon-client-render/src/gfx.rs"
 mesher = root / "crates/horizon-client/src/game.rs"
@@ -17,7 +18,14 @@ for path in (types, types_manifest, api, gfx, mesher):
 
 t = types.read_text(encoding="utf-8")
 tm = types_manifest.read_text(encoding="utf-8")
+am = api_manifest.read_text(encoding="utf-8")
 a = api.read_text(encoding="utf-8")
+api_dependency = 'horizon-render-types = { path = "../horizon-render-types" }\\n'
+if api_dependency not in am:
+    dependency_anchor = "[dependencies]\\n"
+    if am.count(dependency_anchor) != 1:
+        raise SystemExit("Could not uniquely add horizon-render-types to horizon-render-api")
+    am = am.replace(dependency_anchor, dependency_anchor + api_dependency, 1)
 g = gfx.read_text(encoding="utf-8")
 m = mesher.read_text(encoding="utf-8")
 
@@ -237,6 +245,7 @@ if "wgpu::" in a or "winit::" in a or "glam::" in a:
     raise SystemExit("RenderBackend API leaks renderer implementation or math-library types")
 
 types.write_text(t, encoding="utf-8")
+api_manifest.write_text(am, encoding="utf-8")
 api.write_text(a, encoding="utf-8")
 gfx.write_text(g, encoding="utf-8")
 mesher.write_text(m, encoding="utf-8")
