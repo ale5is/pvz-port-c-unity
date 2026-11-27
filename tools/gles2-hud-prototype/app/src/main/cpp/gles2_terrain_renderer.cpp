@@ -479,17 +479,20 @@ bool Gles2TerrainRenderer::upload_buffer(GLuint* buffer, GLsizei* vertex_count,
     }
 
     clear_gl_errors();
-    ArrayBufferUploadState upload_state;
     GLuint replacement_buffer = 0;
     glGenBuffers(1, &replacement_buffer);
     if (!replacement_buffer) {
         std::snprintf(error_, sizeof(error_), "glGenBuffers returned buffer 0");
         return false;
     }
-    glBindBuffer(GL_ARRAY_BUFFER, replacement_buffer);
-    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(count * sizeof(Gles2TerrainVertex)),
-                 vertices, GL_STATIC_DRAW);
-    const GLenum error = glGetError();
+    GLenum error = GL_NO_ERROR;
+    {
+        ArrayBufferUploadState upload_state;
+        glBindBuffer(GL_ARRAY_BUFFER, replacement_buffer);
+        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(count * sizeof(Gles2TerrainVertex)),
+                     vertices, GL_STATIC_DRAW);
+        error = glGetError();
+    }
     if (error != GL_NO_ERROR) {
         std::snprintf(error_, sizeof(error_), "Terrain VBO upload failed: 0x%x", error);
         glDeleteBuffers(1, &replacement_buffer);
