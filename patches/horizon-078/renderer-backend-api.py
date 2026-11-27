@@ -140,13 +140,13 @@ if dependency not in manifest_text:
     manifest_text = manifest_text.replace(anchor, anchor + dependency)
 
 gfx_text = gfx.read_text(encoding="utf-8")
-impl_marker = "impl horizon_render_api::RenderBackend<Frame> for Renderer {"
+impl_marker = "impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> for Renderer {"
 if impl_marker not in gfx_text:
     implementation = """
 impl horizon_render_api::RenderBackend<Frame> for Renderer {
     fn render_frame(
         &mut self,
-        frame: &Frame,
+        frame: &Frame<'frame>,
     ) -> std::result::Result<bool, horizon_render_api::RenderBackendError> {
         self.render(frame)
             .map_err(|error| horizon_render_api::RenderBackendError::new(error.to_string()))
