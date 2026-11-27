@@ -280,7 +280,7 @@ else:
     )
     hud, hud_portal = extract_hud_block(
         hud,
-        "/// What a Blend::EndPortal fill samples: the atlas rects",
+        "/// What a `Blend::EndPortal` fill samples: the atlas rects",
         "\npub fn rgba(",
         "HUD End Portal fill",
     )
