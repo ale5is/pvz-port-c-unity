@@ -23,6 +23,8 @@ on:
       - 'patches/horizon-078/renderer-terrain-api.py'
       - 'patches/horizon-078/renderer-game-dispatch.py'
       - 'tools/check_android5_game_backend_dispatch.py'
+      - 'patches/horizon-078/renderer-game-lifecycle.py'
+      - 'tools/check_android5_game_lifecycle_dispatch.py'
       - 'tools/check_android5_terrain_backend.py'
       - 'patches/horizon-078/renderer-metrics-api.py'
       - 'patches/horizon-078/renderer-capabilities-api.py'
@@ -184,6 +186,11 @@ jobs:
         run: |
           python3 patches/horizon-078/renderer-game-dispatch.py "$RUNNER_TEMP/horizon-078"
           python3 tools/check_android5_game_backend_dispatch.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Route Game and Launcher surface lifecycle through RenderBackend
+        run: |
+          python3 patches/horizon-078/renderer-game-lifecycle.py "$RUNNER_TEMP/horizon-078"
+          python3 tools/check_android5_game_lifecycle_dispatch.py "$RUNNER_TEMP/horizon-078"
 
       - name: Test standalone renderer backend API
         working-directory: ${{ runner.temp }}/horizon-078
