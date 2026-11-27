@@ -584,8 +584,8 @@ impl Runtime {
             return Ok(false);
         }
         let generation = self.egl.resume(window)?;
-        self.surface_attached = true;
         self.advance_window_generation()?;
+        self.surface_attached = true;
         let context_changed = generation != self.context_generation;
         if context_changed {
             self.renderer.abandon();
@@ -646,7 +646,7 @@ impl Runtime {
         let solid = super::gles2_native::copy_section_vertices(&mesh.solid)?;
         let translucent = super::gles2_native::copy_section_vertices(&mesh.translucent)?;
         let ranges = super::gles2_native::visible_solid_ranges(&mesh.sides, eye_in_section)?;
-        self.upload_section(key, solid, translucent, ranges)
+        self.upload_section(generation, key, solid, translucent, ranges)
     }
 
     /// Upload owned CPU staging buffers and retain those same allocations for
