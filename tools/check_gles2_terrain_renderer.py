@@ -182,7 +182,7 @@ for item in [
     "padded_cell.resize",
     "glTexSubImage2D(GL_TEXTURE_2D",
     "GL_UNPACK_ALIGNMENT, 1",
-    "GL_UNPACK_ALIGNMENT, 4",
+    "TextureUploadState upload_state(GL_TEXTURE0)",
 ]:
     if item not in atlas_update_body:
         raise SystemExit(f"FAIL: animated atlas update contract missing {item}")
