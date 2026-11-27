@@ -69,29 +69,29 @@ client = replace_once(
 )
 client = replace_once(
     client,
-    '[target.\'cfg(windows)\'.dependencies]\n# Use the registered URI handler',
-    '[target.\'cfg(windows)\'.dependencies]\n# Use the registered URI handler',
-    "Windows dependency section",
-)
-client = replace_once(
-    client,
-    'wgpu = { version = "30.0.1", default-features = false, features = ["dx12"] }\n',
-    'wgpu = { version = "30.0.1", default-features = false, features = ["dx12", "vulkan", "gles"] }\n',
-    "client Windows backend dependency",
-)
-client = replace_once(
-    client,
-    '[target.\\'cfg(target_os = "android")\\'.dependencies]\nrustix = { version = "1", default-features = false, features = ["std", "fs"] }\n',
-    '[target.\\'cfg(target_os = "android")\\'.dependencies]\nrustix = { version = "1", default-features = false, features = ["std", "fs"] }\n'
-    'wgpu = { version = "30.0.1", default-features = false, features = ["gles"] }\n',
+    """[target.'cfg(target_os = "android")'.dependencies]
+rustix = { version = "1", default-features = false, features = ["std", "fs"] }
+""",
+    """[target.'cfg(target_os = "android")'.dependencies]
+rustix = { version = "1", default-features = false, features = ["std", "fs"] }
+wgpu = { version = "30.0.1", default-features = false, features = ["gles"] }
+""",
     "client Android target dependency section",
 )
 client = replace_once(
     client,
-    '[target.\\'cfg(not(target_os = "macos"))\\'.dependencies]\n# OpenGL (WGL on Windows, EGL on Linux), the last fallback, for GPUs with no Vulkan or\n# DirectX 12 driver (\`graphicsApi\\`, graphics.rs).\nwgpu = { version = "30.0.1", default-features = false, features = ["gles"] }\n',
-    '[target.\\'cfg(target_os = "linux")\\'.dependencies]\n# Vulkan and GLES remain available to the Linux desktop client.\n'
-    'wgpu = { version = "30.0.1", default-features = false, features = ["vulkan", "gles"] }\n\n'
-    '[target.\\'cfg(target_os = "macos")\\'.dependencies]\nwgpu = { version = "30.0.1", default-features = false, features = ["metal"] }\n',
+    """[target.'cfg(not(target_os = "macos"))'.dependencies]
+# OpenGL (WGL on Windows, EGL on Linux), the last fallback, for GPUs with no Vulkan or
+# DirectX 12 driver (`graphicsApi`, graphics.rs).
+wgpu = { version = "30.0.1", default-features = false, features = ["gles"] }
+""",
+    """[target.'cfg(target_os = "linux")'.dependencies]
+# Vulkan and GLES remain available to the Linux desktop client.
+wgpu = { version = "30.0.1", default-features = false, features = ["vulkan", "gles"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+wgpu = { version = "30.0.1", default-features = false, features = ["metal"] }
+""",
     "client non-Android GLES dependency",
 )
 client_manifest.write_text(client, encoding="utf-8")
