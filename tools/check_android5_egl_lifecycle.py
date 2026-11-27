@@ -225,7 +225,8 @@ require(
         "self.surface_attached = false;",
         "self.surface_attached = true;",
         "impl Drop for Runtime",
-        "if !self.surface_attached || self.egl.make_current().is_err()",
+        "let current_generation = self.egl.make_current();",
+        "if !self.surface_attached || current_generation != Ok(self.context_generation)",
         "self.renderer.abandon();",
     ),
 )
