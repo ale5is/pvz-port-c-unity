@@ -72,12 +72,18 @@ client = replace_once(
 )
 client = replace_once(
     client,
-    '[target.\'cfg(not(target_os = "macos"))\'.dependencies]\n# OpenGL (WGL on Windows, EGL on Linux), the last fallback, for GPUs with no Vulkan or\n# DirectX 12 driver (`graphicsApi`, graphics.rs).\nwgpu = { version = "30.0.1", default-features = false, features = ["gles"] }\n',
-    '[target.\'cfg(target_os = "android")\'.dependencies]\nwgpu = { version = "30.0.1", default-features = false, features = ["gles"] }\n\n'
-    '[target.\'cfg(target_os = "linux")\'.dependencies]\n# Vulkan and GLES remain available to the Linux desktop client.\n'
-    'wgpu = { version = "30.0.1", default-features = false, features = ["vulkan", "gles"] }\n\n'
-    '[target.\'cfg(target_os = "macos")\'.dependencies]\nwgpu = { version = "30.0.1", default-features = false, features = ["metal"] }\n',
-    "client non-macOS GLES dependency",
+    '[target.\\'cfg(target_os = "android")\\'.dependencies]\\nrustix = { version = "1", default-features = false, features = ["std", "fs"] }\\n',
+    '[target.\\'cfg(target_os = "android")\\'.dependencies]\\nrustix = { version = "1", default-features = false, features = ["std", "fs"] }\\n'
+    'wgpu = { version = "30.0.1", default-features = false, features = ["gles"] }\\n',
+    "client Android target dependency section",
+)
+client = replace_once(
+    client,
+    '[target.\\'cfg(not(target_os = "macos"))\\'.dependencies]\\n# OpenGL (WGL on Windows, EGL on Linux), the last fallback, for GPUs with no Vulkan or\\n# DirectX 12 driver (\`graphicsApi\\`, graphics.rs).\\nwgpu = { version = "30.0.1", default-features = false, features = ["gles"] }\\n',
+    '[target.\\'cfg(target_os = "linux")\\'.dependencies]\\n# Vulkan and GLES remain available to the Linux desktop client.\\n'
+    'wgpu = { version = "30.0.1", default-features = false, features = ["vulkan", "gles"] }\\n\\n'
+    '[target.\\'cfg(target_os = "macos")\\'.dependencies]\\nwgpu = { version = "30.0.1", default-features = false, features = ["metal"] }\\n',
+    "client non-Android GLES dependency",
 )
 client_manifest.write_text(client, encoding="utf-8")
 
