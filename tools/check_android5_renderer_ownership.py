@@ -32,11 +32,9 @@ pattern = re.compile(
     r"gpu_times|info|hud|suspended)\b"
 )
 found = collections.Counter(f"{owner}.{member}" for owner, member in pattern.findall(source))
-expected = collections.Counter(
-    {
-        "previous.background_context": 1,
-    }
-)
+# Replacement state is now requested through RenderBackend::replacement_context;
+# Game must not reach into the concrete wgpu renderer for its background context.
+expected = collections.Counter()
 
 if found != expected:
     details = {
@@ -46,8 +44,8 @@ if found != expected:
     raise SystemExit(f"Unexpected game-side renderer ownership boundary: {details}")
 
 print(
-    "Renderer ownership audit passed: Game has only the documented "
-    "background-context handoff; Android Launcher still has exactly one "
-    "concrete Renderer field and one loading_renderer factory call. "
-    "Both paths remain an explicit paired migration requirement."
+    "Renderer ownership audit passed: Game no longer reads concrete GPU "
+    "ownership fields; Android Launcher still has exactly one concrete "
+    "Renderer field and one loading_renderer factory call. "
+    "Launcher migration remains an explicit requirement."
 )
