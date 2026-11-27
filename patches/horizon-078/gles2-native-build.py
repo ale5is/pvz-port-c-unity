@@ -34,6 +34,12 @@ for name in (
 
 cargo = root / "crates/horizon-android/Cargo.toml"
 cargo_text = cargo.read_text(encoding="utf-8")
+render_api_dep = 'horizon-render-api = { path = "../horizon-render-api" }\n'
+if render_api_dep not in cargo_text:
+    dependency_anchor = "[dependencies]\n"
+    if cargo_text.count(dependency_anchor) != 1:
+        raise SystemExit("Could not uniquely add the render API dependency to horizon-android")
+    cargo_text = cargo_text.replace(dependency_anchor, dependency_anchor + render_api_dep)
 build_dep = '[build-dependencies]\ncc = "1.2"\n'
 if "[build-dependencies]" not in cargo_text:
     cargo.write_text(cargo_text.rstrip() + "\n\n" + build_dep, encoding="utf-8")
@@ -344,7 +350,8 @@ if module_decl not in main_text:
     android_main.write_text(main_text.replace(anchor_main, anchor_main + module_decl), encoding="utf-8")
 
 egl_module = root / "crates/horizon-client/src/android/gles2_egl.rs"
-egl_source = r'''use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+egl_source = r'''use horizon_render_api::{WindowGeneration, WindowGenerationClock};
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use std::ffi::{CStr, c_char, c_void};
 use std::ptr::NonNull;
 use std::sync::Arc;
@@ -479,6 +486,7 @@ pub(crate) struct Runtime {
     renderer: super::gles2_native::Backend,
     egl: EglOwner,
     context_generation: u64,
+    window_generation: WindowGenerationClock,
     surface_attached: bool,
     initialized: bool,
     cached_assets: Option<CachedAssets>,
@@ -492,9 +500,38 @@ impl Runtime {
         let renderer = super::gles2_native::Backend::new()?;
         let context_generation = egl.generation()?;
         Ok(Self {
-            renderer, egl, context_generation, surface_attached: true, initialized: false,
+            renderer, egl, context_generation, window_generation: WindowGenerationClock::default(),
+            surface_attached: true, initialized: false,
             cached_assets: None, cached_sections: std::collections::HashMap::new(),
         })
+    }
+
+    pub(crate) fn window_generation(&self) -> WindowGeneration {
+        self.window_generation.active()
+    }
+
+    fn ensure_window_generation(&self, expected: WindowGeneration) -> Result<(), String> {
+        if self.window_generation.accepts(expected) {
+            Ok(())
+        } else {
+            Err(format!(
+                "Stale GLES2 window work: expected generation {}, active generation {}",
+                expected.get(),
+                self.window_generation.active().get(),
+            ))
+        }
+    }
+
+    fn advance_window_generation(&mut self) -> Result<WindowGeneration, String> {
+        let next_value = self.window_generation.active().get()
+            .checked_add(1)
+            .ok_or_else(|| "GLES2 window generation counter exhausted".to_owned())?;
+        let next = WindowGeneration::new(next_value)
+            .ok_or_else(|| "GLES2 window generation cannot be zero".to_owned())?;
+        if !self.window_generation.advance(next) {
+            return Err("GLES2 window generation failed to advance monotonically".to_owned());
+        }
+        Ok(next)
     }
 
     fn ensure_surface_attached(&self) -> Result<(), String> {
@@ -548,6 +585,7 @@ impl Runtime {
         }
         let generation = self.egl.resume(window)?;
         self.surface_attached = true;
+        self.advance_window_generation()?;
         let context_changed = generation != self.context_generation;
         if context_changed {
             self.renderer.abandon();
@@ -588,7 +626,8 @@ impl Runtime {
         self.initialized
     }
 
-    pub(crate) fn begin_frame(&mut self, clear: [f32; 4]) -> Result<[u32; 2], String> {
+    pub(crate) fn begin_frame(&mut self, generation: WindowGeneration, clear: [f32; 4]) -> Result<[u32; 2], String> {
+        self.ensure_window_generation(generation)?;
         self.ensure_surface_attached()?;
         if !self.initialized {
             return Err("GLES2 assets must be initialized before presenting a frame".to_owned());
@@ -598,10 +637,11 @@ impl Runtime {
     }
 
     pub(crate) fn upload_horizon_section(
-        &mut self, key: [i32; 3],
+        &mut self, generation: WindowGeneration, key: [i32; 3],
         mesh: &horizon_client::mesher::SectionMesh,
         eye_in_section: [f32; 3],
     ) -> Result<(), String> {
+        self.ensure_window_generation(generation)?;
         self.ensure_surface_attached()?;
         let solid = super::gles2_native::copy_section_vertices(&mesh.solid)?;
         let translucent = super::gles2_native::copy_section_vertices(&mesh.translucent)?;
@@ -613,11 +653,12 @@ impl Runtime {
     /// context recovery. Passing slices and cloning here doubled resident
     /// terrain memory on the 1 GiB Android target.
     pub(crate) fn upload_section(
-        &mut self, key: [i32; 3],
+        &mut self, generation: WindowGeneration, key: [i32; 3],
         solid: Vec<super::gles2_native::HorizonTerrainVertex>,
         translucent: Vec<super::gles2_native::HorizonTerrainVertex>,
         ranges: Vec<u32>,
     ) -> Result<(), String> {
+        self.ensure_window_generation(generation)?;
         self.ensure_surface_attached()?;
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.egl.make_current()?;
@@ -626,7 +667,8 @@ impl Runtime {
         Ok(())
     }
 
-    pub(crate) fn remove_column(&mut self, x: i32, z: i32) -> Result<(), String> {
+    pub(crate) fn remove_column(&mut self, generation: WindowGeneration, x: i32, z: i32) -> Result<(), String> {
+        self.ensure_window_generation(generation)?;
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.ensure_surface_attached()?;
         self.egl.make_current()?;
@@ -635,7 +677,8 @@ impl Runtime {
         Ok(())
     }
 
-    pub(crate) fn clear_sections(&mut self) -> Result<(), String> {
+    pub(crate) fn clear_sections(&mut self, generation: WindowGeneration) -> Result<(), String> {
+        self.ensure_window_generation(generation)?;
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.ensure_surface_attached()?;
         self.egl.make_current()?;
@@ -645,16 +688,18 @@ impl Runtime {
     }
 
     pub(crate) fn draw_sections(
-        &mut self, mvp: &[f32; 16], camera: &[f32; 3],
+        &mut self, generation: WindowGeneration, mvp: &[f32; 16], camera: &[f32; 3],
         fog_color: &[f32; 4], fog_range: &[f32; 2], max_distance: f32,
     ) -> Result<(), String> {
+        self.ensure_window_generation(generation)?;
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         self.ensure_surface_attached()?;
         self.egl.make_current()?;
         self.renderer.draw_sections(mvp, camera, fog_color, fog_range, max_distance)
     }
 
-    pub(crate) fn present(&mut self) -> Result<(), String> {
+    pub(crate) fn present(&mut self, generation: WindowGeneration) -> Result<(), String> {
+        self.ensure_window_generation(generation)?;
         self.ensure_surface_attached()?;
         if !self.initialized {
             return Err("GLES2 assets must be initialized before presenting a frame".to_owned());
@@ -662,7 +707,8 @@ impl Runtime {
         self.egl.present()
     }
 
-    pub(crate) fn update_lightmap(&mut self, rgba: &[u8]) -> Result<(), String> {
+    pub(crate) fn update_lightmap(&mut self, generation: WindowGeneration, rgba: &[u8]) -> Result<(), String> {
+        self.ensure_window_generation(generation)?;
         self.ensure_surface_attached()?;
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         let mut replacement = Vec::new();
@@ -678,7 +724,8 @@ impl Runtime {
         Ok(())
     }
 
-    pub(crate) fn update_atlas_layer(&mut self, layer: u32, rgba: &[u8]) -> Result<(), String> {
+    pub(crate) fn update_atlas_layer(&mut self, generation: WindowGeneration, layer: u32, rgba: &[u8]) -> Result<(), String> {
+        self.ensure_window_generation(generation)?;
         self.ensure_surface_attached()?;
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
         let mut replacement = Vec::new();

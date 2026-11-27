@@ -129,6 +129,29 @@ if not generator.is_file():
 generator_text = generator.read_text(encoding="utf-8")
 require(
     generator_text,
+    "Generated Runtime advances a distinct native-window generation on every successful resume",
+    (
+        "window_generation: WindowGenerationClock",
+        "pub(crate) fn window_generation(&self) -> WindowGeneration",
+        "fn ensure_window_generation(&self, expected: WindowGeneration) -> Result<(), String>",
+        "fn advance_window_generation(&mut self) -> Result<WindowGeneration, String>",
+        "self.advance_window_generation()?;",
+        "Stale GLES2 window work: expected generation",
+    ),
+)
+runtime_start = generator_text.index("pub(crate) struct Runtime")
+runtime_source = generator_text[runtime_start:]
+for method in ("begin_frame", "upload_horizon_section", "upload_section", "remove_column", "clear_sections", "draw_sections", "present", "update_lightmap", "update_atlas_layer"):
+    start = runtime_source.find(f"pub(crate) fn {method}(")
+    if start < 0:
+        raise SystemExit(f"FAIL: missing generation-aware Runtime::{method}")
+    body = runtime_source.find("{", start)
+    first_statement = runtime_source[body + 1:body + 220]
+    if "self.ensure_window_generation(generation)?;" not in first_statement:
+        raise SystemExit(f"FAIL: Runtime::{method} must reject stale window work before touching EGL/GL")
+    print(f"PASS: Runtime::{method} rejects stale window generations")
+require(
+    generator_text,
     "Generated Runtime rejects GL work while the Android window surface is detached",
     (
         "fn ensure_surface_attached(&self) -> Result<(), String>",
