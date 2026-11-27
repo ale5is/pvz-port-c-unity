@@ -32,6 +32,8 @@ on:
       - 'tools/check_android5_terrain_backend.py'
       - 'patches/horizon-078/renderer-metrics-api.py'
       - 'patches/horizon-078/renderer-capabilities-api.py'
+      - 'patches/horizon-078/renderer-opaque-context.py'
+      - 'tools/check_android5_renderer_replacement_context.py'
       - 'tools/check_android5_renderer_capabilities.py'
       - 'tools/check_android5_backend_api.py'
       - 'tools/check_android5_render_types_crate.py'
@@ -222,6 +224,11 @@ jobs:
         run: |
           python3 patches/horizon-078/renderer-capabilities-api.py "$RUNNER_TEMP/horizon-078"
           python3 tools/check_android5_renderer_capabilities.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Install opaque renderer replacement context
+        run: |
+          python3 patches/horizon-078/renderer-opaque-context.py "$RUNNER_TEMP/horizon-078"
+          python3 tools/check_android5_renderer_replacement_context.py "$RUNNER_TEMP/horizon-078"
 
       - name: Test renderer backend API after capability extraction
         working-directory: ${{ runner.temp }}/horizon-078
