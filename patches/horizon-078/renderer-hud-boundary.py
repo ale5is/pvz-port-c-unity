@@ -379,6 +379,25 @@ if graphics_source.count(test_anchor) != 1:
 if "fn backend_neutral_lod_cap_supports_low_bandwidth_gles2_devices" not in graphics_source:
     graphics_source = graphics_source.replace(test_anchor, test_code + test_anchor)
 
+
+# Read stable frame status through the backend-neutral trait snapshot rather
+# than concrete Renderer convenience methods. The metrics API is installed
+# later in the same Android patch pipeline.
+for old, new in (
+    ("renderer.drawn_section_count()", "horizon_render_api::RenderBackend::metrics(renderer).drawn_sections"),
+    ("renderer.has_pending_screenshot()", "horizon_render_api::RenderBackend::metrics(renderer).screenshot_pending"),
+    ("r.last_wait_duration()", "std::time::Duration::from_nanos(horizon_render_api::RenderBackend::metrics(r).last_wait_ns)"),
+    ("r.last_encode_duration()", "std::time::Duration::from_nanos(horizon_render_api::RenderBackend::metrics(r).last_encode_ns)"),
+):
+    if old not in game_source:
+        raise SystemExit(f"Expected renderer status accessor before trait migration: {old}")
+    game_source = game_source.replace(old, new)
+
+if "renderer.drawn_section_count()" in game_source or "renderer.has_pending_screenshot()" in game_source:
+    raise SystemExit("Game still uses concrete renderer status accessors")
+if "r.last_wait_duration()" in game_source or "r.last_encode_duration()" in game_source:
+    raise SystemExit("Game still uses concrete renderer timing accessors")
+
 gfx.write_text(gfx_source, encoding="utf-8")
 game.write_text(game_source, encoding="utf-8")
 graphics.write_text(graphics_source, encoding="utf-8")

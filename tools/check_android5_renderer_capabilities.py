@@ -33,4 +33,13 @@ pattern=re.compile(r"\b(?:renderer|previous|r)\.(?:device|queue|surface|spare_su
                    r"screenshot_result|screenshot|drawn_sections|last_wait|last_encode|gpu_times|info|hud|suspended)\b")
 if pattern.search(game):
     raise SystemExit("FAIL: Game still reads wgpu renderer internals")
+
+for marker in (
+    "RenderBackend::metrics(renderer).drawn_sections",
+    "RenderBackend::metrics(renderer).screenshot_pending",
+    "RenderBackend::metrics(r).last_wait_ns",
+    "RenderBackend::metrics(r).last_encode_ns",
+):
+    if marker not in game:
+        raise SystemExit(f"FAIL: Game does not use neutral renderer metrics: {marker}")
 print("PASS: Game uses backend-neutral LOD, timing, screenshot, lifecycle and adapter accessors.")
