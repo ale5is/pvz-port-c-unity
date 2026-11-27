@@ -143,7 +143,7 @@ gfx_text = gfx.read_text(encoding="utf-8")
 impl_marker = "impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> for Renderer {"
 if impl_marker not in gfx_text:
     implementation = """
-impl horizon_render_api::RenderBackend<Frame> for Renderer {
+impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> for Renderer {
     fn render_frame(
         &mut self,
         frame: &Frame<'frame>,
