@@ -157,7 +157,6 @@ require_order(
         "if let Err(error) = restore",
         "self.initialized = true;",
         "self.context_generation = generation;",
-        "Ok(())",
     ),
 )
 for method in ("initialize", "suspend", "resume", "begin_frame", "upload_horizon_section", "upload_section", "remove_column", "clear_sections", "draw_sections", "present", "update_lightmap", "update_atlas_layer"):
