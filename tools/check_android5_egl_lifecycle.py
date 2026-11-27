@@ -129,6 +129,21 @@ if not generator.is_file():
 generator_text = generator.read_text(encoding="utf-8")
 require(
     generator_text,
+    "Generated Runtime rejects GL work while the Android window surface is detached",
+    (
+        "fn ensure_surface_attached(&self) -> Result<(), String>",
+        "EGL window surface is detached; resume it before rendering or uploading",
+        "self.ensure_surface_attached()?;",
+        "if self.surface_attached {",
+        "if !self.surface_attached {",
+        "GLES2 assets must be initialized before presenting a frame",
+    ),
+)
+if generator_text.count("self.ensure_surface_attached()?;") != 9:
+    raise SystemExit("FAIL: every EGL make-current, frame-begin and present path must guard surface attachment")
+
+require(
+    generator_text,
     "Generated Runtime never destroys GL resources without a current EGL context",
     (
         "surface_attached: bool",

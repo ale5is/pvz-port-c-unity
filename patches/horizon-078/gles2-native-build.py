@@ -497,6 +497,13 @@ impl Runtime {
         })
     }
 
+    fn ensure_surface_attached(&self) -> Result<(), String> {
+        if !self.surface_attached {
+            return Err("EGL window surface is detached; resume it before rendering or uploading".to_owned());
+        }
+        Ok(())
+    }
+
     pub(crate) fn initialize(
         &mut self, sprite_pixels: &[u8], layers: usize, sprite_size: i32,
         lightmap: &[u8], lightmap_width: i32, lightmap_height: i32, uv_steps: f32,
@@ -514,6 +521,7 @@ impl Runtime {
             lightmap: Arc::from(cached_lightmap), lightmap_width, lightmap_height, uv_steps,
             animated_layers: std::collections::HashMap::new(),
         };
+        self.ensure_surface_attached()?;
         self.egl.make_current()?;
         self.renderer.initialize(sprite_pixels, layers, sprite_size,
             lightmap, lightmap_width, lightmap_height, uv_steps)?;
@@ -524,6 +532,9 @@ impl Runtime {
 
     /// Release only the native window surface; retain the context and GPU objects when possible.
     pub(crate) fn suspend(&mut self) -> Result<(), String> {
+        if !self.surface_attached {
+            return Ok(());
+        }
         self.egl.suspend()?;
         self.surface_attached = false;
         Ok(())
@@ -532,6 +543,9 @@ impl Runtime {
     /// Reattach to the resumed Android window. If EGL had to recreate its context,
     /// replace the invalid GL backend and require the caller to upload assets again.
     pub(crate) fn resume(&mut self, window: &Window) -> Result<bool, String> {
+        if self.surface_attached {
+            return Ok(false);
+        }
         let generation = self.egl.resume(window)?;
         self.surface_attached = true;
         let context_changed = generation != self.context_generation;
@@ -575,6 +589,10 @@ impl Runtime {
     }
 
     pub(crate) fn begin_frame(&mut self, clear: [f32; 4]) -> Result<[u32; 2], String> {
+        self.ensure_surface_attached()?;
+        if !self.initialized {
+            return Err("GLES2 assets must be initialized before presenting a frame".to_owned());
+        }
         self.egl.begin_frame(clear)?;
         self.egl.resize()
     }
@@ -600,6 +618,7 @@ impl Runtime {
         ranges: Vec<u32>,
     ) -> Result<(), String> {
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
+        self.ensure_surface_attached()?;
         self.egl.make_current()?;
         self.renderer.upload_section(key, &solid, &translucent, &ranges)?;
         self.cached_sections.insert(key, CachedSection { solid, translucent, ranges });
@@ -608,6 +627,7 @@ impl Runtime {
 
     pub(crate) fn remove_column(&mut self, x: i32, z: i32) -> Result<(), String> {
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
+        self.ensure_surface_attached()?;
         self.egl.make_current()?;
         self.renderer.remove_column(x, z)?;
         self.cached_sections.retain(|key, _| key[0] != x || key[2] != z);
@@ -616,6 +636,7 @@ impl Runtime {
 
     pub(crate) fn clear_sections(&mut self) -> Result<(), String> {
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
+        self.ensure_surface_attached()?;
         self.egl.make_current()?;
         self.renderer.clear_sections()?;
         self.cached_sections.clear();
@@ -627,11 +648,16 @@ impl Runtime {
         fog_color: &[f32; 4], fog_range: &[f32; 2], max_distance: f32,
     ) -> Result<(), String> {
         if !self.initialized { return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned()); }
+        self.ensure_surface_attached()?;
         self.egl.make_current()?;
         self.renderer.draw_sections(mvp, camera, fog_color, fog_range, max_distance)
     }
 
     pub(crate) fn present(&mut self) -> Result<(), String> {
+        self.ensure_surface_attached()?;
+        if !self.initialized {
+            return Err("GLES2 assets must be initialized before presenting a frame".to_owned());
+        }
         self.egl.present()
     }
 
@@ -642,6 +668,7 @@ impl Runtime {
             .map_err(|_| "Not enough memory to retain updated GLES2 lightmap".to_owned())?;
         replacement.extend_from_slice(rgba);
         let replacement = Arc::from(replacement);
+        self.ensure_surface_attached()?;
         self.egl.make_current()?;
         self.renderer.update_lightmap(rgba)?;
         if let Some(assets) = self.cached_assets.as_mut() {
@@ -657,6 +684,7 @@ impl Runtime {
             .map_err(|_| "Not enough memory to retain animated GLES2 atlas layer".to_owned())?;
         replacement.extend_from_slice(rgba);
         let replacement = Arc::from(replacement);
+        self.ensure_surface_attached()?;
         self.egl.make_current()?;
         self.renderer.update_atlas_layer(layer, rgba)?;
         if let Some(assets) = self.cached_assets.as_mut() {
