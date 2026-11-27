@@ -52,6 +52,19 @@ for marker in ('unsafe extern "C"', "pub(crate) struct Backend", "pavo_gles2_upl
         raise SystemExit(f"FAIL: Rust GLES2 FFI missing {marker}")
     print(f"PASS: Rust FFI {marker}")
 
+initialize_ffi = ffi_text.split("pub(crate) fn initialize", 1)[1].split("pub(crate) fn upload_section", 1)[0]
+for marker in (
+    "if layers == 0 || sprite_size <= 0",
+    "layers.checked_mul(sprite_size as usize)",
+    ".and_then(|edge| edge.checked_mul(sprite_size as usize))",
+    ".and_then(|pixels| pixels.checked_mul(4))",
+    "if sprite_pixels.len() != expected_sprite_bytes",
+    "Sprite atlas must contain exactly layers × size × size × 4 RGBA bytes",
+):
+    if marker not in initialize_ffi:
+        raise SystemExit(f"FAIL: GLES2 atlas input validation is missing {marker}")
+    print(f"PASS: GLES2 atlas input validation {marker}")
+
 egl_rust = root / "crates/horizon-client/src/android/gles2_egl.rs"
 if not egl_rust.is_file():
     raise SystemExit("FAIL: missing Rust EGL owner")
