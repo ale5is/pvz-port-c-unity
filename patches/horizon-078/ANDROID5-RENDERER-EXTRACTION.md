@@ -48,3 +48,8 @@ This is deliberately not presented as full backend polymorphism: the Game still 
 The Game no longer needs the concrete wgpu::AdapterInfo to apply its integrated-GPU LOD distance cap. The wgpu adapter now publishes a neutral integrated_gpu capability, and the graphics policy accepts that capability rather than a wgpu type. Adapter name and backend label are exposed through BackendInfo for diagnostics. GPU timing samples are consumed through take_gpu_time_ms(), which preserves the previous latest-sample-then-clear behavior without exposing the internal vector.
 
 This removes the Game's direct adapter-info and GPU-timing reads. It does not yet remove wgpu from the renderer implementation or the Game's resource-construction path.
+
+
+## HUD atlas ownership extraction
+
+The HUD sprite-animation metadata and optional text-shader installation are now configured through Renderer::configure_hud_atlas. This keeps the wgpu Device and HUD renderer private to the renderer implementation. The same operation is used for initial world construction, loading renderer setup, and both renderer replacement handoff paths. The Game no longer reads renderer.device or renderer.hud directly.
