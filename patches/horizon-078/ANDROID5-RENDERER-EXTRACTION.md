@@ -58,3 +58,10 @@ The existing renderer-hud-boundary patch already provides Renderer::configure_hu
 ## Existing Game-side renderer boundary reused
 
 The Android HUD-boundary patch already extracts the LOD cap, framebuffer size, HUD setup, screenshot result/request, wait durations, GPU timing drains, adapter labels, GL/Vulkan selection, suspension and renderer handoff behind renderer methods. The capability patch now builds on those methods instead of duplicating them. It adds integrated-GPU and backend identity fields to the neutral API and checks that Game no longer reads those wgpu-owned fields directly.
+
+
+## Terrain streaming backend contract
+
+The backend API now includes a separate `TerrainStreamBackend<Mesh>` contract with a stable section key and explicit operations for section replacement, column eviction, LOD-detail revision queries and occlusion updates. The wgpu renderer implements this contract by delegating to its existing methods; the camera crosses the API as three scalar coordinates rather than leaking glam or wgpu types.
+
+This is an incremental extraction of the real streamed-world operations, not yet a backend switch. The Game still stores the concrete wgpu `Renderer`, and the native GLES2 implementation does not yet implement this trait. The API and adapter are checked in the Android diagnostic workflow before the ARMv7 build.
