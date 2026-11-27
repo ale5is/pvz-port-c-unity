@@ -52,7 +52,7 @@ This removes the Game's direct adapter-info and GPU-timing reads. It does not ye
 
 ## HUD atlas ownership extraction
 
-The HUD sprite-animation metadata and optional text-shader installation are now configured through Renderer::configure_hud_atlas. This keeps the wgpu Device and HUD renderer private to the renderer implementation. The same operation is used for initial world construction, loading renderer setup, and both renderer replacement handoff paths. The Game no longer reads renderer.device or renderer.hud directly.
+The existing renderer-hud-boundary patch already provides Renderer::configure_hud and migrates initial world construction, loading renderer setup, and both renderer replacement handoff paths. It preserves the loading renderer's separate text-shader behavior and keeps wgpu Device/HUD fields private to the renderer. No second HUD adapter patch is applied.
 
 
 ## Existing Game-side renderer boundary reused
