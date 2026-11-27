@@ -17,6 +17,8 @@ on:
       - 'patches/horizon-078/renderer-frame-contract.py'
       - 'patches/horizon-078/renderer-frame-inputs.py'
       - 'patches/horizon-078/renderer-types-crate.py'
+      - 'patches/horizon-078/renderer-backend-api.py'
+      - 'tools/check_android5_backend_api.py'
       - 'tools/check_android5_render_types_crate.py'
       - 'tools/check_android5_frame_contract.py'
       - 'tools/check_android5_renderer_ownership.py'
@@ -153,6 +155,15 @@ jobs:
         run: |
           python3 patches/horizon-078/renderer-types-crate.py "$RUNNER_TEMP/horizon-078"
           python3 tools/check_android5_render_types_crate.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Install backend-neutral frame and lifecycle API
+        run: |
+          python3 patches/horizon-078/renderer-backend-api.py "$RUNNER_TEMP/horizon-078"
+          python3 tools/check_android5_backend_api.py "$RUNNER_TEMP/horizon-078"
+
+      - name: Test standalone renderer backend API
+        working-directory: ${{ runner.temp }}/horizon-078
+        run: cargo test -p horizon-render-api
 
       - name: Audit the crate-level renderer backend boundary
         run: python3 tools/check_android5_render_crate_boundary.py "$RUNNER_TEMP/horizon-078"
