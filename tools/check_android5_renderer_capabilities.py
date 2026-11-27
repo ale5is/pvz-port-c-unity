@@ -14,7 +14,7 @@ api=read("crates/horizon-render-api/src/lib.rs")
 gfx=read("crates/horizon-client-render/src/gfx.rs")
 game=read("crates/horizon-client/src/game.rs")
 for marker in ("pub struct RendererMetrics","pub integrated_gpu: bool","pub last_encode_ns: u64",
-               "pub struct BackendInfo","pub backend_name: String","pub is_gles: bool"):
+               "pub struct BackendInfo","pub backend_name: String","pub is_gles: bool",\n               "fn sprite_layout_matches(&self, layers: u32) -> bool;"):
     if marker not in api:
         raise SystemExit(f"FAIL: neutral API missing {marker}")
 for marker in ("pub fn metrics(&self)","pub fn backend_info(&self)","pub fn lod_distance_capped(&self",
@@ -25,7 +25,7 @@ for marker in ("pub fn metrics(&self)","pub fn backend_info(&self)","pub fn lod_
         raise SystemExit(f"FAIL: renderer adapter missing {marker}")
 for marker in ("renderer.lod_distance_capped(distance)","renderer.lod_distance_capped(far_distance)",
                "r.adapter_name()","r.backend_name()","previous.is_gl_backend()",
-               "previous.is_vulkan_backend()","r.is_gl_backend()","r.take_latest_gpu_time()",
+               "previous.is_vulkan_backend()","RenderBackend::sprite_layout_matches(previous, loaded.pack.render.texture_layers)","r.is_gl_backend()","r.take_latest_gpu_time()",
                "r.take_gpu_times()","RenderBackend::metrics(r).last_wait_ns","RenderBackend::metrics(r).last_encode_ns"):
     if marker not in game:
         raise SystemExit(f"FAIL: Game boundary missing {marker}")
