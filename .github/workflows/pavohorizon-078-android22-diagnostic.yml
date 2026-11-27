@@ -225,6 +225,11 @@ jobs:
           python3 patches/horizon-078/renderer-capabilities-api.py "$RUNNER_TEMP/horizon-078"
           python3 tools/check_android5_renderer_capabilities.py "$RUNNER_TEMP/horizon-078"
 
+      - name: Move renderer feature queries behind the backend contract
+        run: |
+          python3 patches/horizon-078/renderer-feature-api.py "$RUNNER_TEMP/horizon-078"
+          python3 tools/check_android5_renderer_features.py "$RUNNER_TEMP/horizon-078"
+
       - name: Install opaque renderer replacement context
         run: |
           python3 patches/horizon-078/renderer-opaque-context.py "$RUNNER_TEMP/horizon-078"
