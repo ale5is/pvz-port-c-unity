@@ -49,11 +49,12 @@ if "fn metrics(&self) -> RendererMetrics;" not in api_text:
         1,
     )
 
+trait_impl_start = "impl<'frame> horizon_render_api::RenderBackend<Frame<'frame>> for Renderer {"
 impl_marker = "    fn backend_info(&self) -> horizon_render_api::BackendInfo {"
 if "fn metrics(&self) -> horizon_render_api::RendererMetrics" not in gfx_text:
-    if gfx_text.count(impl_marker) != 1:
-        raise SystemExit("Could not uniquely locate wgpu backend_info implementation")
-    # Add a concrete accessor first; Game can use it without importing the trait.
+    if gfx_text.count(impl_marker) != 1 or gfx_text.count(trait_impl_start) != 1:
+        raise SystemExit("Could not uniquely locate wgpu RenderBackend implementation")
+    # Add a concrete accessor before the trait impl; Game can use it without importing the trait.
     accessor = """
 impl Renderer {
     /// A backend-neutral view of status commonly needed by the game loop.
@@ -76,7 +77,7 @@ impl Renderer {
 }
 
 """
-    gfx_text = gfx_text.replace(impl_marker, accessor + impl_marker, 1)
+    gfx_text = gfx_text.replace(trait_impl_start, accessor + trait_impl_start, 1)
     # Add trait implementation method immediately before the impl closes.
     close_marker = """        }
     }
