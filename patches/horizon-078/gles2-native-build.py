@@ -567,7 +567,7 @@ impl Runtime {
     /// Rebuild every GLES object if EGL reports that the driver lost its context
     /// while the native window remained attached.
     fn ensure_context_current(&mut self) -> Result<(), String> {
-        let generation = self.ensure_context_current()?;
+        let generation = self.egl.make_current()?;
         if generation == self.context_generation {
             return Ok(());
         }
