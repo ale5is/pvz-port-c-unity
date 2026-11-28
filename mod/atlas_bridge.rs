@@ -357,7 +357,9 @@ pub(super) fn paint(
         match draw {
             m::Draw::Fill(rect, argb) => game.native_fill(batch, rect, argb),
             m::Draw::Text(text, at, rgb, shadow) => {
-                game.native_text(batch, &text, at, rgb, shadow);
+                let language = horizon_client::lang::code();
+                let localized = atlas_localized_text(&text, &language);
+                game.native_text(batch, &localized, at, rgb, shadow);
             }
             m::Draw::Quad(points, argb) => batch.fill_quad(&game.gui.atlas, points, argb),
             m::Draw::Item(item, at, size) => {
@@ -399,6 +401,224 @@ pub(super) fn paint(
             }
         }
     }
+}
+
+
+/// Atlas owns its strings rather than changing Minecraft's selected language.
+/// Horizon currently bundles these language families; regional Spanish codes
+/// deliberately share the Spanish translation table.
+fn atlas_localized_text(text: &str, language: &str) -> String {
+    const ES: &[(&str, &str)] = &[
+        ("ATLAS", "ATLAS"), ("WORLD MAP", "MAPA DEL MUNDO"), ("Mode", "Modo"),
+        ("Dim", "Dimensión"), ("Draw", "Dibujar"), ("Waypoints", "Puntos de ruta"),
+        ("Settings", "Ajustes"), ("Scale", "Escala"), ("Search", "Buscar"),
+        ("Search...", "Buscar..."), ("Minimap", "Minimapa"), ("Position", "Posición"),
+        ("Size", "Tamaño"), ("Shape", "Forma"), ("Rotate With Player", "Girar con jugador"),
+        ("Blocks per Pixel", "Bloques por píxel"), ("Lighting", "Iluminación"),
+        ("Cave Mode", "Modo cueva"), ("Layer Mode Height", "Altura de capa"),
+        ("Block Color Mode", "Color de bloques"), ("Display Radar", "Mostrar radar"),
+        ("Players", "Jugadores"), ("Mobs", "Criaturas"), ("Dropped Items", "Objetos"),
+        ("Other Entities", "Otras entidades"), ("Coordinates", "Coordenadas"),
+        ("Biome", "Bioma"), ("Time of Day", "Hora del día"), ("Facing", "Orientación"),
+        ("Dimension", "Dimensión"), ("Light Level", "Nivel de luz"),
+        ("Share Map with Players", "Compartir mapa"), ("Use the Server's Map", "Usar mapa del servidor"),
+        ("On-Map Waypoints", "Puntos de ruta en el mapa"), ("In-World Waypoints", "Puntos de ruta en el mundo"),
+        ("Compass", "Brújula"), ("Name", "Nombre"), ("Colour", "Color"),
+        ("Use my position", "Usar mi posición"), ("Visible", "Visible"),
+        ("Save", "Guardar"), ("Cancel", "Cancelar"), ("Delete", "Eliminar"),
+        ("Teleport (T)", "Teletransportar (T)"), ("Add/Edit", "Añadir/Editar"),
+        ("Share", "Compartir"), ("Enable", "Activar"), ("Disable", "Desactivar"),
+        ("Done", "Listo"), ("Filter...", "Filtrar..."), ("Options", "Opciones"),
+        ("Clear Set", "Vaciar grupo"), ("Enable All", "Activar todo"), ("Disable All", "Desactivar todo"),
+        ("Back", "Atrás"), ("Prev", "Anterior"), ("Next", "Siguiente"),
+        ("World/Server", "Mundo/Servidor"), ("Sub-World/Dimension", "Submundo/Dimensión"),
+        ("Edit waypoint", "Editar punto de ruta"), ("New waypoint", "Nuevo punto de ruta"),
+        ("No waypoints here. Press B in the game or on the world map.", "No hay puntos de ruta. Pulsa B en el juego o en el mapa."),
+        ("other dimension", "otra dimensión"), ("deathpoint", "punto de muerte"),
+        ("temporary", "temporal"), ("disabled", "desactivado"),
+        ("Use my position", "Usar mi posición"), ("Visible: No", "Visible: No"),
+        ("Visible: Yes", "Visible: Sí"), ("Enter save  -  Tab next field  -  Esc cancel", "Enter guardar  -  Tab siguiente campo  -  Esc cancelar"),
+        ("No waypoints here", "No hay puntos de ruta"), ("Click to edit", "Pulsa para editar"),
+        ("Drag to draw, right drag to erase, Z to undo, D to stop drawing", "Arrastra para dibujar, clic derecho para borrar, Z deshacer, D terminar"),
+        ("Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw", "Arrastra para mover, +/- zoom, B crear punto, Espacio centrar, D dibujar"),
+    ];
+    const ZH: &[(&str, &str)] = &[
+        ("ATLAS", "ATLAS"), ("WORLD MAP", "世界地图"), ("Mode", "模式"), ("Dim", "维度"),
+        ("Draw", "绘制"), ("Waypoints", "路径点"), ("Settings", "设置"), ("Scale", "比例"),
+        ("Search", "搜索"), ("Search...", "搜索..."), ("Minimap", "小地图"), ("Position", "位置"),
+        ("Size", "大小"), ("Shape", "形状"), ("Rotate With Player", "随玩家旋转"),
+        ("Blocks per Pixel", "每像素方块数"), ("Lighting", "光照"), ("Cave Mode", "洞穴模式"),
+        ("Layer Mode Height", "层模式高度"), ("Block Color Mode", "方块颜色模式"),
+        ("Display Radar", "显示雷达"), ("Players", "玩家"), ("Mobs", "生物"),
+        ("Dropped Items", "掉落物"), ("Other Entities", "其他实体"), ("Coordinates", "坐标"),
+        ("Biome", "生物群系"), ("Time of Day", "时间"), ("Facing", "朝向"),
+        ("Dimension", "维度"), ("Light Level", "亮度"), ("Share Map with Players", "与玩家共享地图"),
+        ("Use the Server's Map", "使用服务器地图"), ("On-Map Waypoints", "地图路径点"),
+        ("In-World Waypoints", "世界路径点"), ("Compass", "指南针"), ("Name", "名称"),
+        ("Colour", "颜色"), ("Use my position", "使用我的位置"), ("Visible", "可见"),
+        ("Save", "保存"), ("Cancel", "取消"), ("Delete", "删除"), ("Teleport (T)", "传送 (T)"),
+        ("Add/Edit", "添加/编辑"), ("Share", "分享"), ("Enable", "启用"), ("Disable", "禁用"),
+        ("Done", "完成"), ("Filter...", "筛选..."), ("Options", "选项"), ("Clear Set", "清空组"),
+        ("Enable All", "全部启用"), ("Disable All", "全部禁用"), ("Back", "返回"),
+        ("Prev", "上一页"), ("Next", "下一页"), ("World/Server", "世界/服务器"),
+        ("Sub-World/Dimension", "子世界/维度"), ("Edit waypoint", "编辑路径点"),
+        ("New waypoint", "新建路径点"), ("other dimension", "其他维度"), ("deathpoint", "死亡点"),
+        ("temporary", "临时"), ("disabled", "已禁用"), ("Visible: No", "可见：否"),
+        ("Visible: Yes", "可见：是"), ("Click to edit", "点击编辑"),
+        ("No waypoints here. Press B in the game or on the world map.", "此处没有路径点。在游戏或世界地图中按 B 创建。"),
+        ("Drag to draw, right drag to erase, Z to undo, D to stop drawing", "拖动绘制，右键拖动擦除，Z 撤销，D 停止绘制"),
+        ("Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw", "拖动移动，+/- 缩放，B 创建路径点，空格居中，D 绘制"),
+    ];
+    const RU: &[(&str, &str)] = &[
+        ("ATLAS", "ATLAS"), ("WORLD MAP", "КАРТА МИРА"), ("Mode", "Режим"),
+        ("Dim", "Измерение"), ("Draw", "Рисование"), ("Waypoints", "Метки"),
+        ("Settings", "Настройки"), ("Scale", "Масштаб"), ("Search", "Поиск"),
+        ("Search...", "Поиск..."), ("Minimap", "Мини-карта"), ("Position", "Положение"),
+        ("Size", "Размер"), ("Shape", "Форма"), ("Rotate With Player", "Поворот за игроком"),
+        ("Blocks per Pixel", "Блоков на пиксель"), ("Lighting", "Освещение"),
+        ("Cave Mode", "Режим пещер"), ("Layer Mode Height", "Высота слоя"),
+        ("Block Color Mode", "Цвет блоков"), ("Display Radar", "Показывать радар"),
+        ("Players", "Игроки"), ("Mobs", "Мобы"), ("Dropped Items", "Предметы"),
+        ("Other Entities", "Другие сущности"), ("Coordinates", "Координаты"),
+        ("Biome", "Биом"), ("Time of Day", "Время суток"), ("Facing", "Направление"),
+        ("Dimension", "Измерение"), ("Light Level", "Уровень света"),
+        ("Share Map with Players", "Делиться картой"), ("Use the Server's Map", "Карта сервера"),
+        ("On-Map Waypoints", "Метки на карте"), ("In-World Waypoints", "Метки в мире"),
+        ("Compass", "Компас"), ("Name", "Название"), ("Colour", "Цвет"),
+        ("Use my position", "Моя позиция"), ("Visible", "Видимость"), ("Save", "Сохранить"),
+        ("Cancel", "Отмена"), ("Delete", "Удалить"), ("Teleport (T)", "Телепорт (T)"),
+        ("Add/Edit", "Добавить/изменить"), ("Share", "Поделиться"), ("Enable", "Включить"),
+        ("Disable", "Выключить"), ("Done", "Готово"), ("Filter...", "Фильтр..."),
+        ("Options", "Параметры"), ("Clear Set", "Очистить набор"), ("Enable All", "Включить все"),
+        ("Disable All", "Выключить все"), ("Back", "Назад"), ("Prev", "Назад"), ("Next", "Далее"),
+        ("World/Server", "Мир/Сервер"), ("Sub-World/Dimension", "Подмир/измерение"),
+        ("Edit waypoint", "Изменить метку"), ("New waypoint", "Новая метка"),
+        ("other dimension", "другое измерение"), ("deathpoint", "точка смерти"),
+        ("temporary", "временная"), ("disabled", "отключено"), ("Visible: No", "Видимость: нет"),
+        ("Visible: Yes", "Видимость: да"), ("Click to edit", "Нажмите для изменения"),
+        ("No waypoints here. Press B in the game or on the world map.", "Здесь нет меток. Нажмите B в игре или на карте."),
+        ("Drag to draw, right drag to erase, Z to undo, D to stop drawing", "Перетаскивайте для рисования, правая кнопка — стереть, Z — отмена, D — стоп"),
+        ("Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw", "Перетаскивайте карту, +/- масштаб, B — метка, пробел — центр, D — рисование"),
+    ];
+    const PL: &[(&str, &str)] = &[
+        ("ATLAS", "ATLAS"), ("WORLD MAP", "MAPA ŚWIATA"), ("Mode", "Tryb"), ("Dim", "Wymiar"),
+        ("Draw", "Rysuj"), ("Waypoints", "Punkty trasy"), ("Settings", "Ustawienia"),
+        ("Scale", "Skala"), ("Search", "Szukaj"), ("Search...", "Szukaj..."), ("Minimap", "Minimapa"),
+        ("Position", "Pozycja"), ("Size", "Rozmiar"), ("Shape", "Kształt"),
+        ("Rotate With Player", "Obracaj z graczem"), ("Blocks per Pixel", "Bloków na piksel"),
+        ("Lighting", "Oświetlenie"), ("Cave Mode", "Tryb jaskiń"), ("Layer Mode Height", "Wysokość warstwy"),
+        ("Block Color Mode", "Kolor bloków"), ("Display Radar", "Pokaż radar"), ("Players", "Gracze"),
+        ("Mobs", "Moby"), ("Dropped Items", "Upuszczone przedmioty"), ("Other Entities", "Inne byty"),
+        ("Coordinates", "Współrzędne"), ("Biome", "Biom"), ("Time of Day", "Pora dnia"),
+        ("Facing", "Kierunek"), ("Dimension", "Wymiar"), ("Light Level", "Poziom światła"),
+        ("Share Map with Players", "Udostępniaj mapę"), ("Use the Server's Map", "Użyj mapy serwera"),
+        ("On-Map Waypoints", "Punkty na mapie"), ("In-World Waypoints", "Punkty w świecie"),
+        ("Compass", "Kompas"), ("Name", "Nazwa"), ("Colour", "Kolor"), ("Use my position", "Użyj mojej pozycji"),
+        ("Visible", "Widoczność"), ("Save", "Zapisz"), ("Cancel", "Anuluj"), ("Delete", "Usuń"),
+        ("Teleport (T)", "Teleportuj (T)"), ("Add/Edit", "Dodaj/Edytuj"), ("Share", "Udostępnij"),
+        ("Enable", "Włącz"), ("Disable", "Wyłącz"), ("Done", "Gotowe"), ("Filter...", "Filtruj..."),
+        ("Options", "Opcje"), ("Clear Set", "Wyczyść zestaw"), ("Enable All", "Włącz wszystko"),
+        ("Disable All", "Wyłącz wszystko"), ("Back", "Wstecz"), ("Prev", "Poprzednia"),
+        ("Next", "Następna"), ("World/Server", "Świat/Serwer"), ("Sub-World/Dimension", "Podświat/Wymiar"),
+        ("Edit waypoint", "Edytuj punkt"), ("New waypoint", "Nowy punkt"), ("other dimension", "inny wymiar"),
+        ("deathpoint", "punkt śmierci"), ("temporary", "tymczasowy"), ("disabled", "wyłączony"),
+        ("Visible: No", "Widoczność: nie"), ("Visible: Yes", "Widoczność: tak"),
+        ("Click to edit", "Kliknij, aby edytować"),
+        ("No waypoints here. Press B in the game or on the world map.", "Brak punktów. Naciśnij B w grze lub na mapie."),
+        ("Drag to draw, right drag to erase, Z to undo, D to stop drawing", "Przeciągnij, aby rysować; prawy przycisk usuwa; Z cofa; D kończy"),
+        ("Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw", "Przeciągnij mapę, +/- powiększa, B dodaje punkt, spacja centruje, D rysuje"),
+    ];
+    const UK: &[(&str, &str)] = &[
+        ("ATLAS", "ATLAS"), ("WORLD MAP", "МАПА СВІТУ"), ("Mode", "Режим"),
+        ("Dim", "Вимір"), ("Draw", "Малювання"), ("Waypoints", "Точки маршруту"),
+        ("Settings", "Налаштування"), ("Scale", "Масштаб"), ("Search", "Пошук"),
+        ("Search...", "Пошук..."), ("Minimap", "Мінімапа"), ("Position", "Позиція"),
+        ("Size", "Розмір"), ("Shape", "Форма"), ("Rotate With Player", "Обертати з гравцем"),
+        ("Blocks per Pixel", "Блоків на піксель"), ("Lighting", "Освітлення"),
+        ("Cave Mode", "Режим печер"), ("Layer Mode Height", "Висота шару"),
+        ("Block Color Mode", "Колір блоків"), ("Display Radar", "Показувати радар"),
+        ("Players", "Гравці"), ("Mobs", "Моби"), ("Dropped Items", "Викинуті предмети"),
+        ("Other Entities", "Інші сутності"), ("Coordinates", "Координати"), ("Biome", "Біом"),
+        ("Time of Day", "Час доби"), ("Facing", "Напрямок"), ("Dimension", "Вимір"),
+        ("Light Level", "Рівень світла"), ("Share Map with Players", "Ділитися мапою"),
+        ("Use the Server's Map", "Мапа сервера"), ("On-Map Waypoints", "Точки на мапі"),
+        ("In-World Waypoints", "Точки у світі"), ("Compass", "Компас"), ("Name", "Назва"),
+        ("Colour", "Колір"), ("Use my position", "Моя позиція"), ("Visible", "Видимість"),
+        ("Save", "Зберегти"), ("Cancel", "Скасувати"), ("Delete", "Видалити"),
+        ("Teleport (T)", "Телепортувати (T)"), ("Add/Edit", "Додати/Змінити"),
+        ("Share", "Поділитися"), ("Enable", "Увімкнути"), ("Disable", "Вимкнути"),
+        ("Done", "Готово"), ("Filter...", "Фільтр..."), ("Options", "Параметри"),
+        ("Clear Set", "Очистити набір"), ("Enable All", "Увімкнути все"), ("Disable All", "Вимкнути все"),
+        ("Back", "Назад"), ("Prev", "Попередня"), ("Next", "Наступна"),
+        ("World/Server", "Світ/Сервер"), ("Sub-World/Dimension", "Підсвіт/Вимір"),
+        ("Edit waypoint", "Редагувати точку"), ("New waypoint", "Нова точка"),
+        ("other dimension", "інший вимір"), ("deathpoint", "точка смерті"),
+        ("temporary", "тимчасова"), ("disabled", "вимкнено"), ("Visible: No", "Видимість: ні"),
+        ("Visible: Yes", "Видимість: так"), ("Click to edit", "Натисніть для редагування"),
+        ("No waypoints here. Press B in the game or on the world map.", "Тут немає точок. Натисніть B у грі або на мапі."),
+        ("Drag to draw, right drag to erase, Z to undo, D to stop drawing", "Перетягуйте для малювання, права кнопка стирає, Z скасовує, D завершує"),
+        ("Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw", "Перетягуйте мапу, +/- масштаб, B — точка, пробіл — центр, D — малювання"),
+    ];
+    const TR: &[(&str, &str)] = &[
+        ("ATLAS", "ATLAS"), ("WORLD MAP", "DÜNYA HARİTASI"), ("Mode", "Mod"),
+        ("Dim", "Boyut"), ("Draw", "Çiz"), ("Waypoints", "İşaretçiler"),
+        ("Settings", "Ayarlar"), ("Scale", "Ölçek"), ("Search", "Ara"), ("Search...", "Ara..."),
+        ("Minimap", "Mini harita"), ("Position", "Konum"), ("Size", "Boyut"), ("Shape", "Şekil"),
+        ("Rotate With Player", "Oyuncuyla döndür"), ("Blocks per Pixel", "Piksel başına blok"),
+        ("Lighting", "Aydınlatma"), ("Cave Mode", "Mağara modu"), ("Layer Mode Height", "Katman yüksekliği"),
+        ("Block Color Mode", "Blok renk modu"), ("Display Radar", "Radarı göster"), ("Players", "Oyuncular"),
+        ("Mobs", "Yaratıklar"), ("Dropped Items", "Düşen eşyalar"), ("Other Entities", "Diğer varlıklar"),
+        ("Coordinates", "Koordinatlar"), ("Biome", "Biyom"), ("Time of Day", "Günün saati"),
+        ("Facing", "Yön"), ("Dimension", "Boyut"), ("Light Level", "Işık seviyesi"),
+        ("Share Map with Players", "Haritayı paylaş"), ("Use the Server's Map", "Sunucu haritasını kullan"),
+        ("On-Map Waypoints", "Haritadaki işaretçiler"), ("In-World Waypoints", "Dünyadaki işaretçiler"),
+        ("Compass", "Pusula"), ("Name", "Ad"), ("Colour", "Renk"), ("Use my position", "Konumumu kullan"),
+        ("Visible", "Görünür"), ("Save", "Kaydet"), ("Cancel", "İptal"), ("Delete", "Sil"),
+        ("Teleport (T)", "Işınlan (T)"), ("Add/Edit", "Ekle/Düzenle"), ("Share", "Paylaş"),
+        ("Enable", "Etkinleştir"), ("Disable", "Devre dışı bırak"), ("Done", "Bitti"),
+        ("Filter...", "Filtrele..."), ("Options", "Seçenekler"), ("Clear Set", "Grubu temizle"),
+        ("Enable All", "Tümünü etkinleştir"), ("Disable All", "Tümünü devre dışı bırak"),
+        ("Back", "Geri"), ("Prev", "Önceki"), ("Next", "Sonraki"), ("World/Server", "Dünya/Sunucu"),
+        ("Sub-World/Dimension", "Alt dünya/Boyut"), ("Edit waypoint", "İşaretçiyi düzenle"),
+        ("New waypoint", "Yeni işaretçi"), ("other dimension", "diğer boyut"), ("deathpoint", "ölüm noktası"),
+        ("temporary", "geçici"), ("disabled", "devre dışı"), ("Visible: No", "Görünür: Hayır"),
+        ("Visible: Yes", "Görünür: Evet"), ("Click to edit", "Düzenlemek için tıkla"),
+        ("No waypoints here. Press B in the game or on the world map.", "Burada işaretçi yok. Oyunda veya haritada B'ye bas."),
+        ("Drag to draw, right drag to erase, Z to undo, D to stop drawing", "Çizmek için sürükle, silmek için sağ sürükle, Z geri alır, D bitirir"),
+        ("Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw", "Haritayı sürükle, +/- yakınlaştır, B işaretçi ekler, Space ortalar, D çizer"),
+    ];
+
+    let language = if language.starts_with("es_") { "es_es" } else { language };
+    let table = match language {
+        "es_es" => ES,
+        "zh_cn" => ZH,
+        "ru_ru" => RU,
+        "pl_pl" => PL,
+        "uk_ua" => UK,
+        "tr_tr" => TR,
+        _ => &[][..],
+    };
+    if let Some((label, value)) = text.split_once(": ")
+        && let Some((_, translated)) = table.iter().find(|(source, _)| *source == label)
+    {
+        return format!("{translated}: {value}");
+    }
+    if let Some((_, translated)) = table.iter().find(|(source, _)| *source == text) {
+        return (*translated).to_owned();
+    }
+    if let Some(rest) = text.strip_prefix("Click to edit ") {
+        let prefix = match language {
+            "es_es" => "Editar: ",
+            "zh_cn" => "编辑：",
+            "ru_ru" => "Изменить: ",
+            "pl_pl" => "Edytuj: ",
+            "uk_ua" => "Змінити: ",
+            "tr_tr" => "Düzenle: ",
+            _ => "Click to edit ",
+        };
+        return format!("{prefix}{rest}");
+    }
+    text.to_owned()
 }
 
 /// Draw a source rectangle of a map sprite into a GUI rectangle.
