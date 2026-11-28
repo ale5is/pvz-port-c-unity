@@ -407,9 +407,9 @@ pub(super) fn paint(
 /// Atlas owns its strings rather than changing Minecraft's selected language.
 /// Horizon currently bundles these language families; regional Spanish codes
 /// deliberately share the Spanish translation table.
-fn atlas_localized_text(text: &str, language: &str) -> String {
+pub(super) fn atlas_localized_text(text: &str, language: &str) -> String {
     const ES: &[(&str, &str)] = &[
-        ("ATLAS", "ATLAS"), ("WORLD MAP", "MAPA DEL MUNDO"), ("Mode", "Modo"), ("Light", "Luz"), ("Radar", "Radar"), ("Grid", "Cuadrícula"), ("Info", "Info"), ("WP", "PR"), ("Me", "Yo"), ("Find", "Buscar"), ("Follow", "Seguir"), ("Undo", "Deshacer"),
+        ("ATLAS", "ATLAS"), ("DAY", "DÍA"), ("NIGHT", "NOCHE"), ("WORLD MAP", "MAPA DEL MUNDO"), ("Mode", "Modo"), ("Light", "Luz"), ("Radar", "Radar"), ("Grid", "Cuadrícula"), ("Info", "Info"), ("WP", "PR"), ("Me", "Yo"), ("Find", "Buscar"), ("Follow", "Seguir"), ("Undo", "Deshacer"),
         ("Dim", "Dimensión"), ("Draw", "Dibujar"), ("Waypoints", "Puntos de ruta"),
         ("Settings", "Ajustes"), ("Scale", "Escala"), ("Search", "Buscar"),
         ("Search...", "Buscar..."), ("Minimap", "Minimapa"), ("Position", "Posición"),
@@ -443,7 +443,7 @@ fn atlas_localized_text(text: &str, language: &str) -> String {
         ("Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw", "Arrastra para mover, +/- zoom, B crear punto, Espacio centrar, D dibujar"),
     ];
     const ZH: &[(&str, &str)] = &[
-        ("ATLAS", "ATLAS"), ("WORLD MAP", "世界地图"), ("Mode", "模式"), ("Dim", "维度"), ("Light", "光照"), ("Radar", "雷达"), ("Grid", "网格"), ("Info", "信息"), ("WP", "路径点"), ("Me", "我"), ("Find", "查找"), ("Follow", "跟随"), ("Undo", "撤销"),
+        ("ATLAS", "ATLAS"), ("DAY", "白天"), ("NIGHT", "夜晚"), ("WORLD MAP", "世界地图"), ("Mode", "模式"), ("Dim", "维度"), ("Light", "光照"), ("Radar", "雷达"), ("Grid", "网格"), ("Info", "信息"), ("WP", "路径点"), ("Me", "我"), ("Find", "查找"), ("Follow", "跟随"), ("Undo", "撤销"),
         ("Draw", "绘制"), ("Waypoints", "路径点"), ("Settings", "设置"), ("Scale", "比例"),
         ("Search", "搜索"), ("Search...", "搜索..."), ("Minimap", "小地图"), ("Position", "位置"),
         ("Size", "大小"), ("Shape", "形状"), ("Rotate With Player", "随玩家旋转"),
@@ -470,7 +470,7 @@ fn atlas_localized_text(text: &str, language: &str) -> String {
         ("Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw", "拖动移动，+/- 缩放，B 创建路径点，空格居中，D 绘制"),
     ];
     const RU: &[(&str, &str)] = &[
-        ("ATLAS", "ATLAS"), ("WORLD MAP", "КАРТА МИРА"), ("Mode", "Режим"),
+        ("ATLAS", "ATLAS"), ("DAY", "ДЕНЬ"), ("NIGHT", "НОЧЬ"), ("WORLD MAP", "КАРТА МИРА"), ("Mode", "Режим"),
         ("Dim", "Измерение"), ("Light", "Свет"), ("Radar", "Радар"), ("Grid", "Сетка"), ("Info", "Инфо"), ("WP", "Метки"), ("Me", "Я"), ("Find", "Найти"), ("Follow", "Следовать"), ("Undo", "Отмена"), ("Draw", "Рисование"), ("Waypoints", "Метки"),
         ("Settings", "Настройки"), ("Scale", "Масштаб"), ("Search", "Поиск"),
         ("Search...", "Поиск..."), ("Minimap", "Мини-карта"), ("Position", "Положение"),
@@ -501,7 +501,7 @@ fn atlas_localized_text(text: &str, language: &str) -> String {
         ("Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw", "Перетаскивайте карту, +/- масштаб, B — метка, пробел — центр, D — рисование"),
     ];
     const PL: &[(&str, &str)] = &[
-        ("ATLAS", "ATLAS"), ("WORLD MAP", "MAPA ŚWIATA"), ("Mode", "Tryb"), ("Dim", "Wymiar"), ("Light", "Światło"), ("Radar", "Radar"), ("Grid", "Siatka"), ("Info", "Info"), ("WP", "Punkty"), ("Me", "Ja"), ("Find", "Szukaj"), ("Follow", "Podążaj"), ("Undo", "Cofnij"),
+        ("ATLAS", "ATLAS"), ("DAY", "DZIEŃ"), ("NIGHT", "NOC"), ("WORLD MAP", "MAPA ŚWIATA"), ("Mode", "Tryb"), ("Dim", "Wymiar"), ("Light", "Światło"), ("Radar", "Radar"), ("Grid", "Siatka"), ("Info", "Info"), ("WP", "Punkty"), ("Me", "Ja"), ("Find", "Szukaj"), ("Follow", "Podążaj"), ("Undo", "Cofnij"),
         ("Draw", "Rysuj"), ("Waypoints", "Punkty trasy"), ("Settings", "Ustawienia"),
         ("Scale", "Skala"), ("Search", "Szukaj"), ("Search...", "Szukaj..."), ("Minimap", "Minimapa"),
         ("Position", "Pozycja"), ("Size", "Rozmiar"), ("Shape", "Kształt"),
@@ -529,7 +529,7 @@ fn atlas_localized_text(text: &str, language: &str) -> String {
         ("Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw", "Przeciągnij mapę, +/- powiększa, B dodaje punkt, spacja centruje, D rysuje"),
     ];
     const UK: &[(&str, &str)] = &[
-        ("ATLAS", "ATLAS"), ("WORLD MAP", "МАПА СВІТУ"), ("Mode", "Режим"),
+        ("ATLAS", "ATLAS"), ("DAY", "ДЕНЬ"), ("NIGHT", "НІЧ"), ("WORLD MAP", "МАПА СВІТУ"), ("Mode", "Режим"),
         ("Dim", "Вимір"), ("Light", "Світло"), ("Radar", "Радар"), ("Grid", "Сітка"), ("Info", "Інфо"), ("WP", "Точки"), ("Me", "Я"), ("Find", "Знайти"), ("Follow", "Слідувати"), ("Undo", "Скасувати"), ("Draw", "Малювання"), ("Waypoints", "Точки маршруту"),
         ("Settings", "Налаштування"), ("Scale", "Масштаб"), ("Search", "Пошук"),
         ("Search...", "Пошук..."), ("Minimap", "Мінімапа"), ("Position", "Позиція"),
@@ -560,7 +560,7 @@ fn atlas_localized_text(text: &str, language: &str) -> String {
         ("Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw", "Перетягуйте мапу, +/- масштаб, B — точка, пробіл — центр, D — малювання"),
     ];
     const TR: &[(&str, &str)] = &[
-        ("ATLAS", "ATLAS"), ("WORLD MAP", "DÜNYA HARİTASI"), ("Mode", "Mod"),
+        ("ATLAS", "ATLAS"), ("DAY", "GÜNDÜZ"), ("NIGHT", "GECE"), ("WORLD MAP", "DÜNYA HARİTASI"), ("Mode", "Mod"),
         ("Dim", "Boyut"), ("Light", "Işık"), ("Radar", "Radar"), ("Grid", "Izgara"), ("Info", "Bilgi"), ("WP", "İşaret"), ("Me", "Ben"), ("Find", "Bul"), ("Follow", "Takip"), ("Undo", "Geri al"), ("Draw", "Çiz"), ("Waypoints", "İşaretçiler"),
         ("Settings", "Ayarlar"), ("Scale", "Ölçek"), ("Search", "Ara"), ("Search...", "Ara..."),
         ("Minimap", "Mini harita"), ("Position", "Konum"), ("Size", "Boyut"), ("Shape", "Şekil"),
