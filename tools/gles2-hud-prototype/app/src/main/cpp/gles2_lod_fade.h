@@ -18,7 +18,7 @@ struct Gles2LodFade {
         const float elapsed = std::chrono::duration<float>(now - shown).count();
         const std::uint32_t progress = static_cast<std::uint32_t>(
             std::max(0.0f, elapsed) * (64.0f / 0.6f));
-        if (progress >= 64u) return 0u;
+        if (progress >= 63u) return 0u;
         return 1u + static_cast<std::uint32_t>(level) * 129u + progress + 1u;
     }
 

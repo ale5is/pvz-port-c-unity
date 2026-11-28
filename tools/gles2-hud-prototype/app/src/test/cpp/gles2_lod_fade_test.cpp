@@ -11,6 +11,7 @@ int main() {
     assert(Fade::fade_in(start, 3, at(std::chrono::milliseconds(0))) == 1u + 3u * 129u + 1u);
     assert(Fade::level(Fade::fade_in(start, 10, at(std::chrono::milliseconds(300)))) == 10u);
     assert(Fade::step(Fade::fade_in(start, 10, at(std::chrono::milliseconds(300)))) >= 32u);
+    assert(Fade::fade_in(start, 10, at(std::chrono::milliseconds(599))) == 0u);
     assert(Fade::fade_in(start, 10, at(std::chrono::milliseconds(600))) == 0u);
     assert(Fade::fade_in(at(std::chrono::milliseconds(100)), 2, start) == 1u + 2u * 129u + 1u);
 
