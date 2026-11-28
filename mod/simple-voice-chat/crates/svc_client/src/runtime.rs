@@ -31,8 +31,6 @@ pub struct VoiceConfig {
     pub ptt_key: String,
     pub mute_key: String,
     pub enabled: bool,
-    /// Voice networking/audio is opt-in from the in-game mod settings button.
-    pub voice_enabled: bool,
     pub muted: bool,
     pub muted_players: bool,
     /// true: transmit only while the PTT key is held; false: transmit whenever unmuted.
@@ -45,7 +43,7 @@ pub struct VoiceConfig {
 
 impl Default for VoiceConfig {
     fn default() -> Self {
-        Self { ptt_key: "KeyV".into(), mute_key: "KeyM".into(), enabled: true, voice_enabled: false, muted: false, muted_players: false, push_to_talk: true, volume: 1.0, mic_volume: 1.0 }
+        Self { ptt_key: "KeyV".into(), mute_key: "KeyM".into(), enabled: true, muted: false, muted_players: false, push_to_talk: true, volume: 1.0, mic_volume: 1.0 }
     }
 }
 
@@ -1025,22 +1023,14 @@ mod tests {
     }
 
     #[test]
-    fn voice_chat_is_opt_in_by_default_and_for_old_configs() {
-        assert!(!VoiceConfig::default().voice_enabled);
-        let old: VoiceConfig = serde_json::from_str(r#"{"enabled":true}"#).unwrap();
-        assert!(!old.voice_enabled);
-    }
-
-    #[test]
     fn config_round_trip() {
         let dir = std::env::temp_dir().join(format!("svc-test-{}", std::process::id()));
-        let cfg = VoiceConfig { ptt_key: "KeyB".into(), mute_key: "KeyN".into(), enabled: false, voice_enabled: true, muted: true, muted_players: true, push_to_talk: false, volume: 0.5, mic_volume: 0.75 };
+        let cfg = VoiceConfig { ptt_key: "KeyB".into(), mute_key: "KeyN".into(), enabled: false, muted: true, muted_players: true, push_to_talk: false, volume: 0.5, mic_volume: 0.75 };
         Glue::save_config(dir.to_str().unwrap(), &cfg);
         let loaded = Glue::load_config(dir.to_str().unwrap());
         assert_eq!(loaded.ptt_key, "KeyB");
         assert_eq!(loaded.mute_key, "KeyN");
         assert!(!loaded.enabled);
-        assert!(loaded.voice_enabled);
         assert!(loaded.muted);
         assert!(loaded.muted_players);
         assert!(!loaded.push_to_talk);

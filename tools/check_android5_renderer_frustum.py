@@ -11,6 +11,7 @@ types = (root / "crates/horizon-render-types/src/lib.rs").read_text(encoding="ut
 api = (root / "crates/horizon-render-api/src/lib.rs").read_text(encoding="utf-8")
 gfx = (root / "crates/horizon-client-render/src/gfx.rs").read_text(encoding="utf-8")
 game = (root / "crates/horizon-client/src/game.rs").read_text(encoding="utf-8")
+android_manifest = (root / "crates/horizon-android/Cargo.toml").read_text(encoding="utf-8")
 
 for required in ("pub struct Frustum", "pub fn intersects(&self, min: [f32; 3], max: [f32; 3])", "pub fn contains(&self, min: [f32; 3], max: [f32; 3])"):
     if types.count(required) != 1:
@@ -21,6 +22,8 @@ if "Renderer::camera_frustum(" not in gfx or "Frustum::new(" not in gfx:
     raise SystemExit("FAIL: wgpu adapter does not convert the original frustum planes")
 if "RenderBackend::camera_frustum(" not in game:
     raise SystemExit("FAIL: Game does not request the frustum through RenderBackend")
+if 'horizon-render-types = { path = "../horizon-render-types" }' not in android_manifest:
+    raise SystemExit("FAIL: horizon-android cdylib cannot resolve the neutral render-types dependency")
 if "horizon_render_types::Frustum" not in game:
     raise SystemExit("FAIL: Game still stores a renderer-local frustum type")
 if "v.intersects((o - glam::Vec3::ONE).to_array(), (o + glam::Vec3::splat(2.0)).to_array())" not in game:

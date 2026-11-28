@@ -32,11 +32,6 @@ fn locked() -> std::sync::MutexGuard<'static, Glue> {
     state().lock().unwrap_or_else(|e| e.into_inner())
 }
 
-fn voice_active() -> bool {
-    let g = locked();
-    g.cfg.enabled && g.cfg.voice_enabled
-}
-
 fn should_update_voice_positions(now: Instant, connected: bool) -> bool {
     let mut last = LAST_POSITION_UPDATE
         .lock()
@@ -66,7 +61,7 @@ pub fn queue_outbound(channel: String, body: Vec<u8>) {
 }
 
 pub fn drain_outbound() -> Vec<(String, Vec<u8>)> {
-    if !voice_active() {
+    if !locked().cfg.enabled {
         OUT.lock().unwrap_or_else(|e| e.into_inner()).clear();
         return Vec::new();
     }
@@ -82,7 +77,7 @@ pub fn world_open_ready(game: &mut crate::game::Game<'_>) {
         // The Mods list is the source of truth. A stale config flag must not
         // override the native mod's Yes/No switch.
         g.cfg.enabled = game.native_on("simple-voice-chat");
-        if !g.cfg.enabled || !g.cfg.voice_enabled || game.player.is_none() {
+        if !g.cfg.enabled {
             return;
         }
     }
@@ -121,7 +116,7 @@ pub fn server_address<'a, 'w>(game: &'a crate::game::Game<'w>) -> Option<&'a str
 
 pub fn on_net(channel: &str, data: &[u8], server_address: Option<&str>) {
     let mut g = locked();
-    if g.cfg.enabled && g.cfg.voice_enabled {
+    if g.cfg.enabled {
         g.on_net(channel, data, server_address, Instant::now());
     }
 }
@@ -141,7 +136,7 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
     let mute_all_binding = game.native_mod_key("simple-voice-chat", "mute_all", "key.keyboard.n");
     let changed = {
         let mut g = locked();
-        if !g.cfg.enabled || !g.cfg.voice_enabled {
+        if !g.cfg.enabled {
             return;
         }
         if playing && key == "key.keyboard.h" && pressed {
@@ -159,7 +154,7 @@ pub fn on_key(game: &crate::game::Game<'_>, key: &str, pressed: bool) {
 }
 
 pub fn on_command(game: &mut crate::game::Game<'_>, command: &str, ran: &mut bool) {
-    if !game.native_on("simple-voice-chat") || !voice_active() {
+    if !game.native_on("simple-voice-chat") || !locked().cfg.enabled {
         return;
     }
     let command = command.trim();
@@ -186,12 +181,12 @@ pub fn on_command(game: &mut crate::game::Game<'_>, command: &str, ran: &mut boo
 
 pub fn on_frame(game: &mut crate::game::Game<'_>, _elapsed: std::time::Duration) {
     let enabled = game.native_on("simple-voice-chat");
-    let (active, voice_enabled) = {
+    let active = {
         let mut g = locked();
         g.cfg.enabled = enabled;
-        (g.is_world_active(), g.cfg.voice_enabled)
+        g.is_world_active()
     };
-    if !enabled || !voice_enabled {
+    if !enabled {
         if active {
             world_closed();
         } else {
@@ -274,11 +269,6 @@ pub fn settings(
         return;
     }
     let g = locked();
-    buttons.push(if g.cfg.voice_enabled {
-        "Desactivar chat de voz".into()
-    } else {
-        "Activar chat de voz".into()
-    });
     buttons.push(if g.cfg.push_to_talk {
         "Microphone mode: Push to Talk".into()
     } else {
@@ -310,39 +300,21 @@ pub fn settings_click(
     if mod_id != "simple-voice-chat" {
         return;
     }
-    if button == 0 {
-        let (enabled, cfg) = {
-            let mut g = locked();
-            g.cfg.voice_enabled = !g.cfg.voice_enabled;
-            (g.cfg.voice_enabled, g.cfg.clone())
-        };
-        if let Some(base) = config_base() {
-            svc_client::runtime::Glue::save_config(&base, &cfg);
-        }
-        if enabled {
-            world_open_ready(game);
-            game.system_message(horizon_client::text::Text::literal("Chat de voz activado"));
-        } else {
-            world_closed();
-            game.system_message(horizon_client::text::Text::literal("Chat de voz desactivado; el chat de texto sigue disponible"));
-        }
-        return;
-    }
-    if (1..=4).contains(&button) {
+    if button <= 3 {
         let (description, cfg) = {
             let mut g = locked();
             match button {
-                1 => {
+                0 => {
                     let enabled = !g.cfg.push_to_talk;
                     g.set_push_to_talk(enabled);
                     (if enabled { "push-to-talk mode enabled" } else { "always-on microphone enabled" }, g.cfg.clone())
                 }
-                2 => {
+                1 => {
                     let muted = !g.cfg.muted;
                     g.set_muted(muted);
                     (if muted { "microphone muted" } else { "microphone unmuted" }, g.cfg.clone())
                 }
-                3 => {
+                2 => {
                     let muted = !g.cfg.muted_players;
                     g.set_players_muted(muted);
                     (if muted { "other players muted" } else { "other players unmuted" }, g.cfg.clone())
@@ -360,11 +332,11 @@ pub fn settings_click(
         eprintln!("[voice] {description}; connection remains active");
         return;
     }
-    if button != 5 {
+    if button != 4 {
         return;
     }
-    if !game.native_on("simple-voice-chat") || game.player.is_none() || !voice_active() {
-        eprintln!("[voice] reconnect is available only when Simple Voice Chat is enabled and voice chat is active in a world");
+    if !game.native_on("simple-voice-chat") || game.player.is_none() {
+        eprintln!("[voice] reconnect is available only when Simple Voice Chat is enabled in Mods and a world is open");
         return;
     }
     world_closed();
@@ -372,13 +344,14 @@ pub fn settings_click(
     eprintln!("[voice] manual reconnect requested");
 }
 
+
 pub fn on_hud(
     game: &mut crate::game::Game<'_>,
     batch: &mut horizon_client::hud::HudBatch,
     corners: &mut horizon_client::extras_hud::Corners,
 ) {
     let (ptt, muted) = crate::game::simple_voice_chat::hud_audio_settings();
-    let (voice_enabled, open, connected, permission, mic, speaker, ptt_held,
+    let (open, connected, permission, mic, speaker, ptt_held,
         stage, tx_count, rx_count, last_tx, last_rx, tx_bytes, rx_bytes,
         net_error, history, udp_counts, udp_error) = {
         let guard = crate::game::simple_voice_chat::state()
@@ -387,7 +360,6 @@ pub fn on_hud(
         let udp_counts = guard.session.as_ref().map(|session| session.udp_counts());
         let udp_error = guard.session.as_ref().and_then(|session| session.last_udp_error()).map(str::to_string);
         (
-            guard.cfg.voice_enabled,
             guard.hud_open,
             guard.session.as_ref().is_some_and(|session| {
                 session.state() == svc_client::session::State::Connected
@@ -420,7 +392,7 @@ pub fn on_hud(
         )
     };
 
-    if !voice_enabled || !open {
+    if !open {
         return;
     }
 

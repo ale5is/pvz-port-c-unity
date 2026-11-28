@@ -60,7 +60,6 @@ on:
       - 'tools/check_gles2_terrain_renderer.py'
       - 'tools/check_gles2_embedded_shaders.py'
       - 'tools/gles2-hud-prototype/app/src/main/cpp/**'
-      - 'mod/simple-voice-chat/**'
       - '.github/workflows/pavohorizon-078-android22-diagnostic.yml'
   workflow_dispatch:
     inputs:
