@@ -186,3 +186,7 @@ for marker in ("struct CachedLod", "cached_lods: std::collections::HashMap<[i32;
         raise SystemExit(f"FAIL: EGL LOD staging/recovery is missing {marker}")
 print("PASS: Rust FFI exposes independent LOD upload, removal and clear operations")
 print("PASS: EGL owner retains LOD CPU staging and restores far meshes after context recreation")
+
+if "pub(crate) fn upload_lod_mesh(" not in egl_text or "copy_section_vertices(&mesh.solid)" not in egl_text or "copy_section_vertices(&mesh.translucent)" not in egl_text or "self.upload_lod(generation, key, solid, translucent)" not in egl_text:
+    raise SystemExit("FAIL: Horizon SectionMesh cannot yet be staged through the EGL far-LOD path")
+print("PASS: Horizon far-tile SectionMesh converts into independent native LOD staging")

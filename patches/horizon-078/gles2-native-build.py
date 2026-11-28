@@ -778,6 +778,16 @@ impl Runtime {
         Ok(())
     }
 
+    /// Convert a finished Horizon far-tile mesh and stage it on the EGL owner thread.
+    pub(crate) fn upload_lod_mesh(
+        &mut self, generation: WindowGeneration, key: [i32; 3],
+        mesh: &horizon_client::mesher::SectionMesh,
+    ) -> Result<(), String> {
+        let solid = super::gles2_native::copy_section_vertices(&mesh.solid)?;
+        let translucent = super::gles2_native::copy_section_vertices(&mesh.translucent)?;
+        self.upload_lod(generation, key, solid, translucent)
+    }
+
     /// Stage and retain far meshes separately from near sections so EGL context
     /// recovery can restore them without interpreting LOD coordinates as chunks.
     pub(crate) fn upload_lod(
