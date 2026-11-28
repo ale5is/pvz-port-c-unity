@@ -210,7 +210,7 @@ require(
         "GLES2 assets must be initialized before presenting a frame",
     ),
 )
-if generator_text.count("self.ensure_surface_attached()?;") != 13:
+if generator_text.count("self.ensure_surface_attached()?;") != 14:
     raise SystemExit("FAIL: every EGL make-current, frame-begin, present and CPU staging path must guard surface attachment")
 
 runtime_start = generator_text.index("pub(crate) struct Runtime")
