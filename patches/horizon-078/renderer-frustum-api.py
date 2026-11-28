@@ -35,6 +35,11 @@ if api_dependency not in gm:
     if gm.count(dependency_anchor) != 1:
         raise SystemExit("Could not uniquely add horizon-render-types to horizon-client")
     gm = gm.replace(dependency_anchor, dependency_anchor + api_dependency, 1)
+if api_dependency not in hm:
+    dependency_anchor = "[dependencies]\n"
+    if hm.count(dependency_anchor) != 1:
+        raise SystemExit("Could not uniquely add horizon-render-types to horizon-android")
+    hm = hm.replace(dependency_anchor, dependency_anchor + api_dependency, 1)
 g = gfx.read_text(encoding="utf-8")
 m = mesher.read_text(encoding="utf-8")
 
