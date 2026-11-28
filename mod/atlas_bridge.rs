@@ -971,10 +971,72 @@ pub(super) fn atlas_localized_text(text: &str, language: &str) -> String {
     if let Some((_, translated)) = table.iter().chain(extra.iter()).chain(more.iter()).chain(ui.iter()).find(|(source, _)| *source == text) {
         return (*translated).to_owned();
     }
+    if let Some((title, suffix)) = text.split_once(" (") {
+        let translated = atlas_localized_text(title, language);
+        if translated != title {
+            return format!("{translated} ({suffix}");
+        }
+    }
     if let Some((label, value)) = text.split_once(": ")
-        && let Some((_, translated)) = table.iter().chain(extra.iter()).find(|(source, _)| *source == label)
+        && let Some((_, translated)) = table.iter().chain(extra.iter()).chain(more.iter()).chain(ui.iter()).find(|(source, _)| *source == label)
     {
-        return format!("{translated}: {value}");
+        return format!("{translated}: {}", atlas_localized_text(value, language));
+    }
+    if let Some(rest) = text.strip_prefix("Waypoint ") {
+        return format!("{} {rest}", atlas_localized_text("Waypoint", language));
+    }
+    if let Some(rest) = text.strip_prefix("Day ") {
+        return format!("{} {rest}", atlas_localized_text("Day", language));
+    }
+    if let Some((above, below)) = text.split_once(" above, ")
+        && let Some(below) = below.strip_suffix(" below")
+    {
+        let (above_label, below_label) = match language {
+            "es_es" => ("arriba", "abajo"),
+            "zh_cn" => ("上方", "下方"),
+            "ru_ru" => ("выше", "ниже"),
+            "pl_pl" => ("wyżej", "niżej"),
+            "uk_ua" => ("вище", "нижче"),
+            "tr_tr" => ("yukarıda", "aşağıda"),
+            _ => ("above", "below"),
+        };
+        return format!("{above} {above_label}, {below} {below_label}");
+    }
+    if let Some(base) = text.strip_suffix(" (deathpoint)") {
+        let suffix = match language {
+            "es_es" => " (punto de muerte)",
+            "zh_cn" => "（死亡点）",
+            "ru_ru" => " (точка смерти)",
+            "pl_pl" => " (punkt śmierci)",
+            "uk_ua" => " (точка смерci)",
+            "tr_tr" => " (ölüm noktası)",
+            _ => " (deathpoint)",
+        };
+        return format!("{base}{suffix}");
+    }
+    if let Some(base) = text.strip_suffix(" (temporary)") {
+        let suffix = match language {
+            "es_es" => " (temporal)",
+            "zh_cn" => "（临时）",
+            "ru_ru" => " (временная)",
+            "pl_pl" => " (tymczasowy)",
+            "uk_ua" => " (тимчасова)",
+            "tr_tr" => " (geçici)",
+            _ => " (temporary)",
+        };
+        return format!("{base}{suffix}");
+    }
+    if let Some(base) = text.strip_suffix("  (disabled)") {
+        let suffix = match language {
+            "es_es" => "  (desactivado)",
+            "zh_cn" => "  (已禁用)",
+            "ru_ru" => "  (отключено)",
+            "pl_pl" => "  (wyłączono)",
+            "uk_ua" => "  (вимкнено)",
+            "tr_tr" => "  (devre dışı)",
+            _ => "  (disabled)",
+        };
+        return format!("{base}{suffix}");
     }
     if let Some(rest) = text.strip_prefix("Click to edit ") {
         let prefix = match language {
