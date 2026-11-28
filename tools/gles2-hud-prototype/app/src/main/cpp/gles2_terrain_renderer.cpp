@@ -621,6 +621,8 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
     replacement.byte_size = replacement_bytes;
     replacement.center_y = gles2_terrain_mesh_center_y(
         solid, solid_count, translucent, translucent_count, 8.0f);
+    replacement.bounds = gles2_terrain_mesh_bounds(
+        solid, solid_count, translucent, translucent_count);
     replacement.has_solid_ranges = use_solid_ranges;
     replacement.solid_ranges = std::move(solid_ranges);
     if (!upload_buffer(&replacement.solid_vbo, &replacement.solid_count, solid, solid_count) ||
@@ -897,6 +899,7 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
         const float distance_squared = dx * dx + dy * dy + dz * dz;
         if (max_distance_squared > 0.0f &&
             distance_squared > max_distance_squared) continue;
+        if (!gles2_aabb_intersects_clip(mvp, origin, entry.second.bounds)) continue;
         visible.push_back({distance_squared, &entry.second, {origin[0], origin[1], origin[2]}, entry.first});
     }
 

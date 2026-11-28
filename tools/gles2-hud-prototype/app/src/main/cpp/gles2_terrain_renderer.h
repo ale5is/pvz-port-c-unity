@@ -89,6 +89,7 @@ private:
         GLsizei translucent_count = 0;
         std::size_t byte_size = 0;
         float center_y = 8.0f;
+        Gles2TerrainBounds bounds{};
         bool has_solid_ranges = false;
         std::vector<std::pair<GLint, GLsizei>> solid_ranges;
     };

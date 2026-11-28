@@ -24,6 +24,15 @@ int main() {
     assert(Fade::kHeld == 65u);
 
     struct TestVertex { float position[3]; };
+
+    const float identity[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+    const float zero_origin[3] = {0.0f, 0.0f, 0.0f};
+    const float outside_origin[3] = {4.0f, 0.0f, 0.0f};
     TestVertex solid[2]{};
     TestVertex translucent[1]{};
     solid[0].position[1] = -64.0f;
@@ -31,6 +40,18 @@ int main() {
     translucent[0].position[1] = 120.0f;
     assert(std::abs(pavo::gles2_terrain_mesh_center_y(
         solid, 2, translucent, 1, 8.0f) - 28.0f) < 0.001f);
+
+    const auto bounds = pavo::gles2_terrain_mesh_bounds(solid, 2, translucent, 1);
+    assert(bounds.valid);
+    assert(bounds.minimum[1] == -64.0f);
+    assert(bounds.maximum[1] == 120.0f);
+    assert(pavo::gles2_aabb_intersects_clip(identity, zero_origin, bounds));
+    assert(!pavo::gles2_aabb_intersects_clip(identity, outside_origin, bounds));
+    const auto empty_bounds = pavo::gles2_terrain_mesh_bounds(
+        static_cast<const TestVertex*>(nullptr), 0,
+        static_cast<const TestVertex*>(nullptr), 0);
+    assert(!empty_bounds.valid);
+    assert(pavo::gles2_aabb_intersects_clip(identity, outside_origin, empty_bounds));
     assert(pavo::gles2_terrain_mesh_center_y(static_cast<const TestVertex*>(nullptr), 0, static_cast<const TestVertex*>(nullptr), 0, 8.0f) == 8.0f);
     return 0;
 }
