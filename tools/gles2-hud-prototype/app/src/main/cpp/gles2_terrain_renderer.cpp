@@ -619,6 +619,8 @@ bool Gles2TerrainRenderer::upload_section(const std::int32_t key[3],
 
     SectionBuffers replacement;
     replacement.byte_size = replacement_bytes;
+    replacement.center_y = gles2_terrain_mesh_center_y(
+        solid, solid_count, translucent, translucent_count, 8.0f);
     replacement.has_solid_ranges = use_solid_ranges;
     replacement.solid_ranges = std::move(solid_ranges);
     if (!upload_buffer(&replacement.solid_vbo, &replacement.solid_count, solid, solid_count) ||
@@ -762,6 +764,8 @@ bool Gles2TerrainRenderer::upload_lod(const std::int32_t key[3],
     }
     SectionBuffers replacement;
     replacement.byte_size = replacement_bytes;
+    replacement.center_y = gles2_terrain_mesh_center_y(
+        solid, solid_count, translucent, translucent_count, 8.0f);
     if (!upload_buffer(&replacement.solid_vbo, &replacement.solid_count, solid, solid_count) ||
         !upload_buffer(&replacement.translucent_vbo, &replacement.translucent_count,
                        translucent, translucent_count)) {
@@ -888,7 +892,7 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
             static_cast<float>(entry.first[2]) * kSectionSize
         };
         const float dx = origin[0] + 8.0f - camera_position[0];
-        const float dy = origin[1] + 8.0f - camera_position[1];
+        const float dy = origin[1] + entry.second.center_y - camera_position[1];
         const float dz = origin[2] + 8.0f - camera_position[2];
         const float distance_squared = dx * dx + dy * dy + dz * dz;
         if (max_distance_squared > 0.0f &&
@@ -906,8 +910,9 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
             static_cast<float>(entry.first[1]) * tile_size
         };
         const float dx = origin[0] + tile_size * 0.5f - camera_position[0];
+        const float dy = origin[1] + entry.second.center_y - camera_position[1];
         const float dz = origin[2] + tile_size * 0.5f - camera_position[2];
-        const float distance_squared = dx * dx + dz * dz;
+        const float distance_squared = dx * dx + dy * dy + dz * dz;
         visible.push_back({distance_squared, &entry.second, {origin[0], origin[1], origin[2]}, entry.first});
     }
 

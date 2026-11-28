@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <cmath>
 
 int main() {
     using Fade = pavo::Gles2LodFade;
@@ -20,5 +21,14 @@ int main() {
     assert(Fade::step(Fade::fade_out(start, 3, at(std::chrono::milliseconds(300)))) >= 96u);
     assert(Fade::step(Fade::fade_out(start, 3, at(std::chrono::milliseconds(700)))) == 128u);
     assert(Fade::kHeld == 65u);
+
+    pavo::Gles2TerrainVertex solid[2]{};
+    pavo::Gles2TerrainVertex translucent[1]{};
+    solid[0].position[1] = -64.0f;
+    solid[1].position[1] = 100.0f;
+    translucent[0].position[1] = 120.0f;
+    assert(std::abs(pavo::gles2_terrain_mesh_center_y(
+        solid, 2, translucent, 1, 8.0f) - 28.0f) < 0.001f);
+    assert(pavo::gles2_terrain_mesh_center_y(nullptr, 0, nullptr, 0, 8.0f) == 8.0f);
     return 0;
 }
