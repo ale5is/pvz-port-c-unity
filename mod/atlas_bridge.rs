@@ -36,7 +36,10 @@ pub(super) fn frame(game: &mut Game<'_>) {
         (state.take_teleport(), state.take_say())
     });
     if let Some(command) = teleport {
-        game.send_chat(&command);
+        // A waypoint teleport is a UI action, not a chat message. Send the
+        // command through Horizon's command path directly so the player's
+        // chat-visibility preference cannot silently discard it.
+        game.send_command(command.strip_prefix('/').unwrap_or(&command));
     }
     if let Some(message) = say {
         game.send_chat(&message);
