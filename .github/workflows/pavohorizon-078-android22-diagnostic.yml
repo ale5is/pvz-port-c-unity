@@ -330,6 +330,14 @@ jobs:
       - name: Check native GLES2 renderer ABI and emission path
         run: python3 tools/check_gles2_terrain_renderer.py tools/gles2-hud-prototype/app/src/main/cpp
 
+      - name: Test native GLES2 LOD fade timing against Horizon
+        run: |
+          g++ -std=c++14 -Wall -Wextra -Werror -pedantic \
+            -I tools/gles2-hud-prototype/app/src/main/cpp \
+            tools/gles2-hud-prototype/app/src/test/cpp/gles2_lod_fade_test.cpp \
+            -o "$RUNNER_TEMP/gles2_lod_fade_test"
+          "$RUNNER_TEMP/gles2_lod_fade_test"
+
       - name: Test Horizon GLES2 terrain CPU adapter
         working-directory: ${{ runner.temp }}/horizon-078
         run: cargo test -p horizon-client-render --lib gles2_terrain::tests
