@@ -6174,9 +6174,19 @@ fn atlas_map_button(
             out.text(&hint, [left + w - tw, 54.0], MUTED);
         }
 
-        // Explain why teleport is unavailable instead of leaving a dead button.
-        if !self.can_teleport {
-            let hint = "Teleport requires operator permission";
+        let picked = self.selected.and_then(|i| self.waypoints.get(i).map(|p| (i, p.hidden)));
+        let teleport_hint = if !self.can_teleport {
+            Some("Teleport requires operator permission")
+        } else {
+            self.selected
+                .and_then(|i| self.waypoints.get(i))
+                .filter(|waypoint| {
+                    !st.cross_dim_tp
+                        && here.is_some_and(|h| h.dimension != waypoint.dimension)
+                })
+                .map(|_| "Cross-dimensional teleport is disabled in settings")
+        };
+        if let Some(hint) = teleport_hint {
             let hint = out.fit(hint, w - 8.0);
             let tw = out.width(&hint);
             out.text(&hint, [((size[0] - tw) / 2.0).round(), size[1] - 59.0], MUTED);
@@ -6184,11 +6194,16 @@ fn atlas_map_button(
 
         // Add/Edit, Teleport (T), Share, Enable, Delete; Done.
         out.fill([0.0, size[1] - 48.0, size[0], 1.0], 0x60FF_FFFF);
-        let picked = self.selected.and_then(|i| self.waypoints.get(i).map(|p| (i, p.hidden)));
         let act = |a: fn(usize) -> Action| picked.map(|p| a(p.0));
         let enable = if picked.is_some_and(|p| p.1) { "Enable" } else { "Disable" };
         let del = if picked.is_some_and(|p| self.confirm_delete == Some(p.0)) { "Sure?" } else { "Delete" };
-        let tp = if self.can_teleport { act(Action::Teleport) } else { None };
+        let tp = self.selected.and_then(|i| {
+            self.waypoints.get(i).filter(|waypoint| {
+                self.can_teleport
+                    && (st.cross_dim_tp
+                        || here.is_none_or(|h| h.dimension == waypoint.dimension))
+            }).map(|_| Action::Teleport(i))
+        });
         let buttons: [(&str, Option<Action>); 5] = [
             ("Add/Edit", Some(Action::AddEdit)),
             ("Teleport (T)", tp),
