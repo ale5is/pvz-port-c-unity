@@ -27,7 +27,27 @@ int main() {
     assert(Fade::is_fade_out(middle_out));
     assert(Fade::step(Fade::fade_out(start, 3, at(std::chrono::milliseconds(700)))) == 128u);
     assert(Fade::kHeld == 65u);
+    assert(Fade::kDurationMicroseconds == 600000u);
     assert(Fade::progress(start, at(std::chrono::milliseconds(599))) == 63u);
+
+    // The ordered matrix must contain every threshold exactly once and wrap
+    // cleanly for negative/large screen-cell coordinates.
+    bool seen_bayer[16] = {};
+    for (std::uint32_t y = 0; y < 4; ++y) {
+        for (std::uint32_t x = 0; x < 4; ++x) {
+            const auto value = Fade::bayer_value(x, y);
+            assert(value < 16u);
+            assert(!seen_bayer[value]);
+            seen_bayer[value] = true;
+            assert(Fade::bayer_value(x + 4u, y + 4u) == value);
+            assert(Fade::bayer_threshold(x, y) > 0.0f);
+            assert(Fade::bayer_threshold(x, y) < 1.0f);
+        }
+    }
+    assert(Fade::column_hash(0, 0) == 0u);
+    assert(Fade::column_start(0, 0) == 0.0f);
+    assert(Fade::column_hash(12, -7) == Fade::column_hash(12, -7));
+    assert(Fade::column_hash(12, -7) != Fade::column_hash(13, -7));
     assert(Fade::progress(start, at(std::chrono::milliseconds(600))) == 64u);
     assert(Fade::progress(at(std::chrono::milliseconds(100)), start) == 0u);
 

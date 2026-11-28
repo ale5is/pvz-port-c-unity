@@ -13,7 +13,7 @@ destination = root / "crates/horizon-android/gles2-native"
 destination.mkdir(parents=True, exist_ok=True)
 
 for name in (
-    "gles2_mesh_bounds.h",
+    "gles2_mesh_bounds.h",\n    "gles2_lod_fade.h",
     "gles2_terrain_renderer.h",
     "gles2_terrain_renderer.cpp",
     "horizon_terrain_adapter.h",
@@ -63,7 +63,7 @@ fn main() {
     let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("manifest directory"));
     let native = root.join("gles2-native");
     for file in [
-        "gles2_mesh_bounds.h",
+        "gles2_mesh_bounds.h",\n    "gles2_lod_fade.h",
         "gles2_terrain_renderer.h",
         "gles2_terrain_renderer.cpp",
         "horizon_terrain_adapter.h",

@@ -8,7 +8,7 @@ if len(sys.argv) != 2:
 root = Path(sys.argv[1]).resolve()
 native = root / "crates/horizon-android/gles2-native"
 required = (
-    "gles2_mesh_bounds.h",
+    "gles2_mesh_bounds.h",\n    "gles2_lod_fade.h",
     "gles2_terrain_renderer.h",
     "gles2_terrain_renderer.cpp",
     "horizon_terrain_adapter.h",
