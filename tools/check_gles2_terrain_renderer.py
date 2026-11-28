@@ -685,3 +685,37 @@ for item in [
     if item not in render_body:
         raise SystemExit(f"FAIL: GLES2 render loop must refresh resized EGL dimensions: missing {item}")
 print("PASS: NativeActivity resize callback refreshes the EGL viewport dimensions")
+
+
+lod_api = [
+    "bool upload_lod(",
+    "void remove_lod(",
+    "void clear_lods();",
+    "std::size_t lod_count() const",
+    "std::map<std::array<std::int32_t, 3>, SectionBuffers> lods_;",
+]
+lod_impl = [
+    "bool Gles2TerrainRenderer::upload_lod(",
+    "kMaximumResidentLods = 256",
+    "key[2] > 22",
+    "solid_count % 3 != 0",
+    "translucent_count % 3 != 0",
+    "GLES2 temporary plus resident VBO budget exceeded for LOD",
+    "resident_bytes_ = resident_bytes_ - previous_bytes + replacement_bytes",
+    "void Gles2TerrainRenderer::remove_lod(",
+    "void Gles2TerrainRenderer::clear_lods()",
+]
+for item in lod_api:
+    if item not in header:
+        raise SystemExit(f"FAIL: separate far-LOD residency API missing {item}")
+for item in lod_impl:
+    if item not in source:
+        raise SystemExit(f"FAIL: separate far-LOD residency implementation missing {item}")
+if "lods_.clear();" not in source[source.index("void Gles2TerrainRenderer::abandon_context()"):]:
+    raise SystemExit("FAIL: EGL context abandonment must discard stale far-LOD buffer names")
+if "clear_lods();" not in source[source.index("void Gles2TerrainRenderer::release()"):]:
+    raise SystemExit("FAIL: renderer teardown must release far-LOD buffers before EGL teardown")
+if "resident_bytes_ += entry.second.byte_size;" not in source[source.index("void Gles2TerrainRenderer::clear_sections()"):]:
+    raise SystemExit("FAIL: clearing near sections must retain accurate shared far-LOD GPU accounting")
+print("PASS: far LOD tiles have separate bounded residency, atomic VBO replacement and shared GPU budget")
+print("PASS: LOD eviction, clear, EGL abandonment and renderer teardown maintain buffer accounting")
