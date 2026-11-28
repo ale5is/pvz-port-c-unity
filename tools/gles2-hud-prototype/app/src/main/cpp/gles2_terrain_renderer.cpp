@@ -869,7 +869,7 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
     };
     std::vector<VisibleSection> visible;
     try {
-        visible.reserve(sections_.size());
+        visible.reserve(sections_.size() + lods_.size());
     } catch (const std::bad_alloc&) {
         std::snprintf(error_, sizeof(error_), "Not enough memory to build the visible GLES2 section list");
         return;
@@ -893,6 +893,21 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
         const float distance_squared = dx * dx + dy * dy + dz * dz;
         if (max_distance_squared > 0.0f &&
             distance_squared > max_distance_squared) continue;
+        visible.push_back({distance_squared, &entry.second, {origin[0], origin[1], origin[2]}, entry.first});
+    }
+
+    // Horizon TileKey is {x, z, level}; its world origin is
+    // {x * (16 << level), 0, z * (16 << level)}.
+    for (const auto& entry : lods_) {
+        const float tile_size = 16.0f * static_cast<float>(1u << entry.first[2]);
+        const float origin[3] = {
+            static_cast<float>(entry.first[0]) * tile_size,
+            0.0f,
+            static_cast<float>(entry.first[1]) * tile_size
+        };
+        const float dx = origin[0] + tile_size * 0.5f - camera_position[0];
+        const float dz = origin[2] + tile_size * 0.5f - camera_position[2];
+        const float distance_squared = dx * dx + dz * dz;
         visible.push_back({distance_squared, &entry.second, {origin[0], origin[1], origin[2]}, entry.first});
     }
 

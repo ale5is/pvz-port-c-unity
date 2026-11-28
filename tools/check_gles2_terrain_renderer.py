@@ -138,6 +138,10 @@ required_source = [
     "void Gles2TerrainRenderer::draw_sections",
     "const GLenum draw_error = glGetError();",
     "Terrain draw failed (GL 0x%x)",
+    "for (const auto& entry : lods_)",
+    "entry.first[0]) * tile_size",
+    "entry.first[1]) * tile_size",
+    "visible.reserve(sections_.size() + lods_.size())",
     "std::sort(visible.begin()",
     "distance_squared > max_distance_squared",
     "clear_sections();",
@@ -280,7 +284,7 @@ sections_start = source.index("void Gles2TerrainRenderer::draw_sections(")
 sections_end = source.index("void Gles2TerrainRenderer::draw(", sections_start)
 sections_body = source[sections_start:sections_end]
 for item in [
-    "visible.reserve(sections_.size())",
+    "visible.reserve(sections_.size() + lods_.size())",
     "catch (const std::bad_alloc&)",
     "catch (const std::length_error&)",
     "Not enough memory to build the visible GLES2 section list",
@@ -304,7 +308,7 @@ if "return a.distance_squared > b.distance_squared;" not in sections_body:
     raise SystemExit("FAIL: renderer: translucent sections must be sorted far-to-near")
 if "return a.key < b.key;" not in sections_body:
     raise SystemExit("FAIL: renderer: equal-distance translucent sections must use deterministic section-key ordering")
-print("PASS: opaque pass precedes deterministic far-to-near translucent section blending and restores depth state")
+print("PASS: near sections and far LOD tiles share opaque and globally sorted translucent terrain passes")
 
 # The terrain pass is embedded in a future multi-pass renderer. It must leave
 # predictable GLES state for HUD, entities and other passes that follow it.
