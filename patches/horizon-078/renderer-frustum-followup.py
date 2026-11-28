@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Finish adapting all renderer-local frustum call sites to neutral plane arrays."""
 import argparse
+import re
 from pathlib import Path
 
 parser = argparse.ArgumentParser()
@@ -14,10 +15,11 @@ resident = resident_path.read_text(encoding="utf-8")
 def convert_literals(source, label):
     cursor = 0
     while True:
-        start = source.find("Frustum {", cursor)
-        if start < 0:
+        match = re.search(r"\\bFrustum\\s*\\{\\s*planes\\s*:", source[cursor:])
+        if not match:
             return source
-        brace = start + len("Frustum ")
+        start = cursor + match.start()
+        brace = source.find("{", start)
         depth = 0
         end = None
         for i in range(brace, len(source)):
