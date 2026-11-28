@@ -974,7 +974,9 @@ pub(super) fn atlas_localized_text(text: &str, language: &str) -> String {
     if let Some((title, suffix)) = text.split_once(" (") {
         let translated = atlas_localized_text(title, language);
         if translated != title {
-            return format!("{translated} ({suffix}");
+            let suffix = suffix.strip_suffix(')').unwrap_or(suffix);
+            let suffix = atlas_localized_text(suffix, language);
+            return format!("{translated} ({suffix})");
         }
     }
     if let Some((label, value)) = text.split_once(": ")
