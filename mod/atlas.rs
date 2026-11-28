@@ -5846,7 +5846,7 @@ impl State {
             x += button_w + gap;
         }
 
-        // Left edge: location finder, follow, zoom in and zoom out.
+        // Left edge: waypoint manager, follow, zoom in and zoom out.
         let left_buttons = [
             ("WP", Action::OpenList, false),
             ("Me", Action::Centre, self.map.follow),
