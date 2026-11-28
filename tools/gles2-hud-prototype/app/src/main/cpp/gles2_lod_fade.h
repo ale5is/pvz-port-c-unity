@@ -30,8 +30,9 @@ struct Gles2LodFade {
     static std::uint32_t fade_in(TimePoint shown, std::uint8_t level, TimePoint now) {
         if (level > kMaximumLevel) return 0u;
         if (now >= shown + kDuration) return 0u;
-        const std::uint32_t step = progress(shown, now) + 1u;
-        return 1u + static_cast<std::uint32_t>(level) * kLevelStride + step;
+        const std::uint32_t shown_step = progress(shown, now) + 1u;
+        if (shown_step >= kSteps) return 0u;
+        return 1u + static_cast<std::uint32_t>(level) * kLevelStride + shown_step;
     }
 
     static std::uint32_t fade_out(TimePoint since, std::uint8_t level, TimePoint now) {
