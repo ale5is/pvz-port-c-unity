@@ -10,7 +10,6 @@ struct Gles2LodFade {
     using Clock = std::chrono::steady_clock;
     using TimePoint = Clock::time_point;
 
-    static constexpr std::chrono::milliseconds kDuration{600};
     static constexpr std::uint32_t kHeld = 65u;
     static constexpr std::uint32_t kSteps = 64u;
     static constexpr std::uint32_t kLevelStride = 129u;
@@ -29,7 +28,7 @@ struct Gles2LodFade {
 
     static std::uint32_t fade_in(TimePoint shown, std::uint8_t level, TimePoint now) {
         if (level > kMaximumLevel) return 0u;
-        if (now >= shown + kDuration) return 0u;
+        if (now >= shown + std::chrono::milliseconds(600)) return 0u;
         const std::uint32_t shown_step = progress(shown, now) + 1u;
         if (shown_step >= kSteps) return 0u;
         return 1u + static_cast<std::uint32_t>(level) * kLevelStride + shown_step;
@@ -37,7 +36,7 @@ struct Gles2LodFade {
 
     static std::uint32_t fade_out(TimePoint since, std::uint8_t level, TimePoint now) {
         if (level > kMaximumLevel) return 0u;
-        const std::uint32_t step = std::min(progress(since, now) + 1u, kSteps);
+        const std::uint32_t step = std::min(progress(since, now) + 1u, 64u);
         return 1u + static_cast<std::uint32_t>(level) * kLevelStride +
             kFadeOutOffset + step;
     }

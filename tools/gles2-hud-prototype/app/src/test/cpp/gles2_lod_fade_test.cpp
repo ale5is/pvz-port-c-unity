@@ -10,7 +10,6 @@ int main() {
     const auto start = Fade::TimePoint{};
     const auto at = [start](std::chrono::milliseconds ms) { return start + ms; };
 
-    assert(Fade::kDuration == std::chrono::milliseconds(600));
     assert(Fade::fade_in(start, 3, at(std::chrono::milliseconds(0))) == 1u + 3u * 129u + 1u);
     assert(Fade::level(Fade::fade_in(start, 10, at(std::chrono::milliseconds(300)))) == 10u);
     assert(Fade::step(Fade::fade_in(start, 10, at(std::chrono::milliseconds(300)))) == 33u);
