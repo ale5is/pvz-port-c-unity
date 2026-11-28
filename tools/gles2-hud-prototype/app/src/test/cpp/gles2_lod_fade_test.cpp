@@ -1,4 +1,5 @@
 #include "gles2_lod_fade.h"
+#include "gles2_mesh_bounds.h"
 
 #include <cassert>
 #include <chrono>
@@ -22,8 +23,9 @@ int main() {
     assert(Fade::step(Fade::fade_out(start, 3, at(std::chrono::milliseconds(700)))) == 128u);
     assert(Fade::kHeld == 65u);
 
-    pavo::Gles2TerrainVertex solid[2]{};
-    pavo::Gles2TerrainVertex translucent[1]{};
+    struct TestVertex { float position[3]; };
+    TestVertex solid[2]{};
+    TestVertex translucent[1]{};
     solid[0].position[1] = -64.0f;
     solid[1].position[1] = 100.0f;
     translucent[0].position[1] = 120.0f;
