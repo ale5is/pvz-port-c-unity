@@ -870,6 +870,68 @@ pub(super) fn atlas_localized_text(text: &str, language: &str) -> String {
         ("Waypoint Opacity in World", "Dünyada işaretçi opaklığı"), ("Waypoint Opacity on Map", "Haritada işaretçi opaklığı"),
         ("On-Map Waypoint Scale", "Haritadaki işaretçi boyutu"), ("North Compass Color", "Kuzey pusula rengi"),
     ];
+    const ES_UI: &[(&str, &str)] = &[
+        ("Player List", "Lista de jugadores"), ("No Names", "Sin nombres"),
+        ("3x3 Ceiling", "Techo 3x3"), ("1x1 Ceiling", "Techo 1x1"),
+        ("Server Name", "Nombre del servidor"), ("Base Domain", "Dominio base"),
+        ("Looking At", "Mirando a"), ("Top Left", "Arriba izquierda"), ("Top Right", "Arriba derecha"),
+        ("Bottom Left", "Abajo izquierda"), ("Bottom Right", "Abajo derecha"),
+        ("Map", "Mapa"), ("Day", "Día"), ("Waypoint", "Punto de ruta"),
+        ("Overworld", "Mundo normal"), ("Nether", "Nether"), ("The End", "El End"),
+        ("Surface", "Superficie"), ("Cave", "Cueva"), ("Layer", "Capa"), ("All", "Todos"),
+        ("<< Prev", "<< Anterior"), ("Next >>", "Siguiente >>"),
+        ("Coordinates must be whole numbers", "Las coordenadas deben ser números enteros"),
+    ];
+    const ZH_UI: &[(&str, &str)] = &[
+        ("Player List", "玩家列表"), ("No Names", "无名称"), ("3x3 Ceiling", "3x3 天花板"),
+        ("1x1 Ceiling", "1x1 天花板"), ("Server Name", "服务器名称"), ("Base Domain", "基础域名"),
+        ("Looking At", "正在看向"), ("Top Left", "左上"), ("Top Right", "右上"),
+        ("Bottom Left", "左下"), ("Bottom Right", "右下"), ("Map", "地图"), ("Day", "第"),
+        ("Waypoint", "路径点"), ("Overworld", "主世界"), ("Nether", "下界"), ("The End", "末地"),
+        ("Surface", "地表"), ("Cave", "洞穴"), ("Layer", "层"), ("All", "全部"),
+        ("<< Prev", "<< 上一页"), ("Next >>", "下一页 >>"),
+        ("Coordinates must be whole numbers", "坐标必须是整数"),
+    ];
+    const RU_UI: &[(&str, &str)] = &[
+        ("Player List", "Список игроков"), ("No Names", "Без имён"), ("3x3 Ceiling", "Потолок 3x3"),
+        ("1x1 Ceiling", "Потолок 1x1"), ("Server Name", "Имя сервера"), ("Base Domain", "Основной домен"),
+        ("Looking At", "Смотрит на"), ("Top Left", "Сверху слева"), ("Top Right", "Сверху справа"),
+        ("Bottom Left", "Снизу слева"), ("Bottom Right", "Снизу справа"), ("Map", "Карта"), ("Day", "День"),
+        ("Waypoint", "Метка"), ("Overworld", "Верхний мир"), ("Nether", "Незер"), ("The End", "Энд"),
+        ("Surface", "Поверхность"), ("Cave", "Пещера"), ("Layer", "Слой"), ("All", "Все"),
+        ("<< Prev", "<< Назад"), ("Next >>", "Далее >>"),
+        ("Coordinates must be whole numbers", "Координаты должны быть целыми числами"),
+    ];
+    const PL_UI: &[(&str, &str)] = &[
+        ("Player List", "Lista graczy"), ("No Names", "Bez nazw"), ("3x3 Ceiling", "Sufit 3x3"),
+        ("1x1 Ceiling", "Sufit 1x1"), ("Server Name", "Nazwa serwera"), ("Base Domain", "Domena bazowa"),
+        ("Looking At", "Patrzy na"), ("Top Left", "Lewy górny"), ("Top Right", "Prawy górny"),
+        ("Bottom Left", "Lewy dolny"), ("Bottom Right", "Prawy dolny"), ("Map", "Mapa"), ("Day", "Dzień"),
+        ("Waypoint", "Punkt trasy"), ("Overworld", "Nadziemie"), ("Nether", "Nether"), ("The End", "Kres"),
+        ("Surface", "Powierzchnia"), ("Cave", "Jaskinia"), ("Layer", "Warstwa"), ("All", "Wszystkie"),
+        ("<< Prev", "<< Poprzednia"), ("Next >>", "Następna >>"),
+        ("Coordinates must be whole numbers", "Współrzędne muszą być liczbami całkowitymi"),
+    ];
+    const UK_UI: &[(&str, &str)] = &[
+        ("Player List", "Список гравців"), ("No Names", "Без імен"), ("3x3 Ceiling", "Стеля 3x3"),
+        ("1x1 Ceiling", "Стеля 1x1"), ("Server Name", "Назва сервера"), ("Base Domain", "Базовий домен"),
+        ("Looking At", "Дивиться на"), ("Top Left", "Зверху ліворуч"), ("Top Right", "Зверху праворуч"),
+        ("Bottom Left", "Знизу ліворуч"), ("Bottom Right", "Знизу праворуч"), ("Map", "Мапа"), ("Day", "День"),
+        ("Waypoint", "Точка маршруту"), ("Overworld", "Верхній світ"), ("Nether", "Незер"), ("The End", "Енд"),
+        ("Surface", "Поверхня"), ("Cave", "Печера"), ("Layer", "Шар"), ("All", "Усі"),
+        ("<< Prev", "<< Попередня"), ("Next >>", "Наступна >>"),
+        ("Coordinates must be whole numbers", "Координати мають бути цілими числами"),
+    ];
+    const TR_UI: &[(&str, &str)] = &[
+        ("Player List", "Oyuncu listesi"), ("No Names", "İsim yok"), ("3x3 Ceiling", "3x3 tavan"),
+        ("1x1 Ceiling", "1x1 tavan"), ("Server Name", "Sunucu adı"), ("Base Domain", "Temel etki alanı"),
+        ("Looking At", "Bakılan"), ("Top Left", "Sol üst"), ("Top Right", "Sağ üst"),
+        ("Bottom Left", "Sol alt"), ("Bottom Right", "Sağ alt"), ("Map", "Harita"), ("Day", "Gün"),
+        ("Waypoint", "İşaretçi"), ("Overworld", "Üst Dünya"), ("Nether", "Nether"), ("The End", "Son"),
+        ("Surface", "Yüzey"), ("Cave", "Mağara"), ("Layer", "Katman"), ("All", "Tümü"),
+        ("<< Prev", "<< Önceki"), ("Next >>", "Sonraki >>"),
+        ("Coordinates must be whole numbers", "Koordinatlar tam sayı olmalıdır"),
+    ];
     let table = match language {
         "es_es" => ES,
         "zh_cn" => ZH,
@@ -897,7 +959,16 @@ pub(super) fn atlas_localized_text(text: &str, language: &str) -> String {
         "tr_tr" => TR_MORE,
         _ => &[][..],
     };
-    if let Some((_, translated)) = table.iter().chain(extra.iter()).chain(more.iter()).find(|(source, _)| *source == text) {
+    let ui = match language {
+        "es_es" => ES_UI,
+        "zh_cn" => ZH_UI,
+        "ru_ru" => RU_UI,
+        "pl_pl" => PL_UI,
+        "uk_ua" => UK_UI,
+        "tr_tr" => TR_UI,
+        _ => &[][..],
+    };
+    if let Some((_, translated)) = table.iter().chain(extra.iter()).chain(more.iter()).chain(ui.iter()).find(|(source, _)| *source == text) {
         return (*translated).to_owned();
     }
     if let Some((label, value)) = text.split_once(": ")
