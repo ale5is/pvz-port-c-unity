@@ -262,8 +262,16 @@ pub(super) fn atlas_native_hud(
         let value = ticks.rem_euclid(24_000);
         (13_000..23_000).contains(&value)
     });
+    let language = horizon_client::lang::code();
     let title = match time {
-        Some(value) => format!("{}  {}", if night { "NIGHT" } else { "DAY" }, value),
+        Some(value) => format!(
+            "{}  {}",
+            crate::game::atlas_bridge::atlas_localized_text(
+                if night { "NIGHT" } else { "DAY" },
+                &language,
+            ),
+            value,
+        ),
         None => "ATLAS".to_owned(),
     };
 
