@@ -5800,8 +5800,8 @@ impl State {
         self.draw_map_sidebar(out, size, &dimension, live);
     }
 
-    /// JourneyMap-inspired fullscreen controls: a top mode bar, a left
-    /// navigation strip and a bottom waypoint/settings toolbar.
+    /// JourneyMap-style edge toolbars: map modes and overlays above,
+    /// search/follow/zoom down the left, waypoint and settings tools below.
     fn draw_map_sidebar(
         &self,
         out: &mut Out<'_>,
@@ -5811,56 +5811,75 @@ impl State {
     ) {
         let width = size[0];
         let height = size[1];
-        out.fill([0.0, 0.0, width, 24.0], 0xE0101722);
-        out.fill([0.0, height - 24.0, width, 24.0], 0xE0101722);
-        out.text("ATLAS", [8.0, 8.0], INK);
+        let settings = self.settings();
 
-        let top_button_w = (width / 8.0).clamp(32.0, 46.0);
-        let top_buttons = [
+        // Top edge: map presentation, dimensions, overlays and close.
+        out.fill([0.0, 0.0, width, 25.0], 0xE0101722);
+        out.fill([0.0, height - 25.0, width, 25.0], 0xE0101722);
+        out.fill([0.0, 25.0, width, 1.0], 0x8052677D);
+        out.fill([0.0, height - 26.0, width, 1.0], 0x8052677D);
+        out.text("ATLAS", [6.0, 8.0], INK);
+
+        let buttons = [
+            ("Light", Action::Opt(6), settings.lighting),
             ("Mode", Action::CycleMapMode, false),
             ("Dim", Action::CycleMapDimension, false),
-            ("Draw", Action::ToggleDraw, self.draw.on),
+            ("Radar", Action::GoPage(Page::Radar), settings.dots),
+            ("Grid", Action::GoPage(Page::Overlay), settings.chunk_grid != 0),
+            ("Info", Action::GoPage(Page::Info), settings.time),
+            ("WP", Action::OpenList, false),
             ("X", Action::Close, false),
         ];
-        let top_total = top_buttons.len() as f32 * top_button_w + 3.0 * 3.0;
-        let mut x = width - top_total - 5.0;
-        for (label, action, active) in top_buttons {
-            Self::atlas_map_button(out, [x, 3.0, top_button_w, 18.0], label, live.then_some(action), active);
-            x += top_button_w + 3.0;
+        let gap = 2.0;
+        let left = 48.0;
+        let button_w = ((width - left - 5.0 - gap * 7.0) / 8.0).clamp(24.0, 43.0);
+        let total = button_w * 8.0 + gap * 7.0;
+        let mut x = (width - total - 4.0).max(left);
+        for (label, action, active) in buttons {
+            Self::atlas_map_button(
+                out,
+                [x, 3.0, button_w, 19.0],
+                label,
+                live.then_some(action),
+                active,
+            );
+            x += button_w + gap;
         }
 
+        // Left edge: location finder, follow, zoom in and zoom out.
         let left_buttons = [
-            ("W", Action::OpenList, false),
-            ("O", Action::Centre, self.map.follow),
+            ("Find", Action::GoPage(Page::Waypoints), false),
+            ("Follow", Action::Centre, self.map.follow),
             ("+", Action::ZoomIn, false),
             ("−", Action::ZoomOut, false),
         ];
         let left_x = 4.0;
         for (i, (label, action, active)) in left_buttons.into_iter().enumerate() {
-            let y = 31.0 + i as f32 * 24.0;
+            let y = 34.0 + i as f32 * 24.0;
             Self::atlas_map_button(
                 out,
-                [left_x, y, 22.0, 21.0],
+                [left_x, y, 38.0, 20.0],
                 label,
                 live.then_some(action),
                 active,
             );
         }
 
+        // Bottom edge: the two main managers plus drawing history/tools.
         let bottom_buttons = [
             ("Waypoints", Action::OpenList, false),
             ("Settings", Action::GoPage(Page::Main), false),
+            ("Undo", Action::UndoStroke, false),
             ("Draw", Action::ToggleDraw, self.draw.on),
-            ("Mode", Action::CycleMapMode, false),
         ];
         let gap = 4.0;
-        let button_w = ((width - 16.0 - gap * 3.0) / 4.0).min(92.0);
+        let button_w = ((width - 16.0 - gap * 3.0) / 4.0).min(100.0);
         let total = button_w * 4.0 + gap * 3.0;
         let mut bx = ((width - total) / 2.0).max(6.0);
         for (label, action, active) in bottom_buttons {
             Self::atlas_map_button(
                 out,
-                [bx, height - 21.0, button_w, 18.0],
+                [bx, height - 22.0, button_w, 19.0],
                 label,
                 live.then_some(action),
                 active,
