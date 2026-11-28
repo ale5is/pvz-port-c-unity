@@ -31,6 +31,6 @@ int main() {
     translucent[0].position[1] = 120.0f;
     assert(std::abs(pavo::gles2_terrain_mesh_center_y(
         solid, 2, translucent, 1, 8.0f) - 28.0f) < 0.001f);
-    assert(pavo::gles2_terrain_mesh_center_y(nullptr, 0, nullptr, 0, 8.0f) == 8.0f);
+    assert(pavo::gles2_terrain_mesh_center_y(static_cast<const TestVertex*>(nullptr), 0, static_cast<const TestVertex*>(nullptr), 0, 8.0f) == 8.0f);
     return 0;
 }
