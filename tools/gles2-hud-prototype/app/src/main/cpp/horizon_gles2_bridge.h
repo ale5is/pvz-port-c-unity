@@ -37,6 +37,15 @@ int pavo_gles2_upload_section(
     const std::uint32_t* solid_first_count_pairs,
     std::size_t solid_range_count);
 
+int pavo_gles2_upload_lod(
+    PavoGles2Handle* handle,
+    const std::int32_t key[3],
+    const PavoHorizonTerrainVertex* solid,
+    std::size_t solid_count,
+    const PavoHorizonTerrainVertex* translucent,
+    std::size_t translucent_count);
+void pavo_gles2_remove_lod(PavoGles2Handle* handle, const std::int32_t key[3]);
+void pavo_gles2_clear_lods(PavoGles2Handle* handle);
 void pavo_gles2_remove_column(PavoGles2Handle* handle, std::int32_t x, std::int32_t z);
 void pavo_gles2_clear_sections(PavoGles2Handle* handle);
 int pavo_gles2_draw_sections(

@@ -117,6 +117,36 @@ extern "C" int pavo_gles2_upload_section(
     return ok ? 1 : 0;
 }
 
+
+extern "C" int pavo_gles2_upload_lod(
+    PavoGles2Handle* handle,
+    const std::int32_t key[3],
+    const PavoHorizonTerrainVertex* solid,
+    std::size_t solid_count,
+    const PavoHorizonTerrainVertex* translucent,
+    std::size_t translucent_count) {
+    if (!valid_handle(handle) || !handle->initialized || !key ||
+        key[2] < 0 || key[2] > 22 ||
+        (solid_count && !solid) || (translucent_count && !translucent)) {
+        set_error(handle, "Invalid or uninitialized GLES2 LOD upload");
+        return 0;
+    }
+    const bool ok = pavo::upload_horizon_lod(
+        &handle->renderer, key, solid, solid_count, translucent, translucent_count,
+        handle->atlas, handle->uv_steps, &handle->error);
+    return ok ? 1 : 0;
+}
+
+extern "C" void pavo_gles2_remove_lod(PavoGles2Handle* handle, const std::int32_t key[3]) {
+    if (!handle || !handle->initialized || !key) return;
+    handle->renderer.remove_lod(key);
+}
+
+extern "C" void pavo_gles2_clear_lods(PavoGles2Handle* handle) {
+    if (!handle || !handle->initialized) return;
+    handle->renderer.clear_lods();
+}
+
 extern "C" void pavo_gles2_remove_column(PavoGles2Handle* handle, std::int32_t x, std::int32_t z) {
     if (!handle || !handle->initialized) return;
     handle->renderer.remove_column(x, z);

@@ -163,3 +163,17 @@ egl_source = (root / "crates/horizon-client/src/android/gles2_egl.rs").read_text
 if "pub(crate) struct Runtime" not in egl_source or "pub(crate) fn new(window: &Window)" not in egl_source:
     raise SystemExit("FAIL: Android EGL runtime is not compiled from its expected module source")
 print("PASS: EGL runtime source is present and reachable from the Android cdylib root")
+
+bridge_lod_header = bridge_header
+bridge_lod_cpp = bridge_cpp
+adapter_header = (Path(__file__).resolve().parents[1] / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_terrain_adapter.h").read_text(encoding="utf-8")
+adapter_cpp = (Path(__file__).resolve().parents[1] / "tools/gles2-hud-prototype/app/src/main/cpp/horizon_terrain_adapter.cpp").read_text(encoding="utf-8")
+for marker in ("pavo_gles2_upload_lod(", "pavo_gles2_remove_lod(", "pavo_gles2_clear_lods("):
+    if marker not in bridge_lod_header or marker not in bridge_lod_cpp:
+        raise SystemExit(f"FAIL: native far-LOD bridge is missing {marker}")
+for marker in ("bool upload_horizon_lod(", "renderer->upload_lod(key,"):
+    if marker not in adapter_header + adapter_cpp:
+        raise SystemExit(f"FAIL: Horizon far-LOD CPU adapter is missing {marker}")
+if "key[2] > 22" not in adapter_cpp or "key[2] > 22" not in bridge_lod_cpp:
+    raise SystemExit("FAIL: Horizon MAX_LEVEL is not validated at the adapter and FFI boundary")
+print("PASS: Horizon LOD meshes convert and enter the separate GLES2 residency through the native bridge")
