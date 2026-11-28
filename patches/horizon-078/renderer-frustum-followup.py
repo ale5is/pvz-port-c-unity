@@ -15,7 +15,7 @@ resident = resident_path.read_text(encoding="utf-8")
 def convert_literals(source, label):
     cursor = 0
     while True:
-        match = re.search(r"\\bFrustum\\s*\\{\\s*planes\\s*:", source[cursor:])
+        match = re.search(r"\bFrustum\s*\{\s*planes\s*:", source[cursor:])
         if not match:
             return source
         start = cursor + match.start()
