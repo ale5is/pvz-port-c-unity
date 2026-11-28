@@ -60,6 +60,7 @@ on:
       - 'tools/check_gles2_terrain_renderer.py'
       - 'tools/check_gles2_embedded_shaders.py'
       - 'tools/gles2-hud-prototype/app/src/main/cpp/**'
+      - 'mod/simple-voice-chat/**'
       - '.github/workflows/pavohorizon-078-android22-diagnostic.yml'
   workflow_dispatch:
     inputs:
@@ -333,7 +334,7 @@ jobs:
           cargo check --target "$RUST_TARGET" -p horizon-android --lib --no-default-features
 
       - name: Pin Mojang manifest to the Horizon lock
-        if: github.event_name == 'workflow_dispatch' && inputs.build_diagnostic_apk
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.build_diagnostic_apk)
         working-directory: ${{ runner.temp }}/horizon-078
         run: |
           python3 - <<'PY'
@@ -355,12 +356,12 @@ jobs:
           PY
 
       - name: Prepare official game tables and resources
-        if: github.event_name == 'workflow_dispatch' && inputs.build_diagnostic_apk
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.build_diagnostic_apk)
         working-directory: ${{ runner.temp }}/horizon-078
         run: python3 tools/android_prepare.py --java-home "$JAVA_HOME"
 
       - name: Build API-22 ARMv7 diagnostic APK
-        if: github.event_name == 'workflow_dispatch' && inputs.build_diagnostic_apk
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.build_diagnostic_apk)
         working-directory: ${{ runner.temp }}/horizon-078
         run: |
           set -euo pipefail
@@ -393,7 +394,7 @@ jobs:
           sha256sum "$GITHUB_WORKSPACE/dist/PavoHorizon-0.7.8-ARMv7-API22-diagnostic.apk" > "$GITHUB_WORKSPACE/dist/SHA256SUMS.txt"
 
       - uses: actions/upload-artifact@v4
-        if: github.event_name == 'workflow_dispatch' && inputs.build_diagnostic_apk
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.build_diagnostic_apk)
         with:
           name: pavohorizon-078-armv7-api22-diagnostic
           path: dist/

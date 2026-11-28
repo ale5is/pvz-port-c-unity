@@ -9,13 +9,15 @@ parser.add_argument("source", type=Path)
 root = parser.parse_args().source.resolve()
 gfx_path = root / "crates/horizon-client-render/src/gfx.rs"
 resident_path = root / "crates/horizon-client-render/src/gfx/resident.rs"
+lod_path = root / "crates/horizon-client-render/src/gfx/lod.rs"
 gfx = gfx_path.read_text(encoding="utf-8")
 resident = resident_path.read_text(encoding="utf-8")
+lod = lod_path.read_text(encoding="utf-8")
 
 def convert_literals(source, label):
     cursor = 0
     while True:
-        match = re.search(r"\bFrustum\s*\{\s*planes\s*:", source[cursor:])
+        match = re.search(r"(?<!struct )\bFrustum\s*\{\s*planes\s*:", source[cursor:])
         if not match:
             return source
         start = cursor + match.start()
@@ -44,6 +46,7 @@ def convert_literals(source, label):
 
 gfx = convert_literals(gfx, "gfx.rs")
 resident = convert_literals(resident, "resident.rs")
+lod = convert_literals(lod, "lod.rs")
 
 old = """impl Cull for Frustum {
     fn intersects(&self, min: Vec3, max: Vec3) -> bool {
@@ -94,9 +97,17 @@ elif new not in resident:
     raise SystemExit("Could not find resident direct Frustum containment call")
 
 literal_pattern = re.compile(r"\\bFrustum\\s*\\{\\s*planes\\s*:")
-if literal_pattern.search(gfx) or literal_pattern.search(resident):
+if literal_pattern.search(gfx) or literal_pattern.search(resident) or literal_pattern.search(lod):
     raise SystemExit("A renderer-local Frustum literal remains")
+old = "frustum.intersects(min.as_vec3(), max.as_vec3())"
+new = "frustum.intersects(min.as_vec3().to_array(), max.as_vec3().to_array())"
+if old in lod:
+    lod = lod.replace(old, new, 1)
+elif new not in lod:
+    raise SystemExit("Could not find LOD frustum intersection call")
+
 gfx_path.write_text(gfx, encoding="utf-8")
 resident_path.write_text(resident, encoding="utf-8")
+lod_path.write_text(lod, encoding="utf-8")
 print("PASS: renderer and resident Frustum constructors use neutral plane arrays.")
 print("PASS: Cull adapters convert glam coordinates at the backend boundary.")
