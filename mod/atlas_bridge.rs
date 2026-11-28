@@ -589,6 +589,95 @@ fn atlas_localized_text(text: &str, language: &str) -> String {
     ];
 
     let language = if language.starts_with("es_") { "es_es" } else { language };
+    const ES_EXTRA: &[(&str, &str)] = &[
+        ("Minimap Settings", "Ajustes del minimapa"), ("View Settings", "Ajustes de vista"),
+        ("Block Map Settings", "Ajustes del mapa de bloques"), ("Entity Radar Settings", "Ajustes del radar"),
+        ("Overlay Settings", "Ajustes de superposición"), ("Information Settings", "Ajustes de información"),
+        ("Waypoint Settings", "Ajustes de puntos de ruta"), ("Miscellaneous Settings", "Otros ajustes"),
+        ("Opacity", "Opacidad"), ("Frame Style", "Estilo del marco"), ("Frame Color", "Color del marco"),
+        ("Center When Enlarged", "Centrar al ampliar"), ("Hide When Under Screen", "Ocultar bajo pantallas"),
+        ("Auto Cave Mode", "Modo cueva automático"), ("Terrain Slopes", "Pendientes del terreno"),
+        ("Block Transparency", "Transparencia de bloques"), ("Show Flowers", "Mostrar flores"),
+        ("Display Icons", "Mostrar iconos"), ("Display Names", "Mostrar nombres"),
+        ("Chunk Grid", "Cuadrícula de chunks"), ("Light Overlay", "Superposición de luz"),
+        ("Slime Chunks", "Chunks de slime"), ("Portal Highlights", "Resaltar portales"),
+        ("New Chunks", "Chunks nuevos"), ("Old Chunks", "Chunks antiguos"),
+        ("Waypoint Beacons", "Balizas de puntos"), ("Cross-Dimensional TP", "Teletransporte entre dimensiones"),
+        ("Hide Waypoint Coordinates", "Ocultar coordenadas"), ("Compass Scale", "Escala de brújula"),
+    ];
+    const ZH_EXTRA: &[(&str, &str)] = &[
+        ("Minimap Settings", "小地图设置"), ("View Settings", "视图设置"), ("Block Map Settings", "方块地图设置"),
+        ("Entity Radar Settings", "实体雷达设置"), ("Overlay Settings", "叠加层设置"),
+        ("Information Settings", "信息设置"), ("Waypoint Settings", "路径点设置"), ("Miscellaneous Settings", "其他设置"),
+        ("Opacity", "不透明度"), ("Frame Style", "边框样式"), ("Frame Color", "边框颜色"),
+        ("Center When Enlarged", "放大时居中"), ("Hide When Under Screen", "界面打开时隐藏"),
+        ("Auto Cave Mode", "自动洞穴模式"), ("Terrain Slopes", "地形坡度"), ("Block Transparency", "方块透明度"),
+        ("Show Flowers", "显示花朵"), ("Display Icons", "显示图标"), ("Display Names", "显示名称"),
+        ("Chunk Grid", "区块网格"), ("Light Overlay", "光照覆盖"), ("Slime Chunks", "史莱姆区块"),
+        ("Portal Highlights", "突出显示传送门"), ("New Chunks", "新区块"), ("Old Chunks", "旧区块"),
+        ("Waypoint Beacons", "路径点信标"), ("Cross-Dimensional TP", "跨维度传送"),
+        ("Hide Waypoint Coordinates", "隐藏路径点坐标"), ("Compass Scale", "指南针大小"),
+    ];
+    const RU_EXTRA: &[(&str, &str)] = &[
+        ("Minimap Settings", "Настройки мини-карты"), ("View Settings", "Настройки отображения"),
+        ("Block Map Settings", "Настройки карты блоков"), ("Entity Radar Settings", "Настройки радара"),
+        ("Overlay Settings", "Настройки слоёв"), ("Information Settings", "Настройки информации"),
+        ("Waypoint Settings", "Настройки меток"), ("Miscellaneous Settings", "Прочие настройки"),
+        ("Opacity", "Непрозрачность"), ("Frame Style", "Стиль рамки"), ("Frame Color", "Цвет рамки"),
+        ("Center When Enlarged", "Центрировать при увеличении"), ("Hide When Under Screen", "Скрывать под экранами"),
+        ("Auto Cave Mode", "Авто режим пещер"), ("Terrain Slopes", "Уклоны местности"),
+        ("Block Transparency", "Прозрачность блоков"), ("Show Flowers", "Показывать цветы"),
+        ("Display Icons", "Показывать значки"), ("Display Names", "Показывать имена"),
+        ("Chunk Grid", "Сетка чанков"), ("Light Overlay", "Слой освещения"), ("Slime Chunks", "Слайм-чанки"),
+        ("Portal Highlights", "Подсветка порталов"), ("New Chunks", "Новые чанки"), ("Old Chunks", "Старые чанки"),
+        ("Waypoint Beacons", "Маяки меток"), ("Cross-Dimensional TP", "Телепорт между измерениями"),
+        ("Hide Waypoint Coordinates", "Скрывать координаты меток"), ("Compass Scale", "Размер компаса"),
+    ];
+    const PL_EXTRA: &[(&str, &str)] = &[
+        ("Minimap Settings", "Ustawienia minimapy"), ("View Settings", "Ustawienia widoku"),
+        ("Block Map Settings", "Ustawienia mapy bloków"), ("Entity Radar Settings", "Ustawienia radaru"),
+        ("Overlay Settings", "Ustawienia nakładki"), ("Information Settings", "Ustawienia informacji"),
+        ("Waypoint Settings", "Ustawienia punktów"), ("Miscellaneous Settings", "Pozostałe ustawienia"),
+        ("Opacity", "Nieprzezroczystość"), ("Frame Style", "Styl ramki"), ("Frame Color", "Kolor ramki"),
+        ("Center When Enlarged", "Wyśrodkuj po powiększeniu"), ("Hide When Under Screen", "Ukryj pod ekranami"),
+        ("Auto Cave Mode", "Automatyczny tryb jaskiń"), ("Terrain Slopes", "Nachylenie terenu"),
+        ("Block Transparency", "Przezroczystość bloków"), ("Show Flowers", "Pokaż kwiaty"),
+        ("Display Icons", "Pokaż ikony"), ("Display Names", "Pokaż nazwy"), ("Chunk Grid", "Siatka chunków"),
+        ("Light Overlay", "Nakładka światła"), ("Slime Chunks", "Chunki slime"), ("Portal Highlights", "Podświetlenie portali"),
+        ("New Chunks", "Nowe chunki"), ("Old Chunks", "Stare chunki"), ("Waypoint Beacons", "Latarnie punktów"),
+        ("Cross-Dimensional TP", "Teleportacja między wymiarami"), ("Hide Waypoint Coordinates", "Ukryj współrzędne punktów"),
+        ("Compass Scale", "Skala kompasu"),
+    ];
+    const UK_EXTRA: &[(&str, &str)] = &[
+        ("Minimap Settings", "Налаштування мінімапи"), ("View Settings", "Налаштування вигляду"),
+        ("Block Map Settings", "Налаштування мапи блоків"), ("Entity Radar Settings", "Налаштування радара"),
+        ("Overlay Settings", "Налаштування накладання"), ("Information Settings", "Налаштування інформації"),
+        ("Waypoint Settings", "Налаштування точок"), ("Miscellaneous Settings", "Інші налаштування"),
+        ("Opacity", "Непрозорість"), ("Frame Style", "Стиль рамки"), ("Frame Color", "Колір рамки"),
+        ("Center When Enlarged", "Центрувати при збільшенні"), ("Hide When Under Screen", "Ховати під екранами"),
+        ("Auto Cave Mode", "Автоматичний режим печер"), ("Terrain Slopes", "Схили місцевості"),
+        ("Block Transparency", "Прозорість блоків"), ("Show Flowers", "Показувати квіти"),
+        ("Display Icons", "Показувати значки"), ("Display Names", "Показувати імена"),
+        ("Chunk Grid", "Сітка чанків"), ("Light Overlay", "Шар освітлення"), ("Slime Chunks", "Слайм-чанки"),
+        ("Portal Highlights", "Підсвічування порталів"), ("New Chunks", "Нові чанки"), ("Old Chunks", "Старі чанки"),
+        ("Waypoint Beacons", "Маяки точок"), ("Cross-Dimensional TP", "Телепортація між вимірами"),
+        ("Hide Waypoint Coordinates", "Ховати координати точок"), ("Compass Scale", "Розмір компаса"),
+    ];
+    const TR_EXTRA: &[(&str, &str)] = &[
+        ("Minimap Settings", "Mini harita ayarları"), ("View Settings", "Görünüm ayarları"),
+        ("Block Map Settings", "Blok haritası ayarları"), ("Entity Radar Settings", "Varlık radarı ayarları"),
+        ("Overlay Settings", "Katman ayarları"), ("Information Settings", "Bilgi ayarları"),
+        ("Waypoint Settings", "İşaretçi ayarları"), ("Miscellaneous Settings", "Diğer ayarlar"),
+        ("Opacity", "Opaklık"), ("Frame Style", "Çerçeve stili"), ("Frame Color", "Çerçeve rengi"),
+        ("Center When Enlarged", "Büyütülünce ortala"), ("Hide When Under Screen", "Ekranların altında gizle"),
+        ("Auto Cave Mode", "Otomatik mağara modu"), ("Terrain Slopes", "Arazi eğimleri"),
+        ("Block Transparency", "Blok saydamlığı"), ("Show Flowers", "Çiçekleri göster"),
+        ("Display Icons", "Simgeleri göster"), ("Display Names", "Adları göster"), ("Chunk Grid", "Chunk ızgarası"),
+        ("Light Overlay", "Işık katmanı"), ("Slime Chunks", "Slime chunkları"), ("Portal Highlights", "Portalları vurgula"),
+        ("New Chunks", "Yeni chunklar"), ("Old Chunks", "Eski chunklar"), ("Waypoint Beacons", "İşaretçi ışınları"),
+        ("Cross-Dimensional TP", "Boyutlar arası ışınlanma"), ("Hide Waypoint Coordinates", "İşaretçi koordinatlarını gizle"),
+        ("Compass Scale", "Pusula boyutu"),
+    ];
     let table = match language {
         "es_es" => ES,
         "zh_cn" => ZH,
@@ -598,12 +687,21 @@ fn atlas_localized_text(text: &str, language: &str) -> String {
         "tr_tr" => TR,
         _ => &[][..],
     };
+    let extra = match language {
+        "es_es" => ES_EXTRA,
+        "zh_cn" => ZH_EXTRA,
+        "ru_ru" => RU_EXTRA,
+        "pl_pl" => PL_EXTRA,
+        "uk_ua" => UK_EXTRA,
+        "tr_tr" => TR_EXTRA,
+        _ => &[][..],
+    };
     if let Some((label, value)) = text.split_once(": ")
-        && let Some((_, translated)) = table.iter().find(|(source, _)| *source == label)
+        && let Some((_, translated)) = table.iter().chain(extra.iter()).find(|(source, _)| *source == label)
     {
         return format!("{translated}: {value}");
     }
-    if let Some((_, translated)) = table.iter().find(|(source, _)| *source == text) {
+    if let Some((_, translated)) = table.iter().chain(extra.iter()).find(|(source, _)| *source == text) {
         return (*translated).to_owned();
     }
     if let Some(rest) = text.strip_prefix("Click to edit ") {
