@@ -106,8 +106,39 @@ if old in lod:
 elif new not in lod:
     raise SystemExit("Could not find LOD frustum intersection call")
 
+
+# Adapt every game-side AABB caller to the backend-neutral fixed-size point type.
+game_paths = {
+    "creatures": root / "crates/horizon-client/src/game/creatures.rs",
+    "entity_culling": root / "crates/horizon-client/src/game/entity_culling.rs",
+    "item_draw": root / "crates/horizon-client/src/game/item_draw.rs",
+    "minecarts": root / "crates/horizon-client/src/game/minecarts.rs",
+}
+game_sources = {}
+for name, path in game_paths.items():
+    if not path.is_file():
+        raise SystemExit("Missing game frustum call-site source: " + str(path))
+    game_sources[name] = path.read_text(encoding="utf-8")
+
+replacements = {
+    "creatures": [("view.intersects(lo, hi)", "view.intersects(lo.to_array(), hi.to_array())")],
+    "entity_culling": [(".as_vec3(),\n                (hi - camera + glam::DVec3::splat(0.5)).as_vec3(),", ".as_vec3().to_array(),\n                (hi - camera + glam::DVec3::splat(0.5)).as_vec3().to_array(),")],
+    "item_draw": [("view.intersects(lo, hi)", "view.intersects(lo.to_array(), hi.to_array())")],
+    "minecarts": [("view.intersects(lo.as_vec3(), hi.as_vec3())", "view.intersects(lo.as_vec3().to_array(), hi.as_vec3().to_array())")],
+}
+for name, pairs in replacements.items():
+    source = game_sources[name]
+    for old, new in pairs:
+        if old in source:
+            source = source.replace(old, new, 1)
+        elif new not in source:
+            raise SystemExit("Could not adapt game frustum call site: " + name)
+    game_sources[name] = source
+
 gfx_path.write_text(gfx, encoding="utf-8")
 resident_path.write_text(resident, encoding="utf-8")
 lod_path.write_text(lod, encoding="utf-8")
+for name, path in game_paths.items():
+    path.write_text(game_sources[name], encoding="utf-8")
 print("PASS: renderer and resident Frustum constructors use neutral plane arrays.")
 print("PASS: Cull adapters convert glam coordinates at the backend boundary.")
