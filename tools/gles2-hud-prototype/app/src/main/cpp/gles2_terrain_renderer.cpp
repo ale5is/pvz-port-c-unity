@@ -693,6 +693,116 @@ bool Gles2TerrainRenderer::set_section_solid_ranges(
     return true;
 }
 
+
+bool Gles2TerrainRenderer::upload_lod(const std::int32_t key[3],
+                                      const Gles2TerrainVertex* solid,
+                                      std::size_t solid_count,
+                                      const Gles2TerrainVertex* translucent,
+                                      std::size_t translucent_count) {
+    if (!check_owner_thread("upload_lod")) return false;
+    if (!key || key[2] < 0 || key[2] > 22) {
+        std::snprintf(error_, sizeof(error_), "LOD key requires x/z coordinates and a level from 0 to 22");
+        return false;
+    }
+    if ((solid_count && !solid) || (translucent_count && !translucent) ||
+        solid_count % 3 != 0 || translucent_count % 3 != 0) {
+        std::snprintf(error_, sizeof(error_), "LOD mesh data must contain complete triangles");
+        return false;
+    }
+    const std::array<std::int32_t, 3> lod_key{{key[0], key[1], key[2]}};
+    if (solid_count == 0 && translucent_count == 0) {
+        remove_lod(key);
+        error_[0] = '\0';
+        return true;
+    }
+    const auto existing = lods_.find(lod_key);
+    constexpr std::size_t kMaximumResidentLods = 256;
+    constexpr std::size_t kMaximumResidentBytes = 32u * 1024u * 1024u;
+    if (existing == lods_.end() && lods_.size() >= kMaximumResidentLods) {
+        std::snprintf(error_, sizeof(error_), "GLES2 resident LOD tile limit (%zu) reached",
+                      kMaximumResidentLods);
+        return false;
+    }
+    constexpr std::size_t vertex_size = sizeof(Gles2TerrainVertex);
+    if (solid_count > std::numeric_limits<std::size_t>::max() / vertex_size ||
+        translucent_count > std::numeric_limits<std::size_t>::max() / vertex_size) {
+        std::snprintf(error_, sizeof(error_), "LOD VBO byte count overflow");
+        return false;
+    }
+    const std::size_t solid_bytes = solid_count * vertex_size;
+    const std::size_t translucent_bytes = translucent_count * vertex_size;
+    if (translucent_bytes > std::numeric_limits<std::size_t>::max() - solid_bytes) {
+        std::snprintf(error_, sizeof(error_), "Combined LOD VBO byte count overflow");
+        return false;
+    }
+    const std::size_t replacement_bytes = solid_bytes + translucent_bytes;
+    const std::size_t previous_bytes = existing == lods_.end() ? 0 : existing->second.byte_size;
+    if (previous_bytes > resident_bytes_) {
+        std::snprintf(error_, sizeof(error_), "GLES2 resident VBO accounting is inconsistent");
+        return false;
+    }
+    if (resident_bytes_ > kMaximumResidentBytes ||
+        replacement_bytes > kMaximumResidentBytes - resident_bytes_) {
+        std::snprintf(error_, sizeof(error_),
+                      "GLES2 temporary plus resident VBO budget exceeded for LOD: requested %zu bytes",
+                      replacement_bytes);
+        return false;
+    }
+    auto insertion = lods_.end();
+    if (existing == lods_.end()) {
+        try {
+            insertion = lods_.try_emplace(lod_key).first;
+        } catch (const std::bad_alloc&) {
+            std::snprintf(error_, sizeof(error_), "Not enough memory to register resident GLES2 LOD tile");
+            return false;
+        } catch (const std::length_error&) {
+            std::snprintf(error_, sizeof(error_), "Resident GLES2 LOD table exceeds its allocation limit");
+            return false;
+        }
+    }
+    SectionBuffers replacement;
+    replacement.byte_size = replacement_bytes;
+    if (!upload_buffer(&replacement.solid_vbo, &replacement.solid_count, solid, solid_count) ||
+        !upload_buffer(&replacement.translucent_vbo, &replacement.translucent_count,
+                       translucent, translucent_count)) {
+        if (replacement.solid_vbo) glDeleteBuffers(1, &replacement.solid_vbo);
+        if (replacement.translucent_vbo) glDeleteBuffers(1, &replacement.translucent_vbo);
+        if (insertion != lods_.end()) lods_.erase(insertion);
+        return false;
+    }
+    if (existing != lods_.end()) {
+        if (existing->second.solid_vbo) glDeleteBuffers(1, &existing->second.solid_vbo);
+        if (existing->second.translucent_vbo) glDeleteBuffers(1, &existing->second.translucent_vbo);
+        existing->second = std::move(replacement);
+    } else {
+        insertion->second = std::move(replacement);
+    }
+    resident_bytes_ = resident_bytes_ - previous_bytes + replacement_bytes;
+    error_[0] = '\0';
+    return true;
+}
+
+void Gles2TerrainRenderer::remove_lod(const std::int32_t key[3]) {
+    if (!check_owner_thread("remove_lod") || !key) return;
+    const std::array<std::int32_t, 3> lod_key{{key[0], key[1], key[2]}};
+    const auto it = lods_.find(lod_key);
+    if (it == lods_.end()) return;
+    if (it->second.solid_vbo) glDeleteBuffers(1, &it->second.solid_vbo);
+    if (it->second.translucent_vbo) glDeleteBuffers(1, &it->second.translucent_vbo);
+    resident_bytes_ -= it->second.byte_size;
+    lods_.erase(it);
+}
+
+void Gles2TerrainRenderer::clear_lods() {
+    if (!check_owner_thread("clear_lods")) return;
+    for (auto& entry : lods_) {
+        if (entry.second.solid_vbo) glDeleteBuffers(1, &entry.second.solid_vbo);
+        if (entry.second.translucent_vbo) glDeleteBuffers(1, &entry.second.translucent_vbo);
+    }
+    for (const auto& entry : lods_) resident_bytes_ -= entry.second.byte_size;
+    lods_.clear();
+}
+
 void Gles2TerrainRenderer::remove_section(const std::int32_t key[3]) {
     if (!check_owner_thread("remove_section")) return;
     if (!key) return;
@@ -727,6 +837,7 @@ void Gles2TerrainRenderer::clear_sections() {
     }
     sections_.clear();
     resident_bytes_ = 0;
+    for (const auto& entry : lods_) resident_bytes_ += entry.second.byte_size;
 }
 
 void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_position[3],
@@ -947,6 +1058,7 @@ void Gles2TerrainRenderer::abandon_context() noexcept {
     solid_count_ = 0;
     translucent_count_ = 0;
     sections_.clear();
+    lods_.clear();
     resident_bytes_ = 0;
     atlas_width_ = 0;
     atlas_height_ = 0;
@@ -959,6 +1071,7 @@ void Gles2TerrainRenderer::release() {
     if (!owner_thread_set_) return;
     if (!check_owner_thread("release")) return;
     clear_sections();
+    clear_lods();
     glActiveTexture(GL_TEXTURE0);
     if (solid_vbo_) glDeleteBuffers(1, &solid_vbo_);
     if (translucent_vbo_) glDeleteBuffers(1, &translucent_vbo_);

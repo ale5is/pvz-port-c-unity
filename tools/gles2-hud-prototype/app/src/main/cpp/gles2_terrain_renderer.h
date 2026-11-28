@@ -56,6 +56,12 @@ public:
                         const Gles2TerrainVertex* translucent, std::size_t translucent_count,
                         const std::uint32_t* first_count_pairs = nullptr,
                         std::size_t range_count = 0, bool use_solid_ranges = false);
+    bool upload_lod(const std::int32_t key[3],
+                    const Gles2TerrainVertex* solid, std::size_t solid_count,
+                    const Gles2TerrainVertex* translucent, std::size_t translucent_count);
+    void remove_lod(const std::int32_t key[3]);
+    void clear_lods();
+    std::size_t lod_count() const { return lods_.size(); }
     bool set_section_solid_ranges(const std::int32_t key[3],
                                   const std::uint32_t* first_count_pairs,
                                   std::size_t range_count);
@@ -122,6 +128,7 @@ private:
     GLsizei solid_count_ = 0;
     GLsizei translucent_count_ = 0;
     std::map<std::array<std::int32_t, 3>, SectionBuffers> sections_;
+    std::map<std::array<std::int32_t, 3>, SectionBuffers> lods_;
     std::size_t resident_bytes_ = 0;
     int atlas_width_ = 0;
     int atlas_height_ = 0;
