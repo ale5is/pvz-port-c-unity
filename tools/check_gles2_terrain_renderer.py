@@ -311,6 +311,8 @@ if "return a.distance_squared > b.distance_squared;" not in sections_body:
     raise SystemExit("FAIL: renderer: translucent sections must be sorted far-to-near")
 if "return a.key < b.key;" not in sections_body:
     raise SystemExit("FAIL: renderer: equal-distance translucent sections must use deterministic section-key ordering")
+if "distance_squared > max_distance_squared) continue;" not in sections_body:
+    raise SystemExit("FAIL: renderer: far LOD tiles must obey the active terrain draw distance")
 print("PASS: near sections and far LOD tiles share opaque and globally sorted translucent terrain passes")
 
 # The terrain pass is embedded in a future multi-pass renderer. It must leave

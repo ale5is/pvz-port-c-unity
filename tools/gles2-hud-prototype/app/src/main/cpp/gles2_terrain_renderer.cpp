@@ -913,6 +913,8 @@ void Gles2TerrainRenderer::draw_sections(const float* mvp, const float camera_po
         const float dy = origin[1] + entry.second.center_y - camera_position[1];
         const float dz = origin[2] + tile_size * 0.5f - camera_position[2];
         const float distance_squared = dx * dx + dy * dy + dz * dz;
+        if (max_distance_squared > 0.0f &&
+            distance_squared > max_distance_squared) continue;
         visible.push_back({distance_squared, &entry.second, {origin[0], origin[1], origin[2]}, entry.first});
     }
 
