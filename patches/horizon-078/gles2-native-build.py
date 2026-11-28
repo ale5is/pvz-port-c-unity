@@ -783,6 +783,8 @@ impl Runtime {
         &mut self, generation: WindowGeneration, key: [i32; 3],
         mesh: &horizon_client::mesher::SectionMesh,
     ) -> Result<(), String> {
+        self.ensure_window_generation(generation)?;
+        self.ensure_surface_attached()?;
         let solid = super::gles2_native::copy_section_vertices(&mesh.solid)?;
         let translucent = super::gles2_native::copy_section_vertices(&mesh.translucent)?;
         self.upload_lod(generation, key, solid, translucent)

@@ -159,7 +159,7 @@ require_order(
         "self.context_generation = generation;",
     ),
 )
-for method in ("initialize", "suspend", "resume", "begin_frame", "upload_horizon_section", "upload_section", "remove_column", "clear_sections", "draw_sections", "present", "update_lightmap", "update_atlas_layer"):
+for method in ("initialize", "suspend", "resume", "begin_frame", "upload_horizon_section", "upload_section", "upload_lod_mesh", "upload_lod", "remove_lod", "clear_lods", "remove_column", "clear_sections", "draw_sections", "present", "update_lightmap", "update_atlas_layer"):
     start = runtime_source.find(f"pub(crate) fn {method}(")
     if start < 0:
         raise SystemExit(f"FAIL: missing generation-aware Runtime::{method}")
@@ -210,7 +210,7 @@ require(
         "GLES2 assets must be initialized before presenting a frame",
     ),
 )
-if generator_text.count("self.ensure_surface_attached()?;") != 10:
+if generator_text.count("self.ensure_surface_attached()?;") != 13:
     raise SystemExit("FAIL: every EGL make-current, frame-begin, present and CPU staging path must guard surface attachment")
 
 runtime_start = generator_text.index("pub(crate) struct Runtime")
