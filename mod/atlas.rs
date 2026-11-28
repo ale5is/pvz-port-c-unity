@@ -5848,7 +5848,7 @@ impl State {
 
         // Left edge: location finder, follow, zoom in and zoom out.
         let left_buttons = [
-            ("WP", Action::GoPage(Page::Waypoints), false),
+            ("WP", Action::OpenList, false),
             ("Me", Action::Centre, self.map.follow),
             ("+", Action::ZoomIn, false),
             ("−", Action::ZoomOut, false),
