@@ -1008,7 +1008,7 @@ pub(super) fn atlas_localized_text(text: &str, language: &str) -> String {
             "zh_cn" => "（死亡点）",
             "ru_ru" => " (точка смерти)",
             "pl_pl" => " (punkt śmierci)",
-            "uk_ua" => " (точка смерci)",
+            "uk_ua" => " (точка смерті)",
             "tr_tr" => " (ölüm noktası)",
             _ => " (deathpoint)",
         };
