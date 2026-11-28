@@ -409,7 +409,7 @@ pub(super) fn paint(
 /// deliberately share the Spanish translation table.
 fn atlas_localized_text(text: &str, language: &str) -> String {
     const ES: &[(&str, &str)] = &[
-        ("ATLAS", "ATLAS"), ("WORLD MAP", "MAPA DEL MUNDO"), ("Mode", "Modo"),
+        ("ATLAS", "ATLAS"), ("WORLD MAP", "MAPA DEL MUNDO"), ("Mode", "Modo"), ("Light", "Luz"), ("Radar", "Radar"), ("Grid", "Cuadrícula"), ("Info", "Info"), ("WP", "PR"), ("Find", "Buscar"), ("Follow", "Seguir"), ("Undo", "Deshacer"),
         ("Dim", "Dimensión"), ("Draw", "Dibujar"), ("Waypoints", "Puntos de ruta"),
         ("Settings", "Ajustes"), ("Scale", "Escala"), ("Search", "Buscar"),
         ("Search...", "Buscar..."), ("Minimap", "Minimapa"), ("Position", "Posición"),
@@ -443,7 +443,7 @@ fn atlas_localized_text(text: &str, language: &str) -> String {
         ("Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw", "Arrastra para mover, +/- zoom, B crear punto, Espacio centrar, D dibujar"),
     ];
     const ZH: &[(&str, &str)] = &[
-        ("ATLAS", "ATLAS"), ("WORLD MAP", "世界地图"), ("Mode", "模式"), ("Dim", "维度"),
+        ("ATLAS", "ATLAS"), ("WORLD MAP", "世界地图"), ("Mode", "模式"), ("Dim", "维度"), ("Light", "光照"), ("Radar", "雷达"), ("Grid", "网格"), ("Info", "信息"), ("WP", "路径点"), ("Find", "查找"), ("Follow", "跟随"), ("Undo", "撤销"),
         ("Draw", "绘制"), ("Waypoints", "路径点"), ("Settings", "设置"), ("Scale", "比例"),
         ("Search", "搜索"), ("Search...", "搜索..."), ("Minimap", "小地图"), ("Position", "位置"),
         ("Size", "大小"), ("Shape", "形状"), ("Rotate With Player", "随玩家旋转"),
@@ -471,7 +471,7 @@ fn atlas_localized_text(text: &str, language: &str) -> String {
     ];
     const RU: &[(&str, &str)] = &[
         ("ATLAS", "ATLAS"), ("WORLD MAP", "КАРТА МИРА"), ("Mode", "Режим"),
-        ("Dim", "Измерение"), ("Draw", "Рисование"), ("Waypoints", "Метки"),
+        ("Dim", "Измерение"), ("Light", "Свет"), ("Radar", "Радар"), ("Grid", "Сетка"), ("Info", "Инфо"), ("WP", "Метки"), ("Find", "Найти"), ("Follow", "Следовать"), ("Undo", "Отмена"), ("Draw", "Рисование"), ("Waypoints", "Метки"),
         ("Settings", "Настройки"), ("Scale", "Масштаб"), ("Search", "Поиск"),
         ("Search...", "Поиск..."), ("Minimap", "Мини-карта"), ("Position", "Положение"),
         ("Size", "Размер"), ("Shape", "Форма"), ("Rotate With Player", "Поворот за игроком"),
@@ -501,7 +501,7 @@ fn atlas_localized_text(text: &str, language: &str) -> String {
         ("Drag to move, tap +/- or [ / ] to zoom, B for a waypoint here, Space to centre, D to draw", "Перетаскивайте карту, +/- масштаб, B — метка, пробел — центр, D — рисование"),
     ];
     const PL: &[(&str, &str)] = &[
-        ("ATLAS", "ATLAS"), ("WORLD MAP", "MAPA ŚWIATA"), ("Mode", "Tryb"), ("Dim", "Wymiar"),
+        ("ATLAS", "ATLAS"), ("WORLD MAP", "MAPA ŚWIATA"), ("Mode", "Tryb"), ("Dim", "Wymiar"), ("Light", "Światło"), ("Radar", "Radar"), ("Grid", "Siatka"), ("Info", "Info"), ("WP", "Punkty"), ("Find", "Szukaj"), ("Follow", "Podążaj"), ("Undo", "Cofnij"),
         ("Draw", "Rysuj"), ("Waypoints", "Punkty trasy"), ("Settings", "Ustawienia"),
         ("Scale", "Skala"), ("Search", "Szukaj"), ("Search...", "Szukaj..."), ("Minimap", "Minimapa"),
         ("Position", "Pozycja"), ("Size", "Rozmiar"), ("Shape", "Kształt"),
@@ -530,7 +530,7 @@ fn atlas_localized_text(text: &str, language: &str) -> String {
     ];
     const UK: &[(&str, &str)] = &[
         ("ATLAS", "ATLAS"), ("WORLD MAP", "МАПА СВІТУ"), ("Mode", "Режим"),
-        ("Dim", "Вимір"), ("Draw", "Малювання"), ("Waypoints", "Точки маршруту"),
+        ("Dim", "Вимір"), ("Light", "Світло"), ("Radar", "Радар"), ("Grid", "Сітка"), ("Info", "Інфо"), ("WP", "Точки"), ("Find", "Знайти"), ("Follow", "Слідувати"), ("Undo", "Скасувати"), ("Draw", "Малювання"), ("Waypoints", "Точки маршруту"),
         ("Settings", "Налаштування"), ("Scale", "Масштаб"), ("Search", "Пошук"),
         ("Search...", "Пошук..."), ("Minimap", "Мінімапа"), ("Position", "Позиція"),
         ("Size", "Розмір"), ("Shape", "Форма"), ("Rotate With Player", "Обертати з гравцем"),
@@ -561,7 +561,7 @@ fn atlas_localized_text(text: &str, language: &str) -> String {
     ];
     const TR: &[(&str, &str)] = &[
         ("ATLAS", "ATLAS"), ("WORLD MAP", "DÜNYA HARİTASI"), ("Mode", "Mod"),
-        ("Dim", "Boyut"), ("Draw", "Çiz"), ("Waypoints", "İşaretçiler"),
+        ("Dim", "Boyut"), ("Light", "Işık"), ("Radar", "Radar"), ("Grid", "Izgara"), ("Info", "Bilgi"), ("WP", "İşaret"), ("Find", "Bul"), ("Follow", "Takip"), ("Undo", "Geri al"), ("Draw", "Çiz"), ("Waypoints", "İşaretçiler"),
         ("Settings", "Ayarlar"), ("Scale", "Ölçek"), ("Search", "Ara"), ("Search...", "Ara..."),
         ("Minimap", "Mini harita"), ("Position", "Konum"), ("Size", "Boyut"), ("Shape", "Şekil"),
         ("Rotate With Player", "Oyuncuyla döndür"), ("Blocks per Pixel", "Piksel başına blok"),
