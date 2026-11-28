@@ -1,6 +1,7 @@
 #pragma once
 
 #include <GLES2/gl2.h>
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
