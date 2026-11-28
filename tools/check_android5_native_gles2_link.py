@@ -177,3 +177,12 @@ for marker in ("bool upload_horizon_lod(", "renderer->upload_lod(key,"):
 if "key[2] > 22" not in adapter_cpp or "key[2] > 22" not in bridge_lod_cpp:
     raise SystemExit("FAIL: Horizon MAX_LEVEL is not validated at the adapter and FFI boundary")
 print("PASS: Horizon LOD meshes convert and enter the separate GLES2 residency through the native bridge")
+
+for marker in ("pavo_gles2_upload_lod", "pavo_gles2_remove_lod", "pavo_gles2_clear_lods", "pub(crate) fn upload_lod(", "pub(crate) fn remove_lod(", "pub(crate) fn clear_lods("):
+    if marker not in ffi_text:
+        raise SystemExit(f"FAIL: Rust native LOD owner is missing {marker}")
+for marker in ("struct CachedLod", "cached_lods: std::collections::HashMap<[i32; 3], CachedLod>", "self.cached_lods.insert(key, CachedLod { solid, translucent })", "for (key, tile) in &self.cached_lods", "self.renderer.upload_lod(*key, &tile.solid, &tile.translucent)?;", "pub(crate) fn upload_lod(", "pub(crate) fn remove_lod(", "pub(crate) fn clear_lods("):
+    if marker not in egl_text:
+        raise SystemExit(f"FAIL: EGL LOD staging/recovery is missing {marker}")
+print("PASS: Rust FFI exposes independent LOD upload, removal and clear operations")
+print("PASS: EGL owner retains LOD CPU staging and restores far meshes after context recreation")

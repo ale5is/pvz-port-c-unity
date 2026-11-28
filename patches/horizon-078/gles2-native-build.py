@@ -172,6 +172,13 @@ unsafe extern "C" {
         translucent: *const HorizonTerrainVertex, translucent_count: usize,
         ranges: *const u32, range_count: usize,
     ) -> i32;
+    fn pavo_gles2_upload_lod(
+        handle: *mut c_void, key: *const i32,
+        solid: *const HorizonTerrainVertex, solid_count: usize,
+        translucent: *const HorizonTerrainVertex, translucent_count: usize,
+    ) -> i32;
+    fn pavo_gles2_remove_lod(handle: *mut c_void, key: *const i32);
+    fn pavo_gles2_clear_lods(handle: *mut c_void);
     fn pavo_gles2_remove_column(handle: *mut c_void, x: i32, z: i32);
     fn pavo_gles2_clear_sections(handle: *mut c_void);
     fn pavo_gles2_draw_sections(
@@ -298,6 +305,35 @@ impl Backend {
             )
         };
         if ok == 1 { Ok(()) } else { Err(self.native_error()) }
+    }
+
+    pub(crate) fn upload_lod(
+        &mut self, key: [i32; 3], solid: &[HorizonTerrainVertex],
+        translucent: &[HorizonTerrainVertex],
+    ) -> Result<(), String> {
+        let handle = self.check_owner()?;
+        if !(0..=22).contains(&key[2]) {
+            return Err("Horizon LOD level must be between 0 and 22".to_owned());
+        }
+        let ok = unsafe {
+            pavo_gles2_upload_lod(
+                handle, key.as_ptr(), solid.as_ptr(), solid.len(),
+                translucent.as_ptr(), translucent.len(),
+            )
+        };
+        if ok == 1 { Ok(()) } else { Err(self.native_error()) }
+    }
+
+    pub(crate) fn remove_lod(&mut self, key: [i32; 3]) -> Result<(), String> {
+        let handle = self.check_owner()?;
+        unsafe { pavo_gles2_remove_lod(handle, key.as_ptr()) };
+        Ok(())
+    }
+
+    pub(crate) fn clear_lods(&mut self) -> Result<(), String> {
+        let handle = self.check_owner()?;
+        unsafe { pavo_gles2_clear_lods(handle) };
+        Ok(())
     }
 
     pub(crate) fn remove_column(&mut self, x: i32, z: i32) -> Result<(), String> {
@@ -492,6 +528,11 @@ struct CachedSection {
     ranges: Vec<u32>,
 }
 
+struct CachedLod {
+    solid: Vec<super::gles2_native::HorizonTerrainVertex>,
+    translucent: Vec<super::gles2_native::HorizonTerrainVertex>,
+}
+
 struct CachedAssets {
     sprite_pixels: Arc<[u8]>,
 
@@ -514,6 +555,7 @@ pub(crate) struct Runtime {
     initialized: bool,
     cached_assets: Option<CachedAssets>,
     cached_sections: std::collections::HashMap<[i32; 3], CachedSection>,
+    cached_lods: std::collections::HashMap<[i32; 3], CachedLod>,
 }
 
 impl Runtime {
@@ -526,6 +568,7 @@ impl Runtime {
             renderer, egl, context_generation, window_generation: WindowGenerationClock::default(),
             surface_attached: true, initialized: false,
             cached_assets: None, cached_sections: std::collections::HashMap::new(),
+            cached_lods: std::collections::HashMap::new(),
         })
     }
 
@@ -585,6 +628,9 @@ impl Runtime {
                 }
                 for (key, section) in &self.cached_sections {
                     self.renderer.upload_section(*key, &section.solid, &section.translucent, &section.ranges)?;
+                }
+                for (key, tile) in &self.cached_lods {
+                    self.renderer.upload_lod(*key, &tile.solid, &tile.translucent)?;
                 }
                 Ok(())
             })();
@@ -729,6 +775,51 @@ impl Runtime {
         self.ensure_context_current()?;
         self.renderer.upload_section(key, &solid, &translucent, &ranges)?;
         self.cached_sections.insert(key, CachedSection { solid, translucent, ranges });
+        Ok(())
+    }
+
+    /// Stage and retain far meshes separately from near sections so EGL context
+    /// recovery can restore them without interpreting LOD coordinates as chunks.
+    pub(crate) fn upload_lod(
+        &mut self, generation: WindowGeneration, key: [i32; 3],
+        solid: Vec<super::gles2_native::HorizonTerrainVertex>,
+        translucent: Vec<super::gles2_native::HorizonTerrainVertex>,
+    ) -> Result<(), String> {
+        self.ensure_window_generation(generation)?;
+        self.ensure_surface_attached()?;
+        if !self.initialized {
+            return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned());
+        }
+        if !(0..=22).contains(&key[2]) {
+            return Err("Horizon LOD level must be between 0 and 22".to_owned());
+        }
+        self.ensure_context_current()?;
+        self.renderer.upload_lod(key, &solid, &translucent)?;
+        self.cached_lods.insert(key, CachedLod { solid, translucent });
+        Ok(())
+    }
+
+    pub(crate) fn remove_lod(&mut self, generation: WindowGeneration, key: [i32; 3]) -> Result<(), String> {
+        self.ensure_window_generation(generation)?;
+        self.ensure_surface_attached()?;
+        if !self.initialized {
+            return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned());
+        }
+        self.ensure_context_current()?;
+        self.renderer.remove_lod(key)?;
+        self.cached_lods.remove(&key);
+        Ok(())
+    }
+
+    pub(crate) fn clear_lods(&mut self, generation: WindowGeneration) -> Result<(), String> {
+        self.ensure_window_generation(generation)?;
+        self.ensure_surface_attached()?;
+        if !self.initialized {
+            return Err("GLES2 assets must be reinitialized after EGL context loss".to_owned());
+        }
+        self.ensure_context_current()?;
+        self.renderer.clear_lods()?;
+        self.cached_lods.clear();
         Ok(())
     }
 
