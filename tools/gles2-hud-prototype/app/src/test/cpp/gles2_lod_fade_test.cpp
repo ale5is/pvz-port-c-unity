@@ -58,7 +58,7 @@ int main() {
     for (int i = 0; i < 8; ++i) {
         for (int axis = 0; axis < 3; ++axis) clip_cube[i].position[axis] = corners[i][axis];
     }
-    const auto cube_bounds = pavo::gles2_terrain_mesh_bounds(clip_cube, 8, nullptr, 0);
+    const auto cube_bounds = pavo::gles2_terrain_mesh_bounds(clip_cube, 8, static_cast<const TestVertex*>(nullptr), 0);
     const float outside[6][3] = {
         {-2.0f, 0.0f, 0.0f}, {2.0f, 0.0f, 0.0f},
         {0.0f, -2.0f, 0.0f}, {0.0f, 2.0f, 0.0f},
