@@ -5832,7 +5832,7 @@ impl State {
         ];
         let gap = 2.0;
         let left = 48.0;
-        let button_w = ((width - left - 5.0 - gap * 7.0) / 8.0).clamp(24.0, 43.0);
+        let button_w = ((width - left - 5.0 - gap * 7.0) / 8.0).clamp(18.0, 43.0);
         let total = button_w * 8.0 + gap * 7.0;
         let mut x = (width - total - 4.0).max(left);
         for (label, action, active) in buttons {
@@ -5848,8 +5848,8 @@ impl State {
 
         // Left edge: location finder, follow, zoom in and zoom out.
         let left_buttons = [
-            ("Find", Action::GoPage(Page::Waypoints), false),
-            ("Follow", Action::Centre, self.map.follow),
+            ("WP", Action::GoPage(Page::Waypoints), false),
+            ("Me", Action::Centre, self.map.follow),
             ("+", Action::ZoomIn, false),
             ("−", Action::ZoomOut, false),
         ];
@@ -5867,8 +5867,8 @@ impl State {
 
         // Bottom edge: the two main managers plus drawing history/tools.
         let bottom_buttons = [
-            ("Waypoints", Action::OpenList, false),
-            ("Settings", Action::GoPage(Page::Main), false),
+            ("WP", Action::OpenList, false),
+            ("Options", Action::GoPage(Page::Main), false),
             ("Undo", Action::UndoStroke, false),
             ("Draw", Action::ToggleDraw, self.draw.on),
         ];
