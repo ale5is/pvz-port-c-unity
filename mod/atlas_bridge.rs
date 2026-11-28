@@ -871,7 +871,7 @@ pub(super) fn atlas_localized_text(text: &str, language: &str) -> String {
         ("On-Map Waypoint Scale", "Haritadaki işaretçi boyutu"), ("North Compass Color", "Kuzey pusula rengi"),
     ];
     const ES_UI: &[(&str, &str)] = &[
-        ("Player List", "Lista de jugadores"), ("No Names", "Sin nombres"),
+        ("Player List", "Lista de jugadores"), ("Hide When Under F3", "Ocultar bajo F3"), ("No Names", "Sin nombres"),
         ("3x3 Ceiling", "Techo 3x3"), ("1x1 Ceiling", "Techo 1x1"),
         ("Server Name", "Nombre del servidor"), ("Base Domain", "Dominio base"),
         ("Looking At", "Mirando a"), ("Top Left", "Arriba izquierda"), ("Top Right", "Arriba derecha"),
@@ -883,7 +883,7 @@ pub(super) fn atlas_localized_text(text: &str, language: &str) -> String {
         ("Coordinates must be whole numbers", "Las coordenadas deben ser números enteros"),
     ];
     const ZH_UI: &[(&str, &str)] = &[
-        ("Player List", "玩家列表"), ("No Names", "无名称"), ("3x3 Ceiling", "3x3 天花板"),
+        ("Player List", "玩家列表"), ("Hide When Under F3", "F3界面打开时隐藏"), ("No Names", "无名称"), ("3x3 Ceiling", "3x3 天花板"),
         ("1x1 Ceiling", "1x1 天花板"), ("Server Name", "服务器名称"), ("Base Domain", "基础域名"),
         ("Looking At", "正在看向"), ("Top Left", "左上"), ("Top Right", "右上"),
         ("Bottom Left", "左下"), ("Bottom Right", "右下"), ("Map", "地图"), ("Day", "第"),
@@ -893,7 +893,7 @@ pub(super) fn atlas_localized_text(text: &str, language: &str) -> String {
         ("Coordinates must be whole numbers", "坐标必须是整数"),
     ];
     const RU_UI: &[(&str, &str)] = &[
-        ("Player List", "Список игроков"), ("No Names", "Без имён"), ("3x3 Ceiling", "Потолок 3x3"),
+        ("Player List", "Список игроков"), ("Hide When Under F3", "Скрывать под F3"), ("No Names", "Без имён"), ("3x3 Ceiling", "Потолок 3x3"),
         ("1x1 Ceiling", "Потолок 1x1"), ("Server Name", "Имя сервера"), ("Base Domain", "Основной домен"),
         ("Looking At", "Смотрит на"), ("Top Left", "Сверху слева"), ("Top Right", "Сверху справа"),
         ("Bottom Left", "Снизу слева"), ("Bottom Right", "Снизу справа"), ("Map", "Карта"), ("Day", "День"),
@@ -903,7 +903,7 @@ pub(super) fn atlas_localized_text(text: &str, language: &str) -> String {
         ("Coordinates must be whole numbers", "Координаты должны быть целыми числами"),
     ];
     const PL_UI: &[(&str, &str)] = &[
-        ("Player List", "Lista graczy"), ("No Names", "Bez nazw"), ("3x3 Ceiling", "Sufit 3x3"),
+        ("Player List", "Lista graczy"), ("Hide When Under F3", "Ukryj pod F3"), ("No Names", "Bez nazw"), ("3x3 Ceiling", "Sufit 3x3"),
         ("1x1 Ceiling", "Sufit 1x1"), ("Server Name", "Nazwa serwera"), ("Base Domain", "Domena bazowa"),
         ("Looking At", "Patrzy na"), ("Top Left", "Lewy górny"), ("Top Right", "Prawy górny"),
         ("Bottom Left", "Lewy dolny"), ("Bottom Right", "Prawy dolny"), ("Map", "Mapa"), ("Day", "Dzień"),
@@ -913,7 +913,7 @@ pub(super) fn atlas_localized_text(text: &str, language: &str) -> String {
         ("Coordinates must be whole numbers", "Współrzędne muszą być liczbami całkowitymi"),
     ];
     const UK_UI: &[(&str, &str)] = &[
-        ("Player List", "Список гравців"), ("No Names", "Без імен"), ("3x3 Ceiling", "Стеля 3x3"),
+        ("Player List", "Список гравців"), ("Hide When Under F3", "Ховати під F3"), ("No Names", "Без імен"), ("3x3 Ceiling", "Стеля 3x3"),
         ("1x1 Ceiling", "Стеля 1x1"), ("Server Name", "Назва сервера"), ("Base Domain", "Базовий домен"),
         ("Looking At", "Дивиться на"), ("Top Left", "Зверху ліворуч"), ("Top Right", "Зверху праворуч"),
         ("Bottom Left", "Знизу ліворуч"), ("Bottom Right", "Знизу праворуч"), ("Map", "Мапа"), ("Day", "День"),
@@ -923,7 +923,7 @@ pub(super) fn atlas_localized_text(text: &str, language: &str) -> String {
         ("Coordinates must be whole numbers", "Координати мають бути цілими числами"),
     ];
     const TR_UI: &[(&str, &str)] = &[
-        ("Player List", "Oyuncu listesi"), ("No Names", "İsim yok"), ("3x3 Ceiling", "3x3 tavan"),
+        ("Player List", "Oyuncu listesi"), ("Hide When Under F3", "F3 altında gizle"), ("No Names", "İsim yok"), ("3x3 Ceiling", "3x3 tavan"),
         ("1x1 Ceiling", "1x1 tavan"), ("Server Name", "Sunucu adı"), ("Base Domain", "Temel etki alanı"),
         ("Looking At", "Bakılan"), ("Top Left", "Sol üst"), ("Top Right", "Sağ üst"),
         ("Bottom Left", "Sol alt"), ("Bottom Right", "Sağ alt"), ("Map", "Harita"), ("Day", "Gün"),
