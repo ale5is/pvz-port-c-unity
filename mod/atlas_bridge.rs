@@ -696,13 +696,13 @@ fn atlas_localized_text(text: &str, language: &str) -> String {
         "tr_tr" => TR_EXTRA,
         _ => &[][..],
     };
+    if let Some((_, translated)) = table.iter().chain(extra.iter()).find(|(source, _)| *source == text) {
+        return (*translated).to_owned();
+    }
     if let Some((label, value)) = text.split_once(": ")
         && let Some((_, translated)) = table.iter().chain(extra.iter()).find(|(source, _)| *source == label)
     {
         return format!("{translated}: {value}");
-    }
-    if let Some((_, translated)) = table.iter().chain(extra.iter()).find(|(source, _)| *source == text) {
-        return (*translated).to_owned();
     }
     if let Some(rest) = text.strip_prefix("Click to edit ") {
         let prefix = match language {
