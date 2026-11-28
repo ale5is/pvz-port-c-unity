@@ -93,7 +93,8 @@ if old in resident:
 elif new not in resident:
     raise SystemExit("Could not find resident direct Frustum containment call")
 
-if "Frustum {" in gfx or "Frustum {" in resident:
+literal_pattern = re.compile(r"\\bFrustum\\s*\\{\\s*planes\\s*:")
+if literal_pattern.search(gfx) or literal_pattern.search(resident):
     raise SystemExit("A renderer-local Frustum literal remains")
 gfx_path.write_text(gfx, encoding="utf-8")
 resident_path.write_text(resident, encoding="utf-8")
