@@ -47,6 +47,35 @@ int main() {
     assert(bounds.maximum[1] == 120.0f);
     assert(pavo::gles2_aabb_intersects_clip(identity, zero_origin, bounds));
     assert(!pavo::gles2_aabb_intersects_clip(identity, outside_origin, bounds));
+
+    TestVertex clip_cube[8]{};
+    const float corners[8][3] = {
+        {-0.25f, -0.25f, -0.25f}, {0.25f, -0.25f, -0.25f},
+        {-0.25f, 0.25f, -0.25f}, {0.25f, 0.25f, -0.25f},
+        {-0.25f, -0.25f, 0.25f}, {0.25f, -0.25f, 0.25f},
+        {-0.25f, 0.25f, 0.25f}, {0.25f, 0.25f, 0.25f}
+    };
+    for (int i = 0; i < 8; ++i) {
+        for (int axis = 0; axis < 3; ++axis) clip_cube[i].position[axis] = corners[i][axis];
+    }
+    const auto cube_bounds = pavo::gles2_terrain_mesh_bounds(clip_cube, 8, nullptr, 0);
+    const float outside[6][3] = {
+        {-2.0f, 0.0f, 0.0f}, {2.0f, 0.0f, 0.0f},
+        {0.0f, -2.0f, 0.0f}, {0.0f, 2.0f, 0.0f},
+        {0.0f, 0.0f, -2.0f}, {0.0f, 0.0f, 2.0f}
+    };
+    for (const auto& position : outside) {
+        assert(!pavo::gles2_aabb_intersects_clip(identity, position, cube_bounds));
+    }
+    const float touching_origin[3] = {0.8f, 0.0f, 0.0f};
+    assert(pavo::gles2_aabb_intersects_clip(identity, touching_origin, cube_bounds));
+    const float translated_identity[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        -3.0f, 0.0f, 0.0f, 1.0f
+    };
+    assert(!pavo::gles2_aabb_intersects_clip(translated_identity, zero_origin, cube_bounds));
     const auto empty_bounds = pavo::gles2_terrain_mesh_bounds(
         static_cast<const TestVertex*>(nullptr), 0,
         static_cast<const TestVertex*>(nullptr), 0);
